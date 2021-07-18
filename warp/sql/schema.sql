@@ -8,37 +8,35 @@ DROP TABLE IF EXISTS zone;
 DROP TABLE IF EXISTS user;
 
 CREATE TABLE user (
-    id integer primary key asc, 
-    username text unique not null, 
+    id integer PRIMARY KEY ASC, 
+    username text UNIQUE NOT NULL, 
     password text,
-    role integer
+    role integer NOT NULL
     );
 
 CREATE TABLE zone (
-    id integer primary key asc, 
-    name text,
+    id integer PRIMARY KEY ASC, 
+    name text NOT NULL,
     image text
     );
 
 CREATE TABLE seat (
-    id integer primary key asc, 
+    id integer PRIMARY KEY ASC, 
     zid integer,
-    name text,
-    x integer,
-    y integer,
+    name text NOT NULL,
+    x integer NOT NULL,
+    y integer NOT NULL,
     FOREIGN KEY (zid) REFERENCES zone(id)
     );
 
 CREATE TABLE book (
     id integer primary key asc, 
     uid integer,
-    zid integer,
     sid integer,
     fromTS integer,
     toTS integer,
     comment text,
     FOREIGN KEY (uid) REFERENCES user(id)
-    FOREIGN KEY (zid) REFERENCES zone(id)
     FOREIGN KEY (sid) REFERENCES seat(id)
     );
 

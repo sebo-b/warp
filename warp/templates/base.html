@@ -7,13 +7,17 @@
     {% block header %}{% endblock %}    
 </head>
 <body>
-    <a href="#">My bookings</a>&nbsp;|&nbsp;
+    <a href="{{ url_for('main.bookings',context='user') }}">My bookings</a>&nbsp;|&nbsp;
+
+    {% if session['role'] == 0 %}
+    <a href="{{ url_for('main.bookings',context='all') }}">All bookings</a>&nbsp;|&nbsp;
+    {% endif %}
     {% for zid,zname in g.zones|dictsort %}
-        <a href="{{ url_for('main.space',zid=zid) }}">{{ zname }}</a>&nbsp;|&nbsp;
+        <a href="{{ url_for('main.zone',zid=zid) }}">{{ zname }}</a>&nbsp;|&nbsp;
     {% endfor %}
-    {{ session['user'] }}&nbsp;
+    {{ session['username'] }}&nbsp;
     <a href="{{ url_for('auth.logout') }}">logout</a><br>
     
-    {% block content %}{% endblock %}    
+    {% block content %}{% endblock %}
 </body>
 </html>

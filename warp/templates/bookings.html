@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block header %}
+
+<script>
+    getBookingsURL = "{{ url_for('main.bookingsGet',context=context) }}";
+    removeBookingsURL = "{{ url_for('main.bookingsRemove') }}";
+    dstTagId = "bookingsTable"
+</script>
+<script src="{{ url_for('static', filename='bookings.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+
+<table id="bookingsTable" border="1">
+</table>
+
+{% endblock %}
