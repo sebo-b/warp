@@ -1,6 +1,5 @@
 import flask
 from warp.db import getDB
-#from warp import app, getDB
 
 bp = flask.Blueprint('main', __name__)
 
@@ -11,6 +10,21 @@ def authentication():
         return flask.redirect(
             flask.url_for('auth.login'))
 
+
+    zonesCur = getDB().cursor().execute("SELECT id,name FROM zone")
+    flask.g.zones = {}
+    for z in zonesCur:
+        flask.g.zones[ z['id'] ] = z['name']
+
+@bp.route("/zone/<zid>")
+def space(zid):
+
+    row = getDB().cursor().execute("SELECT * FROM zone WHERE id = ?",(zid,)).fetchone()
+    
+    if row is None:
+        flask.abort(404)
+
+    return flask.render_template('zone.html',zone_data=row)
 
 @bp.route("/test")
 def test(id = None):

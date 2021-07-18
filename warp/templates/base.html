@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+<head>
+    <title>WARP</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    {% block header %}{% endblock %}    
+</head>
+<body>
+    <a href="#">My bookings</a>&nbsp;|&nbsp;
+    {% for zid,zname in g.zones|dictsort %}
+        <a href="{{ url_for('main.space',zid=zid) }}">{{ zname }}</a>&nbsp;|&nbsp;
+    {% endfor %}
+    {{ session['user'] }}&nbsp;
+    <a href="{{ url_for('auth.logout') }}">logout</a><br>
+    
+    {% block content %}{% endblock %}    
+</body>
+</html>

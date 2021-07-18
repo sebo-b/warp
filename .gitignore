@@ -5,4 +5,4 @@ __pycache__
 *.sqlite
 *.bak
 *.swp
-
+.DS_Store
