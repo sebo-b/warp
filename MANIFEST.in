@@ -1,4 +1,4 @@
 graft warp/templates
 graft warp/static
-include warp/schema.sql
-include warp/test_data.sql
+graft warp/sql
+LICENSE

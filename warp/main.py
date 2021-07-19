@@ -217,12 +217,3 @@ def getAll(zid):
         res[sid] = resSeat
 
     return flask.jsonify(res)
-
-
-@bp.route("/test")
-def test(id = None):
-
-    name = "Ehh"
-    db = getDB()
-    
-    return flask.render_template('test.html',name=name)
