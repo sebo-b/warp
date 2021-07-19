@@ -22,7 +22,7 @@ CREATE TABLE zone (
 
 CREATE TABLE seat (
     id integer PRIMARY KEY ASC, 
-    zid integer,
+    zid integer NOT NULL,
     name text NOT NULL,
     x integer NOT NULL,
     y integer NOT NULL,
@@ -30,11 +30,11 @@ CREATE TABLE seat (
     );
 
 CREATE TABLE book (
-    id integer primary key asc, 
-    uid integer,
-    sid integer,
-    fromTS integer,
-    toTS integer,
+    id integer PRIMARY KEY ASC, 
+    uid integer NOT NULL,
+    sid integer NOT NULL,
+    fromTS integer NOT NULL,
+    toTS integer NOT NULL,
     comment text,
     FOREIGN KEY (uid) REFERENCES user(id)
     FOREIGN KEY (sid) REFERENCES seat(id)
@@ -43,6 +43,11 @@ CREATE TABLE book (
 CREATE TRIGGER book_overlap_insert
 BEFORE INSERT ON book
 BEGIN
+
+    SELECT CASE WHEN NEW.fromTS >= NEW.toTS THEN
+        RAISE(ABORT,"Incorect time")
+    END;
+
     SELECT CASE WHEN
         (SELECT COUNT(*) FROM book 
          WHERE (sid = NEW.sid OR uid = NEW.uid)
@@ -51,16 +56,23 @@ BEGIN
     THEN
         RAISE(ABORT,"Overlapping time for this seat or user")
     END;
+
 END;
 
 CREATE TRIGGER book_overlap_update
 BEFORE UPDATE OF sid, uid, fromTS, toTS ON book 
 BEGIN
+
+    SELECT CASE WHEN NEW.fromTS >= NEW.toTS THEN
+        RAISE(ABORT,"Incorect time")
+    END;
+    
     SELECT CASE WHEN
         (SELECT COUNT(*) FROM book 
          WHERE (sid = NEW.sid OR uid = NEW.uid)
          AND fromTS < NEW.toTS
-         AND toTS > NEW.fromTS) > 0
+         AND toTS > NEW.fromTS
+         AND id <> OLD.id ) > 0
     THEN
         RAISE(ABORT,"Overlapping time for this seat or user")
     END;
