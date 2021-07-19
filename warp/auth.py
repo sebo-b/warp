@@ -3,8 +3,9 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from warp.db import getDB
 
 ROLE_ADMIN = 0
-ROLE_USER = 1
-ROLE_VIEVER = 2
+ROLE_MANAGER = 1
+ROLE_USER = 2
+ROLE_VIEVER = 3
 
 bp = flask.Blueprint('auth', __name__)
 
@@ -15,14 +16,15 @@ def login():
     
     if flask.request.method == 'POST':
 
-        u = flask.request.form['username']
-        p =  flask.request.form['password']
+        u = flask.request.form.get('username')
+        p =  flask.request.form.get('password')
 
         #print(generate_password_hash(p))
 
         userRow = getDB().cursor().execute("SELECT * FROM user WHERE username = ?",(u,)).fetchone()
+        passHash = userRow['password']
 
-        if userRow is not None and check_password_hash(userRow['password'],p):
+        if userRow is not None and passHash and check_password_hash(passHash,p):
             flask.session['username'] = u
             flask.session['uid'] = userRow['id']
             flask.session['role'] = userRow['role']

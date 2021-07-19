@@ -1,4 +1,5 @@
 import flask
+import sqlite3
 from werkzeug.utils import redirect
 from warp.db import getDB
 from . import auth
@@ -17,6 +18,9 @@ def authentication():
     flask.g.zones = {}
     for z in zonesCur:
         flask.g.zones[ z['id'] ] = z['name']
+
+    flask.g.isManager = (flask.session.get('role') <= auth.ROLE_MANAGER)
+
 
 @bp.route("/")
 def index():
@@ -38,7 +42,7 @@ def bookings(context):
     if context != 'all' and context != 'user':
         flask.abort(404)
 
-    if context == 'all' and flask.session.get('role') != auth.ROLE_ADMIN:
+    if context == 'all' and flask.session.get('role') > auth.ROLE_MANAGER:
         flask.abort(403)
 
     return flask.render_template('bookings.html', context=context)
@@ -49,7 +53,7 @@ def bookingsGet(context):
     if context != 'all' and context != 'user':
         flask.abort(404)
 
-    if context == 'all' and flask.session.get('role') != auth.ROLE_ADMIN:
+    if context == 'all' and flask.session.get('role') > auth.ROLE_MANAGER:
         flask.abort(403)
 
     uid = flask.session.get('uid')
@@ -93,7 +97,7 @@ def bookingsRemove():
     if role >= auth.ROLE_VIEVER:
         flask.abort(403)
 
-    bid = flask.request.form['bid']
+    bid = flask.request.form.get('bid')
 
     if bid is None:
         flask.abort(404)
@@ -111,6 +115,39 @@ def bookingsRemove():
     db.commit()
     
     return flask.Response("OK",200)
+
+@bp.route("/bookings/add", methods=["POST"])
+def bookingsAdd():
+
+    role = flask.session.get('role')
+    if role >= auth.ROLE_VIEVER:
+        return {"msg":"You don't have sufficient privileges."},403
+
+    uid = flask.request.form.get('bid') or flask.session.get('uid')
+    if role > auth.ROLE_MANAGER and uid != flask.session.get('uid'):
+        return {"msg":"You are not allowed to book seat for other person."},403
+
+    sid = flask.request.form.get('sid')
+    fromTS = int(flask.request.form.get('fromTS') or 0)
+    toTS = int(flask.request.form.get('toTS') or 0)
+    comment = flask.request.form.get('comment')
+
+    MIN_TIME = 5*60
+    if toTS - fromTS < MIN_TIME or (toTS % MIN_TIME) > 0 or (fromTS % MIN_TIME) > 0:
+        return flask.Response(flask.json.dumps({"msg":"Minimum time difference is 5 min."}),400)
+
+    db = getDB()
+    cur = db.cursor()
+    try:
+        cur.execute("INSERT INTO book (uid,sid,fromTS,toTS,comment) VALUES (?,?,?,?,?)",(uid,sid,fromTS,toTS,comment))
+        db.commit()
+    except sqlite3.IntegrityError as err:
+        return {"msg": str(err) }, 400
+
+    bid = cur.lastrowid
+
+    return {"msg":"OK", "bid":bid}, 200
+
 
 #Format JSON
 #    sidN: { name: "name", x: 10, y: 10,

@@ -40,4 +40,31 @@ CREATE TABLE book (
     FOREIGN KEY (sid) REFERENCES seat(id)
     );
 
+CREATE TRIGGER book_overlap_insert
+BEFORE INSERT ON book
+BEGIN
+    SELECT CASE WHEN
+        (SELECT COUNT(*) FROM book 
+         WHERE (sid = NEW.sid OR uid = NEW.uid)
+         AND fromTS < NEW.toTS
+         AND toTS > NEW.fromTS) > 0
+    THEN
+        RAISE(ABORT,"Overlapping time for this seat or user")
+    END;
+END;
+
+CREATE TRIGGER book_overlap_update
+BEFORE UPDATE OF sid, uid, fromTS, toTS ON book 
+BEGIN
+    SELECT CASE WHEN
+        (SELECT COUNT(*) FROM book 
+         WHERE (sid = NEW.sid OR uid = NEW.uid)
+         AND fromTS < NEW.toTS
+         AND toTS > NEW.fromTS) > 0
+    THEN
+        RAISE(ABORT,"Overlapping time for this seat or user")
+    END;
+END;
+
+
 COMMIT;

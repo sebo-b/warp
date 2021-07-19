@@ -9,7 +9,7 @@
 <body>
     <a href="{{ url_for('main.bookings',context='user') }}">My bookings</a>&nbsp;|&nbsp;
 
-    {% if session['role'] == 0 %}
+    {% if g.isManager %}
     <a href="{{ url_for('main.bookings',context='all') }}">All bookings</a>&nbsp;|&nbsp;
     {% endif %}
     {% for zid,zname in g.zones|dictsort %}
