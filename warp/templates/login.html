@@ -1,18 +1,42 @@
-<html>
+{% extends 'base.html' %}
 
-<body>
-    
-<h2>Login</h2>
-{% if error %}<p style="color: red"><strong>Error:</strong> {{ error }}</p>{% endif %}
-<form action="{{ url_for('auth.login') }}" method=post>
-  <dl>
-    <dt>Username:
-    <dd><input type=text name=username>
-    <dt>Password:
-    <dd><input type=password name=password>
-    <dd><input type=submit value=Login>
-  </dl>
-</form>
 
-</body>
-</html>
+{% block content %}
+
+    <nav>
+        <div class="nav-wrapper">
+            <div class="center"><img class="logo" src="{{ url_for('static', filename='logo.png') }}"></div>
+        </div>
+    </nav>
+
+    <div class="valign-wrapper row full-height" style="height: 100%">
+
+      <div class="col s10 pull-s1 m6 pull-m3 l4 pull-l4">
+
+        <form action="{{ url_for('auth.login') }}" method="post">
+
+          <div class="row">
+            <div class="input-field col s12">
+              <label for="username">Username</label>
+              <input name="username" type="text">
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="input-field col s12">
+              <label for="password">Password</label>
+              <input name="password" type="password">
+            </div>
+          </div>
+
+          <div class="row center-align">
+            <div class="input-field col s12">
+              <button class="btn waves-effect waves-light" type="submit" name="submit">Login</button>
+            </div>
+          </div>
+        </form>
+      
+      </div>
+    </div>
+
+{% endblock %}

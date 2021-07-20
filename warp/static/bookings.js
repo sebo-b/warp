@@ -1,27 +1,41 @@
 
 
 
-function removeBooking(bookId,tableRow) {
-    let c = confirm("Are you sure to remove this entry?");
+function removeBooking(bookId,tableRow,val) {
 
-    if (!c)
-        return;
+    var modalEl = document.getElementById('delete_confirmation');
+    var modalElMsg = document.getElementById('delete_confirmation_msg');
+    var modalElYes = document.getElementById('delete_confirmation_yes');
 
-    var xhr = new XMLHttpRequest();
-    xhr.open("POST", removeBookingsURL,true);
-    xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-    xhr.addEventListener("load", function() {
+    let yesClicked = function() {
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", removeBookingsURL,true);
+        xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+        xhr.addEventListener("load", function() {
+    
+            if (this.status == 200)
+                tableRow.parentNode.removeChild(tableRow)
+            else if (this.status == 403)
+                alert("You are not allowed to remove this entry");
+            else if (this.status == 404)
+                alert("Invalid entry");
+            else
+                alert("Error: "+this.status);
+        });
+        xhr.send("bid="+bookId);
+    };
 
-        if (this.status == 200)
-            tableRow.parentNode.removeChild(tableRow)
-        else if (this.status == 403)
-            alert("You are not allowed to remove this entry");
-        else if (this.status == 404)
-            alert("Invalid entry");
-        else
-            alert("Error: "+this.status);
-    });
-    xhr.send("bid="+bookId);
+    let modal = M.Modal.getInstance(modalEl);
+    if (!modal) {
+        modal = M.Modal.init(modalEl,{ onCloseEnd: function() {
+            modalElYes.removeEventListener('click', yesClicked);
+            console.log("cleaning")
+        }});
+    }
+
+    modalElMsg.innerText = "Seat "+ val['seat_name'] + " at " + val['zone_name'] + " from " + val['fromTS'] + " to " + val['toTS'] +".";
+    modalElYes.addEventListener('click', yesClicked);
+    modal.open();
 }
 
 function fillBookings(dstId) {
@@ -68,7 +82,7 @@ function fillBookings(dstId) {
             aLink = row.appendChild( document.createElement("td") ).appendChild( document.createElement("a") );
             aLink.appendChild( document.createTextNode('remove'));
             aLink.setAttribute("href","#")
-            aLink.addEventListener("click", removeBooking.bind(null,p,row));
+            aLink.addEventListener("click", removeBooking.bind(null,p,row,val));
         }
 
 

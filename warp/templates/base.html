@@ -3,21 +3,39 @@
 <head>
     <title>WARP</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link type="text/css" rel="stylesheet" href="{{ url_for('static', filename='materialize/materialize.min.css') }}"  media="screen,projection"/>
 
     {% block header %}{% endblock %}    
 </head>
 <body>
-    <a href="{{ url_for('main.bookings',context='user') }}">My bookings</a>&nbsp;|&nbsp;
 
-    {% if g.isManager %}
-    <a href="{{ url_for('main.bookings',context='all') }}">All bookings</a>&nbsp;|&nbsp;
-    {% endif %}
-    {% for zid,zname in g.zones|dictsort %}
-        <a href="{{ url_for('main.zone',zid=zid) }}">{{ zname }}</a>&nbsp;|&nbsp;
-    {% endfor %}
-    {{ session['username'] }}&nbsp;
-    <a href="{{ url_for('auth.logout') }}">logout</a><br>
-    
     {% block content %}{% endblock %}
+{#
+    <nav>
+        <div class="nav-wrapper">
+            <a href="{{ url_for('main.index')}}" class="right"><img class="logo" src="{{ url_for('static', filename='logo.png') }}"></a>
+            <ul class="left">
+                {% if g.isManager %}
+                <li class="{{ "active" if request.endpoint == 'main.bookings' and request.view_args['context'] == 'all' }}"   ><a href="{{ url_for('main.bookings',context='all') }}">All bookings</a></li>
+                {% endif %}
+
+                <li class="{{ "active" if request.endpoint == 'main.bookings' and request.view_args['context'] == 'user' }}"><a href="{{ url_for('main.bookings',context='user') }}">My bookings</a></li>
+
+                {% for zid,zname in g.zones|dictsort %}
+                <li class="{{ "active" if request.endpoint == 'main.zone' and request.view_args['zid'] == zid|string() }}"><a href="{{ url_for('main.zone',zid=zid) }}">{{ zname }}</a></li>
+                {% endfor %}
+
+                <li><a href="{{ url_for('auth.logout') }}"><i class="material-icons">logout</i></a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>  
+
+#}
+    <script type="text/javascript" src="{{ url_for('static', filename='materialize/materialize.min.js') }}"></script>
 </body>
 </html>

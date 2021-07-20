@@ -1,9 +1,9 @@
-{% extends 'base.html' %}
+{% extends 'base_logged.html' %}
 
 {% block header %}
     <script src="{{ url_for('static', filename='zone.js') }}"></script>
 {% endblock %}
 
-{% block content %}
+{% block container %}
     <img src="{{ url_for('static', filename=zone_data['image']) }}">
 {% endblock %}
