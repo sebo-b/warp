@@ -1,9 +1,12 @@
 {% extends 'base.html' %}
 
 {% block header %}
+    {{ super() }}
 {% endblock %}
 
 {% block content %}
+    {{ super() }}
+
 <nav>
     <div class="nav-wrapper">
         <a href="{{ url_for('main.index')}}" class="right"><img class="logo" src="{{ url_for('static', filename='logo.png') }}"></a>
@@ -23,7 +26,9 @@
     </div>
 </nav>
 
+{% if self.container() | trim %}
 <div class="container">
     {% block container %}{% endblock %}
-</div>  
+</div>
+{% endif %}
 {% endblock %}

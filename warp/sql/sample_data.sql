@@ -21,11 +21,17 @@ INSERT INTO seat VALUES (6,2,'Seat B2',0,10);
 INSERT INTO seat VALUES (7,2,'Seat B3',0,20);
 INSERT INTO seat VALUES (8,2,'Seat B4',0,30);
 
-INSERT INTO book (uid,sid,fromTS,toTS,comment) VALUES (1,1,10,20,"comm1");
-INSERT INTO book (uid,sid,fromTS,toTS,comment) VALUES (2,2,15,26,"comm2");
-INSERT INTO book (uid,sid,fromTS,toTS,comment) VALUES (1,3,20,30,"comm3");
-INSERT INTO book (uid,sid,fromTS,toTS,comment) VALUES (3,6,17,24,"comm4");
-INSERT INTO book (uid,sid,fromTS,toTS,comment) VALUES (1,7,30,35,"comm5");
-INSERT INTO book (uid,sid,fromTS,toTS,comment) VALUES (2,8,30,39,"comm6");
+INSERT INTO book (uid,sid,fromTS,toTS,comment) VALUES (1,1,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','60 minutes'),
+                                                           strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','90 minutes'),"comm1");
+INSERT INTO book (uid,sid,fromTS,toTS,comment) VALUES (2,2,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','75 minutes'),
+                                                           strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','105 minutes'),"comm2");
+INSERT INTO book (uid,sid,fromTS,toTS,comment) VALUES (1,3,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','105 minutes'),
+                                                           strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','120 minutes'),"comm1");
+INSERT INTO book (uid,sid,fromTS,toTS,comment) VALUES (3,6,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','30 minutes'),
+                                                           strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','75 minutes'),"comm4");
+INSERT INTO book (uid,sid,fromTS,toTS,comment) VALUES (1,3,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','3 hours'),
+                                                           strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','3 hours','30 minutes'),"comm1");
+INSERT INTO book (uid,sid,fromTS,toTS,comment) VALUES (2,8,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','150 minutes'),
+                                                           strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','210 minutes'),"comm6");
 
 

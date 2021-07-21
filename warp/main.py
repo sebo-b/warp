@@ -24,7 +24,7 @@ def authentication():
 
 @bp.route("/")
 def index():
-    return redirect(flask.url_for("main.bookings",context="user"))
+    return flask.render_template('index.html')
 
 @bp.route("/zone/<zid>")
 def zone(zid):

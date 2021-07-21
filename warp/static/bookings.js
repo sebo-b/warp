@@ -38,6 +38,13 @@ function removeBooking(bookId,tableRow,val) {
     modal.open();
 }
 
+function formatDate(ts) {
+
+    var dateStr = new Date(ts * 1000).toISOString();
+
+    return dateStr.substring(0,10) + " " + dateStr.substring(11,16);
+}
+
 function fillBookings(dstId) {
 
     var xhr = new XMLHttpRequest();
@@ -75,8 +82,8 @@ function fillBookings(dstId) {
                 
             row.appendChild( document.createElement("td") ).appendChild( document.createTextNode(val['zone_name']) );
             row.appendChild( document.createElement("td") ).appendChild( document.createTextNode(val['seat_name']) );
-            row.appendChild( document.createElement("td") ).appendChild( document.createTextNode(val['fromTS']) );
-            row.appendChild( document.createElement("td") ).appendChild( document.createTextNode(val['toTS']) );
+            row.appendChild( document.createElement("td") ).appendChild( document.createTextNode(formatDate(val['fromTS'])) );
+            row.appendChild( document.createElement("td") ).appendChild( document.createTextNode(formatDate(val['toTS'])) );
             row.appendChild( document.createElement("td") ).appendChild( document.createTextNode(val['comment']) );
 
             aLink = row.appendChild( document.createElement("td") ).appendChild( document.createElement("a") );
