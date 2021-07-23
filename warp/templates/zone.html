@@ -1,9 +1,74 @@
 {% extends 'base_logged.html' %}
 
 {% block header %}
+    {{ super() }}
+
+    <link type="text/css" rel="stylesheet" href="{{ url_for('static', filename='nouislider/nouislider.css') }}"  media="screen,projection"/>
+    <script type="text/javascript" src="{{ url_for('static', filename='nouislider/nouislider.min.js') }}"></script>
+
+    <script>
+        getSeatURL = "{{ url_for('main.seatGet',zid=zone_data['id']) }}";
+        uid = {{ session['uid'] }};
+        dstId = "targetDiv";
+    </script>
+
     <script src="{{ url_for('static', filename='zone.js') }}"></script>
+
+    <style>
+        .timeslider-hint {
+            text-align: center;
+            width: 60px;
+            border: 1px solid black;
+            margin-top: 10px;
+            margin-bottom: 10px;
+
+        }
+    </style>
 {% endblock %}
 
-{% block container %}
-    <img src="{{ url_for('static', filename=zone_data['image']) }}">
+{% block content %}
+    {{ super() }}
+
+    <div id="action_modal" class="modal bottom-sheet">
+        <div class="modal-content">
+            <h4 id="action_modal_title">Seat: A4 TODO</h4>
+            <a href="#!" class="modal-close waves-effect waves-light btn" id="action_book_btn">Book</a><br>
+            <a href="#!" class="modal-close waves-effect waves-light btn" id="action_update_btn">Update</a><br>
+            <a href="#!" class="modal-close waves-effect waves-light btn" id="action_delete_btn">Delete</a>
+        </div>
+    </div>
+
+    <div style="width: 90%; height: 70%">
+
+        <div class="row">
+            <div class="col s2">
+                {% for w in nextWeek %}
+                <p>
+                    <label>
+                        <input class="filled-in date_checkbox" type="checkbox" value="{{w['timestamp']}}" {{ 'checked="checked"' if w['mark'] }}/>
+                        <span>{{ w['weekday'] }}, {{ w['date'] }}</span>
+                    </label>
+                </p>        
+                {% endfor %}
+            </div>
+
+            <div class="col s1">
+                <div id="timeslider-min" class="timeslider-hint">12:00</div>
+                <div id="timeslider" class="center-align" style="height: 300px"></div>
+                <div id="timeslider-max" class="timeslider-hint">12:00</div>
+            </div>
+
+            <div class="col s9">
+                <div class="row">
+                    
+                </div>
+                <div class="row">
+                    <div id="targetDiv" style="position: relative;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 {% endblock %}
+<!--    <img src="{{ url_for('static', filename=zone_data['image']) }}"> -->
+

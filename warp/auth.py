@@ -16,24 +16,23 @@ def login():
     
     if flask.request.method == 'POST':
 
-        u = flask.request.form.get('username')
+        u = flask.request.form.get('login')
         p =  flask.request.form.get('password')
 
         #print(generate_password_hash(p))
 
-        userRow = getDB().cursor().execute("SELECT * FROM user WHERE username = ?",(u,)).fetchone()
+        userRow = getDB().cursor().execute("SELECT * FROM user WHERE login = ?",(u,)).fetchone()
         passHash = userRow['password']
 
         if userRow is not None and passHash and check_password_hash(passHash,p):
-            flask.session['username'] = u
             flask.session['uid'] = userRow['id']
             flask.session['role'] = userRow['role']
             return flask.redirect(flask.url_for('main.index'))
 
         error = "Wrong username or password"
-        flask.session.pop('username', None)
+        flask.session.pop('uid', None)
     
-    if flask.session.get('username') is not None:
+    if flask.session.get('uid') is not None:
         return flask.redirect(flask.url_for('main.index'))
     
     return flask.render_template('login.html', error=error)

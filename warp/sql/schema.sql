@@ -9,8 +9,9 @@ DROP TABLE IF EXISTS user;
 
 CREATE TABLE user (
     id integer PRIMARY KEY ASC, 
-    username text UNIQUE NOT NULL, 
+    login text UNIQUE NOT NULL, 
     password text,
+    name text,
     role integer NOT NULL
     );
 

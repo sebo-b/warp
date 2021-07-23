@@ -58,7 +58,7 @@ function fillBookings(dstId) {
         if (Object.values(resp).lenght == 0)
             return;
         
-        showUsername = ("username" in Object.values(resp)[0])
+        showUsername = ("login" in Object.values(resp)[0])
 
         headerRow = target.appendChild( document.createElement("tr") );
         if (showUsername) {
@@ -77,7 +77,7 @@ function fillBookings(dstId) {
             row = target.appendChild( document.createElement("tr") );
 
             if (showUsername) {
-                row.appendChild( document.createElement("td") ).appendChild( document.createTextNode(val['username']) );
+                row.appendChild( document.createElement("td") ).appendChild( document.createTextNode(val['login']) );
             }
                 
             row.appendChild( document.createElement("td") ).appendChild( document.createTextNode(val['zone_name']) );

@@ -1,8 +1,9 @@
 import flask
 import sqlite3
 from werkzeug.utils import redirect
-from warp.db import getDB
+from .db import getDB
 from . import auth
+from .utils import getNextWeek
 
 bp = flask.Blueprint('main', __name__)
 
@@ -34,7 +35,13 @@ def zone(zid):
     if row is None:
         flask.abort(404)
 
-    return flask.render_template('zone.html',zone_data=row)
+    nextWeek = getNextWeek();
+    for d in nextWeek[1:]:
+        if not d['isWeekend']:
+            d['mark'] = True
+            break
+
+    return flask.render_template('zone.html',zone_data=row, nextWeek=nextWeek)
 
 @bp.route("/bookings/<context>")
 def bookings(context):
@@ -58,7 +65,7 @@ def bookingsGet(context):
 
     uid = flask.session.get('uid')
     #TODO: time
-    query = "SELECT b.*, s.name seat_name, z.name zone_name, u.username username FROM book b" \
+    query = "SELECT b.*, s.name seat_name, z.name zone_name, u.login login FROM book b" \
             " LEFT JOIN seat s ON s.id = b.sid" \
             " LEFT JOIN zone z ON z.id = s.zid" \
             " LEFT JOIN user u ON b.uid = u.id"
@@ -83,7 +90,7 @@ def bookingsGet(context):
             "comment": r['comment']
         }
         if context == 'all':
-            resR["username"] = r['username']
+            resR["login"] = r['login']
 
         book_data[r['id']] = resR
 
@@ -189,8 +196,8 @@ def bookingsEdit():
 #    sidN: { name: "name", x: 10, y: 10,
 #       book: {
 #           bidN: { uid: 10, username: "sebo", fromTS: 1, toTS: 2, comment: "" }
-@bp.route("/seat/getAll/<zid>")
-def getAll(zid):
+@bp.route("/seat/get/<zid>")
+def seatGet(zid):
 
     #TODO: time    
     db = getDB()
@@ -207,7 +214,7 @@ def getAll(zid):
         resSeat = { "name": s['name'], "x": s['x'], "y": s['y'] }
         resSeat['book'] = {}
 
-        bookings = db.cursor().execute("SELECT b.*, u.username username FROM book b LEFT JOIN user u ON u.id = b.uid WHERE sid = ?",(sid,))
+        bookings = db.cursor().execute("SELECT b.*, u.name username FROM book b LEFT JOIN user u ON u.id = b.uid WHERE sid = ?",(sid,))
 
         for b in bookings:
 
