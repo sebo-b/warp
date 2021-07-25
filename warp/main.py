@@ -3,7 +3,8 @@ import sqlite3
 from werkzeug.utils import redirect
 from .db import getDB
 from . import auth
-from .utils import getNextWeek
+from . import utils
+from jsonschema import validate, ValidationError
 
 bp = flask.Blueprint('main', __name__)
 
@@ -35,7 +36,7 @@ def zone(zid):
     if row is None:
         flask.abort(404)
 
-    nextWeek = getNextWeek();
+    nextWeek = utils.getNextWeek()
     for d in nextWeek[1:]:
         if not d['isWeekend']:
             d['mark'] = True
@@ -64,21 +65,19 @@ def bookingsGet(context):
         flask.abort(403)
 
     uid = flask.session.get('uid')
-    #TODO: time
+    
+    timeRange = utils.getTimeRange()
+
     query = "SELECT b.*, s.name seat_name, z.name zone_name, u.login login FROM book b" \
             " LEFT JOIN seat s ON s.id = b.sid" \
             " LEFT JOIN zone z ON z.id = s.zid" \
-            " LEFT JOIN user u ON b.uid = u.id"
+            " LEFT JOIN user u ON b.uid = u.id" \
+            " WHERE b.toTS > ?" \
+            " AND (? OR uid = ?)" \
+            " ORDER BY b.fromTS"
     
-    if context == 'user': query += " WHERE uid = ?"
-    query += " ORDER BY b.fromTS"
-
-    row = None
-
-    if context == 'user':
-        row = getDB().cursor().execute(query,(uid,))
-    elif context == 'all':
-        row = getDB().cursor().execute(query)
+    isAdmin = context == 'all'
+    row = getDB().cursor().execute(query,(timeRange['fromTS'], isAdmin, uid))
 
     book_data = {}
     for r in row:
@@ -96,11 +95,13 @@ def bookingsGet(context):
 
     return flask.jsonify(book_data)
 
+#TODO: change to JSON?
 @bp.route("/bookings/remove", methods=["POST"])
 def bookingsRemove():
 
     uid = flask.session.get('uid')
     role = flask.session.get('role')
+
     if role >= auth.ROLE_VIEVER:
         flask.abort(403)
 
@@ -108,21 +109,18 @@ def bookingsRemove():
 
     if bid is None:
         flask.abort(404)
-
-    row = getDB().cursor().execute("SELECT * FROM book WHERE id = ?",(bid,)).fetchone()
-
-    if row is None:
-        flask.abort(404)
-    
-    if role >= auth.ROLE_USER and row['uid'] != uid:
-        flask.abort(403)    
-
+ 
     db = getDB()
-    db.cursor().execute("DELETE FROM book WHERE id = ?",(bid,))
+    if role >= auth.ROLE_USER:
+        db.cursor().execute("DELETE FROM book WHERE id = ? AND uid = ?",(bid,uid))
+    else:
+        db.cursor().execute("DELETE FROM book WHERE id = ?",(bid,))
+    
     db.commit()
     
     return flask.Response("OK",200)
 
+#TODO: not used?
 @bp.route("/bookings/edit", methods=["POST"])
 def bookingsEdit():
 
@@ -199,28 +197,123 @@ def bookingsEdit():
 @bp.route("/seat/get/<zid>")
 def seatGet(zid):
 
-    #TODO: time    
     db = getDB()
 
     res = {}
-    seats = db.cursor().execute("SELECT * FROM seat WHERE zid = ?",(zid,))
+    seats = db.cursor().execute("SELECT * FROM seat WHERE zid = ?",(zid,)).fetchall()
 
     if seats is None:
         flask.abort(404)
 
     for s in seats:
-        sid = s['id']
 
-        resSeat = { "name": s['name'], "x": s['x'], "y": s['y'] }
-        resSeat['book'] = {}
+        res[s['id']] = {
+            "name": s['name'],
+            "x": s['x'],
+            "y": s['y'],
+            "book": {}
+        }
 
-        bookings = db.cursor().execute("SELECT b.*, u.name username FROM book b LEFT JOIN user u ON u.id = b.uid WHERE sid = ?",(sid,))
+    tr = utils.getTimeRange()
+    
+    bookings = db.cursor().execute("SELECT b.*, u.name username FROM book b" \
+                                   " LEFT JOIN user u ON u.id = b.uid" \
+                                   " LEFT JOIN seat s ON b.sid = s.id" \
+                                   " WHERE b.fromTS < ? AND b.toTS > ?" \
+                                   " AND s.zid = ?",
+                                   (tr['toTS'],tr['fromTS'],zid,))
 
-        for b in bookings:
+    for b in bookings:
 
-            resBook = { "uid": b['uid'], "username": b['username'], "fromTS": b['fromTS'], "toTS": b['toTS'], "comment": b['comment'] }
-            resSeat['book'][b['id']] = resBook
-        
-        res[sid] = resSeat
+        sid = b['sid']
+        bid = b['id']
+
+        res[sid]['book'][bid] = { 
+            "uid": b['uid'], 
+            "username": b['username'], 
+            "fromTS": b['fromTS'], 
+            "toTS": b['toTS'], 
+            "comment": b['comment'] 
+        }
 
     return flask.jsonify(res)
+
+# format:
+# { 
+#   action: 'book|update|delete',
+#   sid: sid,
+#   dates: [
+#       { fromTS: timestamp, toTS: timestamp },
+#       { fromTS: timestamp, toTS: timestamp },
+#   ]
+# }
+@bp.route("/seat/action", methods=["POST"])
+def seatAction():
+
+    if not flask.request.is_json:
+        flask.abort(404)
+
+    uid = flask.session.get('uid')
+    role = flask.session.get('role')
+
+    if role >= auth.ROLE_VIEVER:
+        flask.abort(403)
+
+    action_data = flask.request.get_json()
+
+    schema = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+            "action" : {"enum": ["book", "update", "delete"] },
+            "sid" : {"type" : "integer"},
+            "dates": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "fromTS": {"type" : "integer"},
+                        "toTS": {"type" : "integer"}
+                    }
+                }
+            }
+        }
+    }
+
+    if role >= auth.ROLE_USER:
+        ts = utils.getTimeRange()
+        schema["properties"]["dates"]["items"]["properties"]["fromTS"]["minimum"] = ts["fromTS"]
+        schema["properties"]["dates"]["items"]["properties"]["fromTS"]["maximum"] = ts["toTS"]
+        schema["properties"]["dates"]["items"]["properties"]["toTS"]["minimum"] = ts["fromTS"]
+        schema["properties"]["dates"]["items"]["properties"]["toTS"]["maximum"] = ts["toTS"]
+
+    try:
+        validate(action_data,schema)
+    except ValidationError as err:
+        return {"msg": "invalid input" }, 400
+
+    db = getDB()
+
+    try:
+        cursor = db.cursor()
+
+        if action_data['action'] == 'delete':
+            for d in action_data['dates']:            
+                cursor.execute("DELETE FROM book WHERE fromTS < ? AND toTS > ? AND sid = ? AND uid = ?",
+                                (d['toTS'],d['fromTS'],action_data['sid'],uid))
+        elif action_data['action'] == 'update':
+            for d in action_data['dates']:            
+                cursor.execute("DELETE FROM book WHERE fromTS < ? AND toTS > ? AND uid = ?",
+                                (d['toTS'],d['fromTS'],uid))
+
+        if action_data['action'] == 'book' or action_data['action'] == 'update':
+            for d in action_data['dates']:
+                cursor.execute("INSERT INTO book (uid,sid,fromTS,toTS) VALUES (?,?,?,?)",
+                            (uid,action_data['sid'],d['fromTS'],d['toTS']))    
+
+        db.commit()
+
+    except sqlite3.IntegrityError as err:
+        db.rollback()
+        return {"msg": str(err) }, 400
+
+    return {"msg": "ok" }, 200

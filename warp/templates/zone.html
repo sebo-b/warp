@@ -8,6 +8,7 @@
 
     <script>
         getSeatURL = "{{ url_for('main.seatGet',zid=zone_data['id']) }}";
+        seatActionURL = "{{ url_for('main.seatAction') }}";
         uid = {{ session['uid'] }};
         dstId = "targetDiv";
     </script>

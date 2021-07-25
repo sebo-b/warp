@@ -1,13 +1,9 @@
 
-INSERT INTO user VALUES (
-    1,
-    'sebo',
-    'pbkdf2:sha256:260000$ncNsQoqh0OKHlc0f$87a0a9264ee99347c82e59d45fad9e2b209bfaa112be689b663c976771321c56',
-    'Sebo',
-    0);
-
-INSERT INTO user VALUES (2,"test1",'pbkdf2:sha256:260000$ncNsQoqh0OKHlc0f$87a0a9264ee99347c82e59d45fad9e2b209bfaa112be689b663c976771321c56','Test1',2);
-INSERT INTO user VALUES (3,"test2",'pbkdf2:sha256:260000$ncNsQoqh0OKHlc0f$87a0a9264ee99347c82e59d45fad9e2b209bfaa112be689b663c976771321c56','Test2',2);
+INSERT INTO user VALUES (5,"root",'pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Superadmin',0);
+INSERT INTO user VALUES (1,"admin",'pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Admin',1);
+INSERT INTO user VALUES (2,"user1",'pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','User 1',2);
+INSERT INTO user VALUES (3,"user2",'pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','User 2',2);
+INSERT INTO user VALUES (4,"viewer",'pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Viewer',2);
 
 INSERT INTO zone VALUES (1,'Test Zone 1','space_maps/space1.png');
 INSERT INTO zone VALUES (2,'Test Zone 2','space_maps/space2.png');
@@ -17,10 +13,10 @@ INSERT INTO seat VALUES (2,1,'Seat A2',100,20);
 INSERT INTO seat VALUES (3,1,'Seat A3',20,100);
 INSERT INTO seat VALUES (4,1,'Seat A4',100,100);
 
-INSERT INTO seat VALUES (5,2,'Seat B1',0,0);
-INSERT INTO seat VALUES (6,2,'Seat B2',0,10);
-INSERT INTO seat VALUES (7,2,'Seat B3',0,20);
-INSERT INTO seat VALUES (8,2,'Seat B4',0,30);
+INSERT INTO seat VALUES (5,2,'Seat B1',120,120);
+INSERT INTO seat VALUES (6,2,'Seat B2',200,120);
+INSERT INTO seat VALUES (7,2,'Seat B3',120,200);
+INSERT INTO seat VALUES (8,2,'Seat B4',200,200);
 
 INSERT INTO book (uid,sid,fromTS,toTS,comment) VALUES (1,1,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','60 minutes'),
                                                            strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','90 minutes'),"comm1");

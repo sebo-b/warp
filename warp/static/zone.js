@@ -1,5 +1,6 @@
 
 var seatData = {};
+var seatDivMap = {};
 
 function getSeatData(successHook) {
 
@@ -13,6 +14,31 @@ function getSeatData(successHook) {
 
     xhr.open("GET", getSeatURL);
     xhr.send();
+
+}
+
+function updateSeatData() {
+
+    getSeatData( function(seatDataParam) {
+
+        //create all missing divs
+        for (var sid in seatDataParam)
+            createSeatDiv(sid,seatDataParam[sid]);
+
+        if (Object.keys(seatDivMap).length != Object.keys(seatDataParam).length) {
+            //remove all unnecesary divs
+            for (var sid in seatDivMap) {
+                if(!(sid in seatDataParam)) {
+                    seatDivMap[sid].remove();
+                    delete seatDivMap[sid];
+                }
+            }
+        }
+            
+        seatData = seatDataParam;
+
+        visualizeSeats();
+    });
 
 }
 
@@ -45,11 +71,8 @@ function initSlider(onChangeHook) {
         behaviour: 'drag',
         step: 15*60,
         margin: 15*60,
-        orientation: 'vertical', // 'horizontal' or 'vertical'
-        range: {
-            'min': 0,
-            'max': 24*3600
-        }
+        orientation: 'vertical',
+        range: { 'min': 0, 'max': 24*3600 }
     });
     
     slider.noUiSlider.on('update', sliderOnUpdate);
@@ -138,30 +161,36 @@ function visualizeSeats() {
 
     for (var seatId in seatData) {
         var seat = seatData[seatId];
+        var seatDiv = seatDivMap[seatId];
+
+        if (!seatDiv)
+            continue;
 
         if (seat['action'] == seatAction.CAN_CHANGE) {
-            seat['seatDiv'].style.backgroundColor = "blue";
-            seat['seatDiv'].style.borderColor = "green";
+            seatDiv.style.backgroundColor = "blue";
+            seatDiv.style.borderColor = "green";
         }
         else if (seat['action'] == seatAction.CAN_DELETE_EXACT) {
-            seat['seatDiv'].style.backgroundColor = "blue";
-            seat['seatDiv'].style.borderColor = "blue";
+            seatDiv.style.backgroundColor = "blue";
+            seatDiv.style.borderColor = "blue";
         }
         else if (seat['action'] == seatAction.CAN_DELETE) {
-            seat['seatDiv'].style.backgroundColor = "blue";
-            seat['seatDiv'].style.borderColor = "red";
+            seatDiv.style.backgroundColor = "blue";
+            seatDiv.style.borderColor = "red";
         }
         else if (seat['action'] == seatAction.CAN_BOOK) {
-            if (anyIsMy)
-                seat['action'] = seatAction.NONE;
+            if (anyIsMy) {
+                seatDiv.style.backgroundColor = "green";
+                seatDiv.style.borderColor = "blue";
+            }
             else {
-                seat['seatDiv'].style.backgroundColor = "green";
-                seat['seatDiv'].style.borderColor = "green";
+                seatDiv.style.backgroundColor = "green";
+                seatDiv.style.borderColor = "green";
             }
         }
         if (seat['action'] == seatAction.NONE) {
-            seat['seatDiv'].style.backgroundColor = "red";
-            seat['seatDiv'].style.borderColor = "red";
+            seatDiv.style.backgroundColor = "red";
+            seatDiv.style.borderColor = "red";
         }
     }
 }
@@ -196,7 +225,52 @@ function seatOnClick(sid) {
 
 function actionClicked(action,sid) {
 
-    alert(action+" "+seatData[sid].name);
+    action_data = {
+        "action": action,
+        "sid": parseInt(sid),
+        "dates": getSelectedDates()
+    };
+
+    var xhr = new XMLHttpRequest();
+    xhr.onreadystatechange = function () {
+        if(xhr.readyState === XMLHttpRequest.DONE) {
+            if (xhr.status === 0 || xhr.status == 200) {
+                updateSeatData();
+            }
+            else {
+                var resp = JSON.parse(xhr.responseText);
+                alert('err: ' +resp.msg);
+            }
+        }
+    };
+
+    xhr.open("POST", seatActionURL);
+    xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+    xhr.send( JSON.stringify( action_data));
+}
+
+function createSeatDiv(sid,seatDataEl) {
+    
+    if (sid in seatDivMap)
+        return seatDivMap[sid];
+    
+    seatDiv =  document.createElement("div");
+    seatDiv.style.position = "absolute";
+    seatDiv.style.backgroundColor = "green";
+    seatDiv.style.borderStyle = "solid";
+    seatDiv.style.borderWidth = "3px";
+    seatDiv.style.borderColor = "yellow";
+    seatDiv.style.left = seatDataEl['x'] + "px";
+    seatDiv.style.top = seatDataEl['y'] + "px";
+    seatDiv.style.height = "50px";
+    seatDiv.style.width = "50px";
+    seatDiv.innerText = seatDataEl['name'];
+
+    parentDiv = document.getElementById(dstId);
+    parentDiv.appendChild(seatDiv);
+    seatDiv.addEventListener('click',seatOnClick.bind(null,sid));
+
+    seatDivMap[sid] = seatDiv;
 }
 
 function initZone(seatDataParam) {
@@ -204,30 +278,12 @@ function initZone(seatDataParam) {
     seatData = seatDataParam;
 
     target = document.getElementById(dstId);
-    target.innerHTML = "";
 
     if (Object.values(seatData).lenght == 0)
         return;
     
     for (p in seatData) {
-
-        val = seatData[p];
-        seatDiv =  document.createElement("div");
-        seatDiv.style.position = "absolute";
-        seatDiv.style.backgroundColor = "green";
-        seatDiv.style.borderStyle = "solid";
-        seatDiv.style.borderWidth = "3px";
-        seatDiv.style.borderColor = "yellow";
-        seatDiv.style.left = val['x'] + "px";
-        seatDiv.style.top = val['y'] + "px";
-        seatDiv.style.height = "50px";
-        seatDiv.style.width = "50px";
-        seatDiv.innerText = val['name'];
-
-        target.appendChild(seatDiv);
-
-        val['seatDiv'] = seatDiv;
-        seatDiv.addEventListener('click',seatOnClick.bind(null,p));
+        createSeatDiv(p,seatData[p])
     }
 
     for (e of document.getElementsByClassName('date_checkbox')) {
