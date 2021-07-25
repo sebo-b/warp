@@ -73,6 +73,7 @@ from jsonschema import validate, ValidationError
 #        db.commit()
 #
 #    except sqlite3.IntegrityError as err:
+#        db.rollback()
 #        return {"msg": str(err) }, 400
 #
 #    return {"msg":"OK", "id":id}, 200

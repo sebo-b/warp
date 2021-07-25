@@ -41,6 +41,12 @@ CREATE TABLE book (
     FOREIGN KEY (sid) REFERENCES seat(id)
     );
 
+CREATE INDEX book_fromTS
+ON book(fromTS);
+
+CREATE INDEX book_toTS
+ON book(toTS);
+
 CREATE TRIGGER book_overlap_insert
 BEFORE INSERT ON book
 BEGIN
