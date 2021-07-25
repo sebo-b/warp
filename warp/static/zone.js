@@ -197,6 +197,11 @@ function visualizeSeats() {
 
 function seatOnClick(sid) {
 
+    seat = seatData[sid];
+
+    if (seat['action'] == seatAction.NONE)
+        return;
+
     var actionEl = document.getElementById('action_modal');
     var actionElTitle = document.getElementById('action_modal_title');
 
@@ -215,11 +220,32 @@ function seatOnClick(sid) {
         }});
     }
 
-    var actionBtnBook = document.getElementById('action_book_btn').addEventListener('click',actionClicked.bind(null,'book',sid))
-    var actionBtnUpdate = document.getElementById('action_update_btn').addEventListener('click',actionClicked.bind(null,'update',sid))
-    var actionBtnDelete = document.getElementById('action_delete_btn').addEventListener('click',actionClicked.bind(null,'delete',sid))
+    var actionBtnBook = document.getElementById('action_book_btn');
+    var actionBtnUpdate = document.getElementById('action_update_btn');
+    var actionBtnDelete = document.getElementById('action_delete_btn');
 
-    actionElTitle.innerText = "Seat: "+seatData[sid].name;
+    if (seat['action'] == seatAction.CAN_BOOK) {
+        actionBtnBook.addEventListener('click',actionClicked.bind(null,'book',sid))
+        actionBtnBook.style.display = "";
+    }
+    else
+        actionBtnBook.style.display = "none";
+
+    if (seat['action'] == seatAction.CAN_CHANGE) {
+        actionBtnUpdate.addEventListener('click',actionClicked.bind(null,'update',sid))
+        actionBtnUpdate.style.display = "";
+    }
+    else
+        actionBtnUpdate.style.display = "none";
+    
+    if (seat['action'] == seatAction.CAN_CHANGE || seat['action'] == seatAction.CAN_DELETE || seat['action'] == seatAction.CAN_DELETE_EXACT) {
+        actionBtnDelete.addEventListener('click',actionClicked.bind(null,'delete',sid))
+        actionBtnDelete.style.display = "";
+    }
+    else
+        actionBtnDelete.style.display = "none";
+
+    actionElTitle.innerText = "Seat: "+seat.name;
     modal.open();
 }
 
