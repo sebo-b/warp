@@ -65,3 +65,9 @@ def getNextWeek():
             noOfSundays = noOfSundays + 1
 
     return res
+
+def formatTimestamp(ts):
+
+    t = gmtime(ts)
+    return strftime("%Y-%m-%d %H:%M",t)
+    

@@ -5,8 +5,8 @@ INSERT INTO user VALUES (2,"user1",'pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e6
 INSERT INTO user VALUES (3,"user2",'pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','User 2',2);
 INSERT INTO user VALUES (4,"viewer",'pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Viewer',2);
 
-INSERT INTO zone VALUES (1,'Test Zone 1','space_maps/space1.png');
-INSERT INTO zone VALUES (2,'Test Zone 2','space_maps/space2.png');
+INSERT INTO zone VALUES (1,'Test Zone 1','zone_maps/zone1.png');
+INSERT INTO zone VALUES (2,'Test Zone 2','zone_maps/zone2.png');
 
 INSERT INTO seat VALUES (1,1,'Seat A1',20,20);
 INSERT INTO seat VALUES (2,1,'Seat A2',100,20);

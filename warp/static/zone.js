@@ -244,7 +244,7 @@ function actionClicked(action,sid) {
         }
     };
 
-    xhr.open("POST", seatActionURL);
+    xhr.open("POST", zoneActionURL);
     xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
     xhr.send( JSON.stringify( action_data));
 }

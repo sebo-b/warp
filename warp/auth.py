@@ -27,13 +27,13 @@ def login():
         if userRow is not None and passHash and check_password_hash(passHash,p):
             flask.session['uid'] = userRow['id']
             flask.session['role'] = userRow['role']
-            return flask.redirect(flask.url_for('main.index'))
+            return flask.redirect(flask.url_for('view.index'))
 
         error = "Wrong username or password"
         flask.session.pop('uid', None)
     
     if flask.session.get('uid') is not None:
-        return flask.redirect(flask.url_for('main.index'))
+        return flask.redirect(flask.url_for('view.index'))
     
     return flask.render_template('login.html', error=error)
 

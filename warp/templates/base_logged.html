@@ -9,19 +9,13 @@
 
 <nav>
     <div class="nav-wrapper">
-        <a href="{{ url_for('main.index')}}" class="right"><img class="logo" src="{{ url_for('static', filename='logo.png') }}"></a>
+        <a href="{{ url_for('view.index')}}" class="right"><img class="logo" src="{{ url_for('static', filename='logo.png') }}"></a>
         <ul class="left">
-            {% if g.isManager %}
-            <li class="{{ "active" if request.endpoint == 'main.bookings' and request.view_args['context'] == 'all' }}"   ><a href="{{ url_for('main.bookings',context='all') }}">All bookings</a></li>
-            {% endif %}
-
-            <li class="{{ "active" if request.endpoint == 'main.bookings' and request.view_args['context'] == 'user' }}"><a href="{{ url_for('main.bookings',context='user') }}">My bookings</a></li>
-
-            {% for zid,zname in g.zones|dictsort %}
-            <li class="{{ "active" if request.endpoint == 'main.zone' and request.view_args['zid'] == zid|string() }}"><a href="{{ url_for('main.zone',zid=zid) }}">{{ zname }}</a></li>
+            {% for i in g.headerData %}
+            <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}">{{i['text']}}</a></li>
             {% endfor %}
-
             <li><a href="{{ url_for('auth.logout') }}"><i class="material-icons">logout</i></a></li>
+
         </ul>
     </div>
 </nav>

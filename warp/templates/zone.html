@@ -7,8 +7,8 @@
     <script type="text/javascript" src="{{ url_for('static', filename='nouislider/nouislider.min.js') }}"></script>
 
     <script>
-        getSeatURL = "{{ url_for('main.seatGet',zid=zone_data['id']) }}";
-        seatActionURL = "{{ url_for('main.seatAction') }}";
+        getSeatURL = "{{ url_for('xhr.zoneGetSeats',zid=zone_data['id']) }}";
+        zoneActionURL = "{{ url_for('xhr.zoneAction') }}";
         uid = {{ session['uid'] }};
         dstId = "targetDiv";
     </script>

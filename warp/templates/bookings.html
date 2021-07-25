@@ -3,9 +3,7 @@
 {% block header %}
 
 <script>
-    getBookingsURL = "{{ url_for('main.bookingsGet',context=context) }}";
-    removeBookingsURL = "{{ url_for('main.bookingsRemove') }}";
-    dstTagId = "bookingsTable"
+    removeURL = "{{ url_for('xhr.bookingsRemove') }}";
 </script>
 <script src="{{ url_for('static', filename='bookings.js') }}"></script>
 {% endblock %}
@@ -24,6 +22,30 @@
   </div>
 
 <table id="bookingsTable">
+    <tr>
+        {% if context == 'all' %}
+        <th>User</th>
+        {% endif %}
+        <th>Zone</th>
+        <th>Seat</th>
+        <th>From</th>
+        <th>To</th>
+        <th></th>
+    </tr>
+
+    {% for row in data %}
+    <tr class="book_row" data-id="{{row['id']}}">
+        {% if context == 'all' %}
+        <td class="book_login">{{row['login']}}</td>
+        {% endif %}
+        <td class="book_zone">{{row['zone_name']}}</td>
+        <td class="book_seat">{{row['seat_name']}}</td>
+        <td class="book_from">{{formatTimestamp(row['fromTS'])}}</td>
+        <td class="book_to">{{formatTimestamp(row['toTS'])}}</td>
+        <td><a class="book_remove" href="#">remove</a>
+        </td>
+    </tr>
+    {% endfor%}
 </table>
 
 {% endblock %}
