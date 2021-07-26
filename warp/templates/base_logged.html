@@ -2,6 +2,15 @@
 
 {% block header %}
     {{ super() }}
+
+    {% if showActAs %}       
+    <script>
+        var actAsGetURL = "{{ url_for('xhr.actAsGet')}}"
+        var actAsSetURL = "{{ url_for('xhr.actAsSet')}}"
+    </script> 
+    <script type="text/javascript" src="{{ url_for('static', filename='actas.js') }}"></script>
+    {% endif %}
+
 {% endblock %}
 
 {% block content %}
@@ -9,9 +18,21 @@
 
 <nav>
     <div class="nav-wrapper">
-        <a href="{{ url_for('view.index')}}" class="right"><img class="logo" src="{{ url_for('static', filename='logo.png') }}"></a>
+
+        <div class='right'>
+            <a href="{{ url_for('view.index')}}" class="right"><img class="logo" src="{{ url_for('static', filename='logo.png') }}"></a>
+        </div>
+        {% if showActAs %}
+        <div id="act-as-container" class="right">
+            <div class="actas input-field right">
+                <input type="text" id="act-as" class="autocomplete">
+                <label for="act-as" class="active">Act as</label>
+            </div>
+        </div>
+        {% endif %}
+
         <ul class="left">
-            {% for i in g.headerData %}
+            {% for i in headerData %}
             <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}">{{i['text']}}</a></li>
             {% endfor %}
             <li><a href="{{ url_for('auth.logout') }}"><i class="material-icons">logout</i></a></li>

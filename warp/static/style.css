@@ -3,3 +3,20 @@
     max-height: 64px!important;
     padding: 15px!important;    
 }
+
+.actas label {
+    color: #ffffff !important;
+}
+.actas input[type=text] {
+    color: #ffffff;
+}
+.actas input[type=text]:focus + label {
+    color: #ffffff !important;
+}
+.actas input[type=text]:focus {
+    border-bottom: 1px solid #ffffff !important;
+    box-shadow: 0 1px 0 0 #ffffff !important;
+}
+#act-as-container {
+    display: none;
+}

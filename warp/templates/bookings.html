@@ -1,7 +1,7 @@
 {% extends 'base_logged.html' %}
 
 {% block header %}
-
+    {{ super() }}
 <script>
     removeURL = "{{ url_for('xhr.bookingsRemove') }}";
 </script>

@@ -7,8 +7,8 @@ from time import strftime
 
 bp = flask.Blueprint('view', __name__)
 
-@bp.before_request
-def headerData():
+@bp.context_processor
+def headerData1():
 
     headerData = []
 
@@ -32,8 +32,9 @@ def headerData():
         b = flask.request.view_args == h['view_args']
         h['active'] = flask.request.endpoint == h['endpoint'] and flask.request.view_args == h['view_args']
 
-    flask.g.headerData = headerData
-
+    return { "headerData": headerData,
+             "showActAs": flask.session.get('role') <= auth.ROLE_MANAGER
+    }
 
 @bp.route("/")
 def index():

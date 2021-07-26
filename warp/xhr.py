@@ -173,3 +173,85 @@ def zoneAction():
         return {"msg": str(err) }, 400
 
     return {"msg": "ok" }, 200
+
+#Format
+# {
+#   data: {
+#         user1: null,    
+#         user2: null,    
+#         ...    
+#       },
+#   default: user1
+#   selected: user2
+# }
+@bp.route("/actas/get")
+def actAsGet():
+
+    uid = flask.session.get('uid')
+    real_uid = flask.session.get('real-uid')
+    role = flask.session.get('role')
+
+    if role > auth.ROLE_MANAGER:
+        flask.abort(403)
+
+    db = getDB()
+    cur = db.cursor().execute("SELECT id,login,name FROM user")
+
+    res = {
+        "data": {}
+    }
+
+    for u in cur:
+
+        text = f"{u['name']} [{u['login']}]"
+        res["data"][text] = None
+
+        if u['id'] == uid:
+            res["selected"] = text
+
+        if real_uid and u['id'] == real_uid:
+            res["default"] = text
+
+    if "default" not in res:
+        res["default"] = res["selected"]
+
+    return res, 200
+
+# Format
+# { login: login }
+@bp.route("/actas/set", methods=["POST"])
+def actAsSet():
+
+    if not flask.request.is_json:
+        flask.abort(404)
+
+    role = flask.session.get('role')
+
+    if role > auth.ROLE_MANAGER:
+        flask.abort(403)
+
+    action_data = flask.request.get_json()
+
+    schema = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+            "login" : {"type" : "string"}
+        }
+    }
+
+    try:
+        validate(action_data,schema)
+    except ValidationError as err:
+        return {"msg": "invalid input" }, 400
+
+    userRow = getDB().cursor().execute("SELECT id FROM user WHERE login = ?",(action_data['login'],)).fetchone();
+
+    if userRow is None:
+        return {"msg": "not found"}, 404
+
+    if not flask.session.get('real-uid'):
+        flask.session['real-uid'] = flask.session.get('uid')
+
+    flask.session['uid'] = userRow['id']
+
+    return {"msg": "ok"}, 200
