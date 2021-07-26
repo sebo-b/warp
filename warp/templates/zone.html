@@ -15,16 +15,6 @@
 
     <script src="{{ url_for('static', filename='zone.js') }}"></script>
 
-    <style>
-        .timeslider-hint {
-            text-align: center;
-            width: 60px;
-            border: 1px solid black;
-            margin-top: 10px;
-            margin-bottom: 10px;
-
-        }
-    </style>
 {% endblock %}
 
 {% block content %}
@@ -53,9 +43,9 @@
                 {% endfor %}
             </div>
 
-            <div class="col s1">
+            <div class="col">
                 <div id="timeslider-min" class="timeslider-hint">12:00</div>
-                <div id="timeslider" class="center-align" style="height: 300px"></div>
+                <div id="timeslider" class="timeslider"></div>
                 <div id="timeslider-max" class="timeslider-hint">12:00</div>
             </div>
 

@@ -307,3 +307,46 @@
   top: auto;
   right: 28px;
 }
+
+/* Materialize Styles */
+.noUi-target {
+  border: 0;
+  border-radius: 0;
+  background: #c5cae9;
+}
+
+.noUi-vertical {
+  height: 100%;
+  width: 3px;
+}
+
+.noUi-vertical .noUi-connects {
+  width: 5px;
+}
+
+.noUi-connect {
+  background: #ff6d00;
+}
+
+.noUi-horizontal .noUi-handle,
+.noUi-vertical .noUi-handle {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  box-shadow: none;
+  background-color: #ff6d00;
+  border: none;
+  left: -8px;
+  top: -6px;
+  transition: width .2s cubic-bezier(0.215, 0.610, 0.355, 1.000),
+  height .2s cubic-bezier(0.215, 0.610, 0.355, 1.000),
+  left .2s cubic-bezier(0.215, 0.610, 0.355, 1.000),
+  top .2s cubic-bezier(0.215, 0.610, 0.355, 1.000);
+}
+.noUi-handle:before {
+  content: none;
+}
+.noUi-handle:after {
+  content: none;
+}
+
