@@ -52,4 +52,12 @@
     margin-bottom: 10px;
 }
 
-  
+.zonemap {
+    position: relative;
+    overflow: scroll;
+    padding: 0px !important;
+}
+
+.zone_action_btn {
+    width: 100px;
+}

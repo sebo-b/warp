@@ -11,6 +11,15 @@
         zoneActionURL = "{{ url_for('xhr.zoneAction') }}";
         uid = {{ session['uid'] }};
         dstId = "targetDiv";
+
+        zone_icons = {
+            book: "{{ url_for('static',filename='zone_icons/book.png') }}",
+            rebook: "{{ url_for('static',filename='zone_icons/rebook.png') }}",
+            conflict: "{{ url_for('static',filename='zone_icons/conflict.png') }}",
+            user_conflict: "{{ url_for('static',filename='zone_icons/user_conflict.png') }}",
+            user_exact: "{{ url_for('static',filename='zone_icons/user_exact.png') }}",
+            user_rebook: "{{ url_for('static',filename='zone_icons/user_rebook.png') }}",
+        };
     </script>
 
     <script src="{{ url_for('static', filename='zone.js') }}"></script>
@@ -23,13 +32,13 @@
     <div id="action_modal" class="modal bottom-sheet">
         <div class="modal-content">
             <h4 id="action_modal_title">Seat: A4 TODO</h4>
-            <a href="#!" class="modal-close waves-effect waves-light btn" id="action_book_btn">Book</a><br>
-            <a href="#!" class="modal-close waves-effect waves-light btn" id="action_update_btn">Update</a><br>
-            <a href="#!" class="modal-close waves-effect waves-light btn" id="action_delete_btn">Delete</a>
+            <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" id="action_book_btn">Book</a>
+            <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" id="action_update_btn">Update</a>
+            <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" id="action_delete_btn">Release</a>
         </div>
     </div>
 
-    <div style="width: 90%; height: 70%">
+    <div>
 
         <div class="row">
             <div class="col s2">
@@ -49,17 +58,12 @@
                 <div id="timeslider-max" class="timeslider-hint">12:00</div>
             </div>
 
-            <div class="col s9">
-                <div class="row">
-                    
-                </div>
-                <div class="row">
-                    <div id="targetDiv" style="position: relative;"></div>
-                </div>
+            <div class="zonemap col s9" id="targetDiv">
+                <img src="{{ url_for('static', filename=zone_data['image']) }}">                        
             </div>
         </div>
     </div>
 
 {% endblock %}
-<!--    <img src="{{ url_for('static', filename=zone_data['image']) }}"> -->
+
 
