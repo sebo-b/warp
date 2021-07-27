@@ -123,7 +123,7 @@ function visualizeSeats() {
 
         var isFree = true;
         var isMy = false;
-        var isExact = true;
+        var isExact = 0;
 
         date_loop:
         for (var date of dates) {
@@ -135,8 +135,8 @@ function visualizeSeats() {
                         isMy = true;
                         anyIsMy = true;
 
-                        if (isExact && (book.fromTS != date.fromTS || book.toTS != date.toTS))
-                            isExact = false;
+                        if (book.fromTS == date.fromTS && book.toTS == date.toTS)
+                            ++isExact;
 
                         if (!isFree)
                             break date_loop;
@@ -151,6 +151,8 @@ function visualizeSeats() {
         }
 
         if (isMy) {
+
+            isExact = (isExact == dates.length);
 
             if (isFree)
                 seat['action'] = isExact? seatAction.CAN_DELETE_EXACT: seatAction.CAN_CHANGE;
@@ -195,12 +197,12 @@ function visualizeSeats() {
 
 visualizeSeats.seatSpriteData = {
     SIZE: 48,
-    book: "144px",
-    rebook: "96px",
-    conflict: "240px",
-    user_conflict: "48px",
+    book: "-144px",
+    rebook: "-192px",
+    conflict: "-240px",
+    user_conflict: "-48px",
     user_exact: "0px",
-    user_rebook: "192px"
+    user_rebook: "-96px"
 };
 
 function seatOnClick(sid) {
@@ -392,7 +394,6 @@ function createSeatElement(sid,seatDataEl) {
     seatEl.style.position = "absolute";
     seatEl.style.left = seatDataEl['x'] + "px";
     seatEl.style.top = seatDataEl['y'] + "px";
-    seatEl.style.filter = "drop-shadow(0 0 3px white)";
     seatEl.style.width = "48px";    // also prevents reflow
     seatEl.style.height = "48px";
     seatEl.style.backgroundImage = 'url('+seatSpriteURL+')';
