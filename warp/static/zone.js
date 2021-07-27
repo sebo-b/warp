@@ -125,10 +125,9 @@ function visualizeSeats() {
         var isMy = false;
         var isExact = true;
 
-        book_loop:
-        for (var book of seat['book']) {
-
-            for (var date of dates) {
+        date_loop:
+        for (var date of dates) {
+            for (var book of seat['book']) {
                 if ( book.fromTS >= date.toTS ) // book is sorted by fromTS
                     break;
                 else if (book.toTS > date.fromTS) {
@@ -140,12 +139,12 @@ function visualizeSeats() {
                             isExact = false;
 
                         if (!isFree)
-                            break book_loop;
+                            break date_loop;
                     }
                     else {
                         isFree = false;
                         if (isMy)
-                            break book_loop;
+                            break date_loop;
                     }
                 }
             }
@@ -171,30 +170,31 @@ function visualizeSeats() {
             continue;
 
         if (seat['action'] == seatAction.CAN_CHANGE) {
-                seatElm.style.backgroundPositionX = visualizeSeats.seatSpriteOffset.user_rebook;
+            seatElm.style.backgroundPositionX = visualizeSeats.seatSpriteData.user_rebook;
         }
         else if (seat['action'] == seatAction.CAN_DELETE_EXACT) {
-            seatElm.style.backgroundPositionX = visualizeSeats.seatSpriteOffset.user_exact;
+            seatElm.style.backgroundPositionX = visualizeSeats.seatSpriteData.user_exact;
         }
         else if (seat['action'] == seatAction.CAN_DELETE) {
-            seatElm.style.backgroundPositionX = visualizeSeats.seatSpriteOffset.user_conflict;
+            seatElm.style.backgroundPositionX = visualizeSeats.seatSpriteData.user_conflict;
         }
         else if (seat['action'] == seatAction.CAN_BOOK) {
             if (anyIsMy) {
                 seat['action'] = seatAction.CAN_REBOOK;
-                seatElm.style.backgroundPositionX = visualizeSeats.seatSpriteOffset.rebook;
+                seatElm.style.backgroundPositionX = visualizeSeats.seatSpriteData.rebook;
             }
             else {
-                seatElm.style.backgroundPositionX = visualizeSeats.seatSpriteOffset.book;
+                seatElm.style.backgroundPositionX = visualizeSeats.seatSpriteData.book;
             }
         }
         if (seat['action'] == seatAction.NONE) {
-            seatElm.style.backgroundPositionX = visualizeSeats.seatSpriteOffset.conflict;
+            seatElm.style.backgroundPositionX = visualizeSeats.seatSpriteData.conflict;
         }
     }
 }
 
-visualizeSeats.seatSpriteOffset = {
+visualizeSeats.seatSpriteData = {
+    SIZE: 48,
     book: "144px",
     rebook: "96px",
     conflict: "240px",
@@ -257,6 +257,106 @@ function seatOnClick(sid) {
     modal.open();
 }
 
+function fillOutPreviewDiv(previewDiv,seat) {
+
+    previewDiv.innerHTML = "";
+
+    var dates = getSelectedDates();
+
+    var table =  document.createElement("table");
+    var maxToShow = 8;
+
+    function formatDatePair(fromTS,toTS) {
+
+        var fromStr = new Date(fromTS*1000).toISOString();
+        var toStr = new Date(toTS*1000).toISOString();
+
+        if (fromStr.substring(0,10) == toStr.substring(0,10)) {
+            return [
+                fromStr.substring(0,10),
+                fromStr.substring(11,16)+"-"+toStr.substring(11,16)
+            ];
+        }
+        else {
+            return [
+                fromStr.substring(0,16).replace('T',' '),
+                toStr.substring(0,16).replace('T',' ')
+            ];
+        }
+    }
+
+
+    date_loop:
+    for (var date of dates) {
+        for (var book of seat['book']) {
+            if ( book.fromTS >= date.toTS ) // book is sorted by fromTS
+                break;
+            else if (book.toTS > date.fromTS) {
+                var tr = table.appendChild( document.createElement("tr"));
+
+                if (maxToShow-- <= 0) {
+                    td = tr.appendChild( document.createElement("td"));
+                    td.innerText = "...";
+                    td = tr.appendChild( document.createElement("td"));
+                    td = tr.appendChild( document.createElement("td"));
+                    break date_loop;
+                }
+                else {
+                    var dateStr = formatDatePair(book.fromTS,book.toTS);
+
+                    td = tr.appendChild( document.createElement("td"));
+                    td.innerText = dateStr[0];
+                    td = tr.appendChild( document.createElement("td"));
+                    td.innerText = dateStr[1];
+                    td = tr.appendChild( document.createElement("td"));
+                    td.innerText = book.username;
+                }
+            }
+        }
+    }
+
+    previewDiv.appendChild( table);
+}
+
+function seatOnMouseOver(sid) {
+    
+    var seat = seatData[sid];
+
+    switch (seat['action']) {
+        case seatAction.CAN_BOOK:     
+        case seatAction.CAN_REBOOK:     
+        case seatAction.CAN_CHANGE:     
+        case seatAction.CAN_DELETE_EXACT:   
+            return;
+    };
+
+    previewDiv = document.getElementById('seat_preview');
+    
+    var parentWidth = previewDiv.parentNode.clientWidth
+
+    var left =
+        seat['x'] < parentWidth / 2;
+
+    if (left) {
+        previewDiv.style.right = "";
+        previewDiv.style.left = (seat['x'] + visualizeSeats.seatSpriteData.SIZE * 0.60) + "px";
+    }
+    else {
+        previewDiv.style.left = "";
+        previewDiv.style.right = (parentWidth - seat['x'] - visualizeSeats.seatSpriteData.SIZE * 0.40) + "px";
+    }
+    previewDiv.style.top = (seat['y'] + visualizeSeats.seatSpriteData.SIZE * 0.60) + "px";
+
+    fillOutPreviewDiv(previewDiv,seat);
+
+    previewDiv.style.display = "block";
+}
+
+function seatOnMouseOut(sid) {
+    previewDiv = document.getElementById('seat_preview');
+    previewDiv.style.display = "none";  
+}
+
 function actionClicked(action,sid) {
 
     action_data = {
@@ -297,10 +397,11 @@ function createSeatElement(sid,seatDataEl) {
     seatEl.style.height = "48px";
     seatEl.style.backgroundImage = 'url('+seatSpriteURL+')';
 
-
     parentEl = document.getElementById(dstId);
     parentEl.appendChild(seatEl);
     seatEl.addEventListener('click',seatOnClick.bind(null,sid));
+    seatEl.addEventListener('mouseover',seatOnMouseOver.bind(null,sid));
+    seatEl.addEventListener('mouseout',seatOnMouseOut.bind(null,sid));
 
     seatElementMap[sid] = seatEl;
 }

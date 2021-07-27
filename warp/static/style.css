@@ -61,3 +61,25 @@
 .zone_action_btn {
     width: 100px;
 }
+
+#seat_preview {
+    display: none;
+    position: absolute;
+    border: 2px solid #3949ab;
+    background-color: white;
+    z-index: 1;
+    padding: 4px;
+    font-size: 10px;
+}
+
+#seat_preview TABLE,tr {
+    border: none !important;
+}
+
+#seat_preview td {
+    color: #6e6e6e;
+    padding: 0px 4px;
+    text-align: left;
+    vertical-align: middle;
+}
+
