@@ -8,7 +8,7 @@ from time import strftime
 bp = flask.Blueprint('view', __name__)
 
 @bp.context_processor
-def headerData1():
+def headerDataInit():
 
     headerData = []
 
@@ -51,17 +51,23 @@ def bookings(context):
 
     uid = flask.session.get('uid')
     
-    timeRange = utils.getTimeRange()
+    timeRange = utils.getTimeRange(True)
+
 
     query = "SELECT b.id, b.fromTS, b.toTS, s.name seat_name, z.name zone_name, u.login login FROM book b" \
             " LEFT JOIN seat s ON s.id = b.sid" \
             " LEFT JOIN zone z ON z.id = s.zid" \
             " LEFT JOIN user u ON b.uid = u.id" \
-            " WHERE b.toTS > ?" \
+            " WHERE b.toTS > ? AND b.fromTS < ?" \
             " AND (? OR uid = ?)" \
             " ORDER BY b.fromTS, login"
     
-    data = getDB().cursor().execute(query,(timeRange['fromTS'], context == 'all', uid)).fetchall()
+    data = getDB().cursor().execute(query,(
+                                        timeRange['fromTS'], 
+                                        timeRange['toTS'], 
+                                        context == 'all', 
+                                        uid)
+                                        ).fetchall()
 
     return flask.render_template('bookings.html', context=context, data=data, formatTimestamp=utils.formatTimestamp)
 

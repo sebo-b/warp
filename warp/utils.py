@@ -15,7 +15,7 @@ def today():
     return n - n % (24*3600)
 
 # format { "fromTS": 123, "toTS": 123 }
-def getTimeRange():
+def getTimeRange(extended = False):
     """ Returns a dict with fromTS and toTS """
     """ today's midnight, today's midnight + WEEKS_IN_ADVANCE """
 
@@ -23,7 +23,10 @@ def getTimeRange():
 
     fromTS = today()
 
-    weeksInAdvance = current_app.config['WEEKS_IN_ADVANCE'];
+    weeksInAdvance = current_app.config['WEEKS_IN_ADVANCE']
+    if extended:
+        weeksInAdvance = weeksInAdvance + 2
+        
     t = gmtime(fromTS)
     toTS = (7 - t.tm_wday) + weeksInAdvance*7
     toTS = 24*3600*toTS + fromTS

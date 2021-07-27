@@ -371,12 +371,12 @@ function actionClicked(action,sid) {
     xhr.onreadystatechange = function () {
         if(xhr.readyState === XMLHttpRequest.DONE) {
             if (xhr.status === 0 || xhr.status == 200) {
-                updateSeatData();
+                M.toast({html: 'Action successfull.'});
             }
             else {
-                var resp = JSON.parse(xhr.responseText);
-                alert('err: ' +resp.msg);
+                WarpModal.getInstance().open("Change unsuccessfull","Unable to apply the change. Probably the seat was already booked by someone else.<br>Status: "+this.status);
             }
+            updateSeatData();
         }
     };
 

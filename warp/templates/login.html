@@ -13,6 +13,11 @@
             width: 300px;
             height: 70%;
         }
+        .flash_message {
+          color: #F44336; 
+          padding-bottom: 20px;
+        }
+
     </style>
 {% endblock %}
 
@@ -44,6 +49,16 @@
           </div>
         </div>
 
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            {% for message in messages %}
+            <div class="col s12">
+              <div class="flash_message">{{ message }}</div>
+            </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
         <div class="col s12">
           <button class="btn waves-effect waves-light" type="submit" name="submit">Login</button>
         </div>
@@ -52,35 +67,4 @@
     </div>
     
   </form>
-{#
-    <div class="valign-wrapper row full-height" style="height: 100%">
-
-      <div class="col s10 pull-s1 m6 pull-m3 l4 pull-l4">
-
-        <form action="{{ url_for('auth.login') }}" method="post">
-
-          <div class="row">
-            <div class="input-field col s12">
-              <label for="login">Username</label>
-              <input name="login" type="text">
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="input-field col s12">
-              <label for="password">Password</label>
-              <input name="password" type="password">
-            </div>
-          </div>
-
-          <div class="row center-align">
-            <div class="input-field col s12">
-              <button class="btn waves-effect waves-light" type="submit" name="submit">Login</button>
-            </div>
-          </div>
-        </form>
-      
-      </div>
-    </div>
-#}
 {% endblock %}

@@ -33,9 +33,9 @@ function WarpModal() {
     
     this.open = function(header,content,onCloseHook) {
         this.headerElement.innerText = header;
-        this.messageElement.innerText = content;
+        this.messageElement.innerHTML = content;
         this.onCloseHook = onCloseHook;
-        
+
         this.modal.open();
     }
 };
