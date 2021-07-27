@@ -10,17 +10,6 @@
 
 {% block container %}
 
-    <div id="delete_confirmation" class="modal">
-        <div class="modal-content">
-            <h4>Are you sure to delete this booking?</h4>
-            <p id="delete_confirmation_msg"></p>
-        </div>
-        <div class="modal-footer">
-            <a href="#!" id="delete_confirmation_yes" class="modal-close waves-effect waves-green btn-flat">Yes</a>
-            <a href="#!" class="modal-close waves-effect waves-green btn-flat">No</a>
-        </div>
-  </div>
-
 <table id="bookingsTable">
     <tr>
         {% if context == 'all' %}

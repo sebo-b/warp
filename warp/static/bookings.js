@@ -27,11 +27,10 @@ function initBooking() {
 
 function removeBooking(data) {
 
-    var modalEl = document.getElementById('delete_confirmation');
-    var modalElMsg = document.getElementById('delete_confirmation_msg');
-    var modalElYes = document.getElementById('delete_confirmation_yes');
+    let btnClicked = function(bid) {
 
-    let yesClicked = function() {
+        if (bid != 1)
+            return;
 
         var action_data = { bid: data['id']};
         
@@ -50,12 +49,12 @@ function removeBooking(data) {
         xhr.send( JSON.stringify( action_data));
     };
 
-    let modal = M.Modal.getInstance(modalEl);
-    if (!modal) {
-        modal = M.Modal.init(modalEl,{ onCloseEnd: function() {
-            modalElYes.removeEventListener('click', yesClicked);
-            console.log("cleaning")
-        }});
+    var modalOptions = {
+        buttons: [
+            {id: 1, text: "YES"},
+            {id: 0, text: "NO"}
+        ],
+        onButtonHook: btnClicked
     }
 
     var msg = "";
@@ -68,9 +67,7 @@ function removeBooking(data) {
           "From: "+data['fromTS']+"<br>"+
           "To: "+data['toTS'];
 
-    modalElMsg.innerHTML = msg;
-    modalElYes.addEventListener('click', yesClicked);
-    modal.open();
+    WarpModal.getInstance().open("Are you sure to delete this booking?",msg,modalOptions);
 }
 
 window.addEventListener("load",initBooking)

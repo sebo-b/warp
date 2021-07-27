@@ -11,33 +11,72 @@ function WarpModal() {
     this.headerElement = rootContent.appendChild( document.createElement("h4") );
     this.messageElement = rootContent.appendChild( document.createElement("p") );
 
-    var footerElement = modalElement.appendChild( document.createElement("div") );
-    footerElement.className = "modal-footer";
-
-    var buttonElement = footerElement.appendChild( document.createElement("a") );
-    buttonElement.className = "modal-close waves-effect btn";
-    buttonElement.href = "#!";
-    buttonElement.innerText = "Ok";
+    this.footerElement = modalElement.appendChild( document.createElement("div") );
+    this.footerElement.className = "modal-footer";
 
     document.body.appendChild(modalElement);
 
-    this.onCloseHook = null;
+    this.options = WarpModal.default_options;
+    this.clickedBtnId = null;
+
     this.modal = M.Modal.init(modalElement, 
         { onCloseEnd: function() {
-                if (typeof(this.onCloseHook) === 'function') {
-                    this.onCloseHook();
-                    this.onCloseHook = null;
-                }
+                
+                //local copy
+                var cancelHook = this.options.onCancelHook;
+                var clickedBtnId = this.clickedBtnId;
+                var btnHook = this.options.onButtonHook;
+
+                //object clean up before calling hooks
+                //as modal can be shown inside a hook
+                this.options = WarpModal.default_options;
+                this.clickedBtnId = null;
+                this.footerElement.innerHTML = "";
+
+                if (clickedBtnId !== null && typeof(btnHook) === 'function')
+                    btnHook(clickedBtnId);
+                else if (typeof(cancelHook) === 'function')
+                    closeHook();
+
             }.bind(this)
         });
     
-    this.open = function(header,content,onCloseHook) {
+    /** 
+     * options = {
+     *  buttons: [
+     *    { id: btn_id1, text: "Button Text" },
+     *    { id: btn_id2, text: "Button Text" },
+     *  ],
+     *  onButtonHook: function(button_id),
+     *  onCancelHook:  function()   
+     * }
+     **/
+    this.open = function(header,content,options) {
         this.headerElement.innerText = header;
         this.messageElement.innerHTML = content;
-        this.onCloseHook = onCloseHook;
 
+        if (options)
+            this.options = options;
+
+        for (var b of this.options.buttons) {
+            var bElem = this.footerElement.appendChild( document.createElement("a") );
+            bElem.className = "modal-close waves-effect waves-orange btn-flat";
+
+            bElem.href = "#!";
+            bElem.innerText = b.text;
+            bElem.addEventListener('click', function(bid) {
+                this.clickedBtnId = bid;
+                }.bind(this,b.id));
+            }
+        
         this.modal.open();
     }
+};
+
+WarpModal.default_options = {
+    buttons: [
+        { id: true, text: "Ok" }
+    ]
 };
 
 WarpModal.Instance = null;
