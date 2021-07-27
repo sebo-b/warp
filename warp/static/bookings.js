@@ -39,10 +39,12 @@ function removeBooking(data) {
         xhr.open("POST", removeURL,true);
         xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
         xhr.addEventListener("load", function() {
-            if (this.status == 200)
+            if (this.status == 200) {
                 data['tableRow'].remove();
+                M.toast({html: 'Action successfull.'});
+            }
             else
-                alert("Error: "+this.status);
+                WarpModal.getInstance().open("Error","Something went wrong (status="+this.status+").");
             });
     
         xhr.send( JSON.stringify( action_data));
