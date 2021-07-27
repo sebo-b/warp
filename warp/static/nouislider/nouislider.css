@@ -322,6 +322,7 @@
 
 .noUi-vertical .noUi-connects {
   width: 5px;
+  left: -1px;
 }
 
 .noUi-connect {
@@ -336,7 +337,6 @@
   box-shadow: none;
   background-color: #ff6d00;
   border: none;
-  left: -8px;
   top: -6px;
   transition: width .2s cubic-bezier(0.215, 0.610, 0.355, 1.000),
   height .2s cubic-bezier(0.215, 0.610, 0.355, 1.000),
