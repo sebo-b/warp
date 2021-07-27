@@ -9,17 +9,9 @@
     <script>
         getSeatURL = "{{ url_for('xhr.zoneGetSeats',zid=zone_data['id']) }}";
         zoneActionURL = "{{ url_for('xhr.zoneAction') }}";
+        seatSpriteURL = "{{ url_for('static',filename='seat_icons.png') }}";
         uid = {{ session['uid'] }};
         dstId = "targetDiv";
-
-        zone_icons = {
-            book: "{{ url_for('static',filename='zone_icons/book.png') }}",
-            rebook: "{{ url_for('static',filename='zone_icons/rebook.png') }}",
-            conflict: "{{ url_for('static',filename='zone_icons/conflict.png') }}",
-            user_conflict: "{{ url_for('static',filename='zone_icons/user_conflict.png') }}",
-            user_exact: "{{ url_for('static',filename='zone_icons/user_exact.png') }}",
-            user_rebook: "{{ url_for('static',filename='zone_icons/user_rebook.png') }}",
-        };
     </script>
 
     <script src="{{ url_for('static', filename='zone.js') }}"></script>

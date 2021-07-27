@@ -22,8 +22,11 @@ function updateSeatData() {
     getSeatData( function(seatDataParam) {
 
         //create all missing divs
-        for (var sid in seatDataParam)
-            createSeatElement(sid,seatDataParam[sid]);
+        for (var sid in seatDataParam) {
+            v = seatDataParam[sid];
+            if (!v.other_zone)
+                createSeatElement(sid,seatDataParam[sid]);
+        }
 
         if (Object.keys(seatElementMap).length != Object.keys(seatDataParam).length) {
             //remove all unnecesary divs
@@ -123,12 +126,12 @@ function visualizeSeats() {
         var isExact = true;
 
         book_loop:
-        for (var bookId in seat['book']) {
-
-            var book = seat['book'][bookId]
+        for (var book of seat['book']) {
 
             for (var date of dates) {
-                if ( book.fromTS < date.toTS && book.toTS > date.fromTS) {
+                if ( book.fromTS >= date.toTS ) // book is sorted by fromTS
+                    break;
+                else if (book.toTS > date.fromTS) {
                     if (book.uid == uid) {
                         isMy = true;
                         anyIsMy = true;
@@ -168,28 +171,37 @@ function visualizeSeats() {
             continue;
 
         if (seat['action'] == seatAction.CAN_CHANGE) {
-            seatElm.src = zone_icons.user_rebook;
+                seatElm.style.backgroundPositionX = visualizeSeats.seatSpriteOffset.user_rebook;
         }
         else if (seat['action'] == seatAction.CAN_DELETE_EXACT) {
-            seatElm.src = zone_icons.user_exact;
+            seatElm.style.backgroundPositionX = visualizeSeats.seatSpriteOffset.user_exact;
         }
         else if (seat['action'] == seatAction.CAN_DELETE) {
-            seatElm.src = zone_icons.user_conflict;
+            seatElm.style.backgroundPositionX = visualizeSeats.seatSpriteOffset.user_conflict;
         }
         else if (seat['action'] == seatAction.CAN_BOOK) {
             if (anyIsMy) {
                 seat['action'] = seatAction.CAN_REBOOK;
-                seatElm.src = zone_icons.rebook;
+                seatElm.style.backgroundPositionX = visualizeSeats.seatSpriteOffset.rebook;
             }
             else {
-                seatElm.src = zone_icons.book;
+                seatElm.style.backgroundPositionX = visualizeSeats.seatSpriteOffset.book;
             }
         }
         if (seat['action'] == seatAction.NONE) {
-            seatElm.src = zone_icons.conflict;
+            seatElm.style.backgroundPositionX = visualizeSeats.seatSpriteOffset.conflict;
         }
     }
 }
+
+visualizeSeats.seatSpriteOffset = {
+    book: "144px",
+    rebook: "96px",
+    conflict: "240px",
+    user_conflict: "48px",
+    user_exact: "0px",
+    user_rebook: "192px"
+};
 
 function seatOnClick(sid) {
 
@@ -276,12 +288,15 @@ function createSeatElement(sid,seatDataEl) {
     if (sid in seatElementMap)
         return seatElementMap[sid];
     
-    seatEl =  document.createElement("img");
+    seatEl =  document.createElement("div");
     seatEl.style.position = "absolute";
     seatEl.style.left = seatDataEl['x'] + "px";
     seatEl.style.top = seatDataEl['y'] + "px";
-    seatEl.style.filter = "drop-shadow(0 0 3px white)"
-    seatEl.src = zone_icons.conflict;
+    seatEl.style.filter = "drop-shadow(0 0 3px white)";
+    seatEl.style.width = "48px";    // also prevents reflow
+    seatEl.style.height = "48px";
+    seatEl.style.backgroundImage = 'url('+seatSpriteURL+')';
+
 
     parentEl = document.getElementById(dstId);
     parentEl.appendChild(seatEl);
@@ -300,7 +315,9 @@ function initZone(seatDataParam) {
         return;
     
     for (p in seatData) {
-        createSeatElement(p,seatData[p])
+        v = seatData[p];
+        if (!v.other_zone)
+            createSeatElement(p,v)
     }
 
     for (e of document.getElementsByClassName('date_checkbox')) {

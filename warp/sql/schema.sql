@@ -16,7 +16,8 @@ CREATE TABLE user (
     );
 
 CREATE TABLE zone (
-    id integer PRIMARY KEY ASC, 
+    id integer PRIMARY KEY ASC,
+    zone_group integer NOT NULL,
     name text NOT NULL,
     image text
     );
@@ -56,10 +57,14 @@ BEGIN
     END;
 
     SELECT CASE WHEN
-        (SELECT COUNT(*) FROM book 
-         WHERE (sid = NEW.sid OR uid = NEW.uid)
-         AND fromTS < NEW.toTS
-         AND toTS > NEW.fromTS) > 0
+        (SELECT COUNT(*) FROM book b
+         JOIN seat s on b.sid = s.id
+         JOIN zone z on s.zid = z.id
+         WHERE z.zone_group = 
+            (SELECT zone_group FROM zone z JOIN seat s on z.id = s.zid WHERE s.id = NEW.sid LIMIT 1)
+         AND (b.sid = NEW.sid OR b.uid = NEW.uid)
+         AND b.fromTS < NEW.toTS
+         AND b.toTS > NEW.fromTS) > 0
     THEN
         RAISE(ABORT,"Overlapping time for this seat or user")
     END;
@@ -76,7 +81,11 @@ BEGIN
     
     SELECT CASE WHEN
         (SELECT COUNT(*) FROM book 
-         WHERE (sid = NEW.sid OR uid = NEW.uid)
+         JOIN seat s on b.sid = s.id
+         JOIN zone z on s.zid = z.id
+         WHERE z.zone_group = 
+            (SELECT zone_group FROM zone z JOIN seat s on z.id = s.zid WHERE s.id = NEW.sid LIMIT 1)
+         AND (sid = NEW.sid OR uid = NEW.uid)
          AND fromTS < NEW.toTS
          AND toTS > NEW.fromTS
          AND id <> OLD.id ) > 0

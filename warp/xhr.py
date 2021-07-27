@@ -47,16 +47,27 @@ def bookingsRemove():
     return {"msg": "ok" }, 200
 
 #Format JSON
-#    sidN: { name: "name", x: 10, y: 10,
-#       book: {
-#           bidN: { uid: 10, username: "sebo", fromTS: 1, toTS: 2, comment: "" }
+#    sidN: { name: "name", x: 10, y: 10, other_zone: true,
+#       book: [
+#           { bid: 10, uid: 10, username: "sebo", fromTS: 1, toTS: 2, comment: "" }
+# note that book array is sorted on fromTS
 @bp.route("/zone/getSeats/<zid>")
 def zoneGetSeats(zid):
 
     db = getDB()
 
     res = {}
-    seats = db.cursor().execute("SELECT * FROM seat WHERE zid = ?",(zid,)).fetchall()
+    zone_group = db.cursor().execute("SELECT zone_group FROM zone WHERE id = ?",(zid,)).fetchone()
+
+    if zone_group is None:
+        flask.abort(404)
+    else:
+        zone_group = zone_group[0]
+
+    seats = db.cursor().execute("SELECT s.* FROM seat s" \
+                                " JOIN zone z ON s.zid = z.id" \
+                                " WHERE z.zone_group = ?",
+                                (zone_group,))
 
     if seats is None:
         flask.abort(404)
@@ -67,7 +78,8 @@ def zoneGetSeats(zid):
             "name": s['name'],
             "x": s['x'],
             "y": s['y'],
-            "book": {}
+            "other_zone": (str(s['zid']) != zid),
+            "book": []
         }
 
     tr = utils.getTimeRange()
@@ -75,22 +87,23 @@ def zoneGetSeats(zid):
     bookings = db.cursor().execute("SELECT b.*, u.name username FROM book b" \
                                    " LEFT JOIN user u ON u.id = b.uid" \
                                    " LEFT JOIN seat s ON b.sid = s.id" \
+                                   " LEFT JOIN zone z ON s.zid = z.id" \
                                    " WHERE b.fromTS < ? AND b.toTS > ?" \
-                                   " AND s.zid = ?",
-                                   (tr['toTS'],tr['fromTS'],zid,))
+                                   " AND z.zone_group = ?" \
+                                   " ORDER BY fromTS",
+                                   (tr['toTS'],tr['fromTS'],zone_group,))
 
     for b in bookings:
 
         sid = b['sid']
-        bid = b['id']
-
-        res[sid]['book'][bid] = { 
+        
+        res[sid]['book'].append({ 
+            "bid": b['id'],
             "uid": b['uid'], 
             "username": b['username'], 
             "fromTS": b['fromTS'], 
             "toTS": b['toTS'], 
-            "comment": b['comment'] 
-        }
+            "comment": b['comment'] })
 
     return flask.jsonify(res)
 
