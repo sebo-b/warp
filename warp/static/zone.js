@@ -325,10 +325,9 @@ function seatOnMouseOver(sid) {
     var seat = seatData[sid];
 
     switch (seat['action']) {
-        case seatAction.CAN_BOOK:     
-        case seatAction.CAN_REBOOK:     
-        case seatAction.CAN_CHANGE:     
-        case seatAction.CAN_DELETE_EXACT:   
+        case seatAction.CAN_BOOK:
+        case seatAction.CAN_REBOOK:
+        case seatAction.CAN_DELETE_EXACT:
             return;
     };
 

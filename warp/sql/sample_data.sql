@@ -5,9 +5,9 @@ INSERT INTO user VALUES (2,"user1",'pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e6
 INSERT INTO user VALUES (3,"user2",'pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','User 2',2);
 INSERT INTO user VALUES (4,"viewer",'pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Viewer',2);
 
-INSERT INTO zone VALUES (1,1,'Test Zone 1','zone_maps/zone1.png');
-INSERT INTO zone VALUES (2,1,'Test Zone 2','zone_maps/zone2.png');
-INSERT INTO zone VALUES (3,2,'Test Zone 3','zone_maps/zone2.png');
+INSERT INTO zone VALUES (1,1,'Zone 1A','zone_maps/zone1a.png');
+INSERT INTO zone VALUES (2,1,'Zone 1B','zone_maps/zone1b.png');
+INSERT INTO zone VALUES (3,2,'Parking','zone_maps/parking.png');
 
 INSERT INTO seat (zid,name,x,y) VALUES (1,'1.1',22,94);
 INSERT INTO seat (zid,name,x,y) VALUES (1,'1.2',84,85);
@@ -68,12 +68,11 @@ INSERT INTO seat (zid,name,x,y) VALUES (2,'3B.4',868,114);
 INSERT INTO seat (zid,name,x,y) VALUES (2,'3B.5',868,168);
 INSERT INTO seat (zid,name,x,y) VALUES (2,'3B.6',868,224);
 
-INSERT INTO seat (zid,name,x,y) VALUES (3,'Z3.1',145,114);
-INSERT INTO seat (zid,name,x,y) VALUES (3,'Z3.2',145,168);
-INSERT INTO seat (zid,name,x,y) VALUES (3,'Z3.3',145,224);
-INSERT INTO seat (zid,name,x,y) VALUES (3,'Z3.4',209,114);
-INSERT INTO seat (zid,name,x,y) VALUES (3,'Z3.5',209,168);
-INSERT INTO seat (zid,name,x,y) VALUES (3,'Z3.6',209,224);
+INSERT INTO seat (zid,name,x,y) VALUES (3,'P.070',549,190);
+INSERT INTO seat (zid,name,x,y) VALUES (3,'P.036',777,173);
+INSERT INTO seat (zid,name,x,y) VALUES (3,'P.037',769,227);
+INSERT INTO seat (zid,name,x,y) VALUES (3,'P.038',757,300);
+INSERT INTO seat (zid,name,x,y) VALUES (3,'P.039',748,358);
 
 
 --INSERT INTO book (uid,sid,fromTS,toTS,comment) VALUES (1,1,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','60 minutes'),
