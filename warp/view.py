@@ -55,9 +55,9 @@ def bookings(context):
 
 
     query = "SELECT b.id, b.fromTS, b.toTS, s.name seat_name, z.name zone_name, u.login login FROM book b" \
-            " LEFT JOIN seat s ON s.id = b.sid" \
-            " LEFT JOIN zone z ON z.id = s.zid" \
-            " LEFT JOIN user u ON b.uid = u.id" \
+            " JOIN seat s ON s.id = b.sid" \
+            " JOIN zone z ON z.id = s.zid" \
+            " JOIN user u ON b.uid = u.id" \
             " WHERE b.toTS > ? AND b.fromTS < ?" \
             " AND (? OR uid = ?)" \
             " ORDER BY b.fromTS, login"

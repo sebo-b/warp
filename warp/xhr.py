@@ -85,9 +85,9 @@ def zoneGetSeats(zid):
     tr = utils.getTimeRange()
     
     bookings = db.cursor().execute("SELECT b.*, u.name username FROM book b" \
-                                   " LEFT JOIN user u ON u.id = b.uid" \
-                                   " LEFT JOIN seat s ON b.sid = s.id" \
-                                   " LEFT JOIN zone z ON s.zid = z.id" \
+                                   " JOIN user u ON u.id = b.uid" \
+                                   " JOIN seat s ON b.sid = s.id" \
+                                   " JOIN zone z ON s.zid = z.id" \
                                    " WHERE b.fromTS < ? AND b.toTS > ?" \
                                    " AND z.zone_group = ?" \
                                    " ORDER BY fromTS",
