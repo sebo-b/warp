@@ -1,4 +1,4 @@
-"strict on";
+"use strict";
 
 function WarpModal() {
 
@@ -70,7 +70,7 @@ function WarpModal() {
             }
         
         this.modal.open();
-    }
+    };
 };
 
 WarpModal.default_options = {

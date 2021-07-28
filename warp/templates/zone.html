@@ -11,10 +11,10 @@
         zoneActionURL = "{{ url_for('xhr.zoneAction') }}";
         seatSpriteURL = "{{ url_for('static',filename='seat_icons.png') }}";
         uid = {{ session['uid'] }};
-        dstId = "targetDiv";
     </script>
 
     <script src="{{ url_for('static', filename='zone.js') }}"></script>
+    <script src="{{ url_for('static', filename='seat.js') }}"></script>
 
 {% endblock %}
 
@@ -24,9 +24,9 @@
     <div id="action_modal" class="modal bottom-sheet">
         <div class="modal-content">
             <h4 id="action_modal_title">Seat: A4 TODO</h4>
-            <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" id="action_book_btn">Book</a>
-            <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" id="action_update_btn">Update</a>
-            <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" id="action_delete_btn">Release</a>
+            <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="book">Book</a>
+            <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="update">Update</a>
+            <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="delete">Release</a>
         </div>
     </div>
 
@@ -50,7 +50,7 @@
                 <div id="timeslider-max" class="timeslider-hint">12:00</div>
             </div>
 
-            <div class="zonemap col s9" id="targetDiv">
+            <div class="zonemap col s9" id="zonemap">
                 <div id="seat_preview">
                 </div>
 
