@@ -31,6 +31,9 @@ CREATE TABLE seat (
     FOREIGN KEY (zid) REFERENCES zone(id)
     );
 
+CREATE INDEX seat_zid
+ON seat(zid);
+
 CREATE TABLE book (
     id integer PRIMARY KEY ASC, 
     uid integer NOT NULL,
@@ -41,6 +44,12 @@ CREATE TABLE book (
     FOREIGN KEY (uid) REFERENCES user(id)
     FOREIGN KEY (sid) REFERENCES seat(id)
     );
+
+CREATE INDEX book_uid
+ON book(uid);
+
+CREATE INDEX book_sid
+ON book(sid);
 
 CREATE INDEX book_fromTS
 ON book(fromTS);
