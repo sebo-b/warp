@@ -19,6 +19,10 @@ function getSelectedDates() {
     var slider = document.getElementById('timeslider');
     var times = slider.noUiSlider.get(true);
 
+    // if next day 00:00, move it one second back
+    if (times[1] == 24*3600)
+        times[1] = 24*3600-1;
+
     var res = [];
 
     for (var e of document.getElementsByClassName('date_checkbox')) {
@@ -43,14 +47,14 @@ function initSlider() {
         step: 15*60,
         margin: 15*60,
         orientation: 'vertical',
-        range: { 'min': 0, 'max': 24*3600-1 }
+        range: { 'min': 0, 'max': 24*3600 }
     });
 
     var minDiv = document.getElementById('timeslider-min');
     var maxDiv = document.getElementById('timeslider-max');
     slider.noUiSlider.on('update', function(values, handle, unencoded, tap, positions, noUiSlider) {
         minDiv.innerText = new Date(unencoded[0]*1000).toISOString().substring(11,16)
-        maxDiv.innerText = new Date(unencoded[1]*1000).toISOString().substring(11,16)
+        maxDiv.innerText = unencoded[1] == 24*3600? "23:59": new Date(unencoded[1]*1000).toISOString().substring(11,16);
     });
 
     return slider;
