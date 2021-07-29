@@ -41,7 +41,7 @@ function initSlider() {
 
     var slider = document.getElementById('timeslider');      
     noUiSlider.create(slider, {
-        start: [9*3600, 17*3600],
+        start: defaultSelections.slider,    //this later on can be anyway overwritten from session storage
         connect: true,
         behaviour: 'drag',
         step: 15*60,
@@ -231,9 +231,86 @@ function initActionMenu(seatFactory) {
     return actionModal;
 }
 
+// preserves states across pages
+function initDateSelectorStorage() {
+
+    var storage = window.sessionStorage;
+
+    // restore values from session storage
+    var restoredSelections = storage.getItem('zoneSelections');
+    restoredSelections = restoredSelections? JSON.parse(restoredSelections): defaultSelections;
+
+    let cleanCBSelections = []; // used to clean up the list of checkboxes doesn't exist anymore
+
+    // if nothing is selected, let's force default selection, hence 2 tries
+    for (let i = 0; i < 2; ++i) {
+
+        for (let cb of document.getElementsByClassName('date_checkbox')) {
+            let ts = parseInt(cb.value)
+            if (restoredSelections.cb.includes(ts)) {
+                cb.checked = true;
+                cleanCBSelections.push(ts);
+            }
+        }
+
+        if (cleanCBSelections.length)
+            break;
+        
+        restoredSelections.cb = defaultSelections.cb;        
+    }
+
+    restoredSelections.cb = cleanCBSelections;
+
+    var slider = document.getElementById('timeslider');
+    slider.noUiSlider.set(restoredSelections.slider);
+
+    storage.setItem('zoneSelections', JSON.stringify(restoredSelections));
+
+    var cbChange = function(e) {
+        let zoneSelections = JSON.parse( storage.getItem('zoneSelections'));
+
+        let ts = parseInt(this.value);
+        if (this.checked)
+            zoneSelections.cb.push(ts);
+        else
+            zoneSelections.cb.splice( zoneSelections.cb.indexOf(ts), 1);
+
+        storage.setItem('zoneSelections', JSON.stringify(zoneSelections));
+    }
+
+    for (let cb of document.getElementsByClassName('date_checkbox'))
+        cb.addEventListener('click', cbChange);
+    
+    slider.noUiSlider.on('update', function(values, handle, unencoded, tap, positions, noUiSlider) {
+
+        let zoneSelections = JSON.parse( storage.getItem('zoneSelections'));
+        zoneSelections.slider = values;
+        storage.setItem('zoneSelections', JSON.stringify(zoneSelections));
+
+    });
+        
+}
+
+function initShiftSelectDates() {
+    var lastSelectedTS = 0;
+    var cbClick = function(e) {
+        if (!e.shiftKey)
+            return;
+
+        //TODO shift select
+        
+        e.preventDefault();
+    }
+
+    for (let cb of document.getElementsByClassName('date_checkbox'))
+        cb.addEventListener('click', cbClick);
+
+}
+
 function initZone() {
 
     initSlider();
+    initDateSelectorStorage();
 
     var seatFactory = initSeats();
     initSeatPreview(seatFactory);

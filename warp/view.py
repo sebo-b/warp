@@ -91,9 +91,13 @@ def zone(zid):
         flask.abort(404)
 
     nextWeek = utils.getNextWeek()
+    defaultSelections = {
+        "slider": [9*3600, 17*3600]
+    }
+
     for d in nextWeek[1:]:
         if not d['isWeekend']:
-            d['mark'] = True
+            defaultSelections['cb'] = [d['timestamp']]
             break
 
-    return flask.render_template('zone.html',zone_data=zone_data, nextWeek=nextWeek)
+    return flask.render_template('zone.html',zone_data=zone_data, nextWeek=nextWeek, defaultSelections=defaultSelections)
