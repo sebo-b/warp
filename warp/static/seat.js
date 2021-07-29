@@ -14,18 +14,17 @@ function WarpSeat(sid,seatData,factory) {
     // between WarpSeat and WarpSeatFactory
     this.listeners = factory.listeners;
     this.selectedDates = factory.selectedDates;
-    this.myBookings = factory.myBookings; //TODO
-    this.uid = factory.uid;
+    this.myConflictingBookings = factory.myConflictingBookings;
 
     this.sid = sid;
     this.x = seatData.x;
     this.y = seatData.y;
     this.name = seatData.name;
-    this.otherZone = seatData.other_zone;
+    this.zid = seatData.zid;
     this.book = seatData.book;  //NOTE: just reference
     this.seatDiv = null;
     
-    if (!this.otherZone) {
+    if (this.zid == factory.zoneData['id']) {
         this._createDiv(factory.rootDiv, factory.spriteURL);
     }
     
@@ -53,12 +52,12 @@ WarpSeat.Defines = {
     spriteDisabledOffset: "-288px"
 };
 
-function WarpSeatFactory(spriteURL,rootDivId, uid) {
+function WarpSeatFactory(spriteURL,rootDivId,zoneData) {
 
     this.spriteURL = spriteURL;
     this.rootDiv = document.getElementById(rootDivId);
-    this.uid = uid;
     this.selectedDates = [];
+    this.zoneData = zoneData;
 
     this.instances = {};
     this.listeners = {
@@ -67,7 +66,7 @@ function WarpSeatFactory(spriteURL,rootDivId, uid) {
         mouseout: new Set()
     };
 
-    this.myBookings = [0];    //TODO
+    this.myConflictingBookings = new Set();
 }
 
 /**
@@ -114,6 +113,59 @@ WarpSeatFactory.prototype.setSeatsData = function(seatsData = {}) {
 };
 
 /**
+ * Returns raw list of my bookings which conflicts in the given datetime
+ * @returns array of { sid: 10, bid: 10, fromTS: 1, toTS: 2 }
+ */
+ WarpSeatFactory.prototype.getMyConflictingBookingsRaw = function() {
+
+    var res = [];
+
+    for (var sid of this.myConflictingBookings) {
+        var seat = this.instances[sid];
+
+        date_loop:
+        for (var date of this.selectedDates) {
+            for (var book of seat.book) {
+                if ( book.fromTS >= date.toTS ) // book is sorted by fromTS, so we can optimize
+                    break;
+                else if (book.toTS > date.fromTS) {
+                    res.push( {
+                        sid: sid,
+                        bid: book['bid'],
+                        fromTS: book['fromTS'],
+                        toTS: book['toTS']
+                    });
+                }
+            }
+        }    
+    }
+
+    return res;    
+}
+
+/**
+ * Returns formatted list of my bookings which conflicts in the given datetime
+ * @returns array from getMyConflictingBookingsRaw extended with { zone_name = "Zone 1", seat_name: "Seat 1", datetime1: "yyyy-mm-dd", datetime2: "hh:mm-hh:mm" }
+ */
+ WarpSeatFactory.prototype.getMyConflictingBookings = function() {
+
+    var bookings = this.getMyConflictingBookingsRaw();
+
+    for (let b of bookings) {
+        
+        var seatName = this.instances[b.sid].getName();
+        var zid = this.instances[b.sid].getZid();
+
+        Object.assign(b, {
+                seat_name: seatName,
+                zone_name: this.zoneData.names[zid]},  
+            WarpSeatFactory._formatDatePair(b));
+    }
+
+    return bookings;
+ }
+
+/**
  * Register callback on all seats
  * @param {string} type - event type, one of click, mouseover, mouseout
  * @param {function} listener 
@@ -138,6 +190,25 @@ WarpSeatFactory.prototype.setSeatsData = function(seatsData = {}) {
     }
 }
 
+WarpSeatFactory._formatDatePair = function(b) {
+
+    var fromStr = new Date(b.fromTS*1000).toISOString();
+    var toStr = new Date(b.toTS*1000).toISOString();
+
+    if (fromStr.substring(0,10) == toStr.substring(0,10)) {
+        return {
+            datetime1: fromStr.substring(0,10),
+            datetime2: fromStr.substring(11,16)+"-"+toStr.substring(11,16)
+        };
+    }
+    else {
+        return {
+            datetime1: fromStr.substring(0,16).replace('T',' '),
+            datetime2: toStr.substring(0,16).replace('T',' ')
+        };
+    }
+}
+
 WarpSeat.prototype.getState = function() {
     return this.state;
 }
@@ -158,42 +229,25 @@ WarpSeat.prototype.getSid = function() {
     return parseInt(this.sid);  //TODO: convert this.sid to int in constructor
 }
 
+WarpSeat.prototype.getZid = function() {   
+    return parseInt(this.zid);  //TODO: convert this.sid to int in constructor
+}
+
 
 WarpSeat.prototype.getAllBookings = function() {
     return this.book;
 }
 
 /**
- * Returns preformatted booking list
- * @returns array of { bid: bid, datetime1: "yyyy-mm-dd", datetime2: "hh:mm-hh:mm", user: "username" }
- *          in case (which should not happen) that reservation is accross days, 
- *          datetime{12} will be "yyyy-mm-dd hh:mm"
+ * Returns raw booking list
+ * @returns array of { bid: 10, username: "sebo", isMine: true, fromTS: 1, toTS: 2 }
  */
-WarpSeat.prototype.getBookings = function() {
+WarpSeat.prototype.getBookingsRaw = function() {
 
     var bookings = this.getAllBookings();
     var selectedDates = this.selectedDates;
 
     var res = [];
-
-    function formatDatePair(fromTS,toTS) {
-
-        var fromStr = new Date(fromTS*1000).toISOString();
-        var toStr = new Date(toTS*1000).toISOString();
-
-        if (fromStr.substring(0,10) == toStr.substring(0,10)) {
-            return [
-                fromStr.substring(0,10),
-                fromStr.substring(11,16)+"-"+toStr.substring(11,16)
-            ];
-        }
-        else {
-            return [
-                fromStr.substring(0,16).replace('T',' '),
-                toStr.substring(0,16).replace('T',' ')
-            ];
-        }
-    }
 
     date_loop:
     for (var date of selectedDates) {
@@ -201,19 +255,29 @@ WarpSeat.prototype.getBookings = function() {
             if ( book.fromTS >= date.toTS ) // book is sorted by fromTS, so we can optimize
                 break;
             else if (book.toTS > date.fromTS) {
-                var dateStr = formatDatePair(book.fromTS,book.toTS);
-
-                res.push( {
-                    bid: book.bid,
-                    datetime1: dateStr[0],
-                    datetime2: dateStr[1],
-                    user: book.username
-                });
+                res.push( Object.assign({}, book));
             }
         }
     }
 
-    return res;
+    return res;    
+}
+
+/**
+ * Returns preformatted booking list
+ * @returns array from getBookingsRaw extended with { datetime1: "yyyy-mm-dd", datetime2: "hh:mm-hh:mm" }
+ *          in case (which should not happen) that reservation is accross days, 
+ *          datetime{12} will be "yyyy-mm-dd hh:mm"
+ */
+WarpSeat.prototype.getBookings = function() {
+
+    var bookings = this.getBookingsRaw();
+
+    for (var b of bookings) {
+        Object.assign(b, WarpSeatFactory._formatDatePair(b));
+    }
+
+    return bookings;
 }
 
 WarpSeat.prototype._updateState = function() {
@@ -227,7 +291,7 @@ WarpSeat.prototype._updateState = function() {
     }
 
     var isFree = true;
-    var isMy = false;
+    var isMine = false;
     var isExact = 0;
 
     date_loop:
@@ -240,9 +304,9 @@ WarpSeat.prototype._updateState = function() {
             }
             else if (book.toTS > date.fromTS) {
 
-                if (book.uid == this.uid) {
+                if (book.isMine) {
 
-                    isMy = true;
+                    isMine = true;
 
                     if (book.fromTS == date.fromTS && book.toTS == date.toTS)
                         ++isExact;
@@ -252,23 +316,19 @@ WarpSeat.prototype._updateState = function() {
                 }
                 else {
                     isFree = false;
-                    if (isMy)
+                    if (isMine)
                         break date_loop;
                 }
             }
         }
     }
 
-    switch (this.state) {
-        case WarpSeat.SeatStates.CAN_DELETE_EXACT:
-        case WarpSeat.SeatStates.CAN_CHANGE:
-        case WarpSeat.SeatStates.CAN_DELETE:
-            --this.myBookings[0];
-    }
+    if (isMine)
+        this.myConflictingBookings.add(this.sid);
+    else
+        this.myConflictingBookings.delete(this.sid);
 
-    if (isMy) {
-
-        ++this.myBookings[0];
+    if (isMine) {
 
         if (isExact == selectedDates.length)
             this.state = WarpSeat.SeatStates.CAN_DELETE_EXACT;
@@ -286,7 +346,7 @@ WarpSeat.prototype._updateState = function() {
     return this.state;
 }
 
-// as this function relays on myBookings 
+// as this function relays on myConflictingBookings 
 // it should be called after all WarpSeats' states are updated
 WarpSeat.prototype._updateView = function() {
 
@@ -305,8 +365,8 @@ WarpSeat.prototype._updateView = function() {
         case WarpSeat.SeatStates.CAN_DELETE:
             this.seatDiv.style.backgroundPositionX = WarpSeat.Defines.spriteUserConflictOffset;
             break;
-        case WarpSeat.SeatStates.CAN_BOOK:            
-            if (this.myBookings[0] > 0) {
+        case WarpSeat.SeatStates.CAN_BOOK:   
+            if (this.myConflictingBookings.size > 0) {
                 this.state = WarpSeat.SeatStates.CAN_REBOOK;    //this is not very elegant
                 this.seatDiv.style.backgroundPositionX = WarpSeat.Defines.spriteRebookOffset;
             }
@@ -326,17 +386,12 @@ WarpSeat.prototype._updateView = function() {
 
 WarpSeat.prototype._destroy = function() {
 
-    switch (this.state) {
-        case WarpSeat.SeatStates.CAN_DELETE_EXACT:
-        case WarpSeat.SeatStates.CAN_CHANGE:
-        case WarpSeat.SeatStates.CAN_DELETE:
-            --this.myBookings[0];
-    }
+    this.myConflictingBookings.delete(this.sid);
 
     // dereference factory objects
     this.listeners = null;
     this.selectedDates = null;
-    this.myBookings = null; //TODO
+    this.myConflictingBookings = null;
 
     if (this.seatDiv) {
         this.seatDiv.removeEventListener('click',this);

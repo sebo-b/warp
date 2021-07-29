@@ -47,9 +47,9 @@ def bookingsRemove():
     return {"msg": "ok" }, 200
 
 #Format JSON
-#    sidN: { name: "name", x: 10, y: 10, other_zone: true,
+#    sidN: { name: "name", x: 10, y: 10, zid: zid,
 #       book: [
-#           { bid: 10, uid: 10, username: "sebo", fromTS: 1, toTS: 2, comment: "" }
+#           { bid: 10, isMine: true, username: "sebo", fromTS: 1, toTS: 2, comment: "" }
 # note that book array is sorted on fromTS
 @bp.route("/zone/getSeats/<zid>")
 def zoneGetSeats(zid):
@@ -78,7 +78,7 @@ def zoneGetSeats(zid):
             "name": s['name'],
             "x": s['x'],
             "y": s['y'],
-            "other_zone": (str(s['zid']) != zid),
+            "zid": s['zid'],
             "book": []
         }
 
@@ -93,14 +93,16 @@ def zoneGetSeats(zid):
                                    " ORDER BY fromTS",
                                    (tr['toTS'],tr['fromTS'],zone_group,))
 
+    uid = flask.session.get('uid')
+
     for b in bookings:
 
         sid = b['sid']
         
         res[sid]['book'].append({ 
             "bid": b['id'],
-            "uid": b['uid'], 
-            "username": b['username'], 
+            "isMine": b['uid'] == uid,
+            "username": b['username'],
             "fromTS": b['fromTS'], 
             "toTS": b['toTS'], 
             "comment": b['comment'] })

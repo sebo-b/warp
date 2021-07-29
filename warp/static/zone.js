@@ -62,7 +62,7 @@ function initSlider() {
 
 function initSeats() {
 
-    var seatFactory = new WarpSeatFactory(seatSpriteURL,"zonemap",uid);
+    var seatFactory = new WarpSeatFactory(seatSpriteURL,"zonemap",zoneData);
 
     // register WarpSeats for updates
     var updateSeatsView = function() {
@@ -115,19 +115,19 @@ function initSeatPreview(seatFactory) {
         var maxToShow = 8;
     
         var bookings = this.getBookings();
-        
+
         for (var b of bookings) {
 
             if (maxToShow-- == 0) {
                 b.datetime1 = "...";
                 b.datetime2 = "";
-                b.user = "";
+                b.username = "";
             }
 
             var tr = table.appendChild( document.createElement("tr"));
             tr.appendChild( document.createElement("td")).innerText = b.datetime1;
             tr.appendChild( document.createElement("td")).innerText = b.datetime2;
-            tr.appendChild( document.createElement("td")).innerText = b.user;
+            tr.appendChild( document.createElement("td")).innerText = b.username;
 
             if (maxToShow == 0)
                 break;

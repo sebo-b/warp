@@ -74,9 +74,20 @@ def bookings(context):
 @bp.route("/zone/<zid>")
 def zone(zid):
 
-    row = getDB().cursor().execute("SELECT * FROM zone WHERE id = ?",(zid,)).fetchone()
+    row = getDB().cursor().execute("SELECT id,name,image FROM zone")
 
-    if row is None:
+    zone_data = {
+        "names": {}
+    }
+
+    for z in row:
+        zone_data["names"][z['id']] = z['name']
+
+        if z['id'] == int(zid):
+            zone_data['id'] = zid
+            zone_data['image'] = z['image']
+
+    if "id" not in zone_data:
         flask.abort(404)
 
     nextWeek = utils.getNextWeek()
@@ -85,4 +96,4 @@ def zone(zid):
             d['mark'] = True
             break
 
-    return flask.render_template('zone.html',zone_data=row, nextWeek=nextWeek)
+    return flask.render_template('zone.html',zone_data=zone_data, nextWeek=nextWeek)

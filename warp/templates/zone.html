@@ -9,8 +9,8 @@
     <script>
         getSeatURL = "{{ url_for('xhr.zoneGetSeats',zid=zone_data['id']) }}";
         zoneActionURL = "{{ url_for('xhr.zoneAction') }}";
-        seatSpriteURL = "{{ url_for('static',filename='seat_icons.png') }}";
-        uid = {{ session['uid'] }};
+        seatSpriteURL = "{{ url_for('static',filename='seat_icons.png') }}";        
+        var zoneData = {{ zone_data | tojson }}
     </script>
 
     <script src="{{ url_for('static', filename='zone.js') }}"></script>
