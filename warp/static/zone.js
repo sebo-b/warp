@@ -1,6 +1,6 @@
 "use strict";
 
-var g_seatData = {};
+var g_seatFactory;  //TODO get rid of a global variable
 
 function downloadSeatData() {
 
@@ -9,9 +9,8 @@ function downloadSeatData() {
 
         var seatData = JSON.parse(this.responseText);
 
-        g_seatData = seatData;
-        WarpSeat.updateSeatsData(seatData);
-        WarpSeat.updateView( getSelectedDates());
+        g_seatFactory.setSeatsData(seatData);
+        g_seatFactory.updateAllStates( getSelectedDates());
     });
 
     xhr.open("GET", getSeatURL);
@@ -46,7 +45,7 @@ function initSlider() {
         step: 15*60,
         margin: 15*60,
         orientation: 'vertical',
-        range: { 'min': 0, 'max': 24*3600 }
+        range: { 'min': 0, 'max': 24*3600-1 }
     });
 
     var minDiv = document.getElementById('timeslider-min');
@@ -61,12 +60,12 @@ function initSlider() {
 
 function initSeats() {
 
-    WarpSeat.Init(seatSpriteURL,"zonemap",uid);
+    g_seatFactory = new WarpSeatFactory(seatSpriteURL,"zonemap",uid);
 
     // register WarpSeats for updates
     var updateSeatsView = function() {
         var dates = getSelectedDates();
-        WarpSeat.updateView(dates);
+        g_seatFactory.updateAllStates(dates);
     }
 
     var slider = document.getElementById('timeslider');
@@ -81,12 +80,13 @@ function initSeatPreview() {
 
     var previewDiv = document.getElementById('seat_preview');
 
-    WarpSeat.on( 'mouseover', function() {
+    g_seatFactory.on( 'mouseover', function() {
     
         switch (this.getState()) {
             case WarpSeat.SeatStates.CAN_BOOK:
             case WarpSeat.SeatStates.CAN_REBOOK:
             case WarpSeat.SeatStates.CAN_DELETE_EXACT:
+            case WarpSeat.SeatStates.DISABLED:
                 return;
         };
     
@@ -110,7 +110,7 @@ function initSeatPreview() {
         var table =  previewDiv.appendChild(document.createElement("table"));
         var maxToShow = 8;
     
-        var bookings = this.getBookings( getSelectedDates());
+        var bookings = this.getBookings();
         
         for (var b of bookings) {
 
@@ -131,7 +131,7 @@ function initSeatPreview() {
         previewDiv.style.display = "block";
     });
     
-    WarpSeat.on( 'mouseout', function() {
+    g_seatFactory.on( 'mouseout', function() {
         previewDiv.style.display = "none";  
     });
 
@@ -140,7 +140,7 @@ function initSeatPreview() {
 function initActionMenu() {
 
     var seat = null;    // used for passing seat to btn click events (closure)
-                        // it is set at the end of WarpSeat.on('click'
+                        // it is set at the end of g_seatFactory.on('click'
                         // it is used in actionBtn click event
                         // and it is reset (to release reference) in actionModal onCloseEnd event
 
@@ -155,7 +155,7 @@ function initActionMenu() {
 
     var actionElTitle = document.getElementById('action_modal_title');
 
-    WarpSeat.on( 'click', function() {
+    g_seatFactory.on( 'click', function() {
 
         var state = this.getState();
 

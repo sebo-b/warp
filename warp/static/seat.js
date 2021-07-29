@@ -1,112 +1,115 @@
 "use strict";
 
-function WarpSeat(sid) {
+/**
+ * WarpSeat
+ * NOTE: book from seatData is not cloned, it is stored as reference
+ * @param {integer} sid 
+ * @param {object} seatData - object described in zoneGetSeats
+ * @returns 
+ */
+function WarpSeat(sid,seatData,factory) {
 
-    if (!WarpSeat._Instances)
-        throw new Error("WaprSeat not initialized. Call WarpSeat.Init() first.");
-
-    if (sid in WarpSeat._Instances)
-        return WarpSeat._Instances[sid];
-
-    if (!WarpSeat._data.seatsData)
-        throw new Error("WaprSeat: seatsData not initialized. Call WarpSeat.Init() first.");
-
-    if (!(sid in WarpSeat._data.seatsData))
-        throw new Error("WaprSeat: sid="+sid+"doesn't exists (in seatsData).");
+    // reference to some factory properties
+    // we don't want to reference whole factory to not create circular references
+    // between WarpSeat and WarpSeatFactory
+    this.listeners = factory.listeners;
+    this.selectedDates = factory.selectedDates;
+    this.myBookings = factory.myBookings; //TODO
+    this.uid = factory.uid;
 
     this.sid = sid;
+    this.x = seatData.x;
+    this.y = seatData.y;
+    this.name = seatData.name;
+    this.otherZone = seatData.other_zone;
+    this.book = seatData.book;  //NOTE: just reference
+    this.seatDiv = null;
+    
+    if (!this.otherZone) {
+        this._createDiv(factory.rootDiv, factory.spriteURL);
+    }
+    
     this.action = WarpSeat.SeatStates.DISABLED;
-    WarpSeat._Instances[sid] = this;
-
-    if (!WarpSeat._data.seatsData[this.sid].other_zone)
-        this._createDiv();
 };
 
 WarpSeat.SeatStates = {
     TAKEN: 0,           // seat is booked by another user
     DISABLED: 1,        // seat is disabled
     CAN_BOOK: 2,        // seat is available to be booked
-    CAN_REBOOK: 3,      // seat is available to be booked, but other seat is already booked (NOTE: this state is only returned by getState, it is not used internally)
+    CAN_REBOOK: 3,      // seat is available to be booked, but other seat is already booked (IMPLEMENTATION NOTE: this state is set in _updateView)
     CAN_CHANGE: 4,      // seat is already booked by this user, but can be changed (extended, reduced, deleted)
     CAN_DELETE: 5,      // seat is already booked by this user, but cannot be changed
     CAN_DELETE_EXACT: 6 // seat is already booked by this user, cannot be changed and selected dated are exactly matching booking dates
 }
 
-WarpSeat.getInstance = function(sid) { 
-
-    if (!WarpSeat._Instances)
-        throw new Error("WaprSeat not initialized. Initialize it in WarpSeat.Init() or call WarpSeat.updateSeatsData() first.");
-
-    return WarpSeat._Instances[sid];
+WarpSeat.Defines = {
+    spriteSize: 48,
+    spriteBookOffset: "-144px",
+    spriteRebookOffset: "-192px",
+    spriteConflictOffset: "-240px",
+    spriteUserConflictOffset: "-48px",
+    spriteUserExactOffset: "0px",
+    spriteUserRebookOffset: "-96px",
+    spriteDisabledOffset: "-288px"
 };
 
-// NOTE: seatsData is not cloned
-WarpSeat.Init = function(spriteURL,rootDivId, uid, seatsData) {
+function WarpSeatFactory(spriteURL,rootDivId, uid) {
 
-    WarpSeat._data = {
-        seatsData: {},    // this will be updated via WarpSeat.updateSeatsData
-        rootDiv: document.getElementById(rootDivId),
-        uid: uid,
-        myBookings: 0,    // number of seats booked by the current user for selected dates, used in updateState/updateView
-        sprites: {
-            SIZE: 48,
-            URL: spriteURL,
-            book: "-144px",
-            rebook: "-192px",
-            conflict: "-240px",
-            user_conflict: "-48px",
-            user_exact: "0px",
-            user_rebook: "-96px",
-            disabled: "-288px"
-        }
-    };
+    this.spriteURL = spriteURL;
+    this.rootDiv = document.getElementById(rootDivId);
+    this.uid = uid;
+    this.selectedDates = [];
 
-    WarpSeat.listeners = {
+    this.instances = {};
+    this.listeners = {
         click: new Set(), 
         mouseover: new Set(), 
         mouseout: new Set()
     };
 
-    WarpSeat._Instances = {};
-    WarpSeat.updateSeatsData(seatsData);
-};
+    this.myBookings = [0];    //TODO
+}
 
 /**
  * @param {Object[]} selectedDates - list of selected dates [ {from: timestamp, to: timestamp}, ... ]
  */
- WarpSeat.updateView = function(selectedDates) {
+ WarpSeatFactory.prototype.updateAllStates = function(selectedDates) {
 
-    if (!WarpSeat._Instances)
-        throw new Error("WaprSeat not initialized. Initialize it in WarpSeat.Init() or call WarpSeat.updateSeatsData() first.");
+    if (typeof(selectedDates) !== 'undefined') {
+        this.selectedDates.length = 0;  //WarpSeats keep reference to selectedDates
+        for (var d of selectedDates) {
+            this.selectedDates.push( Object.assign({},d));
+        }
+    }
 
-    for (var seat of Object.values(WarpSeat._Instances)  )
-        seat.updateState(selectedDates);
+    for (var seat of Object.values(this.instances)  )
+        seat._updateState();
 
-    for (var seat of Object.values(WarpSeat._Instances))
-        seat.updateView();
+    for (var seat of Object.values(this.instances))
+        seat._updateView();
 
  }
 
 
 // NOTE: seatsData is not cloned
-// you should call WarpSeat.updateView after this (it is not called automatically)
-WarpSeat.updateSeatsData = function(seatsData = {}) {
+WarpSeatFactory.prototype.setSeatsData = function(seatsData = {}) {
 
-    if (!WarpSeat._Instances)
-        throw new Error("WaprSeat not initialized. Call WarpSeat.Init() first.");
-
-    var oldSeatsIds = new Set( Object.keys(WarpSeat._Instances))
-    WarpSeat._data.seatsData = seatsData;
+    var oldSeatsIds = new Set( Object.keys(this.instances))
 
     //create possibly missing seats
     for (var sid in seatsData) {
         if (!oldSeatsIds.delete(sid)) {
-            new WarpSeat(sid);
+            var s = new WarpSeat(sid,seatsData[sid],this);
+            this.instances[sid] = s;
+        }
+        else {
+            this.instances[sid]._setBook(seatsData[sid].book);
         }
     }
     //delete seats which don't exist anymore
     for (var sid of oldSeatsIds) {
-        WarpSeat._Instances[sid].destroy();
+        this.instances[sid]._destroy();
+        delete this.instances[sid];
     }
 };
 
@@ -115,9 +118,9 @@ WarpSeat.updateSeatsData = function(seatsData = {}) {
  * @param {string} type - event type, one of click, mouseover, mouseout
  * @param {function} listener 
  */
-WarpSeat.on = function(type,listener) {
-    if (type in WarpSeat.listeners && typeof(listener) === 'function') {
-        WarpSeat.listeners[type].add(listener);
+ WarpSeatFactory.prototype.on = function(type,listener) {
+    if (type in this.listeners && typeof(listener) === 'function') {
+        this.listeners[type].add(listener);
     }
 }
 
@@ -126,54 +129,51 @@ WarpSeat.on = function(type,listener) {
  * @param {*} type - event type, one of click, mouseover, mouseout
  * @param {*} [listener]
  */
-WarpSeat.off = function(type,listener) {
-    if (type in WarpSeat.listeners) {
+ WarpSeatFactory.prototype.off = function(type,listener) {
+    if (type in this.listeners) {
         if (listener)
-            WarpSeat.listeners[type].delete(listener);
+            this.listeners[type].delete(listener);
         else
-            WarpSeat.listeners[type].clear();
+            this.listeners[type].clear();
     }
 }
 
 WarpSeat.prototype.getState = function() {
-
-    if (this.state == WarpSeat.SeatStates.CAN_BOOK && WarpSeat._data.myBookings > 0)
-        return WarpSeat.SeatStates.CAN_REBOOK;
-
     return this.state;
 }
 
 WarpSeat.prototype.getPositionAndSize = function() {
     return { 
-        x: WarpSeat._data.seatsData[this.sid].x, 
-        y: WarpSeat._data.seatsData[this.sid].y,
-        size: WarpSeat._data.sprites.SIZE
+        x: this.x, 
+        y: this.y,
+        size: WarpSeat.Defines.spriteSize
      };
 }
 
 WarpSeat.prototype.getName = function() {   
-    return WarpSeat._data.seatsData[this.sid].name;
+    return this.name;
 }
 
 WarpSeat.prototype.getSid = function() {   
-    return parseInt(this.sid);
+    return parseInt(this.sid);  //TODO: convert this.sid to int in constructor
 }
 
 
 WarpSeat.prototype.getAllBookings = function() {
-    return WarpSeat._data.seatsData[this.sid].book;
+    return this.book;
 }
 
 /**
  * Returns preformatted booking list
- * @param {Object[]} selectedDates - list of selected dates [ {from: timestamp, to: timestamp}, ... ]
  * @returns array of { bid: bid, datetime1: "yyyy-mm-dd", datetime2: "hh:mm-hh:mm", user: "username" }
  *          in case (which should not happen) that reservation is accross days, 
  *          datetime{12} will be "yyyy-mm-dd hh:mm"
  */
-WarpSeat.prototype.getBookings = function(selectedDates) {
+WarpSeat.prototype.getBookings = function() {
 
     var bookings = this.getAllBookings();
+    var selectedDates = this.selectedDates;
+
     var res = [];
 
     function formatDatePair(fromTS,toTS) {
@@ -216,13 +216,15 @@ WarpSeat.prototype.getBookings = function(selectedDates) {
     return res;
 }
 
-
-/**
- * @param {Object[]} selectedDates - list of selected dates [ {from: timestamp, to: timestamp}, ... ]
- */
-WarpSeat.prototype.updateState = function(selectedDates) {
+WarpSeat.prototype._updateState = function() {
     
     var bookings = this.getAllBookings();
+    var selectedDates = this.selectedDates;
+
+    if (!selectedDates.length) {
+        this.state = WarpSeat.SeatStates.DISABLED;
+        return this.state;
+    }
 
     var isFree = true;
     var isMy = false;
@@ -238,7 +240,7 @@ WarpSeat.prototype.updateState = function(selectedDates) {
             }
             else if (book.toTS > date.fromTS) {
 
-                if (book.uid == WarpSeat._data.uid) {
+                if (book.uid == this.uid) {
 
                     isMy = true;
 
@@ -261,12 +263,12 @@ WarpSeat.prototype.updateState = function(selectedDates) {
         case WarpSeat.SeatStates.CAN_DELETE_EXACT:
         case WarpSeat.SeatStates.CAN_CHANGE:
         case WarpSeat.SeatStates.CAN_DELETE:
-            --WarpSeat._data.myBookings;
+            --this.myBookings[0];
     }
 
     if (isMy) {
 
-        ++WarpSeat._data.myBookings;
+        ++this.myBookings[0];
 
         if (isExact == selectedDates.length)
             this.state = WarpSeat.SeatStates.CAN_DELETE_EXACT;
@@ -284,9 +286,9 @@ WarpSeat.prototype.updateState = function(selectedDates) {
     return this.state;
 }
 
-// as this function relays on WarpSeat._data.myBookings 
+// as this function relays on myBookings 
 // it should be called after all WarpSeats' states are updated
-WarpSeat.prototype.updateView = function() {
+WarpSeat.prototype._updateView = function() {
 
     // seats form other zones doesn't have divs created
     if (!this.seatDiv)
@@ -295,41 +297,46 @@ WarpSeat.prototype.updateView = function() {
     switch (this.state) {
 
         case WarpSeat.SeatStates.CAN_CHANGE:
-            this.seatDiv.style.backgroundPositionX = WarpSeat._data.sprites.user_rebook;
+            this.seatDiv.style.backgroundPositionX = WarpSeat.Defines.spriteUserRebookOffset;
             break;
         case WarpSeat.SeatStates.CAN_DELETE_EXACT:
-            this.seatDiv.style.backgroundPositionX = WarpSeat._data.sprites.user_exact;
+            this.seatDiv.style.backgroundPositionX = WarpSeat.Defines.spriteUserExactOffset;
             break;
         case WarpSeat.SeatStates.CAN_DELETE:
-            this.seatDiv.style.backgroundPositionX = WarpSeat._data.sprites.user_conflict;
+            this.seatDiv.style.backgroundPositionX = WarpSeat.Defines.spriteUserConflictOffset;
             break;
-        case WarpSeat.SeatStates.CAN_BOOK:
-            if (WarpSeat._data.myBookings > 0)
-                this.seatDiv.style.backgroundPositionX = WarpSeat._data.sprites.rebook;
+        case WarpSeat.SeatStates.CAN_BOOK:            
+            if (this.myBookings[0] > 0) {
+                this.state = WarpSeat.SeatStates.CAN_REBOOK;    //this is not very elegant
+                this.seatDiv.style.backgroundPositionX = WarpSeat.Defines.spriteRebookOffset;
+            }
             else
-                this.seatDiv.style.backgroundPositionX = WarpSeat._data.sprites.book;
+                this.seatDiv.style.backgroundPositionX = WarpSeat.Defines.spriteBookOffset;
             break;
         case WarpSeat.SeatStates.TAKEN:
-            this.seatDiv.style.backgroundPositionX = WarpSeat._data.sprites.conflict;
+            this.seatDiv.style.backgroundPositionX = WarpSeat.Defines.spriteConflictOffset;
             break;
         default: /* WarpSeat.SeatStates.DISABLED */
-            this.seatDiv.style.backgroundPositionX = WarpSeat._data.sprites.disabled;
+            this.seatDiv.style.backgroundPositionX = WarpSeat.Defines.spriteDisabledOffset;
             break;
     }
 
     this.seatDiv.style.display = "block";
 }
 
-WarpSeat.prototype.destroy = function() {
+WarpSeat.prototype._destroy = function() {
 
     switch (this.state) {
         case WarpSeat.SeatStates.CAN_DELETE_EXACT:
         case WarpSeat.SeatStates.CAN_CHANGE:
         case WarpSeat.SeatStates.CAN_DELETE:
-            --WarpSeat._data.myBookings;
+            --this.myBookings[0];
     }
 
-    delete WarpSeat._Instances[this.sid];
+    // dereference factory objects
+    this.listeners = null;
+    this.selectedDates = null;
+    this.myBookings = null; //TODO
 
     if (this.seatDiv) {
         this.seatDiv.removeEventListener('click',this);
@@ -340,27 +347,35 @@ WarpSeat.prototype.destroy = function() {
 };
 
 WarpSeat.prototype.handleEvent = function(e) {
-    if (e.type in WarpSeat.listeners) {
-        for (var l of WarpSeat.listeners[e.type]) {
+    if (e.type in this.listeners) {
+        for (var l of this.listeners[e.type]) {
             l.call(this);
         }
     }
 };
 
-WarpSeat.prototype._createDiv = function() {
+WarpSeat.prototype._setBook = function(book) {
+    this.book = book;
+}
+
+
+WarpSeat.prototype._createDiv = function(rootDiv, spriteURL) {
+
+    if (this.seatDiv)
+        throw Error("seatDiv already created")
 
     this.seatDiv =  document.createElement("div");
     this.seatDiv.style.position = "absolute";
-    this.seatDiv.style.left = WarpSeat._data.seatsData[this.sid]['x'] + "px";
-    this.seatDiv.style.top = WarpSeat._data.seatsData[this.sid]['y'] + "px";
-    this.seatDiv.style.width = WarpSeat._data.sprites.SIZE + "px";
-    this.seatDiv.style.height = WarpSeat._data.sprites.SIZE + "px";
-    this.seatDiv.style.backgroundImage = 'url('+WarpSeat._data.sprites.URL+')';
+    this.seatDiv.style.left = this.x + "px";
+    this.seatDiv.style.top = this.y + "px";
+    this.seatDiv.style.width = WarpSeat.Defines.spriteSize + "px";
+    this.seatDiv.style.height = WarpSeat.Defines.spriteSize + "px";
+    this.seatDiv.style.backgroundImage = 'url('+spriteURL+')';
     this.seatDiv.style.display = "none";
 
     this.seatDiv.addEventListener('click',this);
     this.seatDiv.addEventListener('mouseover',this);
     this.seatDiv.addEventListener('mouseout',this);
 
-    WarpSeat._data.rootDiv.appendChild(this.seatDiv);
+    rootDiv.appendChild(this.seatDiv);
 };
