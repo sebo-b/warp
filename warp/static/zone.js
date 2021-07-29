@@ -279,7 +279,7 @@ function initDateSelectorStorage() {
     }
 
     for (let cb of document.getElementsByClassName('date_checkbox'))
-        cb.addEventListener('click', cbChange);
+        cb.addEventListener('change', cbChange);
     
     slider.noUiSlider.on('update', function(values, handle, unencoded, tap, positions, noUiSlider) {
 
@@ -292,14 +292,41 @@ function initDateSelectorStorage() {
 }
 
 function initShiftSelectDates() {
-    var lastSelectedTS = 0;
-    var cbClick = function(e) {
-        if (!e.shiftKey)
-            return;
 
-        //TODO shift select
-        
-        e.preventDefault();
+    // find lowest selected value
+    var lastSelectedValue = 0;
+    for (let cb of document.getElementsByClassName('date_checkbox')) {
+        if (cb.checked) {
+            if (lastSelectedValue === 0)
+                lastSelectedValue = parseInt(cb.value);
+            else
+                lastSelectedValue = Math.min( parseInt(cb.value), lastSelectedValue);
+        }
+    }
+
+    var cbClick = function(e) {
+
+        if (e.shiftKey)
+        {
+            var targetState = this.checked; // materialize has already changed the state
+            var minValue  = Math.min( parseInt(this.value), lastSelectedValue);
+            var maxValue  = Math.max( parseInt(this.value), lastSelectedValue);
+
+            for (let cb of document.getElementsByClassName('date_checkbox')) {
+                if (parseInt(cb.value) >= minValue && parseInt(cb.value) <= maxValue) {
+                    if (cb != this && cb.checked != targetState) {
+                        cb.checked = targetState;
+                        cb.dispatchEvent(
+                            new Event('change', {bubbles: true, cancelable: false}));
+                    }
+                }
+                    
+            }
+
+            // we should not call preventDefault() as this checkbox must be switched as well (and 'change' event dispatched)
+        }
+
+        lastSelectedValue = parseInt(this.value);
     }
 
     for (let cb of document.getElementsByClassName('date_checkbox'))
@@ -311,6 +338,7 @@ function initZone() {
 
     initSlider();
     initDateSelectorStorage();
+    initShiftSelectDates();
 
     var seatFactory = initSeats();
     initSeatPreview(seatFactory);
