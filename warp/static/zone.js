@@ -169,10 +169,11 @@ function initActionMenu() {
                 actions.push('book');
                 // Seat XXX will be booked for the following period(s): ...
                 break;
-            case WarpSeat.SeatStates.CAN_REBOOK:
             case WarpSeat.SeatStates.CAN_CHANGE:
-                actions.push('update');
                 actions.push('delete');
+                // no break here
+            case WarpSeat.SeatStates.CAN_REBOOK:
+                actions.push('update');
                 // Seat XXX will be booked for the following period(s): ... 
                 // The following booking(s) will be released: ....
                 break;
