@@ -1,16 +1,14 @@
 "use strict";
 
-var g_seatFactory;  //TODO get rid of a global variable
-
-function downloadSeatData() {
+function downloadSeatData(seatFactory) {
 
     var xhr = new XMLHttpRequest();
     xhr.addEventListener("load", function() {
 
         var seatData = JSON.parse(this.responseText);
 
-        g_seatFactory.setSeatsData(seatData);
-        g_seatFactory.updateAllStates( getSelectedDates());
+        seatFactory.setSeatsData(seatData);
+        seatFactory.updateAllStates( getSelectedDates());
     });
 
     xhr.open("GET", getSeatURL);
@@ -60,12 +58,12 @@ function initSlider() {
 
 function initSeats() {
 
-    g_seatFactory = new WarpSeatFactory(seatSpriteURL,"zonemap",uid);
+    var seatFactory = new WarpSeatFactory(seatSpriteURL,"zonemap",uid);
 
     // register WarpSeats for updates
     var updateSeatsView = function() {
         var dates = getSelectedDates();
-        g_seatFactory.updateAllStates(dates);
+        seatFactory.updateAllStates(dates);
     }
 
     var slider = document.getElementById('timeslider');
@@ -74,13 +72,15 @@ function initSeats() {
     for (var e of document.getElementsByClassName('date_checkbox')) {
         e.addEventListener('change',updateSeatsView);
     }
+
+    return seatFactory;
 }
 
-function initSeatPreview() {
+function initSeatPreview(seatFactory) {
 
     var previewDiv = document.getElementById('seat_preview');
 
-    g_seatFactory.on( 'mouseover', function() {
+    seatFactory.on( 'mouseover', function() {
     
         switch (this.getState()) {
             case WarpSeat.SeatStates.CAN_BOOK:
@@ -131,16 +131,16 @@ function initSeatPreview() {
         previewDiv.style.display = "block";
     });
     
-    g_seatFactory.on( 'mouseout', function() {
+    seatFactory.on( 'mouseout', function() {
         previewDiv.style.display = "none";  
     });
 
 }
 
-function initActionMenu() {
+function initActionMenu(seatFactory) {
 
     var seat = null;    // used for passing seat to btn click events (closure)
-                        // it is set at the end of g_seatFactory.on('click'
+                        // it is set at the end of seatFactory.on('click'
                         // it is used in actionBtn click event
                         // and it is reset (to release reference) in actionModal onCloseEnd event
 
@@ -155,7 +155,7 @@ function initActionMenu() {
 
     var actionElTitle = document.getElementById('action_modal_title');
 
-    g_seatFactory.on( 'click', function() {
+    seatFactory.on( 'click', function() {
 
         var state = this.getState();
 
@@ -211,7 +211,7 @@ function initActionMenu() {
             else
                 WarpModal.getInstance().open("Change unsuccessfull","Unable to apply the change. Probably the seat was already booked by someone else.<br>Status: "+this.status);
 
-            downloadSeatData();
+            downloadSeatData(seatFactory);
         });
 
         xhr.send( JSON.stringify( {
@@ -230,11 +230,12 @@ function initActionMenu() {
 function initZone() {
 
     initSlider();
-    initSeats();
-    initSeatPreview();
-    initActionMenu();
 
-    downloadSeatData();
+    var seatFactory = initSeats();
+    initSeatPreview(seatFactory);
+    initActionMenu(seatFactory);
+
+    downloadSeatData(seatFactory);
 }
 
 window.addEventListener("load",initZone);
