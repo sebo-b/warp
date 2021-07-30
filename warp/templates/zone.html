@@ -24,10 +24,18 @@
 
     <div id="action_modal" class="modal bottom-sheet">
         <div class="modal-content">
-            <h4 id="action_modal_title">Seat: A4 TODO</h4>
-            <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="book">Book</a>
-            <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="update">Update</a>
-            <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="delete">Remove</a>
+            <h4 id="action_modal_title" style="display: none;"></h4>
+            <div class="row">
+                <div class="col s3" id="action_modal_msg1"  style="display:none">
+                </div>
+                <div class="col s3" id="action_modal_msg2" style="display:none">
+                </div>
+                <div class="col s2 right">
+                    <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="book">Book</a>
+                    <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="update">Update</a>
+                    <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="delete">Remove</a>        
+                </div>
+            </div>
         </div>
     </div>
 

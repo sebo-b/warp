@@ -83,3 +83,19 @@
     vertical-align: middle;
 }
 
+.modal-content {
+    font-size: 10px;
+}
+
+.modal-content P {
+    font-weight: bold;
+}
+
+
+.modal-content TABLE {
+    width: auto;
+}
+
+.modal-content TD {
+    padding: 0 15px 0 0;    
+} 

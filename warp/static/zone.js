@@ -86,13 +86,9 @@ function initSeatPreview(seatFactory) {
 
     seatFactory.on( 'mouseover', function() {
     
-        switch (this.getState()) {
-            case WarpSeat.SeatStates.CAN_BOOK:
-            case WarpSeat.SeatStates.CAN_REBOOK:
-            case WarpSeat.SeatStates.CAN_DELETE_EXACT:
-            case WarpSeat.SeatStates.DISABLED:
-                return;
-        };
+        if (this.getState() != WarpSeat.SeatStates.TAKEN &&
+            this.getState() != WarpSeat.SeatStates.CAN_DELETE)
+            return;
     
         previewDiv.innerHTML = "";
 
@@ -157,40 +153,88 @@ function initActionMenu(seatFactory) {
     // register hooks
     var actionBtns = document.getElementsByClassName('zone_action_btn');
 
-    var actionElTitle = document.getElementById('action_modal_title');
-
     seatFactory.on( 'click', function() {
 
         var state = this.getState();
 
-        // todo - admin actions
-        if (state == WarpSeat.SeatStates.TAKEN || state == WarpSeat.SeatStates.DISABLED)
+        if (state == WarpSeat.SeatStates.TAKEN || state == WarpSeat.SeatStates.NOT_AVAILABLE)
             return;
 
         var actions = [];
+        var bookMsg = false;
+        var removeMsg = false;
+
         switch (this.getState()) {
             case WarpSeat.SeatStates.CAN_BOOK:
                 actions.push('book');
-                // Seat XXX will be booked for the following period(s): ...
+                bookMsg = true;
                 break;
             case WarpSeat.SeatStates.CAN_CHANGE:
                 actions.push('delete');
                 // no break here
             case WarpSeat.SeatStates.CAN_REBOOK:
                 actions.push('update');
-                // Seat XXX will be booked for the following period(s): ... 
-                // The following booking(s) will be released: ....
+                bookMsg = removeMsg = true;
                 break;
             case WarpSeat.SeatStates.CAN_DELETE:
             case WarpSeat.SeatStates.CAN_DELETE_EXACT:
                 actions.push('delete');
-                // The following booking(s) will be released: ....
+                removeMsg = true;
                 break;
         };
 
         if (!actions.length)
             return;
         
+        let msg1El = document.getElementById("action_modal_msg1");
+        if (bookMsg) {
+
+            msg1El.innerHTML = "";
+
+            var bookDatesTable = document.createElement("table");
+            for (let d of getSelectedDates()) {
+                let f = WarpSeatFactory._formatDatePair(d);
+                let tr = bookDatesTable.appendChild(document.createElement("tr"));
+                tr.appendChild( document.createElement("td")).innerText = f.datetime1;
+                tr.appendChild( document.createElement("td")).innerText = f.datetime2;
+            }
+
+            let p = document.createElement('P');
+            p.innerText = "To be booked:";
+
+            msg1El.appendChild(p);
+            msg1El.appendChild(bookDatesTable);
+            msg1El.style.display = "block";
+        }
+        else {
+            msg1El.style.display = "none";
+        }
+
+        let msg2El = document.getElementById("action_modal_msg2");
+        if (removeMsg) {
+            
+            msg2El.innerHTML = "";
+
+            var myConflictsTable = document.createElement("table");
+            for (let c of seatFactory.getMyConflictingBookings()) {
+                let tr = myConflictsTable.appendChild(document.createElement("tr"));
+                tr.appendChild( document.createElement("td")).innerText = c.zone_name
+                tr.appendChild( document.createElement("td")).innerText = c.seat_name;
+                tr.appendChild( document.createElement("td")).innerText = c.datetime1;
+                tr.appendChild( document.createElement("td")).innerText = c.datetime2;
+            }
+
+            let p = document.createElement('P');
+            p.innerText = "To be removed:";
+
+            msg2El.appendChild(p);
+            msg2El.appendChild(myConflictsTable);
+            msg2El.style.display = "block";
+        }
+        else {
+            msg2El.style.display = "none";
+        }
+
         for (let btn of actionBtns) {
             if (actions.includes(btn.dataset.action))
                 btn.style.display = "block";
@@ -198,7 +242,8 @@ function initActionMenu(seatFactory) {
                 btn.style.display = "none";
         }
     
-        actionElTitle.innerText = "Seat: "+this.getName();
+        //var actionElTitle = document.getElementById('action_modal_title');
+        //actionElTitle.innerText = "Seat: "+this.getName();
 
         seat = this;
         actionModal.open();

@@ -28,17 +28,18 @@ function WarpSeat(sid,seatData,factory) {
         this._createDiv(factory.rootDiv, factory.spriteURL);
     }
     
-    this.action = WarpSeat.SeatStates.DISABLED;
+    this.action = WarpSeat.SeatStates.NOT_AVAILABLE;
 };
 
 WarpSeat.SeatStates = {
     TAKEN: 0,           // seat is booked by another user
     DISABLED: 1,        // seat is disabled
-    CAN_BOOK: 2,        // seat is available to be booked
-    CAN_REBOOK: 3,      // seat is available to be booked, but other seat is already booked (IMPLEMENTATION NOTE: this state is set in _updateView)
-    CAN_CHANGE: 4,      // seat is already booked by this user, but can be changed (extended, reduced, deleted)
-    CAN_DELETE: 5,      // seat is already booked by this user, but cannot be changed
-    CAN_DELETE_EXACT: 6 // seat is already booked by this user, cannot be changed and selected dated are exactly matching booking dates
+    NOT_AVAILABLE: 2,   // no dates have been selected
+    CAN_BOOK: 3,        // seat is available to be booked
+    CAN_REBOOK: 4,      // seat is available to be booked, but other seat is already booked (IMPLEMENTATION NOTE: this state is set in _updateView)
+    CAN_CHANGE: 5,      // seat is already booked by this user, but can be changed (extended, reduced, deleted)
+    CAN_DELETE: 6,      // seat is already booked by this user, but cannot be changed
+    CAN_DELETE_EXACT: 7 // seat is already booked by this user, cannot be changed and selected dated are exactly matching booking dates
 }
 
 WarpSeat.Defines = {
@@ -286,7 +287,7 @@ WarpSeat.prototype._updateState = function() {
     var selectedDates = this.selectedDates;
 
     if (!selectedDates.length) {
-        this.state = WarpSeat.SeatStates.DISABLED;
+        this.state = WarpSeat.SeatStates.NOT_AVAILABLE;
         return this.state;
     }
 
@@ -376,7 +377,10 @@ WarpSeat.prototype._updateView = function() {
         case WarpSeat.SeatStates.TAKEN:
             this.seatDiv.style.backgroundPositionX = WarpSeat.Defines.spriteConflictOffset;
             break;
-        default: /* WarpSeat.SeatStates.DISABLED */
+        case WarpSeat.SeatStates.DISABLED:
+            this.seatDiv.style.backgroundPositionX = WarpSeat.Defines.spriteDisabledOffset;
+            break;
+        default: /* WarpSeat.SeatStates.NOT_AVAILABLE */
             this.seatDiv.style.backgroundPositionX = WarpSeat.Defines.spriteDisabledOffset;
             break;
     }
