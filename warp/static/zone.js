@@ -200,7 +200,7 @@ function initActionMenu(seatFactory) {
             }
 
             let p = document.createElement('P');
-            p.innerText = "To be booked:";
+            p.innerText = "Seat "+this.getName()+" to be booked:";
 
             msg1El.appendChild(p);
             msg1El.appendChild(bookDatesTable);
@@ -252,7 +252,7 @@ function initActionMenu(seatFactory) {
     var actionBtnClicked = function(e) {
             
         var xhr = new XMLHttpRequest();    
-        xhr.open("POST", zoneActionURL);
+        xhr.open("POST", zoneApplyURL);
         xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
         xhr.addEventListener("load", function(e) {
             if (this.status == 200)
@@ -263,11 +263,21 @@ function initActionMenu(seatFactory) {
             downloadSeatData(seatFactory);
         });
 
-        xhr.send( JSON.stringify( {
-            "action": this.dataset.action,
-            "sid": seat.getSid(),
-            "dates": getSelectedDates()
-            }));
+        var applyData = {};
+
+        if (this.dataset.action == 'book' || this.dataset.action == 'update') {
+            applyData['book'] = {
+                sid: seat.getSid(),
+                dates: getSelectedDates()
+            }
+        }
+
+        if (this.dataset.action == 'delete' || this.dataset.action == 'update') {
+            applyData['remove'] = seatFactory.getMyConflictingBookingsRaw().map(i => i.bid);
+        }
+
+        xhr.send( JSON.stringify(applyData));
+
     };
 
     for (let btn of actionBtns)

@@ -111,15 +111,17 @@ def zoneGetSeats(zid):
 
 # format:
 # { 
-#   action: 'book|update|delete',
-#   sid: sid,
-#   dates: [
-#       { fromTS: timestamp, toTS: timestamp },
-#       { fromTS: timestamp, toTS: timestamp },
-#   ]
+#   book: {
+#       sid: sid,
+#       dates: [
+#           { fromTS: timestamp, toTS: timestamp },
+#           { fromTS: timestamp, toTS: timestamp },
+#       ]
+#   },
+#   remove: [ bid, bid, bid]
 # }
-@bp.route("/zone/action", methods=["POST"])
-def zoneAction():
+@bp.route("/zone/apply", methods=["POST"])
+def zoneApply():
 
     if not flask.request.is_json:
         flask.abort(404)
@@ -130,35 +132,51 @@ def zoneAction():
     if role >= auth.ROLE_VIEVER:
         flask.abort(403)
 
-    action_data = flask.request.get_json()
+    apply_data = flask.request.get_json()
 
     schema = {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "properties": {
-            "action" : {"enum": ["book", "update", "delete"] },
-            "sid" : {"type" : "integer"},
-            "dates": {
+            "book": {
+                "type": "object",
+                "properties": {
+                    "sid" : {"type" : "integer"},
+                    "dates": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "fromTS": {"type" : "integer"},
+                                "toTS": {"type" : "integer"}
+                            },
+                            "required": [ "fromTS", "toTS"]
+                        }                       
+                    }
+                },
+                "required": [ "sid", "dates"],
+            },
+            "remove": {
                 "type": "array",
                 "items": {
-                    "type": "object",
-                    "properties": {
-                        "fromTS": {"type" : "integer"},
-                        "toTS": {"type" : "integer"}
-                    }
+                    "type": "integer"
                 }
             }
-        }
+        },
+        "anyOf": [
+            {"required": [ "book" ]},
+            {"required": [ "remove" ]}
+        ]
     }
 
     if role >= auth.ROLE_USER:
         ts = utils.getTimeRange()
-        schema["properties"]["dates"]["items"]["properties"]["fromTS"]["minimum"] = ts["fromTS"]
-        schema["properties"]["dates"]["items"]["properties"]["fromTS"]["maximum"] = ts["toTS"]
-        schema["properties"]["dates"]["items"]["properties"]["toTS"]["minimum"] = ts["fromTS"]
-        schema["properties"]["dates"]["items"]["properties"]["toTS"]["maximum"] = ts["toTS"]
+        schema["properties"]["book"]["properties"]['dates']['items']["properties"]["fromTS"]["minimum"] = ts["fromTS"]
+        schema["properties"]["book"]["properties"]['dates']['items']["properties"]["fromTS"]["maximum"] = ts["toTS"]
+        schema["properties"]["book"]["properties"]['dates']['items']["properties"]["toTS"]["minimum"] = ts["fromTS"]
+        schema["properties"]["book"]["properties"]['dates']['items']["properties"]["toTS"]["maximum"] = ts["toTS"]
 
     try:
-        validate(action_data,schema)
+        validate(apply_data,schema)
     except ValidationError as err:
         return {"msg": "invalid input" }, 400
 
@@ -167,19 +185,15 @@ def zoneAction():
     try:
         cursor = db.cursor()
 
-        if action_data['action'] == 'delete':
-            for d in action_data['dates']:            
-                cursor.execute("DELETE FROM book WHERE fromTS < ? AND toTS > ? AND sid = ? AND uid = ?",
-                                (d['toTS'],d['fromTS'],action_data['sid'],uid))
-        elif action_data['action'] == 'update':
-            for d in action_data['dates']:            
-                cursor.execute("DELETE FROM book WHERE fromTS < ? AND toTS > ? AND uid = ?",
-                                (d['toTS'],d['fromTS'],uid))
+        # first we remove (as this can be list of conflicting reservations)
+        if 'remove' in apply_data:
+            cursor.executemany("DELETE FROM book WHERE id = ? AND uid = ?",
+                ((id,uid) for id in apply_data['remove']))
 
-        if action_data['action'] == 'book' or action_data['action'] == 'update':
-            for d in action_data['dates']:
-                cursor.execute("INSERT INTO book (uid,sid,fromTS,toTS) VALUES (?,?,?,?)",
-                            (uid,action_data['sid'],d['fromTS'],d['toTS']))    
+        # then we create new reservations
+        if 'book' in apply_data:
+            cursor.executemany("INSERT INTO book (uid,sid,fromTS,toTS) VALUES (?,?,?,?)",
+                ((uid,apply_data['book']['sid'],x['fromTS'], x['toTS']) for x in apply_data['book']['dates']))
 
         db.commit()
 
@@ -188,6 +202,7 @@ def zoneAction():
         return {"msg": str(err) }, 400
 
     return {"msg": "ok" }, 200
+
 
 #Format
 # {

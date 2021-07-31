@@ -8,7 +8,7 @@
 
     <script>
         getSeatURL = "{{ url_for('xhr.zoneGetSeats',zid=zone_data['id']) }}";
-        zoneActionURL = "{{ url_for('xhr.zoneAction') }}";
+        zoneApplyURL = "{{ url_for('xhr.zoneApply') }}";
         seatSpriteURL = "{{ url_for('static',filename='seat_icons.png') }}";        
         var zoneData = {{ zone_data | tojson }};
         var defaultSelections = {{ defaultSelections | tojson }};

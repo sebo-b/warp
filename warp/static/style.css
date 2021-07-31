@@ -83,19 +83,18 @@
     vertical-align: middle;
 }
 
-.modal-content {
+#action_modal .modal-content {
     font-size: 10px;
 }
 
-.modal-content P {
+#action_modal .modal-content P {
     font-weight: bold;
 }
 
-
-.modal-content TABLE {
+#action_modal .modal-content TABLE {
     width: auto;
 }
 
-.modal-content TD {
+#action_modal .modal-content TD {
     padding: 0 15px 0 0;    
 } 
