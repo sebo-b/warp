@@ -27,15 +27,15 @@ function initBooking() {
 
 function removeBooking(data) {
 
-    let btnClicked = function(bid) {
+    let btnClicked = function(buttonId) {
 
-        if (bid != 1)
+        if (buttonId != 1)
             return;
 
-        var action_data = { bid: data['id']};
+        var action_data = { remove: [ data['id'] ]};
         
         var xhr = new XMLHttpRequest();
-        xhr.open("POST", removeURL,true);
+        xhr.open("POST", zoneApplyURL,true);
         xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
         xhr.addEventListener("load", function() {
             if (this.status == 200) {

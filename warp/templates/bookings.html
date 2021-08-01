@@ -3,7 +3,7 @@
 {% block header %}
     {{ super() }}
 <script>
-    removeURL = "{{ url_for('xhr.bookingsRemove') }}";
+    zoneApplyURL = "{{ url_for('xhr.zoneApply') }}";
 </script>
 <script src="{{ url_for('static', filename='bookings.js') }}"></script>
 {% endblock %}

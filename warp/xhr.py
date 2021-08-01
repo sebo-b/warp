@@ -8,44 +8,6 @@ from sqlite3.dbapi2 import Error
 
 bp = flask.Blueprint('xhr', __name__)
 
-# format
-# { bid: bid }
-@bp.route("/bookings/remove", methods=["POST"])
-def bookingsRemove():
-
-    if not flask.request.is_json:
-        flask.abort(404)
-
-    uid = flask.session.get('uid')
-    role = flask.session.get('role')
-
-    if role >= auth.ROLE_VIEVER:
-        flask.abort(403)
-
-    action_data = flask.request.get_json()
-
-    schema = {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "properties": {
-            "bid" : {"type" : "integer"},
-        }
-    }
-
-    try:
-        validate(action_data,schema)
-    except ValidationError as err:
-        return {"msg": "invalid input" }, 400
- 
-    db = getDB()
-    db.cursor().execute("DELETE FROM book" \
-                        " WHERE id = ?" \
-                        " AND (? OR uid = ?)",
-                        (action_data['bid'],role < auth.ROLE_USER, uid) )
-    
-    db.commit()
-    
-    return {"msg": "ok" }, 200
-
 #Format JSON
 #    sidN: { name: "name", x: 10, y: 10, zid: zid, enabled: true|false,
 #       book: [
@@ -241,8 +203,8 @@ def zoneApply():
 
         # befor book we have to remove reservations (as this can be list of conflicting reservations)
         if 'remove' in apply_data:
-            cursor.executemany("DELETE FROM book WHERE id = ? AND uid = ?",
-                ((id,uid) for id in apply_data['remove']))
+            cursor.executemany("DELETE FROM book WHERE id = ? AND (? OR uid = ?)",
+                ((id,role < auth.ROLE_USER,uid) for id in apply_data['remove']))
 
         # then we create new reservations
         if 'book' in apply_data:
