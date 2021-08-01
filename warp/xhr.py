@@ -56,8 +56,9 @@ def zoneGetSeats(zid):
                                    " JOIN zone z ON s.zid = z.id" \
                                    " WHERE b.fromTS < ? AND b.toTS > ?" \
                                    " AND z.zone_group = ?" \
+                                   " AND (? OR s.enabled IS TRUE)" \
                                    " ORDER BY fromTS",
-                                   (tr['toTS'],tr['fromTS'],zone_group,))
+                                   (tr['toTS'],tr['fromTS'],zone_group,role <= auth.ROLE_MANAGER))
 
     uid = flask.session.get('uid')
 
