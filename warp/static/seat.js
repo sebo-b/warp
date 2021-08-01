@@ -283,18 +283,19 @@ WarpSeat.prototype.getBookings = function() {
 
 WarpSeat.prototype._updateState = function() {
 
-    if (!this.enabled) {
-        this.state = WarpSeat.SeatStates.DISABLED;
-        return this.state;
-    }
-
-    var bookings = this.getAllBookings();
     var selectedDates = this.selectedDates;
 
     if (!selectedDates.length) {
         this.state = WarpSeat.SeatStates.NOT_AVAILABLE;
         return this.state;
     }
+
+    if (!this.enabled) {
+        this.state = WarpSeat.SeatStates.DISABLED;
+        return this.state;
+    }
+
+    var bookings = this.getAllBookings();
 
     var isFree = true;
     var isMine = false;
