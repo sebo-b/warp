@@ -32,6 +32,12 @@ def initDB(sample_data):
     click.echo('The database initialized.')
 
     if sample_data:
-        with current_app.open_resource('sql/sample_data.sql') as f:
-            db.executescript(f.read().decode('utf8'))
+        with current_app.open_resource('sql/sample_data.sql','rb') as f:
+            for i, line in enumerate(f,1):
+                try:
+                    db.executescript(line.decode('utf8'))
+                except sqlite3.OperationalError as e:
+                    print(f"Error at line {i}: {line.decode('utf8')}")
+                    exit(1)
+
         click.echo('Sample data inserted.')

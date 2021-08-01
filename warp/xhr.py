@@ -1,10 +1,10 @@
 import flask
-import sqlite3
 from werkzeug.utils import redirect
 from .db import getDB
 from . import auth
 from . import utils
 from jsonschema import validate, ValidationError
+from sqlite3.dbapi2 import Error
 
 bp = flask.Blueprint('xhr', __name__)
 
@@ -47,7 +47,7 @@ def bookingsRemove():
     return {"msg": "ok" }, 200
 
 #Format JSON
-#    sidN: { name: "name", x: 10, y: 10, zid: zid,
+#    sidN: { name: "name", x: 10, y: 10, zid: zid, enabled: true|false,
 #       book: [
 #           { bid: 10, isMine: true, username: "sebo", fromTS: 1, toTS: 2, comment: "" }
 # note that book array is sorted on fromTS
@@ -64,10 +64,13 @@ def zoneGetSeats(zid):
     else:
         zone_group = zone_group[0]
 
+    role = flask.session.get('role')
+
     seats = db.cursor().execute("SELECT s.* FROM seat s" \
                                 " JOIN zone z ON s.zid = z.id" \
-                                " WHERE z.zone_group = ?",
-                                (zone_group,))
+                                " WHERE z.zone_group = ?" \
+                                " AND (? OR enabled IS TRUE)",
+                                (zone_group,role <= auth.ROLE_MANAGER))
 
     if seats is None:
         flask.abort(404)
@@ -79,6 +82,7 @@ def zoneGetSeats(zid):
             "x": s['x'],
             "y": s['y'],
             "zid": s['zid'],
+            "enabled": s['enabled'],
             "book": []
         }
 
@@ -111,6 +115,8 @@ def zoneGetSeats(zid):
 
 # format:
 # { 
+#   enable: [ sid, sid, ...],
+#   disable: [ sid, sid, ...],
 #   book: {
 #       sid: sid,
 #       dates: [
@@ -137,6 +143,18 @@ def zoneApply():
     schema = {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "properties": {
+            "enable": {
+                "type": "array",
+                "items": {
+                    "type": "integer"
+                }
+            },
+            "disable": {
+                "type": "array",
+                "items": {
+                    "type": "integer"
+                }
+            },
             "book": {
                 "type": "object",
                 "properties": {
@@ -163,6 +181,8 @@ def zoneApply():
             }
         },
         "anyOf": [
+            {"required": [ "enable" ]},
+            {"required": [ "disable" ]},                        
             {"required": [ "book" ]},
             {"required": [ "remove" ]}
         ]
@@ -180,26 +200,68 @@ def zoneApply():
     except ValidationError as err:
         return {"msg": "invalid input" }, 400
 
+    if ('enable' in apply_data or 'disable' in apply_data) and role > auth.ROLE_MANAGER:
+        return {"msg": "Forbidden" }, 403
+
     db = getDB()
+
+    conflicts_in_disable = []
 
     try:
         cursor = db.cursor()
 
-        # first we remove (as this can be list of conflicting reservations)
+        if 'enable' in apply_data:
+            cursor.execute(
+                "UPDATE seat SET enabled=TRUE WHERE id in (%s)" % (",".join(['?']*len(apply_data['enable']))),
+                apply_data['enable'])
+
+        if 'disable' in apply_data:
+
+            ts = utils.getTimeRange(True)
+            q = "SELECT b.*, u.login, u.name FROM book b" \
+                           " JOIN user u ON b.uid = u.id" \
+                           " WHERE b.fromTS < ? AND b.toTS > ?" \
+                           " AND b.sid IN (%s)" % (",".join(['?']*len(apply_data['disable'])))
+            
+            cursor.execute(q,[ts['toTS'],ts['fromTS']]+apply_data['disable'])
+
+            for row in cursor:
+                conflicts_in_disable.append({
+                    "sid": row['sid'],
+                    "fromTS": row['fromTS'],
+                    "toTS": row['toTS'],
+                    "login": row['login'],
+                    "username": row['name']
+                })
+
+
+            cursor.execute(
+                "UPDATE seat SET enabled=FALSE WHERE id IN (%s)" % (",".join(['?']*len(apply_data['disable']))),
+                apply_data['disable'])
+
+        # befor book we have to remove reservations (as this can be list of conflicting reservations)
         if 'remove' in apply_data:
             cursor.executemany("DELETE FROM book WHERE id = ? AND uid = ?",
                 ((id,uid) for id in apply_data['remove']))
 
         # then we create new reservations
         if 'book' in apply_data:
+
+            seat_enabled = cursor.execute("SELECT enabled FROM seat WHERE id = ?",(apply_data['book']['sid'],)).fetchone()
+            if not seat_enabled['enabled']:
+                raise Error("Booking a disabled seat is forbidden.")
+
             cursor.executemany("INSERT INTO book (uid,sid,fromTS,toTS) VALUES (?,?,?,?)",
                 ((uid,apply_data['book']['sid'],x['fromTS'], x['toTS']) for x in apply_data['book']['dates']))
 
         db.commit()
 
-    except sqlite3.IntegrityError as err:
+    except Error as err:
         db.rollback()
         return {"msg": str(err) }, 400
+
+    if conflicts_in_disable:
+        return {"msg": "ok", "conflicts_in_disable": conflicts_in_disable}, 200
 
     return {"msg": "ok" }, 200
 

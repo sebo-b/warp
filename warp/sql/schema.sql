@@ -28,6 +28,7 @@ CREATE TABLE seat (
     name text NOT NULL,
     x integer NOT NULL,
     y integer NOT NULL,
+    enabled boolean NOT NULL DEFAULT TRUE,
     FOREIGN KEY (zid) REFERENCES zone(id)
     );
 

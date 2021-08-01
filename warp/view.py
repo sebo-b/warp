@@ -33,7 +33,7 @@ def headerDataInit():
         h['active'] = flask.request.endpoint == h['endpoint'] and flask.request.view_args == h['view_args']
 
     return { "headerData": headerData,
-             "showActAs": flask.session.get('role') <= auth.ROLE_MANAGER
+             "isManager": flask.session.get('role') <= auth.ROLE_MANAGER
     }
 
 @bp.route("/")

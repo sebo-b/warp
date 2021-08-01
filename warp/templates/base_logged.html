@@ -3,10 +3,11 @@
 {% block header %}
     {{ super() }}
 
-    {% if showActAs %}       
+    {% if isManager %}
     <script>
         var actAsGetURL = "{{ url_for('xhr.actAsGet')}}"
         var actAsSetURL = "{{ url_for('xhr.actAsSet')}}"
+        var isM = true;
     </script> 
     <script type="text/javascript" src="{{ url_for('static', filename='actas.js') }}"></script>
     {% endif %}
@@ -22,7 +23,7 @@
         <div class='right'>
             <a href="{{ url_for('view.index')}}" class="right"><img class="logo" src="{{ url_for('static', filename='logo.png') }}"></a>
         </div>
-        {% if showActAs %}
+        {% if isManager %}
         <div id="act-as-container" class="right">
             <div class="actas input-field right">
                 <input type="text" id="act-as" class="autocomplete">

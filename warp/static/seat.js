@@ -16,14 +16,14 @@ function WarpSeat(sid,seatData,factory) {
     this.selectedDates = factory.selectedDates;
     this.myConflictingBookings = factory.myConflictingBookings;
 
+    this._setData(seatData);
+
     this.sid = sid;
     this.x = seatData.x;
     this.y = seatData.y;
-    this.name = seatData.name;
     this.zid = seatData.zid;
-    this.book = seatData.book;  //NOTE: just reference
-    this.seatDiv = null;
-    
+
+
     if (this.zid == factory.zoneData['id']) {
         this._createDiv(factory.rootDiv, factory.spriteURL);
     }
@@ -103,7 +103,7 @@ WarpSeatFactory.prototype.setSeatsData = function(seatsData = {}) {
             this.instances[sid] = s;
         }
         else {
-            this.instances[sid]._setBook(seatsData[sid].book);
+            this.instances[sid]._setData(seatsData[sid]);
         }
     }
     //delete seats which don't exist anymore
@@ -282,7 +282,12 @@ WarpSeat.prototype.getBookings = function() {
 }
 
 WarpSeat.prototype._updateState = function() {
-    
+
+    if (!this.enabled) {
+        this.state = WarpSeat.SeatStates.DISABLED;
+        return this.state;
+    }
+
     var bookings = this.getAllBookings();
     var selectedDates = this.selectedDates;
 
@@ -413,8 +418,19 @@ WarpSeat.prototype.handleEvent = function(e) {
     }
 };
 
-WarpSeat.prototype._setBook = function(book) {
-    this.book = book;
+// NOTE: book from seatData is not cloned, it is stored as reference
+WarpSeat.prototype._setData = function(seatData) {
+
+    this.name = seatData.name;
+    this.enabled = seatData.enabled;
+    this.book = seatData.book;  //NOTE: just reference
+
+    //this data cannot be updated (at least for now)
+    //this.sid = sid;
+    //this.x = seatData.x;
+    //this.y = seatData.y;
+    //this.zid = seatData.zid;
+    //this.seatDiv = null;
 }
 
 

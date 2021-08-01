@@ -33,7 +33,11 @@
                 <div class="col s2 right">
                     <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="book">Book</a>
                     <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="update">Update</a>
-                    <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="delete">Remove</a>        
+                    <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="delete">Remove</a>
+                    {% if isManager %}
+                    <a href="#!" class="modal-close waves-effect waves-light btn red darken-2 zone_action_btn" data-action="enable">Enable</a>
+                    <a href="#!" class="modal-close waves-effect waves-light btn red darken-2 zone_action_btn" data-action="disable">Disable</a>
+                    {% endif %}
                 </div>
             </div>
         </div>

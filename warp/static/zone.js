@@ -157,14 +157,14 @@ function initActionMenu(seatFactory) {
 
         var state = this.getState();
 
-        if (state == WarpSeat.SeatStates.TAKEN || state == WarpSeat.SeatStates.NOT_AVAILABLE)
+        if (state == WarpSeat.SeatStates.NOT_AVAILABLE)
             return;
 
         var actions = [];
         var bookMsg = false;
         var removeMsg = false;
 
-        switch (this.getState()) {
+        switch (state) {
             case WarpSeat.SeatStates.CAN_BOOK:
                 actions.push('book');
                 bookMsg = true;
@@ -182,6 +182,13 @@ function initActionMenu(seatFactory) {
                 removeMsg = true;
                 break;
         };
+
+        if (typeof(isM) !== 'undefined' && isM) {
+            if (state == WarpSeat.SeatStates.DISABLED)
+                actions.push('enable');
+            else
+                actions.push('disable');
+        }
 
         if (!actions.length)
             return;
@@ -255,15 +262,36 @@ function initActionMenu(seatFactory) {
         xhr.open("POST", zoneApplyURL);
         xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
         xhr.addEventListener("load", function(e) {
-            if (this.status == 200)
-                M.toast({html: 'Action successfull.'});
-            else
+            if (this.status == 200) {
+                var resp = JSON.parse(this.responseText);
+                if (resp.conflicts_in_disable) {
+                    let msg = "Seat is successfully disabled.<br>However there are existing reservations in the the next few weeks.<br>" +
+                          "Existing reservations are not automatically removed, it has to be done manually.<br><br>";
+                    let rList = [];
+                    for (let r of resp.conflicts_in_disable) {
+                        let dateStr = WarpSeatFactory._formatDatePair(r);
+                        rList.push( r.username + "&nbsp;on&nbsp;" + dateStr.datetime1 + "&nbsp;" + dateStr.datetime2);
+                    }
+                    msg += rList.join('<br>');
+                    WarpModal.getInstance().open("Warning",msg);
+
+                }
+                else {
+                    M.toast({html: 'Action successfull.'});
+                }
+            }
+            else {
                 WarpModal.getInstance().open("Change unsuccessfull","Unable to apply the change. Probably the seat was already booked by someone else.<br>Status: "+this.status);
+            }
 
             downloadSeatData(seatFactory);
         });
 
         var applyData = {};
+
+        if (this.dataset.action == 'enable' || this.dataset.action == 'disable') {
+            applyData[this.dataset.action] = [ seat.getSid() ];
+        }
 
         if (this.dataset.action == 'book' || this.dataset.action == 'update') {
             applyData['book'] = {
