@@ -11,13 +11,9 @@ bp = flask.Blueprint('view', __name__)
 def headerDataInit():
 
     headerData = []
-
-    if flask.session.get('role') <= auth.ROLE_MANAGER:
-        headerData.append(
-            {"text": "All bookings", "endpoint": "view.bookings", "view_args": {"context":"all"} })
     
     headerData.append(
-        {"text": "My bookings", "endpoint": "view.bookings", "view_args": {"context":"user"} })
+        {"text": "Bookings", "endpoint": "view.bookings", "view_args": {} })
 
     zones = getDB().cursor().execute("SELECT id,name FROM zone")
     for z in zones:
@@ -40,36 +36,10 @@ def headerDataInit():
 def index():
     return flask.render_template('index.html')
 
-@bp.route("/bookings/<context>")
-def bookings(context):
+@bp.route("/bookings")
+def bookings():
 
-    if context != 'all' and context != 'user':
-        flask.abort(404)
-
-    if context == 'all' and flask.session.get('role') > auth.ROLE_MANAGER:
-        flask.abort(403)
-
-    uid = flask.session.get('uid')
-    
-    timeRange = utils.getTimeRange(True)
-
-
-    query = "SELECT b.id, b.fromTS, b.toTS, s.name seat_name, z.name zone_name, u.login login FROM book b" \
-            " JOIN seat s ON s.id = b.sid" \
-            " JOIN zone z ON z.id = s.zid" \
-            " JOIN user u ON b.uid = u.id" \
-            " WHERE b.toTS > ? AND b.fromTS < ?" \
-            " AND (? OR uid = ?)" \
-            " ORDER BY b.fromTS, login"
-    
-    data = getDB().cursor().execute(query,(
-                                        timeRange['fromTS'], 
-                                        timeRange['toTS'], 
-                                        context == 'all', 
-                                        uid)
-                                        ).fetchall()
-
-    return flask.render_template('bookings.html', context=context, data=data, formatTimestamp=utils.formatTimestamp)
+    return flask.render_template('bookings.html')
 
 @bp.route("/zone/<zid>")
 def zone(zid):

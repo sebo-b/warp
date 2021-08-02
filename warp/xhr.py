@@ -310,3 +310,45 @@ def actAsSet():
     flask.session['uid'] = userRow['id']
 
     return {"msg": "ok"}, 200
+
+# Format
+@bp.route("/bookings/get")
+def bookingsGet():
+
+    uid = flask.session.get('uid')
+    role = flask.session.get('role')
+
+    db = getDB()
+    tr = utils.getTimeRange()
+
+    cursor = db.cursor().execute("SELECT b.id bid,u.id uid, u.name user_name, u.login login, z.name zone_name, s.name seat_name, fromTS, toTS FROM book b" \
+                              " JOIN seat s ON b.sid = s.id"
+                              " JOIN zone z ON s.zid = z.id"
+                              " JOIN user u ON b.uid = u.id"
+                              " WHERE fromTS < ? AND toTS > ?",
+                              (tr["toTS"],tr["fromTS"]))
+
+    res = []
+    
+    for row in cursor:
+
+        can_edit = True if row['uid'] == uid else False
+        if role >= auth.ROLE_VIEVER:
+            can_edit = False
+        elif role <= auth.ROLE_MANAGER:
+            can_edit = True
+
+        res.append({
+            "bid": row["bid"],
+            "user_name": row["user_name"]+" ["+row["login"]+"]",
+            "zone_name": row["zone_name"],
+            "seat_name": row["seat_name"],
+            "fromTS": row["fromTS"],
+            "toTS": row["toTS"],
+            "can_edit": can_edit
+        })
+
+    return flask.jsonify(res)
+
+
+
