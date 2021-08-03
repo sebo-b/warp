@@ -231,18 +231,18 @@ def zoneApply():
     return {"msg": "ok" }, 200
 
 
-#Format
+#Format TODO
 # {
 #   data: {
-#         user1: null,    
-#         user2: null,    
+#         login1: "User 1",
+#         login2: "User 2",
 #         ...    
 #       },
-#   default: user1
-#   selected: user2
+#   login: user1
+#   real_login: user2
 # }
-@bp.route("/actas/get")
-def actAsGet():
+@bp.route("/api/getUsers")
+def getUsers():
 
     uid = flask.session.get('uid')
     real_uid = flask.session.get('real-uid')
@@ -260,17 +260,16 @@ def actAsGet():
 
     for u in cur:
 
-        text = f"{u['name']} [{u['login']}]"
-        res["data"][text] = None
+        res["data"][u["login"]] = u['name'];
 
         if u['id'] == uid:
-            res["selected"] = text
+            res["login"] = u['login'];
 
         if real_uid and u['id'] == real_uid:
-            res["default"] = text
+            res["real_login"] = u['login']
 
-    if "default" not in res:
-        res["default"] = res["selected"]
+    if "real_login" not in res:
+        res["real_login"] = res["login"]
 
     return res, 200
 
