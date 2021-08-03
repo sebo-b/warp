@@ -34,12 +34,13 @@ function WarpSeat(sid,seatData,factory) {
 WarpSeat.SeatStates = {
     TAKEN: 0,           // seat is booked by another user
     DISABLED: 1,        // seat is disabled
-    NOT_AVAILABLE: 2,   // no dates have been selected
-    CAN_BOOK: 3,        // seat is available to be booked
-    CAN_REBOOK: 4,      // seat is available to be booked, but other seat is already booked (IMPLEMENTATION NOTE: this state is set in _updateView)
-    CAN_CHANGE: 5,      // seat is already booked by this user, but can be changed (extended, reduced, deleted)
-    CAN_DELETE: 6,      // seat is already booked by this user, but cannot be changed
-    CAN_DELETE_EXACT: 7 // seat is already booked by this user, cannot be changed and selected dated are exactly matching booking dates
+    ASSIGNED: 2,        // seat is assigned to another user(s)
+    NOT_AVAILABLE: 3,   // no dates have been selected
+    CAN_BOOK: 4,        // seat is available to be booked
+    CAN_REBOOK: 5,      // seat is available to be booked, but other seat is already booked (IMPLEMENTATION NOTE: this state is set in _updateView)
+    CAN_CHANGE: 6,      // seat is already booked by this user, but can be changed (extended, reduced, deleted)
+    CAN_DELETE: 7,      // seat is already booked by this user, but cannot be changed
+    CAN_DELETE_EXACT: 8 // seat is already booked by this user, cannot be changed and selected dated are exactly matching booking dates
 }
 
 WarpSeat.Defines = {
@@ -295,6 +296,11 @@ WarpSeat.prototype._updateState = function() {
         return this.state;
     }
 
+    if (this.assigned) {
+        this.state = WarpSeat.SeatStates.ASSIGNED;
+        return this.state;
+    }
+
     var bookings = this.getAllBookings();
 
     var isFree = true;
@@ -381,6 +387,7 @@ WarpSeat.prototype._updateView = function() {
                 this.seatDiv.style.backgroundPositionX = WarpSeat.Defines.spriteBookOffset;
             break;
         case WarpSeat.SeatStates.TAKEN:
+        case WarpSeat.SeatStates.ASSIGNED:
             this.seatDiv.style.backgroundPositionX = WarpSeat.Defines.spriteConflictOffset;
             break;
         case WarpSeat.SeatStates.DISABLED:
@@ -424,6 +431,7 @@ WarpSeat.prototype._setData = function(seatData) {
 
     this.name = seatData.name;
     this.enabled = seatData.enabled;
+    this.assigned = seatData.assigned;
     this.book = seatData.book;  //NOTE: just reference
 
     //this data cannot be updated (at least for now)

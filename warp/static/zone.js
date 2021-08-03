@@ -82,19 +82,20 @@ function initSeats() {
 
 function initSeatPreview(seatFactory) {
 
-    var previewDiv = document.getElementById('seat_preview');
+    var zoneMap = document.getElementById("zonemap");
 
     seatFactory.on( 'mouseover', function() {
+
+        var previewDiv = document.createElement("div");
+        previewDiv.className = 'seat_preview';
     
-        if (this.getState() != WarpSeat.SeatStates.TAKEN &&
-            this.getState() != WarpSeat.SeatStates.CAN_DELETE)
-            return;
-    
-        previewDiv.innerHTML = "";
+        var previewTitle = previewDiv.appendChild(document.createElement("div"));
+        previewTitle.innerText = "Seat "+this.getName();
+        previewTitle.className = "seat_preview_title";
 
         // position of the frame
         var pands = this.getPositionAndSize();
-        var parentWidth = previewDiv.parentNode.clientWidth
+        var parentWidth = zoneMap.clientWidth
         
         if (pands.x < parentWidth / 2) {
             previewDiv.style.right = "";
@@ -128,11 +129,15 @@ function initSeatPreview(seatFactory) {
             if (maxToShow == 0)
                 break;
         }
-        previewDiv.style.display = "block";
+
+        zoneMap.appendChild(previewDiv);
     });
     
     seatFactory.on( 'mouseout', function() {
-        previewDiv.style.display = "none";  
+        var previewDivs = document.getElementsByClassName('seat_preview');
+        for (var d of previewDivs) {
+            d.remove();
+        }
     });
 
 }

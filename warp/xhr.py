@@ -26,13 +26,16 @@ def zoneGetSeats(zid):
     else:
         zone_group = zone_group[0]
 
+    uid = flask.session.get('uid')
     role = flask.session.get('role')
 
-    seats = db.cursor().execute("SELECT s.* FROM seat s" \
+    seats = db.cursor().execute("SELECT s.*, CASE WHEN a.sid IS NULL AND ac.count > 0 THEN TRUE ELSE FALSE END assigned FROM seat s" \
                                 " JOIN zone z ON s.zid = z.id" \
+                                " LEFT JOIN assign a ON s.id = a.sid AND a.uid = ?"
+                                " LEFT JOIN (SELECT sid,COUNT(*) count FROM assign GROUP BY sid) ac ON s.id = ac.sid"
                                 " WHERE z.zone_group = ?" \
                                 " AND (? OR enabled IS TRUE)",
-                                (zone_group,role <= auth.ROLE_MANAGER))
+                                (uid,zone_group,role <= auth.ROLE_MANAGER))
 
     if seats is None:
         flask.abort(404)
@@ -44,7 +47,8 @@ def zoneGetSeats(zid):
             "x": s['x'],
             "y": s['y'],
             "zid": s['zid'],
-            "enabled": s['enabled'],
+            "enabled": s['enabled'] != 0,
+            "assigned": s['assigned'] != 0,
             "book": []
         }
 
@@ -59,8 +63,6 @@ def zoneGetSeats(zid):
                                    " AND (? OR s.enabled IS TRUE)" \
                                    " ORDER BY fromTS",
                                    (tr['toTS'],tr['fromTS'],zone_group,role <= auth.ROLE_MANAGER))
-
-    uid = flask.session.get('uid')
 
     for b in bookings:
 

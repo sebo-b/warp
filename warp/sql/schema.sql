@@ -32,6 +32,14 @@ CREATE TABLE seat (
     FOREIGN KEY (zid) REFERENCES zone(id)
     );
 
+CREATE TABLE assign (
+    sid integer NOT NULL,
+    uid integer NOT NULL,
+    PRIMARY KEY (sid,uid),
+    FOREIGN KEY (sid) REFERENCES seat(id),
+    FOREIGN KEY (uid) REFERENCES user(id)
+    );
+
 CREATE INDEX seat_zid
 ON seat(zid);
 
@@ -67,6 +75,13 @@ BEGIN
     END;
 
     SELECT CASE WHEN
+        (SELECT CASE WHEN COUNT(*) > 0 AND SUM(CASE WHEN uid = NEW.uid THEN 1 ELSE 0 END) = 0 THEN TRUE ELSE FALSE END 
+        FROM assign WHERE sid = NEW.sid) > 0
+    THEN
+        RAISE(ABORT,"Seat is assigned to another person")
+    END;
+
+    SELECT CASE WHEN
         (SELECT COUNT(*) FROM book b
          JOIN seat s on b.sid = s.id
          JOIN zone z on s.zid = z.id
@@ -85,23 +100,24 @@ CREATE TRIGGER book_overlap_update
 BEFORE UPDATE OF sid, uid, fromTS, toTS ON book 
 BEGIN
 
-    SELECT CASE WHEN NEW.fromTS >= NEW.toTS THEN
-        RAISE(ABORT,"Incorect time")
-    END;
-    
-    SELECT CASE WHEN
-        (SELECT COUNT(*) FROM book 
-         JOIN seat s on b.sid = s.id
-         JOIN zone z on s.zid = z.id
-         WHERE z.zone_group = 
-            (SELECT zone_group FROM zone z JOIN seat s on z.id = s.zid WHERE s.id = NEW.sid LIMIT 1)
-         AND (sid = NEW.sid OR uid = NEW.uid)
-         AND fromTS < NEW.toTS
-         AND toTS > NEW.fromTS
-         AND id <> OLD.id ) > 0
-    THEN
-        RAISE(ABORT,"Overlapping time for this seat or user")
-    END;
+    RAISE(ABORT,"Not implemented")
+--    SELECT CASE WHEN NEW.fromTS >= NEW.toTS THEN
+--        RAISE(ABORT,"Incorect time")
+--    END;
+--    
+--    SELECT CASE WHEN
+--        (SELECT COUNT(*) FROM book 
+--         JOIN seat s on b.sid = s.id
+--         JOIN zone z on s.zid = z.id
+--         WHERE z.zone_group = 
+--            (SELECT zone_group FROM zone z JOIN seat s on z.id = s.zid WHERE s.id = NEW.sid LIMIT 1)
+--         AND (sid = NEW.sid OR uid = NEW.uid)
+--         AND fromTS < NEW.toTS
+--         AND toTS > NEW.fromTS
+--         AND id <> OLD.id ) > 0
+--    THEN
+--        RAISE(ABORT,"Overlapping time for this seat or user")
+--    END;
 END;
 
 
