@@ -2,6 +2,7 @@ BEGIN TRANSACTION;
 
 PRAGMA foreign_keys = OFF;
 
+DROP TABLE IF EXISTS assign;
 DROP TABLE IF EXISTS book;
 DROP TABLE IF EXISTS seat;
 DROP TABLE IF EXISTS zone;
@@ -99,25 +100,10 @@ END;
 CREATE TRIGGER book_overlap_update
 BEFORE UPDATE OF sid, uid, fromTS, toTS ON book 
 BEGIN
-
-    RAISE(ABORT,"Not implemented")
---    SELECT CASE WHEN NEW.fromTS >= NEW.toTS THEN
---        RAISE(ABORT,"Incorect time")
---    END;
---    
---    SELECT CASE WHEN
---        (SELECT COUNT(*) FROM book 
---         JOIN seat s on b.sid = s.id
---         JOIN zone z on s.zid = z.id
---         WHERE z.zone_group = 
---            (SELECT zone_group FROM zone z JOIN seat s on z.id = s.zid WHERE s.id = NEW.sid LIMIT 1)
---         AND (sid = NEW.sid OR uid = NEW.uid)
---         AND fromTS < NEW.toTS
---         AND toTS > NEW.fromTS
---         AND id <> OLD.id ) > 0
---    THEN
---        RAISE(ABORT,"Overlapping time for this seat or user")
---    END;
+    SELECT CASE WHEN TRUE
+    THEN
+        RAISE(ABORT,"Not implemented")
+    END;
 END;
 
 

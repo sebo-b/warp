@@ -1,9 +1,8 @@
 
---INSERT INTO user VALUES (5,"root",'pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Superadmin',0);
 INSERT INTO user VALUES (1,"admin",'pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Admin',1);
-INSERT INTO user VALUES (2,"user1",'pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','User 1',2);
-INSERT INTO user VALUES (3,"user2",'pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','User 2',2);
---INSERT INTO user VALUES (4,"viewer",'pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Viewer',2);
+INSERT INTO user VALUES (2,"user1",'pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Foo',2);
+INSERT INTO user VALUES (3,"user2",'pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Bar',2);
+INSERT INTO user VALUES (4,"user3",'pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Baz',2);
 
 INSERT INTO zone VALUES (1,1,'Zone 1A','zone_maps/zone1a.png');
 INSERT INTO zone VALUES (2,1,'Zone 1B','zone_maps/zone1b.png');
