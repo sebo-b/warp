@@ -142,6 +142,65 @@ function initSeatPreview(seatFactory) {
 
 }
 
+function initAssignedSeatsModal(seat) {
+
+    var assignModalEl = document.getElementById("assigned_seat_modal");
+    if (!assignModalEl || !g_userData) 
+        return null;
+
+    var assignModal = M.Modal.getInstance(assignModalEl);
+    if (!assignModal) {
+        assignModal = M.Modal.init(assignModalEl, {});
+    }
+    
+    var chipsEl = document.getElementById('assigned_seat_chips');
+
+    var chipsOptions;
+    var chips = M.Chips.getInstance(chipsEl); 
+    if (chips) {
+        chipsOptions = chips.options;
+        chips.destroy(); // we have to recreate chips instance to clean up all chips inside
+    }
+    else {
+
+        var onChipApp = function(chip) {
+    
+            var i = this.chipsData.length - 1;  // chips are always pushed
+            var t = this.chipsData[i].tag;
+    
+            if (!(t in this.autocomplete.options.data)) {
+                this.deleteChip(i);
+            }
+        }
+    
+        var chipsAutocompleteData = {};
+        for (let login in g_userData.data) {
+            var userName = g_userData.data[login];
+            chipsAutocompleteData[ actAsUserStr(login,userName)] = null;
+        }
+    
+        chipsOptions = {
+            autocompleteOptions: {
+                data: chipsAutocompleteData,
+                minLength: 1
+                },
+            limit: Infinity,
+            onChipAdd: onChipApp
+        };        
+    }
+
+    chips = M.Chips.init(chipsEl, chipsOptions);
+
+    var assignments = seat.getAssignments();
+    for (let login of assignments) {
+        var userName = g_userData.data[login];
+        chips.addChip({tag: actAsUserStr(login,userName)})
+    }
+
+    return assignModal;
+}
+
+
 function initActionMenu(seatFactory) {
 
     var seat = null;    // used for passing seat to btn click events (closure)
@@ -151,9 +210,7 @@ function initActionMenu(seatFactory) {
 
     // init modal
     var actionEl = document.getElementById('action_modal');
-    var actionModal =  M.Modal.init(actionEl, { onCloseEnd: function() {
-        seat = null;    // release reference to the object
-        }} );
+    var actionModal =  M.Modal.init(actionEl);
 
     // register hooks
     var actionBtns = document.getElementsByClassName('zone_action_btn');
@@ -189,6 +246,8 @@ function initActionMenu(seatFactory) {
         };
 
         if (typeof(isM) !== 'undefined' && isM) {
+            actions.push('assign-modal');
+            actions.push('assign');
             if (state == WarpSeat.SeatStates.DISABLED)
                 actions.push('enable');
             else
@@ -249,7 +308,7 @@ function initActionMenu(seatFactory) {
 
         for (let btn of actionBtns) {
             if (actions.includes(btn.dataset.action))
-                btn.style.display = "block";
+                btn.style.display = "inline-block";
             else
                 btn.style.display = "none";
         }
@@ -262,7 +321,15 @@ function initActionMenu(seatFactory) {
     });
 
     var actionBtnClicked = function(e) {
-            
+        
+        // this is not a real action, it should just show modal
+        // real action button is inside modal
+        if (this.dataset.action == 'assign-modal') {
+            var assignModal = initAssignedSeatsModal(seat);
+            assignModal.open();
+            return;
+        }
+ 
         var xhr = new XMLHttpRequest();    
         xhr.open("POST", zoneApplyURL);
         xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
@@ -294,6 +361,21 @@ function initActionMenu(seatFactory) {
 
         var applyData = {};
 
+        if (this.dataset.action == "assign") {
+            var chipsEl = document.getElementById('assigned_seat_chips');
+            var chips = M.Chips.getInstance(chipsEl);
+
+            var logins = [];
+            for (var c of chips.getData()) {
+                logins.push(actAsUserStrRev(c.tag));
+            }
+
+            applyData['assign'] = {
+                sid: seat.getSid(),
+                logins: logins
+            }
+        }
+        
         if (this.dataset.action == 'enable' || this.dataset.action == 'disable') {
             applyData[this.dataset.action] = [ seat.getSid() ];
         }
@@ -422,6 +504,7 @@ function initShiftSelectDates() {
 
 }
 
+
 function initZone() {
 
     initSlider();
@@ -431,7 +514,6 @@ function initZone() {
     var seatFactory = initSeats();
     initSeatPreview(seatFactory);
     initActionMenu(seatFactory);
-
     downloadSeatData(seatFactory);
 }
 

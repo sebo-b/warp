@@ -35,6 +35,7 @@
                     <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="update">Update</a>
                     <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="delete">Remove</a>
                     {% if isManager %}
+                    <a href="#!" class="modal-close waves-effect waves-light btn red darken-2 zone_action_btn" data-action="assign-modal">Assign</a>
                     <a href="#!" class="modal-close waves-effect waves-light btn red darken-2 zone_action_btn" data-action="enable">Enable</a>
                     <a href="#!" class="modal-close waves-effect waves-light btn red darken-2 zone_action_btn" data-action="disable">Disable</a>
                     {% endif %}
@@ -42,6 +43,20 @@
             </div>
         </div>
     </div>
+
+    {% if isManager %}
+    <div id="assigned_seat_modal" class="modal">
+        <div class="modal-content">
+            <h4 id="assigned_seat_header"></h4>
+            <p>Select users to which the seat will be assigned:</p>
+            <div class="chips chips-autocomplete" id="assigned_seat_chips"></div>
+          </div>
+          <div class="modal-footer">
+            <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="assign">Set</a>              
+            <a href="#!" class="modal-close waves-effect waves-light btn-flat">Cancel</a>
+          </div>
+    </div>
+    {% endif %}
 
     <div>
 

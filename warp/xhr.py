@@ -1,4 +1,5 @@
 import flask
+from flask import app
 from werkzeug.utils import redirect
 from .db import getDB
 from . import auth
@@ -9,9 +10,10 @@ from sqlite3.dbapi2 import Error
 bp = flask.Blueprint('xhr', __name__)
 
 #Format JSON
-#    sidN: { name: "name", x: 10, y: 10, zid: zid, enabled: true|false,
+#    sidN: { name: "name", x: 10, y: 10, zid: zid, enabled: true|false, assigned: true|false
 #       book: [
 #           { bid: 10, isMine: true, username: "sebo", fromTS: 1, toTS: 2, comment: "" }
+#       assignments: [ login1, login2, ... ]   #only for admin
 # note that book array is sorted on fromTS
 @bp.route("/zone/getSeats/<zid>")
 def zoneGetSeats(zid):
@@ -40,6 +42,16 @@ def zoneGetSeats(zid):
     if seats is None:
         flask.abort(404)
 
+    assignments = {}
+    if role <= auth.ROLE_MANAGER:
+        assignCursor = db.cursor().execute("SELECT a.sid, u.login FROM assign a " \
+                                     " JOIN user u ON a.uid = u.id")
+        for r in assignCursor:
+            if r['sid'] not in assignments:
+                assignments[r['sid']] = []
+            assignments[r['sid']].append(r['login'])
+
+
     for s in seats:
 
         res[s['id']] = {
@@ -51,6 +63,9 @@ def zoneGetSeats(zid):
             "assigned": s['assigned'] != 0,
             "book": []
         }
+
+        if s['id'] in assignments:
+            res[s['id']]['assignments'] = assignments[s['id']]
 
     tr = utils.getTimeRange()
     
@@ -82,6 +97,10 @@ def zoneGetSeats(zid):
 # { 
 #   enable: [ sid, sid, ...],
 #   disable: [ sid, sid, ...],
+#   assign: {
+#       sid: sid,
+#       logins: [ login, login, ... ]
+#   },
 #   book: {
 #       sid: sid,
 #       dates: [
@@ -112,13 +131,25 @@ def zoneApply():
                 "type": "array",
                 "items": {
                     "type": "integer"
-                }
+                },
             },
             "disable": {
                 "type": "array",
                 "items": {
                     "type": "integer"
-                }
+                },
+            },
+            "assign": {
+                "type": "object",
+                "properties": {
+                    "sid" : {"type" : "integer"},
+                    "logins": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                        },
+                    },
+                },
             },
             "book": {
                 "type": "object",
@@ -147,7 +178,8 @@ def zoneApply():
         },
         "anyOf": [
             {"required": [ "enable" ]},
-            {"required": [ "disable" ]},                        
+            {"required": [ "disable" ]},
+            {"required": [ "assign" ]},
             {"required": [ "book" ]},
             {"required": [ "remove" ]}
         ]
@@ -165,7 +197,7 @@ def zoneApply():
     except ValidationError as err:
         return {"msg": "invalid input" }, 400
 
-    if ('enable' in apply_data or 'disable' in apply_data) and role > auth.ROLE_MANAGER:
+    if ('enable' in apply_data or 'disable' in apply_data or 'assign' in apply_data) and role > auth.ROLE_MANAGER:
         return {"msg": "Forbidden" }, 403
 
     db = getDB()
@@ -203,6 +235,13 @@ def zoneApply():
             cursor.execute(
                 "UPDATE seat SET enabled=FALSE WHERE id IN (%s)" % (",".join(['?']*len(apply_data['disable']))),
                 apply_data['disable'])
+
+        if 'assign' in apply_data:
+            cursor.execute("DELETE FROM assign WHERE sid = ?", (apply_data['assign']['sid'],))
+
+            cursor.execute(
+                "INSERT INTO assign (sid,uid) SELECT ?, id FROM user WHERE LOGIN IN (%s)" % (",".join(['?']*len(apply_data['assign']['logins']))),
+                [apply_data['assign']['sid']]+[login for login in apply_data['assign']['logins']] )
 
         # befor book we have to remove reservations (as this can be list of conflicting reservations)
         if 'remove' in apply_data:

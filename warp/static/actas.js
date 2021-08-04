@@ -1,5 +1,19 @@
 'use strict';
 
+var g_userData; // used by actAs and assigned seat
+
+function actAsUserStr(login,name) {
+    return  name + " ["+login+"]";
+};
+
+function actAsUserStrRev(str) {
+    const regEx = /\[([^[]*)\]$/;
+    var login = str.match(regEx);
+    
+    return login? login[1]: null;
+};
+
+
 function initActAs() {
 
     var actAsContainerEl = document.getElementById('act-as-container');
@@ -10,17 +24,6 @@ function initActAs() {
 
     var selectedLoginStr;
     var realLoginStr;
-
-    var userStr = function(login,name) {
-        return  name + " ["+login+"]";
-    };
-
-    var userStrRev = function(str) {
-        const regEx = /\[([^[]*)\]$/;
-        var login = str.match(regEx);
-        
-        return login? login[1]: null;
-    };
 
     var actAsChange = function(e) {
 
@@ -53,7 +56,7 @@ function initActAs() {
     
         if (reload) {
 
-            var login = userStrRev(selectedLoginStr);
+            var login = actAsUserStrRev(selectedLoginStr);
     
             if (login) {
     
@@ -75,18 +78,18 @@ function initActAs() {
     var xhr = new XMLHttpRequest();
     xhr.addEventListener("load", function() {
 
-        var userData = JSON.parse(this.responseText);
+        g_userData = JSON.parse(this.responseText);
 
         selectedLoginStr = 
-            userStr(userData.login, userData.data[userData.login]);
+            actAsUserStr(g_userData.login, g_userData.data[g_userData.login]);
         
         realLoginStr =
-            userStr(userData.real_login, userData.data[userData.real_login]);
+            actAsUserStr(g_userData.real_login, g_userData.data[g_userData.real_login]);
 
         var actAsData = {};
-        for (let login in userData.data) {
-            var userName = userData.data[login];
-            actAsData[ userStr(login,userName)] = null;
+        for (let login in g_userData.data) {
+            var userName = g_userData.data[login];
+            actAsData[ actAsUserStr(login,userName)] = null;
         }
 
         actAs.updateData(actAsData);

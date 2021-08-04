@@ -2,7 +2,7 @@
 
 /**
  * WarpSeat
- * NOTE: book from seatData is not cloned, it is stored as reference
+ * NOTE: book and assignments from seatData is not cloned, it is stored as reference
  * @param {integer} sid 
  * @param {object} seatData - object described in zoneGetSeats
  * @returns 
@@ -235,6 +235,9 @@ WarpSeat.prototype.getZid = function() {
     return parseInt(this.zid);  //TODO: convert this.sid to int in constructor
 }
 
+WarpSeat.prototype.getAssignments = function() {
+    return this.assignments;
+}
 
 WarpSeat.prototype.getAllBookings = function() {
     return this.book;
@@ -426,13 +429,18 @@ WarpSeat.prototype.handleEvent = function(e) {
     }
 };
 
-// NOTE: book from seatData is not cloned, it is stored as reference
+// NOTE: book and assignments from seatData is not cloned, it is stored as reference
 WarpSeat.prototype._setData = function(seatData) {
 
     this.name = seatData.name;
     this.enabled = seatData.enabled;
     this.assigned = seatData.assigned;
     this.book = seatData.book;  //NOTE: just reference
+
+    if ('assignments' in seatData)
+        this.assignments = seatData.assignments;
+    else
+        this.assignments = [];
 
     //this data cannot be updated (at least for now)
     //this.sid = sid;
