@@ -336,8 +336,10 @@ function initActionMenu(seatFactory) {
         xhr.addEventListener("load", function(e) {
             if (this.status == 200) {
                 var resp = JSON.parse(this.responseText);
+                var msg = "";
+
                 if (resp.conflicts_in_disable) {
-                    let msg = "Seat is successfully disabled.<br>However there are existing reservations in the the next few weeks.<br>" +
+                    msg += "Seat is successfully disabled.<br>However there are existing reservations in the the next few weeks.<br>" +
                           "Existing reservations are not automatically removed, it has to be done manually.<br><br>";
                     let rList = [];
                     for (let r of resp.conflicts_in_disable) {
@@ -345,12 +347,23 @@ function initActionMenu(seatFactory) {
                         rList.push( r.username + "&nbsp;on&nbsp;" + dateStr.datetime1 + "&nbsp;" + dateStr.datetime2);
                     }
                     msg += rList.join('<br>');
-                    WarpModal.getInstance().open("Warning",msg);
+                }
 
+                if (resp.conflicts_in_assign) {
+                    msg += "Seat is successfully assigned.<br>However there are non-assignees' existing reservations in the the next few weeks.<br>" +
+                          "Existing reservations are not automatically removed, it has to be done manually.<br><br>";
+                    let rList = [];
+                    for (let r of resp.conflicts_in_assign) {
+                        let dateStr = WarpSeatFactory._formatDatePair(r);
+                        rList.push( r.username + "&nbsp;on&nbsp;" + dateStr.datetime1 + "&nbsp;" + dateStr.datetime2);
+                    }
+                    msg += rList.join('<br>');
                 }
-                else {
+                
+                if (msg == "")
                     M.toast({html: 'Action successfull.'});
-                }
+                else
+                    WarpModal.getInstance().open("Warning",msg);
             }
             else {
                 WarpModal.getInstance().open("Change unsuccessfull","Unable to apply the change. Probably the seat was already booked by someone else.<br>Status: "+this.status);

@@ -202,7 +202,8 @@ def zoneApply():
 
     db = getDB()
 
-    conflicts_in_disable = []
+    conflicts_in_disable = None
+    conflicts_in_assign = None
 
     try:
         cursor = db.cursor()
@@ -215,33 +216,50 @@ def zoneApply():
         if 'disable' in apply_data:
 
             ts = utils.getTimeRange(True)
-            q = "SELECT b.*, u.login, u.name FROM book b" \
+            cursor.execute("SELECT b.*, u.login, u.name FROM book b" \
                            " JOIN user u ON b.uid = u.id" \
                            " WHERE b.fromTS < ? AND b.toTS > ?" \
-                           " AND b.sid IN (%s)" % (",".join(['?']*len(apply_data['disable'])))
-            
-            cursor.execute(q,[ts['toTS'],ts['fromTS']]+apply_data['disable'])
+                           " AND b.sid IN (%s)" % (",".join(['?']*len(apply_data['disable']))),
+                           [ts['toTS'],ts['fromTS']]+apply_data['disable'])
 
-            for row in cursor:
-                conflicts_in_disable.append({
+            conflicts_in_disable = [
+                {
                     "sid": row['sid'],
                     "fromTS": row['fromTS'],
                     "toTS": row['toTS'],
                     "login": row['login'],
                     "username": row['name']
-                })
-
+                } for row in cursor
+            ]
 
             cursor.execute(
                 "UPDATE seat SET enabled=FALSE WHERE id IN (%s)" % (",".join(['?']*len(apply_data['disable']))),
                 apply_data['disable'])
 
         if 'assign' in apply_data:
+
             cursor.execute("DELETE FROM assign WHERE sid = ?", (apply_data['assign']['sid'],))
 
-            cursor.execute(
-                "INSERT INTO assign (sid,uid) SELECT ?, id FROM user WHERE LOGIN IN (%s)" % (",".join(['?']*len(apply_data['assign']['logins']))),
-                [apply_data['assign']['sid']]+[login for login in apply_data['assign']['logins']] )
+            if len(apply_data['assign']['logins']):
+
+                cursor.execute(
+                    "INSERT INTO assign (sid,uid) SELECT ?, id FROM user WHERE LOGIN IN (%s)" % (",".join(['?']*len(apply_data['assign']['logins']))),
+                    [apply_data['assign']['sid']]+apply_data['assign']['logins'])
+
+                ts = utils.getTimeRange(True)
+                cursor.execute("SELECT b.*, u.login, u.name FROM book b" \
+                            " JOIN user u ON b.uid = u.id" \
+                            " WHERE b.fromTS < ? AND b.toTS > ?" \
+                            " AND b.sid = ?" \
+                            " AND u.login NOT IN (%s)" % (",".join(['?']*len(apply_data['assign']['logins']))),
+                            [ts['toTS'],ts['fromTS'],apply_data['assign']['sid']]+apply_data['assign']['logins'])
+                
+                conflicts_in_assign = [
+                    {"sid": row['sid'],
+                     "fromTS": row['fromTS'],
+                     "toTS": row['toTS'],
+                     "login": row['login'],
+                     "username": row['name']} for row in cursor]
 
         # befor book we have to remove reservations (as this can be list of conflicting reservations)
         if 'remove' in apply_data:
@@ -262,12 +280,20 @@ def zoneApply():
 
     except Error as err:
         db.rollback()
-        return {"msg": str(err) }, 400
+        return {"msg": "Error" }, 400
+    except:
+        db.rollback()
+        raise
+
+    ret = { "msg": "ok" }
 
     if conflicts_in_disable:
-        return {"msg": "ok", "conflicts_in_disable": conflicts_in_disable}, 200
+        ret["conflicts_in_disable"] = conflicts_in_disable
 
-    return {"msg": "ok" }, 200
+    if conflicts_in_assign:
+        ret["conflicts_in_assign"] = conflicts_in_assign
+
+    return ret, 200
 
 
 #Format TODO
