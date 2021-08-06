@@ -108,26 +108,47 @@ function initSeatPreview(seatFactory) {
         previewDiv.style.top = (pands.y + pands.size * 0.70) + "px";
     
         // content of the frame
-        var table =  previewDiv.appendChild(document.createElement("table"));
-        var maxToShow = 8;
-    
-        var bookings = this.getBookings();
+        var assignments = this.getAssignments();
+        if (assignments.length) {
 
-        for (var b of bookings) {
+            var header = previewDiv.appendChild(document.createElement("span"));
+            header.appendChild(document.createTextNode("Assigned to:"));
+            header.className = "seat_preview_header";
 
-            if (maxToShow-- == 0) {
-                b.datetime1 = "...";
-                b.datetime2 = "";
-                b.username = "";
+            var table =  previewDiv.appendChild(document.createElement("table"));
+            for (let a of assignments) {                
+                var name = actAsUserStr(a,g_userData.data[a]);        
+                var tr = table.appendChild( document.createElement("tr"));
+                tr.appendChild( document.createElement("td")).appendChild( document.createTextNode(name));                
             }
+        }
 
-            var tr = table.appendChild( document.createElement("tr"));
-            tr.appendChild( document.createElement("td")).innerText = b.datetime1;
-            tr.appendChild( document.createElement("td")).innerText = b.datetime2;
-            tr.appendChild( document.createElement("td")).innerText = b.username;
+        var bookings = this.getBookings();
+        if (bookings.length) {
+            
+            var header = previewDiv.appendChild(document.createElement("span"))
+            header.appendChild(document.createTextNode("Bookings:"));
+            header.className = "seat_preview_header";
+            
+            var table =  previewDiv.appendChild(document.createElement("table"));
+            var maxToShow = 8;
 
-            if (maxToShow == 0)
-                break;
+            for (var b of bookings) {
+    
+                if (maxToShow-- == 0) {
+                    b.datetime1 = "...";
+                    b.datetime2 = "";
+                    b.username = "";
+                }
+    
+                var tr = table.appendChild( document.createElement("tr"));
+                tr.appendChild( document.createElement("td")).innerText = b.datetime1;
+                tr.appendChild( document.createElement("td")).innerText = b.datetime2;
+                tr.appendChild( document.createElement("td")).innerText = b.username;
+    
+                if (maxToShow == 0)
+                    break;
+            }
         }
 
         zoneMap.appendChild(previewDiv);

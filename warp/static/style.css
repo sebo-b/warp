@@ -76,6 +76,11 @@
     padding: 0px 4px;
 }
 
+.seat_preview_header {
+    padding: 0px 4px;
+    font-weight: bold;
+}
+
 .seat_preview TABLE,tr {
     border: none !important;
 }
