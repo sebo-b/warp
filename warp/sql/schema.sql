@@ -50,7 +50,6 @@ CREATE TABLE book (
     sid integer NOT NULL,
     fromTS integer NOT NULL,
     toTS integer NOT NULL,
-    comment text,
     FOREIGN KEY (uid) REFERENCES user(id)
     FOREIGN KEY (sid) REFERENCES seat(id)
     );

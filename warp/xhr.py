@@ -12,7 +12,7 @@ bp = flask.Blueprint('xhr', __name__)
 #Format JSON
 #    sidN: { name: "name", x: 10, y: 10, zid: zid, enabled: true|false, assigned: true|false
 #       book: [
-#           { bid: 10, isMine: true, username: "sebo", fromTS: 1, toTS: 2, comment: "" }
+#           { bid: 10, isMine: true, username: "sebo", fromTS: 1, toTS: 2 }
 #       assignments: [ login1, login2, ... ]   #only for admin
 # note that book array is sorted on fromTS
 @bp.route("/zone/getSeats/<zid>")
@@ -88,8 +88,7 @@ def zoneGetSeats(zid):
             "isMine": b['uid'] == uid,
             "username": b['username'],
             "fromTS": b['fromTS'], 
-            "toTS": b['toTS'], 
-            "comment": b['comment'] })
+            "toTS": b['toTS'] })
 
     return flask.jsonify(res)
 

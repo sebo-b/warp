@@ -74,19 +74,19 @@ INSERT INTO seat (zid,name,x,y,enabled) VALUES (3,'P.038',757,300,true);
 INSERT INTO seat (zid,name,x,y,enabled) VALUES (3,'P.039',748,358,true);
 
 
---INSERT INTO book (uid,sid,fromTS,toTS,comment) VALUES (1,1,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','60 minutes'),
---                                                           strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','90 minutes'),"comm1");
---INSERT INTO book (uid,sid,fromTS,toTS,comment) VALUES (2,1,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','120 minutes'),
---                                                           strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','180 minutes'),"comm1");
---INSERT INTO book (uid,sid,fromTS,toTS,comment) VALUES (2,2,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','2 day','75 minutes'),
---                                                           strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','2 day','105 minutes'),"comm2");
---INSERT INTO book (uid,sid,fromTS,toTS,comment) VALUES (1,3,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','105 minutes'),
---                                                           strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','120 minutes'),"comm1");
---INSERT INTO book (uid,sid,fromTS,toTS,comment) VALUES (3,6,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','30 minutes'),
---                                                           strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','75 minutes'),"comm4");
---INSERT INTO book (uid,sid,fromTS,toTS,comment) VALUES (1,3,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','3 hours'),
---                                                           strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','3 hours','30 minutes'),"comm1");
---INSERT INTO book (uid,sid,fromTS,toTS,comment) VALUES (2,8,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','180 minutes'),
---                                                           strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','210 minutes'),"comm6");
+--INSERT INTO book (uid,sid,fromTS,toTS) VALUES (1,1,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','60 minutes'),
+--                                                           strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','90 minutes'));
+--INSERT INTO book (uid,sid,fromTS,toTS) VALUES (2,1,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','120 minutes'),
+--                                                           strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','180 minutes'));
+--INSERT INTO book (uid,sid,fromTS,toTS) VALUES (2,2,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','2 day','75 minutes'),
+--                                                           strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','2 day','105 minutes'));
+--INSERT INTO book (uid,sid,fromTS,toTS) VALUES (1,3,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','105 minutes'),
+--                                                           strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','120 minutes'));
+--INSERT INTO book (uid,sid,fromTS,toTS) VALUES (3,6,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','30 minutes'),
+--                                                           strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','75 minutes'));
+--INSERT INTO book (uid,sid,fromTS,toTS) VALUES (1,3,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','3 hours'),
+--                                                           strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','3 hours','30 minutes'));
+--INSERT INTO book (uid,sid,fromTS,toTS) VALUES (2,8,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','180 minutes'),
+--                                                           strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','210 minutes'));
 
 
