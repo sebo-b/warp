@@ -538,6 +538,28 @@ function initShiftSelectDates() {
 
 }
 
+function initZoneHelp() {
+
+    var helpModalEl = document.getElementById('zonemap_help_modal');
+    var helpModal = M.Modal.init(helpModalEl);
+
+    var helpModalSpriteDivs = document.getElementsByClassName("help_modal_sprite");
+    for (let d of helpModalSpriteDivs) {
+        d.style.width = WarpSeat.Sprites.spriteSize + "px";
+        d.style.height = WarpSeat.Sprites.spriteSize + "px";
+        d.style.backgroundImage = 'url('+seatSpriteURL+')';
+
+        var type = d.dataset.sprite + "Offset";
+        d.style.backgroundPositionX = WarpSeat.Sprites[type];
+    }
+
+    var helpDiv = document.getElementsByClassName("zonemap_help");
+    for (let d of helpDiv) {
+        d.addEventListener('click', function() { helpModal.open(); } )
+    }
+
+    
+}
 
 function initZone() {
 
@@ -548,6 +570,8 @@ function initZone() {
     var seatFactory = initSeats();
     initSeatPreview(seatFactory);
     initActionMenu(seatFactory);
+    initZoneHelp();
+
     downloadSeatData(seatFactory);
 }
 

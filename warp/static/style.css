@@ -58,6 +58,12 @@
     padding: 0px !important;
 }
 
+.zonemap_help {
+    position: absolute; 
+    color: #9e9e9e;
+    cursor: pointer;
+}
+
 .zone_action_btn {
     width: 100px;
 }

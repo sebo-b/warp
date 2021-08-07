@@ -43,15 +43,24 @@ WarpSeat.SeatStates = {
     CAN_DELETE_EXACT: 8 // seat is already booked by this user, cannot be changed and selected dated are exactly matching booking dates
 }
 
-WarpSeat.Defines = {
+WarpSeat.Sprites = {
     spriteSize: 48,
-    spriteBookOffset: "-144px",
-    spriteRebookOffset: "-192px",
-    spriteConflictOffset: "-240px",
-    spriteUserConflictOffset: "-48px",
-    spriteUserExactOffset: "0px",
-    spriteUserRebookOffset: "-96px",
-    spriteDisabledOffset: "-288px"
+    bookOffset: "-144px",
+    rebookOffset: "-192px",
+    conflictOffset: "-240px",
+    userConflictOffset: "-48px",
+    userExactOffset: "0px",
+    userRebookOffset: "-96px",
+    disabledOffset: "-288px",
+    bookAssignedOffset: "-336px",
+    rebookAssignedOffset: "-384px",
+    assignedOffset: "-432px"
+};
+
+WarpSeat.SeatAssignedStates = {
+    NOT_ASSIGNED: 0,
+    ASSIGNED: 1,    // not to me
+    ASSIGNED_TO_ME: 2
 };
 
 function WarpSeatFactory(spriteURL,rootDivId,zoneData) {
@@ -219,7 +228,7 @@ WarpSeat.prototype.getPositionAndSize = function() {
     return { 
         x: this.x, 
         y: this.y,
-        size: WarpSeat.Defines.spriteSize
+        size: WarpSeat.Sprites.spriteSize
      };
 }
 
@@ -299,7 +308,7 @@ WarpSeat.prototype._updateState = function() {
         return this.state;
     }
 
-    if (this.assigned) {
+    if (this.assigned == WarpSeat.SeatAssignedStates.ASSIGNED) {
         this.state = WarpSeat.SeatStates.ASSIGNED;
         return this.state;
     }
@@ -373,31 +382,38 @@ WarpSeat.prototype._updateView = function() {
     switch (this.state) {
 
         case WarpSeat.SeatStates.CAN_CHANGE:
-            this.seatDiv.style.backgroundPositionX = WarpSeat.Defines.spriteUserRebookOffset;
+            this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.userRebookOffset;
             break;
         case WarpSeat.SeatStates.CAN_DELETE_EXACT:
-            this.seatDiv.style.backgroundPositionX = WarpSeat.Defines.spriteUserExactOffset;
+            this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.userExactOffset;
             break;
         case WarpSeat.SeatStates.CAN_DELETE:
-            this.seatDiv.style.backgroundPositionX = WarpSeat.Defines.spriteUserConflictOffset;
+            this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.userConflictOffset;
             break;
         case WarpSeat.SeatStates.CAN_BOOK:   
             if (this.myConflictingBookings.size > 0) {
                 this.state = WarpSeat.SeatStates.CAN_REBOOK;    //this is not very elegant
-                this.seatDiv.style.backgroundPositionX = WarpSeat.Defines.spriteRebookOffset;
+                this.seatDiv.style.backgroundPositionX = 
+                    this.assigned == WarpSeat.SeatAssignedStates.ASSIGNED_TO_ME ? 
+                    WarpSeat.Sprites.rebookAssignedOffset : WarpSeat.Sprites.rebookOffset;
             }
             else
-                this.seatDiv.style.backgroundPositionX = WarpSeat.Defines.spriteBookOffset;
+                this.seatDiv.style.backgroundPositionX = 
+                    this.assigned == WarpSeat.SeatAssignedStates.ASSIGNED_TO_ME ? 
+                    WarpSeat.Sprites.bookAssignedOffset : WarpSeat.Sprites.bookOffset;
             break;
-        case WarpSeat.SeatStates.TAKEN:
         case WarpSeat.SeatStates.ASSIGNED:
-            this.seatDiv.style.backgroundPositionX = WarpSeat.Defines.spriteConflictOffset;
-            break;
+            this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.assignedOffset;
+            if (typeof(isM) !== 'undefined' && isM)  // not very elegant, isM can be defined in base template
+                break;
+        case WarpSeat.SeatStates.TAKEN:
+        this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.conflictOffset;
+        break;
         case WarpSeat.SeatStates.DISABLED:
-            this.seatDiv.style.backgroundPositionX = WarpSeat.Defines.spriteDisabledOffset;
+            this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.disabledOffset;
             break;
         default: /* WarpSeat.SeatStates.NOT_AVAILABLE */
-            this.seatDiv.style.backgroundPositionX = WarpSeat.Defines.spriteDisabledOffset;
+            this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.disabledOffset;
             break;
     }
 
@@ -460,8 +476,8 @@ WarpSeat.prototype._createDiv = function(rootDiv, spriteURL) {
     this.seatDiv.style.position = "absolute";
     this.seatDiv.style.left = this.x + "px";
     this.seatDiv.style.top = this.y + "px";
-    this.seatDiv.style.width = WarpSeat.Defines.spriteSize + "px";
-    this.seatDiv.style.height = WarpSeat.Defines.spriteSize + "px";
+    this.seatDiv.style.width = WarpSeat.Sprites.spriteSize + "px";
+    this.seatDiv.style.height = WarpSeat.Sprites.spriteSize + "px";
     this.seatDiv.style.backgroundImage = 'url('+spriteURL+')';
     this.seatDiv.style.display = "none";
 

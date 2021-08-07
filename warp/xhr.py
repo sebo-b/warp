@@ -10,7 +10,12 @@ from sqlite3.dbapi2 import Error
 bp = flask.Blueprint('xhr', __name__)
 
 #Format JSON
-#    sidN: { name: "name", x: 10, y: 10, zid: zid, enabled: true|false, assigned: true|false
+#    sidN: { 
+#       name: "name", 
+#       x: 10, y: 10, 
+#       zid: zid, 
+#       enabled: true|false, 
+#       assigned: 0, 1, 2 (look at WarpSeat.SeatAssignedStates in seat.js)
 #       book: [
 #           { bid: 10, isMine: true, username: "sebo", fromTS: 1, toTS: 2 }
 #       assignments: [ login1, login2, ... ]   #only for admin
@@ -31,7 +36,7 @@ def zoneGetSeats(zid):
     uid = flask.session.get('uid')
     role = flask.session.get('role')
 
-    seats = db.cursor().execute("SELECT s.*, CASE WHEN a.sid IS NULL AND ac.count > 0 THEN TRUE ELSE FALSE END assigned FROM seat s" \
+    seats = db.cursor().execute("SELECT s.*, CASE WHEN a.sid IS NOT NULL THEN TRUE ELSE FALSE END assigned_to_me, CASE WHEN a.sid IS NULL AND ac.count > 0 THEN TRUE ELSE FALSE END assigned FROM seat s" \
                                 " JOIN zone z ON s.zid = z.id" \
                                 " LEFT JOIN assign a ON s.id = a.sid AND a.uid = ?"
                                 " LEFT JOIN (SELECT sid,COUNT(*) count FROM assign GROUP BY sid) ac ON s.id = ac.sid"
@@ -51,8 +56,11 @@ def zoneGetSeats(zid):
                 assignments[r['sid']] = []
             assignments[r['sid']].append(r['login'])
 
-
     for s in seats:
+
+        assigned = s['assigned']
+        if s['assigned_to_me']:
+            assigned = 2
 
         res[s['id']] = {
             "name": s['name'],
@@ -60,7 +68,7 @@ def zoneGetSeats(zid):
             "y": s['y'],
             "zid": s['zid'],
             "enabled": s['enabled'] != 0,
-            "assigned": s['assigned'] != 0,
+            "assigned": assigned,
             "book": []
         }
 

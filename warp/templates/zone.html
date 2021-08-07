@@ -9,7 +9,7 @@
     <script>
         getSeatURL = "{{ url_for('xhr.zoneGetSeats',zid=zone_data['id']) }}";
         zoneApplyURL = "{{ url_for('xhr.zoneApply') }}";
-        seatSpriteURL = "{{ url_for('static',filename='seat_icons.png') }}";        
+        seatSpriteURL = "{{ url_for('static',filename='seat_icons.png') }}";
         var zoneData = {{ zone_data | tojson }};
         var defaultSelections = {{ defaultSelections | tojson }};
     </script>
@@ -58,6 +58,72 @@
     </div>
     {% endif %}
 
+    <div id="zonemap_help_modal" class="modal modal-fixed-footer">
+        <div class="modal-content">
+            <table>
+                <tr>
+                    <td><div class="help_modal_sprite" data-sprite="book"></div></td>
+                    <td>Seat is available to be booked in the selected dates and time.</td>
+                </tr>
+                <tr>
+                    <td><div class="help_modal_sprite" data-sprite="rebook"></div></td>
+                    <td>
+                        The seat is available to be booked in the selected dates and time.
+                        However you have other reservations in that time which will be automaticlly removed
+                        if you book this seat.
+                    </td>
+                </tr>
+                <tr>
+                    <td><div class="help_modal_sprite" data-sprite="conflict"></div></td>
+                    <td>The seat is booked by another person or not available.</td>
+                </tr>
+                <tr>
+                    <td><div class="help_modal_sprite" data-sprite="userExact"></div></td>
+                    <td>The seat is booked by you at the selected date and time.</td>
+                </tr>
+                <tr>
+                    <td><div class="help_modal_sprite" data-sprite="userRebook"></div></td>
+                    <td>The seat is booked by you, but not exactly at the selexted data or time. 
+                        You can update booking, all your other reservations at that time will be automatically removed.
+                    </td>
+                </tr>
+                <tr>
+                    <td><div class="help_modal_sprite" data-sprite="userConflict"></div></td>
+                    <td>The seat is booked by you, but not exactly at the selexted data or time. 
+                        You cannot update booking as it is conflicting with another user booking.</td>
+                </tr>
+                <tr>
+                    <td><div class="help_modal_sprite" data-sprite="bookAssigned"></div></td>
+                    <td>The same meaning as green icon, but the seat is assigned to you, other people cannot book it.
+                        Note that assigment isn't necessary exclusive, the seat can be assigned to more than one person.</td>
+                </tr>
+                <tr>
+                    <td><div class="help_modal_sprite" data-sprite="rebookAssigned"></div></td>
+                    <td>The same meaning as green icon, but the seat is assigned to you, other people cannot book it.
+                        Note that assigment isn't necessary exclusive, the seat can be assigned to more than one person.
+                    </td>
+                </tr>
+                {% if isManager %}
+                <tr>
+                    <td><div class="help_modal_sprite" data-sprite="disabled"></div></td>
+                    <td>The seat is disabled, cannot be booked and is not visible for non-managers.</td>
+                </tr>
+                <tr>
+                    <td><div class="help_modal_sprite" data-sprite="assigned"></div></td>
+                    <td>The seat is assigned to some people. This status is visible only to managers.<br>
+                        Note that you won't see this icon if it is assigned to you.
+                    </td>
+                </tr>
+                {% endif %}
+            </table>
+        </div>
+        <div class="modal-footer">
+            <div class="center-align">
+                <a href="#!" class="modal-close waves-effect waves-light btn">Ok</a>
+            </div>
+        </div>
+    </div>
+
     <div>
 
         <div class="row">
@@ -79,6 +145,10 @@
             </div>
 
             <div class="zonemap col s9" id="zonemap">
+                <div class="zonemap_help">
+                    <i class="material-icons-outlined">help</i>
+                </div>
+
                 <div id="seat_preview">
                 </div>
 
