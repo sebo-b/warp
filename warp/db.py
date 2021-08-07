@@ -7,7 +7,10 @@ import click
 def getDB():
 
     if 'database' not in g:
-        db_file = os.path.join(current_app.root_path, current_app.config['DATABASE'])
+        db_file = current_app.config['DATABASE']
+        if db_file.startswith("./"):
+            db_file = os.path.join(current_app.root_path, db_file)
+
         g.database = sqlite3.connect(db_file)
         g.database.row_factory = sqlite3.Row
 
