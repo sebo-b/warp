@@ -124,10 +124,11 @@
         </div>
     </div>
 
-    <div>
 
-        <div class="row">
-            <div class="col s2">
+    <div class="zone_container">
+        
+        <div class="zone_datetime_container">
+            <div class="zone_datelist">
                 {% for w in nextWeek %}
                 <p>
                     <label>
@@ -138,24 +139,22 @@
                 {% endfor %}
             </div>
 
-            <div class="col">
+            <div class="zone_timeslider">
                 <div id="timeslider-min" class="timeslider-hint">12:00</div>
                 <div id="timeslider" class="timeslider"></div>
                 <div id="timeslider-max" class="timeslider-hint">12:00</div>
             </div>
+        </div>
 
-            <div class="zonemap col s9" id="zonemap">
-                <div class="zonemap_help">
-                    <i class="material-icons-outlined">help</i>
-                </div>
-
-                <div id="seat_preview">
-                </div>
-
-                <img src="{{ url_for('static', filename=zone_data['image']) }}">                        
+        <div class="zone_map" id="zonemap">
+            <div class="zonemap_help">
+                <img src="{{ url_for('static', filename='help_icon.png') }}">
             </div>
+
+            <img src="{{ url_for('static', filename=zone_data['image']) }}">                        
         </div>
     </div>
+
 
 {% endblock %}
 

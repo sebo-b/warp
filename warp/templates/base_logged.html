@@ -25,22 +25,36 @@
         </div>
         {% if isManager %}
         <div id="act-as-container" class="right">
-            <div class="actas input-field right">
+            <div class="actas input-field">
                 <input type="text" id="act-as" class="autocomplete" autocomplete="off">
                 <label for="act-as" class="active">Book as</label>
             </div>
         </div>
         {% endif %}
-
-        <ul class="left">
+        <a href="#" data-target="mobile-nav" class="sidenav-trigger"><i class="material-icons">menu</i></a>
+        <ul class="left hide-on-med-and-down">
             {% for i in headerData %}
             <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}">{{i['text']}}</a></li>
             {% endfor %}
             <li><a href="{{ url_for('auth.logout') }}"><i class="material-icons">logout</i></a></li>
-
         </ul>
     </div>
 </nav>
+
+<ul class="sidenav" id="mobile-nav">
+    {% for i in headerData %}
+    <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}">{{i['text']}}</a></li>
+    {% endfor %}
+    <li class="divider"></li>
+    <li><a href="{{ url_for('auth.logout') }}">Logout</a></li>
+</ul>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var e = document.getElementById('mobile-nav');
+        M.Sidenav.init(e);
+    });
+</script>
 
 {% if self.container() | trim %}
 <div class="container">

@@ -1,9 +1,13 @@
 
-.logo {
-    max-height: 64px!important;
-    padding: 15px!important;    
+.nav-wrapper DIV,A {
+    height: 100%;
 }
 
+.logo {
+    height: 100%;
+    padding: 10px;
+}
+    
 .actas label {
     color: #ffffff !important;
 }
@@ -52,10 +56,45 @@
     margin-bottom: 10px;
 }
 
-.zonemap {
+.zone_container {
+    width: 100%; 
+    padding: 10px 15px;
+}
+
+.zone_datetime_container {
+    float: left; 
+}
+
+@media only screen and (max-width : 993px) {
+    .zone_datetime_container {
+        text-align: center;
+        width: 100%;
+    }
+}
+
+.zone_datelist {
+    vertical-align:middle;
+    display: inline-block;
+    padding-right: 5px;
+    text-align: left;
+}
+
+.zone_timeslider {
+    vertical-align:middle;
+    display: inline-block;
+    padding-right: 10px;
+}
+
+.zone_map {
     position: relative;
     overflow: scroll;
     padding: 0px !important;
+}
+
+@media only screen and (max-width : 993px) {
+    .zone_map {
+        width:100%;
+    }
 }
 
 .zonemap_help {
