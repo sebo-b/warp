@@ -4,15 +4,28 @@
     {{ super() }}
 
     <style>
+        
         html, body {
             height: 100%;
             width: 100%;
         }
+
         .index_container {
             margin: auto;
             width: 100%;
             height: 70%;
         }
+
+        .index_container > DIV {
+            width: 100%;
+            text-align: center;
+        }
+
+        .index_container IMG {
+            max-width: 70%;
+            height: auto;
+        }
+
     </style>
 {% endblock %}
 
@@ -21,13 +34,9 @@
     {{ super() }}
 
     <div class="index_container valign-wrapper">
-        <div class="row center-align ">
-            <div class="col s12">
-                <img src="{{ url_for('static', filename='logo-color.png') }}">
-            </div>
-            <div class="col s12">
-                Welcome to Workspace Autonomous Reservation Program
-            </div>
+        <div>
+            <img src="{{ url_for('static', filename='logo-color.png') }}"><br>
+            Workspace Autonomous Reservation Program
         </div>  
     </div>
 
