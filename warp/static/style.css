@@ -8,20 +8,29 @@
     padding: 10px;
 }
     
-.actas label {
+.nav-wrapper .input-field label {
     color: #ffffff !important;
 }
-.actas input[type=text] {
+.nav-wrapper .input-field input[type=text] {
     color: #ffffff;
 }
-.actas input[type=text]:focus + label {
+.nav-wrapper .input-field input[type=text]:focus + label {
     color: #ffffff !important;
 }
-.actas input[type=text]:focus {
+.nav-wrapper .input-field input[type=text]:focus {
     border-bottom: 1px solid #ffffff !important;
     box-shadow: 0 1px 0 0 #ffffff !important;
 }
-#act-as-container {
+
+.sidenav .input-field {
+    padding: 0 32px;
+}
+
+.sidenav LABEL {
+    margin: 0 32px;
+}
+
+.act-as-container {
     display: none;
 }
 

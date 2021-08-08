@@ -48,7 +48,7 @@ function initActAs() {
 
         if (!(this.value in actAs.options.data)) {
             this.value = selectedLoginStr;
-            document.querySelector("label[for='act-as']").classList.add('active');
+            document.querySelector("label[for=" + this.id + "]").classList.add('active');
         }
     }
 
@@ -66,9 +66,9 @@ function initActAs() {
         }
     }
 
-    var actAsContainerEl = document.getElementById('act-as-container');
-    var actAsEl = document.getElementById('act-as');
-    var actAs = M.Autocomplete.init(actAsEl, { 
+    // getElementsByClassName cannot be used as it has to be a NodeList not a HTMLCollection
+    var actAsElements = document.querySelectorAll('.act-as-input'); 
+    var actAsInstances = M.Autocomplete.init(actAsElements, { 
         minLength: 1,
         onAutocomplete: onAutocomplete
     });
@@ -90,13 +90,21 @@ function initActAs() {
             actAsData[ actAsUserStr(login,userName)] = null;
         }
 
-        actAs.updateData(actAsData);
-        onBlur.call(actAsEl);   // show selectedLoginStr
-        actAsEl.addEventListener('blur',onBlur);
-        actAsEl.addEventListener('keyup',onKeyUp);
-        actAsEl.addEventListener('focus', function() {this.select(); })
+        for (let i of actAsInstances) {
+            i.updateData(actAsData);
+        }
+
+        for (let e of actAsElements) {
+            onBlur.call(e);   // show selectedLoginStr
+            e.addEventListener('blur',onBlur);
+            e.addEventListener('keyup',onKeyUp);
+            e.addEventListener('focus', function() {this.select(); })
+        }
     
-        actAsContainerEl.style.display = "block";
+        var actAsContainers = document.getElementsByClassName("act-as-container");
+        for (let c of actAsContainers) {
+            c.style.display = "block";
+        }
     });
 
     xhr.open("GET", getUsersURL);

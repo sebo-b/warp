@@ -24,10 +24,10 @@
             <a href="{{ url_for('view.index')}}" class="right"><img class="logo" src="{{ url_for('static', filename='logo.png') }}"></a>
         </div>
         {% if isManager %}
-        <div id="act-as-container" class="right">
-            <div class="actas input-field">
-                <input type="text" id="act-as" class="autocomplete" autocomplete="off">
-                <label for="act-as" class="active">Book as</label>
+        <div class="act-as-container right hide-on-med-and-down">
+            <div class="input-field">
+                <input type="text" id="act-as1" class="autocomplete act-as-input" autocomplete="off">
+                <label for="act-as1" class="active">Book as</label>
             </div>
         </div>
         {% endif %}
@@ -46,6 +46,14 @@
     <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}">{{i['text']}}</a></li>
     {% endfor %}
     <li class="divider"></li>
+    {% if isManager %}
+    <li class="act-as-container">
+        <div class="input-field">
+            <input type="text" id="act-as2" class="autocomplete act-as-input" autocomplete="off">
+            <label for="act-as2" class="active">Book as</label>
+        </div>
+    </li>
+    {% endif %}
     <li><a href="{{ url_for('auth.logout') }}">Logout</a></li>
 </ul>
 
