@@ -279,9 +279,9 @@ function initActionMenu(seatFactory) {
             return;
         
         let msg1El = document.getElementById("action_modal_msg1");
-        if (bookMsg) {
+        msg1El.innerHTML = "";
 
-            msg1El.innerHTML = "";
+        if (bookMsg) {
 
             var bookDatesTable = document.createElement("table");
             for (let d of getSelectedDates()) {
@@ -296,16 +296,12 @@ function initActionMenu(seatFactory) {
 
             msg1El.appendChild(p);
             msg1El.appendChild(bookDatesTable);
-            msg1El.style.display = "block";
-        }
-        else {
-            msg1El.style.display = "none";
         }
 
         let msg2El = document.getElementById("action_modal_msg2");
-        if (removeMsg) {
-            
-            msg2El.innerHTML = "";
+        msg2El.innerHTML = "";
+
+        if (removeMsg) {            
 
             var myConflictsTable = document.createElement("table");
             for (let c of seatFactory.getMyConflictingBookings()) {
@@ -321,10 +317,6 @@ function initActionMenu(seatFactory) {
 
             msg2El.appendChild(p);
             msg2El.appendChild(myConflictsTable);
-            msg2El.style.display = "block";
-        }
-        else {
-            msg2El.style.display = "none";
         }
 
         for (let btn of actionBtns) {

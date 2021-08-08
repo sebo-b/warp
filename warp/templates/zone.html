@@ -26,15 +26,18 @@
         <div class="modal-content">
             <h4 id="action_modal_title" style="display: none;"></h4>
             <div class="row">
-                <div class="col s3" id="action_modal_msg1"  style="display:none">
+                <div class="col s12 m6 l4" id="action_modal_msg1" >
                 </div>
-                <div class="col s3" id="action_modal_msg2" style="display:none">
+
+                <div class="col s12 m6 l4" id="action_modal_msg2">
                 </div>
-                <div class="col s2 right">
+
+                <div class="col s12 m12 l4 center-align" style="margin-top: 20px">
                     <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="book">Book</a>
                     <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="update">Update</a>
                     <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="delete">Remove</a>
                     {% if isManager %}
+                    <br>
                     <a href="#!" class="modal-close waves-effect waves-light btn red darken-2 zone_action_btn" data-action="assign-modal">Assign</a>
                     <a href="#!" class="modal-close waves-effect waves-light btn red darken-2 zone_action_btn" data-action="enable">Enable</a>
                     <a href="#!" class="modal-close waves-effect waves-light btn red darken-2 zone_action_btn" data-action="disable">Disable</a>
