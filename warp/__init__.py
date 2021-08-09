@@ -1,19 +1,4 @@
 import flask
-import os
-from .db import getDB
-
-def session():
-
-    if flask.request.blueprint == 'auth':
-        return
-
-    if flask.request.endpoint == 'static' and 'zone_maps' not in flask.request.view_args['filename']:
-        return
-
-    if flask.session.get('uid') is None:
-        return flask.redirect(
-            flask.url_for('auth.login'))
-
 
 def create_app():
 
@@ -32,7 +17,5 @@ def create_app():
 
     from . import auth
     app.register_blueprint(auth.bp)
-
-    app.before_request(session)
 
     return app
