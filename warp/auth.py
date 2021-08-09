@@ -53,7 +53,12 @@ def logout():
     flask.session.clear()
     return flask.redirect(flask.url_for('auth.login'))
 
-@bp.before_app_request
+# We don't use before_app_request decorator here (we register it after the function)
+# to expose a raw function ,so it can be registered in alternative auth modules.
+# 
+# Note: bp.before_app_request is just registering a function, it returns unwrapped function reference
+#       however this may change in the future, so let's keep it clean
+# @bp.before_app_request
 def session():
 
     if flask.request.blueprint == 'auth':
@@ -83,3 +88,5 @@ def session():
 
     if userRow['role'] != flask.session.get('role'):
         flask.session['role'] = userRow['role']
+
+bp.before_app_request(session)

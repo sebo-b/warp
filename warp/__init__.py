@@ -16,6 +16,12 @@ def create_app():
     app.register_blueprint(xhr.bp)
 
     from . import auth
-    app.register_blueprint(auth.bp)
+    from . import auth_mellon
+    if 'AUTH_MELLON' in app.config \
+       and 'MELLON_ENDPOINT' in app.config \
+       and app.config['AUTH_MELLON']:
+        app.register_blueprint(auth_mellon.bp)
+    else:
+        app.register_blueprint(auth.bp)
 
     return app
