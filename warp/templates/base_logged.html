@@ -36,7 +36,9 @@
             {% for i in headerData %}
             <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}">{{i['text']}}</a></li>
             {% endfor %}
+            {% if hasLogout %}
             <li><a href="{{ url_for('auth.logout') }}"><i class="material-icons">logout</i></a></li>
+            {% endif %}
         </ul>
     </div>
 </nav>
@@ -45,7 +47,9 @@
     {% for i in headerData %}
     <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}">{{i['text']}}</a></li>
     {% endfor %}
+    {% if hasLogout or isManager %}
     <li class="divider"></li>
+    {% endif %}
     {% if isManager %}
     <li class="act-as-container">
         <div class="input-field">
@@ -54,7 +58,9 @@
         </div>
     </li>
     {% endif %}
+    {% if hasLogout %}
     <li><a href="{{ url_for('auth.logout') }}">Logout</a></li>
+    {% endif %}
 </ul>
 
 <script>

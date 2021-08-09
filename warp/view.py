@@ -29,7 +29,8 @@ def headerDataInit():
         h['active'] = flask.request.endpoint == h['endpoint'] and flask.request.view_args == h['view_args']
 
     return { "headerData": headerData,
-             "isManager": flask.session.get('role') <= auth.ROLE_MANAGER
+             "isManager": flask.session.get('role') <= auth.ROLE_MANAGER,
+             'hasLogout': 'auth.logout' in flask.current_app.view_functions
     }
 
 @bp.route("/")
