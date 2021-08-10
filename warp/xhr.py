@@ -324,7 +324,7 @@ def getUsers():
         flask.abort(403)
 
     db = getDB()
-    cur = db.cursor().execute("SELECT id,login,name FROM user")
+    cur = db.cursor().execute("SELECT id,login,name FROM user WHERE role < ?",(auth.ROLE_BLOCKED,))
 
     res = {
         "data": {}
