@@ -116,8 +116,12 @@ function initSeatPreview(seatFactory) {
             header.className = "seat_preview_header";
 
             var table =  previewDiv.appendChild(document.createElement("table"));
-            for (let a of assignments) {                
-                var name = actAsUserStr(a,g_userData.data[a]);        
+            for (let a of assignments) {   
+                var name = a;
+                // assignments are either logins or usernames
+                if (typeof(g_userData) !== 'undefined' && a in g_userData.data) {
+                    name = actAsUserStr(a,g_userData.data[a]);        
+                }             
                 var tr = table.appendChild( document.createElement("tr"));
                 tr.appendChild( document.createElement("td")).appendChild( document.createTextNode(name));                
             }

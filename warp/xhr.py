@@ -18,7 +18,8 @@ bp = flask.Blueprint('xhr', __name__)
 #       assigned: 0, 1, 2 (look at WarpSeat.SeatAssignedStates in seat.js)
 #       book: [
 #           { bid: 10, isMine: true, username: "sebo", fromTS: 1, toTS: 2 }
-#       assignments: [ login1, login2, ... ]   #only for admin
+#       assignments: [ login1, login2, ... ]        #only for admin
+#       assignments: [ name1, name2, ... ]          #for non-admins
 # note that book array is sorted on fromTS
 @bp.route("/zone/getSeats/<zid>")
 def zoneGetSeats(zid):
@@ -47,14 +48,15 @@ def zoneGetSeats(zid):
     if seats is None:
         flask.abort(404)
 
+    assignCursor = db.cursor().execute("SELECT a.sid, u.login, u.name FROM assign a " \
+                                    " JOIN user u ON a.uid = u.id")
+
     assignments = {}
-    if role <= auth.ROLE_MANAGER:
-        assignCursor = db.cursor().execute("SELECT a.sid, u.login FROM assign a " \
-                                     " JOIN user u ON a.uid = u.id")
-        for r in assignCursor:
-            if r['sid'] not in assignments:
-                assignments[r['sid']] = []
-            assignments[r['sid']].append(r['login'])
+    for r in assignCursor:
+        if r['sid'] not in assignments:
+            assignments[r['sid']] = { 'logins': [], 'names': []}
+        assignments[r['sid']]['logins'].append(r['login'])
+        assignments[r['sid']]['names'].append(r['name'])
 
     for s in seats:
 
@@ -73,7 +75,10 @@ def zoneGetSeats(zid):
         }
 
         if s['id'] in assignments:
-            res[s['id']]['assignments'] = assignments[s['id']]
+            if role <= auth.ROLE_MANAGER:
+                res[s['id']]['assignments'] = assignments[s['id']]['logins']
+            else:
+                res[s['id']]['assignments'] = assignments[s['id']]['names']
 
     tr = utils.getTimeRange()
     
