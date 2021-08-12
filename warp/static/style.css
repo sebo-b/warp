@@ -123,6 +123,9 @@
     background-color: white;
     z-index: 1;
     font-size: 10px;
+    width: fit-content;
+    width: -moz-fit-content;
+    width: -webkit-fit-content;
 }
 
 .seat_preview_title {

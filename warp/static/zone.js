@@ -95,9 +95,11 @@ function initSeatPreview(seatFactory) {
 
         // position of the frame
         var pands = this.getPositionAndSize();
-        var parentWidth = zoneMap.clientWidth
         
-        if (pands.x < parentWidth / 2) {
+        var parentWidth = zoneMap.clientWidth;
+        var clientPos = pands.x - zoneMap.scrollLeft;
+
+        if (clientPos < parentWidth / 2) {
             previewDiv.style.right = "";
             previewDiv.style.left = (pands.x + pands.size * 0.70) + "px";
         }
@@ -343,6 +345,7 @@ function initActionMenu(seatFactory) {
         // real action button is inside modal
         if (this.dataset.action == 'assign-modal') {
             var assignModal = initAssignedSeatsModal(seat);
+            document.getElementById('assigned_seat_chips').focus();
             assignModal.open();
             return;
         }
