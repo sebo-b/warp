@@ -81,7 +81,11 @@ def session():
             flask.url_for('auth.login'))
 
     # check if user still exists and if it is not blocked
-    userRow = getDB().cursor().execute("SELECT * FROM user WHERE id = ?",(uid,)).fetchone()
+    real_uid = uid
+    if flask.session.get('real-uid'):
+        real_uid = flask.session.get('real-uid')
+
+    userRow = getDB().cursor().execute("SELECT * FROM user WHERE id = ?",(real_uid,)).fetchone()
     if userRow is None or userRow['role'] >= ROLE_BLOCKED:
         return flask.redirect(
             flask.url_for('auth.login'))

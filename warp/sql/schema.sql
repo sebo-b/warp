@@ -1,6 +1,6 @@
 BEGIN TRANSACTION;
 
-PRAGMA foreign_keys = OFF;
+--PRAGMA foreign_keys = OFF;
 
 DROP TABLE IF EXISTS assign;
 DROP TABLE IF EXISTS book;
@@ -39,7 +39,7 @@ CREATE TABLE assign (
     PRIMARY KEY (sid,uid),
     FOREIGN KEY (sid) REFERENCES seat(id),
     FOREIGN KEY (uid) REFERENCES user(id)
-    );
+    ) WITHOUT ROWID;
 
 CREATE INDEX seat_zid
 ON seat(zid);
