@@ -86,10 +86,14 @@ function WarpSeatFactory(spriteURL,rootDivId,zoneData) {
  WarpSeatFactory.prototype.updateAllStates = function(selectedDates) {
 
     if (typeof(selectedDates) !== 'undefined') {
-        this.selectedDates.length = 0;  //WarpSeats keep reference to selectedDates
+        this.selectedDates.length = 0;  //WarpSeats keeps reference to selectedDates, so let's update the array instead of creating a new one
         for (var d of selectedDates) {
             this.selectedDates.push( Object.assign({},d));
         }
+
+        // for efficient iteration selectedDates must be sorted by fromTS
+        this.selectedDates.sort((e1,e2) => e1.fromTS - e2.fromTS);  // this could have been done at 'push', but for such a small
+                                                                    // array it is not worth it
     }
 
     for (var seat of Object.values(this.instances)  )
@@ -99,7 +103,6 @@ function WarpSeatFactory(spriteURL,rootDivId,zoneData) {
         seat._updateView();
 
  }
-
 
 // NOTE: seatsData is not cloned
 WarpSeatFactory.prototype.setSeatsData = function(seatsData = {}) {
@@ -124,56 +127,43 @@ WarpSeatFactory.prototype.setSeatsData = function(seatsData = {}) {
 };
 
 /**
- * Returns raw list of my bookings which conflicts in the given datetime
- * @returns array of { sid: 10, bid: 10, fromTS: 1, toTS: 2 }
+ * Returns a list of my bookings which conflicts in the given datetime
+ * @param raw if true returns an array of bid's
+ * @returns array of { sid: 10, bid: 10, fromTS: 1, toTS: 2, zone_name = "Zone 1", seat_name: "Seat 1", datetime1: "yyyy-mm-dd", datetime2: "hh:mm-hh:mm" }
  */
- WarpSeatFactory.prototype.getMyConflictingBookingsRaw = function() {
+ WarpSeatFactory.prototype.getMyConflictingBookings = function(raw = false) {
 
     var res = [];
 
     for (var sid of this.myConflictingBookings) {
+
         var seat = this.instances[sid];
 
-        date_loop:
-        for (var date of this.selectedDates) {
-            for (var book of seat.book) {
-                if ( book.fromTS >= date.toTS ) // book is sorted by fromTS, so we can optimize
-                    break;
-                else if (book.toTS > date.fromTS) {
-                    res.push( {
-                        sid: sid,
-                        bid: book['bid'],
-                        fromTS: book['fromTS'],
-                        toTS: book['toTS']
-                    });
-                }
+        for (let i of seat._bookingsIterator()) {
+
+            if (!i.book.isMine)
+                continue;
+
+            if (raw) {
+                res.push(i.book['bid']);
             }
-        }    
+            else {
+
+                res.push( Object.assign({
+                            sid: sid,
+                            bid: i.book['bid'],
+                            fromTS: i.book['fromTS'],
+                            toTS: i.book['toTS'],
+                            seat_name: seat.getName(),
+                            zone_name: this.zoneData.names[seat.getZid()],  
+                        },
+                        WarpSeatFactory._formatDatePair(i.book)));
+
+            }
+        }
     }
 
-    return res;    
-}
-
-/**
- * Returns formatted list of my bookings which conflicts in the given datetime
- * @returns array from getMyConflictingBookingsRaw extended with { zone_name = "Zone 1", seat_name: "Seat 1", datetime1: "yyyy-mm-dd", datetime2: "hh:mm-hh:mm" }
- */
- WarpSeatFactory.prototype.getMyConflictingBookings = function() {
-
-    var bookings = this.getMyConflictingBookingsRaw();
-
-    for (let b of bookings) {
-        
-        var seatName = this.instances[b.sid].getName();
-        var zid = this.instances[b.sid].getZid();
-
-        Object.assign(b, {
-                seat_name: seatName,
-                zone_name: this.zoneData.names[zid]},  
-            WarpSeatFactory._formatDatePair(b));
-    }
-
-    return bookings;
+    return res;   
  }
 
 /**
@@ -248,57 +238,51 @@ WarpSeat.prototype.getAssignments = function() {
     return this.assignments;
 }
 
-WarpSeat.prototype.getAllBookings = function() {
-    return this.book;
-}
-
 /**
- * Returns raw booking list
- * @returns array of { bid: 10, username: "sebo", isMine: true, fromTS: 1, toTS: 2 }
+ * Returns preformatted booking list
+ * @returns array { bid: 10, username: "sebo", isMine: true, fromTS: 1, toTS: 2, datetime1: "yyyy-mm-dd", datetime2: "hh:mm-hh:mm" }
+ *          in case (which should not happen) that reservation is accross days, 
+ *          datetime{12} will be "yyyy-mm-dd hh:mm"
  */
-WarpSeat.prototype.getBookingsRaw = function() {
-
-    var bookings = this.getAllBookings();
-    var selectedDates = this.selectedDates;
+WarpSeat.prototype.getBookings = function() {
 
     var res = [];
 
-    date_loop:
-    for (var date of selectedDates) {
-        for (var book of bookings) {
-            if ( book.fromTS >= date.toTS ) // book is sorted by fromTS, so we can optimize
-                break;
-            else if (book.toTS > date.fromTS) {
-                res.push( Object.assign({}, book));
-            }
-        }
+    for (let i of this._bookingsIterator()) {
+        res.push( Object.assign({}, i.book, WarpSeatFactory._formatDatePair(i.book)));
     }
 
     return res;    
 }
 
 /**
- * Returns preformatted booking list
- * @returns array from getBookingsRaw extended with { datetime1: "yyyy-mm-dd", datetime2: "hh:mm-hh:mm" }
- *          in case (which should not happen) that reservation is accross days, 
- *          datetime{12} will be "yyyy-mm-dd hh:mm"
+ * Iterates over relevant (by given selectedDates) seat bookings 
  */
-WarpSeat.prototype.getBookings = function() {
+WarpSeat.prototype._bookingsIterator = function*() {
 
-    var bookings = this.getBookingsRaw();
+    var bookStartIdx = 0;
 
-    for (var b of bookings) {
-        Object.assign(b, WarpSeatFactory._formatDatePair(b));
+    for (let date of this.selectedDates) {    
+        for (let b = bookStartIdx; b < this.book.length; ++b) {
+
+            let book = this.book[b];
+
+            if ( book.fromTS >= date.toTS ) { // book is sorted by fromTS, so we can optimize here
+                break;
+            }
+            else if (book.toTS > date.fromTS) {    
+                yield {book: book, date: date};
+            }
+            else if (b == bookStartIdx+1) { // dates are sorted by fromTS, so we can skip non-relevant bookings in the next iteration
+                bookStartIdx = b;           // but only step by step as we can skip only the beggining of the array
+            }
+        }
     }
-
-    return bookings;
 }
 
 WarpSeat.prototype._updateState = function() {
 
-    var selectedDates = this.selectedDates;
-
-    if (!selectedDates.length) {
+    if (!this.selectedDates.length) {
         this.state = WarpSeat.SeatStates.NOT_AVAILABLE;
         return this.state;
     }
@@ -313,39 +297,29 @@ WarpSeat.prototype._updateState = function() {
         return this.state;
     }
 
-    var bookings = this.getAllBookings();
+    var bookings = this.book;
 
     var isFree = true;
     var isMine = false;
     var isExact = 0;
 
-    date_loop:
-    for (var date of selectedDates) {
+    for (var i of this._bookingsIterator()) {
 
-        for (var book of bookings) {
+        if (i.book.isMine) {
 
-            if ( book.fromTS >= date.toTS ) { // book is sorted by fromTS, so we can optimize here
+            isMine = true;
+
+            if (i.book.fromTS == i.date.fromTS && i.book.toTS == i.date.toTS)
+                ++isExact;
+
+            if (!isFree)
                 break;
-            }
-            else if (book.toTS > date.fromTS) {
-
-                if (book.isMine) {
-
-                    isMine = true;
-
-                    if (book.fromTS == date.fromTS && book.toTS == date.toTS)
-                        ++isExact;
-
-                    if (!isFree)
-                        break date_loop;
-                }
-                else {
-                    isFree = false;
-                    if (isMine)
-                        break date_loop;
-                }
-            }
         }
+        else {
+            isFree = false;
+            if (isMine)
+                break;
+        }        
     }
 
     if (isMine)
@@ -355,7 +329,7 @@ WarpSeat.prototype._updateState = function() {
 
     if (isMine) {
 
-        if (isExact == selectedDates.length)
+        if (isExact == this.selectedDates.length)
             this.state = WarpSeat.SeatStates.CAN_DELETE_EXACT;
         else if (isFree) 
             this.state = WarpSeat.SeatStates.CAN_CHANGE;

@@ -421,7 +421,7 @@ function initActionMenu(seatFactory) {
         }
 
         if (this.dataset.action == 'delete' || this.dataset.action == 'update') {
-            applyData['remove'] = seatFactory.getMyConflictingBookingsRaw().map(i => i.bid);
+            applyData['remove'] = seatFactory.getMyConflictingBookings(true);
         }
 
         xhr.send( JSON.stringify(applyData));
