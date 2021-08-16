@@ -258,6 +258,9 @@ def zoneApply():
                     "INSERT INTO assign (sid,uid) SELECT ?, id FROM user WHERE LOGIN IN (%s)" % (",".join(['?']*len(apply_data['assign']['logins']))),
                     [apply_data['assign']['sid']]+apply_data['assign']['logins'])
 
+                if cursor.rowcount != len(apply_data['assign']['logins']):
+                    raise Error("Number of affected row is different then in assign.logins.")
+
                 ts = utils.getTimeRange(True)
                 cursor.execute("SELECT b.*, u.login, u.name FROM book b" \
                             " JOIN user u ON b.uid = u.id" \
@@ -277,6 +280,9 @@ def zoneApply():
         if 'remove' in apply_data:
             cursor.executemany("DELETE FROM book WHERE id = ? AND (? OR uid = ?)",
                 ((id,role < auth.ROLE_USER,uid) for id in apply_data['remove']))
+
+            if cursor.rowcount != len(apply_data['remove']):
+                raise Error("Number of affected row is different then in remove.")
 
         # then we create new reservations
         if 'book' in apply_data:
