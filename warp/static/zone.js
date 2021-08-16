@@ -97,9 +97,9 @@ function initSeatPreview(seatFactory) {
         var pands = this.getPositionAndSize();
         
         var parentWidth = zoneMap.clientWidth;
-        var clientPos = pands.x - zoneMap.scrollLeft;
+        var clientPosX = pands.x - zoneMap.scrollLeft;
 
-        if (clientPos < parentWidth / 2) {
+        if (clientPosX < parentWidth / 2) {
             previewDiv.style.right = "";
             previewDiv.style.left = (pands.x + pands.size * 0.70) + "px";
         }
@@ -107,7 +107,18 @@ function initSeatPreview(seatFactory) {
             previewDiv.style.left = "";
             previewDiv.style.right = (parentWidth - pands.x - pands.size * 0.30) + "px";
         }
-        previewDiv.style.top = (pands.y + pands.size * 0.70) + "px";
+
+        var parentHeight = zoneMap.clientHeight;
+        var clientPosY = pands.y;
+
+        if (clientPosY < parentHeight / 2) {
+            previewDiv.style.top = (pands.y + pands.size * 0.70) + "px";
+            previewDiv.style.bottom = "";
+        }
+        else {
+            previewDiv.style.top = "";
+            previewDiv.style.bottom = (parentHeight - pands.y - pands.size * 0.30) + "px";
+        }
     
         // content of the frame
         var assignments = this.getAssignments();
