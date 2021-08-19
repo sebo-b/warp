@@ -1,4 +1,13 @@
 
+HTML, BODY {
+    width: 100%;
+    height: 100%;
+}
+
+.container {
+    height: 90%;
+}
+
 .nav-wrapper DIV,A {
     height: 100%;
 }
@@ -63,6 +72,10 @@
     border: 1px solid#3949ab;
     margin-top: 10px;
     margin-bottom: 10px;
+}
+
+#bookingsTable {
+    margin-top: 5px;
 }
 
 .zone_container {

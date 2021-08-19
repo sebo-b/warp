@@ -424,7 +424,7 @@ def bookingsGet():
 
         res.append({
             "bid": row["bid"],
-            "user_name": row["user_name"]+" ["+row["login"]+"]",
+            "user_name": row["user_name"]+" ["+row["login"]+"]" if role <= auth.ROLE_MANAGER else row["user_name"],
             "zone_name": row["zone_name"],
             "seat_name": row["seat_name"],
             "fromTS": row["fromTS"],

@@ -145,7 +145,7 @@ function initBooking() {
     }
 
     var table = new Tabulator("#bookingsTable", {
-        height:"500px",
+        maxHeight:"95%",
         ajaxURL: bookingsGetURL,
         index:"bid",
         layout:"fitColumns",
