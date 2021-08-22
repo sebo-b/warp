@@ -4,13 +4,13 @@ The story of this project begins when, due to COVID-19, we have converted our re
 
 I've quickly evaluated a couple of existing solutions, but they were either too big and complicated and/or too expensive. As I assumed that other people would have the same challenge I had, I decided to spend my after-hours time making an open-source tailored system for the need. Yes - it is free as speech, not as beer.
 
-## What WARP can do:
+## What WARP can do
 - It allows people to book / change / unbook desks (or even parking stalls) in the office.
 - It allows people to check who else will be in the office.
 - It works on mobile.
 - All is done in an easy, visual way.
 
-## More advanced features:
+## More advanced features
 - Seats can be limited to certain people, so other people cannot book them (it is called assigned seats).
 - Seats can be disabled, so people don't see them at all.
 - Multiple zones (maps) can be created, for example, floors or parking.
@@ -18,13 +18,13 @@ I've quickly evaluated a couple of existing solutions, but they were either too 
 - Admin(s) can book / modify / unbook seat for any user.
 If you are using SAML2.0 for SSO, it can be integrated via Apache [mod_auth_mellon](https://github.com/latchset/mod_auth_mellon) module.
 
-## What's not done yet:
+## What's not done yet
 - [WIP] User management, for now, if you don't use SAML/SSO SQL is your best friend for that.
-- Translations - English texts are simply embedded.
 - Map/zone management - new zones have to be created directly in the database.
 - Reporting - at some point, you probably need a report from past reservations. It is not there yet.
+- Translations - it is now only in English (and texts are hardcoded).
 
-## What I'm not even planning to do:
+## What I'm not even planning to do
 - Approvals - the main goal of the system was to make it autonomous and management-free. So I don't plan to implement approval flows.
 - Timezone support - the selected time is always in the same timezone as a zone. It works well and is simple. But in case someone would like to have a couple of zones in different timezones and keep the `one person one seat at a given time` rule across these timezones, this will fail.
 
@@ -151,3 +151,11 @@ You can generate it with Python (just make sure you have activated the environme
 python -c 'from getpass import getpass; from werkzeug.security import generate_password_hash; print(generate_password_hash(getpass()))'
 
 ```
+
+## How can I support you
+
+Oh.. I was not expecting that, but you can send a beer via paypal: https://paypal.me/sebo271
+
+### Can I pay for a feature or support
+
+Reach me out on my mail (git log is your friend), we can discuss.
