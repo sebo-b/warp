@@ -7,8 +7,8 @@
 <link type="text/css" rel="stylesheet" href="{{ url_for('static', filename='tabulator/tabulator_materialize.min.css') }}"/>
 
 <script>
-    zoneApplyURL = "{{ url_for('xhr.zoneApply') }}";
-    bookingsGetURL = "{{ url_for('xhr.bookingsGet') }}";
+    window.warpGlobals.URLs['zoneApply'] = "{{ url_for('xhr.zoneApply') }}";
+    window.warpGlobals.URLs['bookingsGet'] = "{{ url_for('xhr.bookingsGet') }}";
 </script>
 <script src="{{ url_for('static', filename='bookings.js') }}"></script>
 

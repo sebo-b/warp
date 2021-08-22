@@ -7,11 +7,12 @@
     <script type="text/javascript" src="{{ url_for('static', filename='nouislider/nouislider.min.js') }}"></script>
 
     <script>
-        getSeatURL = "{{ url_for('xhr.zoneGetSeats',zid=zone_data['id']) }}";
-        zoneApplyURL = "{{ url_for('xhr.zoneApply') }}";
-        seatSpriteURL = "{{ url_for('static',filename='seat_icons.png') }}";
-        var zoneData = {{ zone_data | tojson }};
-        var defaultSelections = {{ defaultSelections | tojson }};
+        window.warpGlobals.URLs['zoneApply'] = "{{ url_for('xhr.zoneApply') }}";
+        window.warpGlobals.URLs['getSeat'] = "{{ url_for('xhr.zoneGetSeats',zid=zone_data['id']) }}";
+        window.warpGlobals.URLs['seatSprite'] = "{{ url_for('static',filename='seat_icons.png') }}";
+
+        window.warpGlobals['defaultSelectedDates'] = {{ defaultSelectedDates | tojson }};
+        window.warpGlobals['zoneData'] = {{ zone_data | tojson }};
     </script>
 
     <script src="{{ url_for('static', filename='zone.js') }}"></script>

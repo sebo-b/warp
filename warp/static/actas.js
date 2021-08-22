@@ -1,7 +1,5 @@
 'use strict';
 
-var g_userData; // used by actAs and assigned seat
-
 function actAsUserStr(login,name) {
     return  name + " ["+login+"]";
 };
@@ -34,7 +32,7 @@ function initActAs() {
             xhr.addEventListener("load", function() {
                 window.location.reload();
             });
-            xhr.open("POST", actAsSetURL);
+            xhr.open("POST", window.warpGlobals.URLs['actAsSet']);
             xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
             xhr.send( JSON.stringify(action_data));
         }
@@ -59,7 +57,9 @@ function initActAs() {
                 this.blur();
             else
                 onAutocomplete(
-                    actAsUserStr(g_userData.real_login, g_userData.data[g_userData.real_login]));
+                    actAsUserStr(
+                        window.warpGlobals.URLs['userData'].real_login, 
+                        window.warpGlobals.URLs['userData'].data[window.warpGlobals.URLs['userData'].real_login]));
         }
         else if (e.keyCode == 27) {
             this.blur();
@@ -76,17 +76,17 @@ function initActAs() {
     var xhr = new XMLHttpRequest();
     xhr.addEventListener("load", function() {
 
-        g_userData = JSON.parse(this.responseText);
+        window.warpGlobals.URLs['userData'] = JSON.parse(this.responseText);
 
         selectedLoginStr = 
-            actAsUserStr(g_userData.login, g_userData.data[g_userData.login]);
+            actAsUserStr(window.warpGlobals.URLs['userData'].login, window.warpGlobals.URLs['userData'].data[window.warpGlobals.URLs['userData'].login]);
 
         realLoginStr = 
-            actAsUserStr(g_userData.real_login, g_userData.data[g_userData.real_login]);
+            actAsUserStr(window.warpGlobals.URLs['userData'].real_login, window.warpGlobals.URLs['userData'].data[window.warpGlobals.URLs['userData'].real_login]);
 
         var actAsData = {};
-        for (let login in g_userData.data) {
-            var userName = g_userData.data[login];
+        for (let login in window.warpGlobals.URLs['userData'].data) {
+            var userName = window.warpGlobals.URLs['userData'].data[login];
             actAsData[ actAsUserStr(login,userName)] = null;
         }
 
@@ -107,7 +107,7 @@ function initActAs() {
         }
     });
 
-    xhr.open("GET", getUsersURL);
+    xhr.open("GET", window.warpGlobals.URLs['getUsers']);
     xhr.send();
 
 }

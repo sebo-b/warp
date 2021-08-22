@@ -378,7 +378,7 @@ WarpSeat.prototype._updateView = function() {
             break;
         case WarpSeat.SeatStates.ASSIGNED:
             this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.assignedOffset;
-            if (typeof(isM) !== 'undefined' && isM)  // not very elegant, isM can be defined in base template
+            if (window.warpGlobals.isM)  // not very elegant
                 break;
         case WarpSeat.SeatStates.TAKEN:
         this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.conflictOffset;

@@ -11,7 +11,7 @@ function downloadSeatData(seatFactory) {
         seatFactory.updateAllStates( getSelectedDates());
     });
 
-    xhr.open("GET", getSeatURL);
+    xhr.open("GET", window.warpGlobals.URLs['getSeat']);
     xhr.send();
 }
 
@@ -41,7 +41,7 @@ function initSlider() {
 
     var slider = document.getElementById('timeslider');      
     noUiSlider.create(slider, {
-        start: defaultSelections.slider,    //this later on can be anyway overwritten from session storage
+        start: window.warpGlobals['defaultSelectedDates'].slider,    //this later on can be anyway overwritten from session storage
         connect: true,
         behaviour: 'drag',
         step: 15*60,
@@ -62,7 +62,7 @@ function initSlider() {
 
 function initSeats() {
 
-    var seatFactory = new WarpSeatFactory(seatSpriteURL,"zonemap",zoneData);
+    var seatFactory = new WarpSeatFactory(window.warpGlobals.URLs['seatSprite'],"zonemap",window.warpGlobals['zoneData']);
 
     // register WarpSeats for updates
     var updateSeatsView = function() {
@@ -132,8 +132,8 @@ function initSeatPreview(seatFactory) {
             for (let a of assignments) {   
                 var name = a;
                 // assignments are either logins or usernames
-                if (typeof(g_userData) !== 'undefined' && a in g_userData.data) {
-                    name = actAsUserStr(a,g_userData.data[a]);        
+                if (window.warpGlobals.URLs['userData'] && a in window.warpGlobals.URLs['userData'].data) {
+                    name = actAsUserStr(a,window.warpGlobals.URLs['userData'].data[a]);        
                 }             
                 var tr = table.appendChild( document.createElement("tr"));
                 tr.appendChild( document.createElement("td")).appendChild( document.createTextNode(name));                
@@ -183,7 +183,7 @@ function initSeatPreview(seatFactory) {
 function initAssignedSeatsModal(seat) {
 
     var assignModalEl = document.getElementById("assigned_seat_modal");
-    if (!assignModalEl || !g_userData) 
+    if (!assignModalEl || !window.warpGlobals.URLs['userData'] || !window.warpGlobals.URLs['userData'].data) 
         return null;
 
     var assignModal = M.Modal.getInstance(assignModalEl);
@@ -212,8 +212,8 @@ function initAssignedSeatsModal(seat) {
         }
     
         var chipsAutocompleteData = {};
-        for (let login in g_userData.data) {
-            var userName = g_userData.data[login];
+        for (let login in window.warpGlobals.URLs['userData'].data) {
+            var userName = window.warpGlobals.URLs['userData'].data[login];
             chipsAutocompleteData[ actAsUserStr(login,userName)] = null;
         }
     
@@ -231,7 +231,7 @@ function initAssignedSeatsModal(seat) {
 
     var assignments = seat.getAssignments();
     for (let login of assignments) {
-        var userName = g_userData.data[login];
+        var userName = window.warpGlobals.URLs['userData'].data[login];
         chips.addChip({tag: actAsUserStr(login,userName)})
     }
 
@@ -283,7 +283,7 @@ function initActionMenu(seatFactory) {
                 break;
         };
 
-        if (typeof(isM) !== 'undefined' && isM) {
+        if (window.warpGlobals.isM) {
             actions.push('assign-modal');
             actions.push('assign');
             if (state == WarpSeat.SeatStates.DISABLED)
@@ -362,7 +362,7 @@ function initActionMenu(seatFactory) {
         }
  
         var xhr = new XMLHttpRequest();    
-        xhr.open("POST", zoneApplyURL);
+        xhr.open("POST", window.warpGlobals.URLs['zoneApply']);
         xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
         xhr.addEventListener("load", function(e) {
             if (this.status == 200) {
@@ -452,7 +452,7 @@ function initDateSelectorStorage() {
 
     // restore values from session storage
     var restoredSelections = storage.getItem('zoneSelections');
-    restoredSelections = restoredSelections? JSON.parse(restoredSelections): defaultSelections;
+    restoredSelections = restoredSelections? JSON.parse(restoredSelections): window.warpGlobals['defaultSelectedDates'];
 
     let cleanCBSelections = []; // used to clean up the list of checkboxes doesn't exist anymore
 
@@ -470,7 +470,7 @@ function initDateSelectorStorage() {
         if (cleanCBSelections.length)
             break;
         
-        restoredSelections.cb = defaultSelections.cb;        
+        restoredSelections.cb = window.warpGlobals['defaultSelectedDates'].cb;        
     }
 
     restoredSelections.cb = cleanCBSelections;
@@ -557,7 +557,7 @@ function initZoneHelp() {
     for (let d of helpModalSpriteDivs) {
         d.style.width = WarpSeat.Sprites.spriteSize + "px";
         d.style.height = WarpSeat.Sprites.spriteSize + "px";
-        d.style.backgroundImage = 'url('+seatSpriteURL+')';
+        d.style.backgroundImage = 'url('+window.warpGlobals.URLs['seatSprite']+')';
 
         var type = d.dataset.sprite + "Offset";
         d.style.backgroundPositionX = WarpSeat.Sprites[type];

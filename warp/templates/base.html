@@ -10,6 +10,10 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons|Material+Icons+Outlined" rel="stylesheet" />
     <link type="text/css" rel="stylesheet" href="{{ url_for('static', filename='materialize/materialize.min.css') }}"  media="screen,projection"/>
 
+    <script>
+        window.warpGlobals = { URLs: {} };
+    </script>
+
     {% block header %}{% endblock %}    
 </head>
 <body>

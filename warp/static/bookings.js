@@ -114,7 +114,7 @@ function initBooking() {
             var action_data = { remove: [ bid ]};
             
             var xhr = new XMLHttpRequest();
-            xhr.open("POST", zoneApplyURL,true);
+            xhr.open("POST", window.warpGlobals.URLs['zoneApply'],true);
             xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
             xhr.addEventListener("load", function() {
                 if (this.status == 200) {
@@ -146,7 +146,7 @@ function initBooking() {
 
     var table = new Tabulator("#bookingsTable", {
         maxHeight:"95%",
-        ajaxURL: bookingsGetURL,
+        ajaxURL: window.warpGlobals.URLs['bookingsGet'],
         index:"bid",
         layout:"fitColumns",
         resizableColumns:true,
