@@ -1,18 +1,9 @@
 'use strict';
 
-function actAsUserStr(login,name) {
-    return  name + " ["+login+"]";
-};
+if (typeof(UserData) === 'undefined')
+    throw Error('actas requires userdata module');
 
-function actAsUserStrRev(str) {
-    const regEx = /\[([^[]*)\]$/;
-    var login = str.match(regEx);
-    
-    return login? login[1]: null;
-};
-
-
-function initActAs() {
+function initActAs(userData) {
 
     var selectedLoginStr;
     var realLoginStr;
@@ -22,7 +13,7 @@ function initActAs() {
         if (selectedLoginStr == sel)
             return;
         
-        var login = actAsUserStrRev(sel);
+        var login = userData.makeUserStrRev(sel);
 
         if (login) {
 
@@ -57,9 +48,7 @@ function initActAs() {
                 this.blur();
             else
                 onAutocomplete(
-                    actAsUserStr(
-                        window.warpGlobals.URLs['userData'].real_login, 
-                        window.warpGlobals.URLs['userData'].data[window.warpGlobals.URLs['userData'].real_login]));
+                    userData.makeUserStr(userData.getRealLogin()));
         }
         else if (e.keyCode == 27) {
             this.blur();
@@ -73,44 +62,32 @@ function initActAs() {
         onAutocomplete: onAutocomplete
     });
 
-    var xhr = new XMLHttpRequest();
-    xhr.addEventListener("load", function() {
+    selectedLoginStr = 
+        userData.makeUserStr();
 
-        window.warpGlobals.URLs['userData'] = JSON.parse(this.responseText);
+    realLoginStr = 
+        userData.makeUserStr(userData.getRealLogin());
 
-        selectedLoginStr = 
-            actAsUserStr(window.warpGlobals.URLs['userData'].login, window.warpGlobals.URLs['userData'].data[window.warpGlobals.URLs['userData'].login]);
+    var actAsData = {};
+    for (let login in userData.getData()) {
+        actAsData[ userData.makeUserStr(login)] = null;
+    }
 
-        realLoginStr = 
-            actAsUserStr(window.warpGlobals.URLs['userData'].real_login, window.warpGlobals.URLs['userData'].data[window.warpGlobals.URLs['userData'].real_login]);
+    for (let i of actAsInstances) {
+        i.updateData(actAsData);
+    }
 
-        var actAsData = {};
-        for (let login in window.warpGlobals.URLs['userData'].data) {
-            var userName = window.warpGlobals.URLs['userData'].data[login];
-            actAsData[ actAsUserStr(login,userName)] = null;
-        }
+    for (let e of actAsElements) {
+        onBlur.call(e);   // show selectedLoginStr
+        e.addEventListener('blur',onBlur);
+        e.addEventListener('keyup',onKeyUp);
+        e.addEventListener('focus', function() {this.select(); })
+    }
 
-        for (let i of actAsInstances) {
-            i.updateData(actAsData);
-        }
-
-        for (let e of actAsElements) {
-            onBlur.call(e);   // show selectedLoginStr
-            e.addEventListener('blur',onBlur);
-            e.addEventListener('keyup',onKeyUp);
-            e.addEventListener('focus', function() {this.select(); })
-        }
-    
-        var actAsContainers = document.getElementsByClassName("act-as-container");
-        for (let c of actAsContainers) {
-            c.style.display = "block";
-        }
-    });
-
-    xhr.open("GET", window.warpGlobals.URLs['getUsers']);
-    xhr.send();
-
+    var actAsContainers = document.getElementsByClassName("act-as-container");
+    for (let c of actAsContainers) {
+        c.style.display = "block";
+    }
 }
 
-
-window.addEventListener("load",initActAs)
+UserData.getInstance().on('load',initActAs);

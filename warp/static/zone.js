@@ -130,10 +130,10 @@ function initSeatPreview(seatFactory) {
 
             var table =  previewDiv.appendChild(document.createElement("table"));
             for (let a of assignments) {   
-                var name = a;
+                let name = a;                
                 // assignments are either logins or usernames
-                if (window.warpGlobals.URLs['userData'] && a in window.warpGlobals.URLs['userData'].data) {
-                    name = actAsUserStr(a,window.warpGlobals.URLs['userData'].data[a]);        
+                if (typeof(UserData) !== 'undefined') {
+                    name = UserData.getInstance().makeUserStr(a);
                 }             
                 var tr = table.appendChild( document.createElement("tr"));
                 tr.appendChild( document.createElement("td")).appendChild( document.createTextNode(name));                
@@ -183,14 +183,16 @@ function initSeatPreview(seatFactory) {
 function initAssignedSeatsModal(seat) {
 
     var assignModalEl = document.getElementById("assigned_seat_modal");
-    if (!assignModalEl || !window.warpGlobals.URLs['userData'] || !window.warpGlobals.URLs['userData'].data) 
+    if (!assignModalEl || typeof(UserData) === 'undefined')
         return null;
 
     var assignModal = M.Modal.getInstance(assignModalEl);
     if (!assignModal) {
         assignModal = M.Modal.init(assignModalEl, {});
     }
-    
+
+    var userData = UserData.getInstance();
+
     var chipsEl = document.getElementById('assigned_seat_chips');
 
     var chipsOptions;
@@ -212,9 +214,9 @@ function initAssignedSeatsModal(seat) {
         }
     
         var chipsAutocompleteData = {};
-        for (let login in window.warpGlobals.URLs['userData'].data) {
-            var userName = window.warpGlobals.URLs['userData'].data[login];
-            chipsAutocompleteData[ actAsUserStr(login,userName)] = null;
+        var data = userData.getData();
+        for (let login in data) {
+            chipsAutocompleteData[ userData.makeUserStr(login)] = null;
         }
     
         chipsOptions = {
@@ -227,12 +229,11 @@ function initAssignedSeatsModal(seat) {
         };        
     }
 
-    chips = M.Chips.init(chipsEl, chipsOptions);
+    chips = M.Chips.init(chipsEl, chipsOptions);    
 
     var assignments = seat.getAssignments();
     for (let login of assignments) {
-        var userName = window.warpGlobals.URLs['userData'].data[login];
-        chips.addChip({tag: actAsUserStr(login,userName)})
+        chips.addChip({tag: userData.makeUserStr(login)})
     }
 
     return assignModal;
@@ -404,6 +405,7 @@ function initActionMenu(seatFactory) {
         });
 
         var applyData = {};
+        var userData = UserData.getInstance();
 
         if (this.dataset.action == "assign") {
             var chipsEl = document.getElementById('assigned_seat_chips');
@@ -411,7 +413,7 @@ function initActionMenu(seatFactory) {
 
             var logins = [];
             for (var c of chips.getData()) {
-                logins.push(actAsUserStrRev(c.tag));
+                logins.push(userData.makeUserStrRev(c.tag));
             }
 
             applyData['assign'] = {

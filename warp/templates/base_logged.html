@@ -8,9 +8,8 @@
         window.warpGlobals.URLs['getUsers'] = "{{ url_for('xhr.getUsers')}}";
         window.warpGlobals.URLs['actAsSet'] = "{{ url_for('xhr.actAsSet')}}";
         window.warpGlobals.isM = true;
-
-        window.warpGlobals.URLs['userData'] = {};
     </script> 
+    <script type="text/javascript" src="{{ url_for('static', filename='userdata.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='actas.js') }}"></script>
     {% endif %}
 

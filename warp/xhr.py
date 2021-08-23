@@ -317,12 +317,13 @@ def zoneApply():
 #Format TODO
 # {
 #   data: {
-#         login1: "User 1",
-#         login2: "User 2",
+#         login1: { name: "User 1", role: 1 }
+#         login2: { name: "User 2", role: 2 }
 #         ...    
 #       },
 #   login: user1
 #   real_login: user2
+#   role: 2
 # }
 @bp.route("/api/getUsers")
 def getUsers():
@@ -335,18 +336,22 @@ def getUsers():
         flask.abort(403)
 
     db = getDB()
-    cur = db.cursor().execute("SELECT id,login,name FROM user WHERE role < ?",(auth.ROLE_BLOCKED,))
+    cur = db.cursor().execute("SELECT id,login,name,role FROM user")
 
     res = {
-        "data": {}
+        "data": {},
+        "role": role
     }
 
     for u in cur:
 
-        res["data"][u["login"]] = u['name'];
+        res["data"][u["login"]] = {
+            "name": u['name'],
+            "role": u['role']
+        }
 
         if u['id'] == uid:
-            res["login"] = u['login'];
+            res["login"] = u['login']
 
         if real_uid and u['id'] == real_uid:
             res["real_login"] = u['login']
