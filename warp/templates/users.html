@@ -1,0 +1,26 @@
+{% extends 'base_logged.html' %}
+
+{% block header %}
+    {{ super() }}
+
+<script src="{{ url_for('static', filename='tabulator/tabulator.min.js') }}"></script>
+<link type="text/css" rel="stylesheet" href="{{ url_for('static', filename='tabulator/tabulator_materialize.min.css') }}"/>
+
+<script>
+//    window.warpGlobals.URLs['zoneApply'] = "{{ url_for('xhr.zoneApply') }}";
+
+</script>
+<script src="{{ url_for('static', filename='users.js') }}"></script>
+
+{% endblock %}
+
+{% block container %}
+
+<div class="usersTopDiv">
+    <a href="#!" class="waves-effect waves-light btn"><i class="material-icons right">add</i>Add user</a>
+</div>
+<div>
+    <div id="usersTable"></div>
+</div>
+
+{% endblock %}

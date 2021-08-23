@@ -10,25 +10,33 @@ bp = flask.Blueprint('view', __name__)
 @bp.context_processor
 def headerDataInit():
 
-    headerData = []
+    headerDataL = []
     
-    headerData.append(
+    headerDataL.append(
         {"text": "Bookings", "endpoint": "view.bookings", "view_args": {} })
 
     zones = getDB().cursor().execute("SELECT id,name FROM zone")
     for z in zones:
-        headerData.append(
+        headerDataL.append(
             {"text": z['name'], "endpoint": "view.zone", "view_args": {"zid":str(z['id'])} })
 
+    headerDataR = [
+        {"text": "Users", "endpoint": "view.users", "view_args": {} }
+    ]
+
     #generate urls and selected
-    for h in headerData:
+    for hdata in [headerDataL,headerDataR]:
 
-        h['url'] = flask.url_for(h['endpoint'],**h['view_args'])
-        a = flask.request.endpoint == h['endpoint']
-        b = flask.request.view_args == h['view_args']
-        h['active'] = flask.request.endpoint == h['endpoint'] and flask.request.view_args == h['view_args']
+        for h in hdata:
 
-    return { "headerData": headerData,
+            h['url'] = flask.url_for(h['endpoint'],**h['view_args'])
+            a = flask.request.endpoint == h['endpoint']
+            b = flask.request.view_args == h['view_args']
+            h['active'] = flask.request.endpoint == h['endpoint'] and flask.request.view_args == h['view_args']
+
+
+    return { "headerDataL": headerDataL,
+             "headerDataR": headerDataR,
              "isManager": flask.session.get('role') <= auth.ROLE_MANAGER,
              'hasLogout': 'auth.logout' in flask.current_app.view_functions
     }
@@ -41,6 +49,16 @@ def index():
 def bookings():
 
     return flask.render_template('bookings.html')
+
+@bp.route("/users")
+def users():
+        
+    role = flask.session.get('role')
+
+    if role > auth.ROLE_MANAGER:
+        flask.abort(403)
+
+    return flask.render_template('users.html')
 
 @bp.route("/zone/<zid>")
 def zone(zid):

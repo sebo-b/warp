@@ -3,6 +3,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from warp.db import getDB
 from . import utils
 
+#NOTE: these roles are also defined in userdata.js
 ROLE_ADMIN = 0
 ROLE_MANAGER = 1
 ROLE_USER = 2

@@ -78,6 +78,12 @@ HTML, BODY {
     margin-top: 5px;
 }
 
+.usersTopDiv {
+    margin-top: 10px;
+    margin-bottom: 10px;
+    float: right;
+}
+
 .zone_container {
     width: 100%; 
     padding: 10px 15px;
