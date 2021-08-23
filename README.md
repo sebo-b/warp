@@ -19,12 +19,14 @@ I've quickly evaluated a couple of existing solutions, but they were either too 
 If you are using SAML2.0 for SSO, it can be integrated via Apache [mod_auth_mellon](https://github.com/latchset/mod_auth_mellon) module.
 
 ## What's not done yet:
-- User management, for now, if you don't use SAML/SSO SQL is your best friend for that.
+- [WIP] User management, for now, if you don't use SAML/SSO SQL is your best friend for that.
+- Translations - English texts are simply embedded.
 - Map/zone management - new zones have to be created directly in the database.
 - Reporting - at some point, you probably need a report from past reservations. It is not there yet.
 
 ## What I'm not even planning to do:
 - Approvals - the main goal of the system was to make it autonomous and management-free. So I don't plan to implement approval flows.
+- Timezone support - the selected time is always in the same timezone as a zone. It works well and is simple. But in case someone would like to have a couple of zones in different timezones and keep the `one person one seat at a given time` rule across these timezones, this will fail.
 
 ## What browsers are supported
 To be honest, I was not paying much attention to browser compatibility, neither was I extensively testing it on other browsers than Chrome and Firefox. Nevertheless, all modern browsers should be supported (definitely not IE).
