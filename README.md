@@ -131,9 +131,9 @@ Alias /static/ /srv/warp/src/warp/warp/static/
 
 There is no UI for it yet. So SQL is your best friend. Look at tables `zone` and `seat` in `warp/sql/schema.sql` and `warp/sql/sample_data.sql.` Note that seat (x,y) coordinates are not the center of the seat. It is the top-left corner of the seat sprite, which is 48x48.
 
-### How to add / manage users
+### How to import users
 
-Again, no UI for it yet. Basically insert users to `user` table, look at table definition in `warp/sql/schema.sql.`
+You can add them manually one by one via the users management tab or import directly to sqlite. Basically insert users to `user` table, look at table definition in `warp/sql/schema.sql.`
 
 The role is one of:
 ```
