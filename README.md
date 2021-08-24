@@ -16,10 +16,10 @@ I've quickly evaluated a couple of existing solutions, but they were either too 
 - Multiple zones (maps) can be created, for example, floors or parking.
 - Zones can be grouped. One person can have only one seat booked simultaneously in a zone group (so you can have one group for floors and another group for parking stalls).
 - Admin(s) can book / modify / unbook seat for any user.
+- Full user management (no self-service)
 - SAML2.0 support - via Apache [mod_auth_mellon](https://github.com/latchset/mod_auth_mellon) module.
 
 ## What's not done yet
-- [WIP] User management, for now, if you don't use SAML/SSO SQL is your best friend for that.
 - Map/zone management - new zones have to be created directly in the database.
 - Reporting - at some point, you probably need a report from past reservations. It is not there yet.
 - Translations - it is now only in English (and texts are hardcoded).

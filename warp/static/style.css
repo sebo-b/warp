@@ -184,3 +184,20 @@ HTML, BODY {
 #action_modal .modal-content TD {
     padding: 0 15px 0 0;    
 } 
+
+
+.show_password_btn {
+    position: absolute;
+    right: 12px;
+    top: 10px;
+    font-size: 2rem;
+    opacity: .5;
+}
+
+INPUT[type="password"] ~ .show_password_btn::after {
+    content: "visibility";
+}
+
+INPUT[type="text"] ~ .show_password_btn::after {
+    content: "visibility_off";
+}

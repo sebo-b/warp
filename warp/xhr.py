@@ -5,7 +5,7 @@ from .db import getDB
 from . import auth
 from . import utils
 from jsonschema import validate, ValidationError
-from sqlite3.dbapi2 import Error
+from sqlite3.dbapi2 import Error, IntegrityError
 
 bp = flask.Blueprint('xhr', __name__)
 
@@ -399,6 +399,139 @@ def actAsSet():
     flask.session['uid'] = userRow['id']
 
     return {"msg": "ok"}, 200
+
+##
+# Format:
+# { login: login, name: name, role: role, password: plain_text, action: "add|update|delete" }
+# return array (now of length 1) of updated/created row
+@bp.route("/api/editUser", methods=["POST"])
+def editUser():
+
+    from werkzeug.security import generate_password_hash
+
+    if not flask.request.is_json:
+        flask.abort(404)
+
+    role = flask.session.get('role')
+
+    if role > auth.ROLE_MANAGER:
+        flask.abort(403)
+
+    action_data = flask.request.get_json()
+
+    schema = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+            "login" : {"type" : "string"},
+            "name" : {"type" : "string"},
+            "role" : {"type" : "integer", "minimum": role },
+            "password" : {"type" : "string"},
+            "action": {"enum": ["add", "delete","update"]}
+        },
+        "allOf": [
+            {
+                "required": [ "login", "action"]
+            },
+            {
+                "if": {
+                    "properties": {
+                        "action": {
+                            "enum": ["add","update"]
+                        }
+                    }
+                },
+                "then": {
+                    "required": [ "name", "role" ]
+                }
+            },
+            {
+                "if": {
+                    "properties": {
+                        "action": {
+                            "const": "add"
+                        }
+                    }
+                },
+                "then": {
+                    "required": [ "password" ]
+                }
+            }
+        ]
+    }
+
+    try:
+        validate(action_data,schema)
+    except ValidationError as err:
+        return {"msg": "Data error" }, 400
+
+    db = getDB()
+    cursor = db.cursor()
+    try:
+
+        passHash = None
+        if 'password' in action_data and len(action_data['password']) > 0:
+            passHash = generate_password_hash(action_data['password'])
+
+        if action_data['action'] == "update":
+
+            cursor.execute("UPDATE user SET" \
+                                " name = ?, role = ?" \
+                                " WHERE login = ? AND role >= ?",
+                                (action_data['name'], action_data['role'], action_data['login'], role))
+            if cursor.rowcount != 1:
+                raise Error("Wrong number of affected rows")
+
+            if passHash:
+
+                cursor.execute("UPDATE user SET password = ?" \
+                               " WHERE login = ? AND role >= ?",
+                                (passHash, action_data['login'], role))
+                if cursor.rowcount != 1:
+                    raise Error("Wrong number of affected rows")
+
+        elif action_data['action'] == "add":
+            cursor.execute("INSERT INTO user(login, name, role, password) VALUES (?,?,?,?)",
+                            (action_data['login'],action_data['name'], action_data['role'], passHash)) 
+            if cursor.rowcount != 1:
+                raise Error("Wrong number of affected rows")
+
+        elif action_data['action'] == "delete":
+            cursor.execute("DELETE FROM user WHERE login = ? AND role >= ?",
+                            (action_data['login'],role)) 
+            if cursor.rowcount != 1:
+                raise Error("Wrong number of affected rows")
+
+        db.commit()
+
+    except IntegrityError as err:
+        db.rollback()
+        if action_data['action'] == "delete":
+            return {"msg": "User cannot be deleted" }, 400
+        elif action_data['action'] == "add":
+            return {"msg": "Login exits" }, 400
+        else:
+            return {"msg": "Error" }, 400
+    except Error as err:
+        db.rollback()
+        return {"msg": "Error" }, 400
+    except:
+        db.rollback()
+        raise
+
+    row = cursor.execute("SELECT login,name,role FROM user WHERE login = ?", (action_data['login'],)).fetchone()
+
+    if row:
+
+        return flask.jsonify([{
+            "login": row['login'],
+            "name": row['name'],
+            "role": row['role']
+            }])
+    
+    else:
+
+        return flask.jsonify([{"login": action_data['login']}])
 
 # Format
 @bp.route("/bookings/get")

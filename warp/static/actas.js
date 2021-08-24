@@ -55,12 +55,22 @@ function initActAs(userData) {
         }
     }
 
-    // getElementsByClassName cannot be used as it has to be a NodeList not a HTMLCollection
-    var actAsElements = document.querySelectorAll('.act-as-input'); 
-    var actAsInstances = M.Autocomplete.init(actAsElements, { 
-        minLength: 1,
-        onAutocomplete: onAutocomplete
-    });
+    var actAsInstances = [];
+    var actAsElements = document.getElementsByClassName('act-as-input'); 
+    for (let el of actAsElements) {
+        let i = M.Autocomplete.getInstance(el);
+        if (!i) {
+            i = M.Autocomplete.init(el, { 
+                    minLength: 1,
+                    onAutocomplete: onAutocomplete
+                });
+        }
+        else if (userData.isDirty()) {  // in case current login was deleted, we need to reload
+            onAutocomplete(userData.getRealLogin());
+            return;
+        }
+        actAsInstances.push(i);
+    }
 
     selectedLoginStr = 
         userData.makeUserStr();

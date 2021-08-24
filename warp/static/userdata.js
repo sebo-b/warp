@@ -55,6 +55,14 @@ UserData.prototype.getRealLogin = function() {
     return this.realLogin;
 }
 
+UserData.prototype.isDirty = function() {
+
+    if (!this.data)
+        return true;
+
+    return !(this.login in this.data);
+}
+
 UserData.prototype.getRole = function() {
 
     if (!this.data)
@@ -78,7 +86,7 @@ UserData.prototype.makeUserStrRev = function (str) {
     const regEx = /\[([^[]*)\]$/;
     var login = str.match(regEx);
     
-    if (login[1] in this.data)
+    if (typeof(login) == 'array' && login[1] in this.data)
         return login[1];
 
     if (str in this.data)
@@ -99,6 +107,20 @@ UserData.prototype.on = function (type,listener) {
         }
     }
 }
+
+UserData.prototype.updateOrAddData = function(newData) {
+    Object.assign(this.data, newData)
+}
+
+UserData.prototype.delete = function(logins) {
+    if (typeof(logins) === 'string')
+        logins = [ login ];
+
+    for (let l of logins) {
+        delete this.data[l];
+    }
+}
+
 
 UserData.prototype._init = function() {
 
