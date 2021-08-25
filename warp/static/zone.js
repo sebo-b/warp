@@ -405,9 +405,11 @@ function initActionMenu(seatFactory) {
         });
 
         var applyData = {};
-        var userData = UserData.getInstance();
 
-        if (this.dataset.action == "assign") {
+        if (this.dataset.action == "assign" && typeof(UserData) !== 'undefined') {
+
+            var userData = UserData.getInstance();
+
             var chipsEl = document.getElementById('assigned_seat_chips');
             var chips = M.Chips.getInstance(chipsEl);
 
