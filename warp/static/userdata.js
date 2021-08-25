@@ -86,7 +86,7 @@ UserData.prototype.makeUserStrRev = function (str) {
     const regEx = /\[([^[]*)\]$/;
     var login = str.match(regEx);
     
-    if (typeof(login) == 'array' && login[1] in this.data)
+    if (login !== null && login[1] in this.data)
         return login[1];
 
     if (str in this.data)
