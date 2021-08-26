@@ -3,7 +3,6 @@ FROM python:3
 WORKDIR /usr/src/app
 
 COPY warp ./warp
-COPY res ./res
 COPY setup.py ./
 COPY MANIFEST.in ./
 COPY LICENSE ./
