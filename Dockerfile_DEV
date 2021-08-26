@@ -1,0 +1,20 @@
+FROM python:3
+
+WORKDIR /usr/src/app
+
+COPY warp ./warp
+COPY setup.py ./
+COPY MANIFEST.in ./
+COPY LICENSE ./
+
+RUN pip install --upgrade setuptools
+RUN python setup.py install
+
+WORKDIR /usr/src/app/build/lib
+
+ENV FLASK_APP=warp
+
+EXPOSE 5000/tcp
+
+RUN ["python", "-m", "flask", "init-db", "-s"]
+ENTRYPOINT ["python", "-m", "flask", "run", "-h", "0.0.0.0"]
