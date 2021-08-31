@@ -145,7 +145,7 @@ function initBooking() {
     }
 
     var table = new Tabulator("#bookingsTable", {
-        maxHeight:"95%",
+        maxHeight:"100%",
         ajaxURL: window.warpGlobals.URLs['bookingsGet'],
         index:"bid",
         layout:"fitColumns",

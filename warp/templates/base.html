@@ -18,7 +18,11 @@
 </head>
 <body>
 
+    {% block overlays %}{% endblock %}
+
+    <div class="warp-container">
     {% block content %}{% endblock %}
+    </div>
 
     <script type="text/javascript" src="{{ url_for('static', filename='materialize/materialize.min.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='modal.js') }}"></script>

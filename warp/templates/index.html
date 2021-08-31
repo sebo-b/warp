@@ -2,37 +2,17 @@
 
 {% block header %}
     {{ super() }}
-
-    <style>
-        
-        .index_container {
-            margin: auto;
-            width: 100%;
-            height: 70%;
-        }
-
-        .index_container > DIV {
-            width: 100%;
-            text-align: center;
-        }
-
-        .index_container IMG {
-            max-width: 70%;
-            height: auto;
-        }
-
-    </style>
 {% endblock %}
 
 
 {% block content %}
     {{ super() }}
 
-    <div class="index_container valign-wrapper">
+    <div class="index_container">
         <div>
-            <img src="{{ url_for('static', filename='logo-color.png') }}"><br>
-            Workspace Autonomous Reservation Program
-        </div>  
+        <img src="{{ url_for('static', filename='logo-color.png') }}"><br>
+        Workspace Autonomous Reservation Program
+        </div>
     </div>
 
 {% endblock %}

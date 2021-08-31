@@ -575,6 +575,16 @@ function initZoneHelp() {
     
 }
 
+function initDatetimeSidenav() {
+
+    var el = document.getElementById('zone_datetime_container');
+    M.Sidenav.init(el, {
+        onCloseEnd: function(e) {
+            e.style.transform = "";
+        }
+    });
+}
+
 function initZone() {
 
     initSlider();
@@ -585,6 +595,7 @@ function initZone() {
     initSeatPreview(seatFactory);
     initActionMenu(seatFactory);
     initZoneHelp();
+    initDatetimeSidenav();
 
     downloadSeatData(seatFactory);
 }

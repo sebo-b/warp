@@ -15,75 +15,84 @@
 
 {% endblock %}
 
+{% block overlays %}
+    {{ super() }}
+
+    <ul class="sidenav" id="mobile-nav">
+        {% for i in headerDataL %}
+        <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}">{{i['text']}}</a></li>
+        {% endfor %}
+        {% if isManager %}
+        <li class="divider"></li>
+        <li class="act-as-container">
+            <div class="input-field">
+                <input type="text" id="act-as2" class="autocomplete act-as-input" autocomplete="off">
+                <label for="act-as2" class="active">Book as</label>
+            </div>
+        </li>
+        {% for i in headerDataR %}
+        <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}">{{i['text']}}</a></li>
+        {% endfor %}
+        {% endif %}
+        {% if hasLogout %}
+        <li class="divider"></li>
+        <li><a href="{{ url_for('auth.logout') }}">Logout</a></li>
+        {% endif %}
+    </ul>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var e = document.getElementById('mobile-nav');
+            M.Sidenav.init(e);
+        });
+    </script>
+    
+{% endblock  %}
+
 {% block content %}
     {{ super() }}
 
-<nav>
+    <nav>
 
-    <div class="nav-wrapper">
-
-        <div class='right'>
-            <a href="{{ url_for('view.index')}}" class="right"><img class="logo" src="{{ url_for('static', filename='logo.png') }}"></a>
-        </div>
-        {% if isManager %}
-        <ul class="right hide-on-med-and-down">
-            {% for i in headerDataR %}
-            <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}">{{i['text']}}</a></li>
-            {% endfor %}
-            <li style="width: 20px">&nbsp;</li>
-            <li class="act-as-container">
-                <div class="input-field">
-                    <input type="text" id="act-as1" class="autocomplete act-as-input" autocomplete="off">
-                    <label for="act-as1" class="active">Book as</label>
-                </div>    
-            </li>
-        </ul>
-        {% endif %}
-
-        <a href="#" data-target="mobile-nav" class="sidenav-trigger"><i class="material-icons">menu</i></a>
-        <ul class="left hide-on-med-and-down">
-            {% for i in headerDataL %}
-            <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}">{{i['text']}}</a></li>
-            {% endfor %}
-            {% if hasLogout %}
-            <li><a href="{{ url_for('auth.logout') }}"><i class="material-icons">logout</i></a></li>
+        <div class="nav-wrapper">
+            <div class='right'>
+                <a href="{{ url_for('view.index')}}" class="right"><img class="logo" src="{{ url_for('static', filename='logo.png') }}"></a>
+            </div>
+            {% if isManager %}
+            <ul class="right hide-on-med-and-down">
+                {% for i in headerDataR %}
+                <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}">{{i['text']}}</a></li>
+                {% endfor %}
+                <li style="width: 20px">&nbsp;</li>
+                <li class="act-as-container">
+                    <div class="input-field">
+                        <input type="text" id="act-as1" class="autocomplete act-as-input" autocomplete="off">
+                        <label for="act-as1" class="active">Book as</label>
+                    </div>    
+                </li>
+            </ul>
             {% endif %}
-        </ul>
-    </div>
-</nav>
 
-<ul class="sidenav" id="mobile-nav">
-    {% for i in headerDataL %}
-    <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}">{{i['text']}}</a></li>
-    {% endfor %}
-    {% if isManager %}
-    <li class="divider"></li>
-    <li class="act-as-container">
-        <div class="input-field">
-            <input type="text" id="act-as2" class="autocomplete act-as-input" autocomplete="off">
-            <label for="act-as2" class="active">Book as</label>
+            <a href="#" data-target="mobile-nav" class="sidenav-trigger"><i class="material-icons">menu</i></a>
+            <ul class="left hide-on-med-and-down">
+                {% for i in headerDataL %}
+                <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}">{{i['text']}}</a></li>
+                {% endfor %}
+                {% if hasLogout %}
+                <li><a href="{{ url_for('auth.logout') }}"><i class="material-icons">logout</i></a></li>
+                {% endif %}
+            </ul>
         </div>
-    </li>
-    {% for i in headerDataR %}
-    <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}">{{i['text']}}</a></li>
-    {% endfor %}
-    {% endif %}
-    {% if hasLogout %}
-    <li class="divider"></li>
-    <li><a href="{{ url_for('auth.logout') }}">Logout</a></li>
-    {% endif %}
-</ul>
+    </nav>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        var e = document.getElementById('mobile-nav');
-        M.Sidenav.init(e);
-    });
-</script>
+{% endblock %}
 
+
+{# 
 {% if self.container() | trim %}
 <div class="container">
     {% block container %}{% endblock %}
 </div>
 {% endif %}
-{% endblock %}
+#} 
+

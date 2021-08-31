@@ -20,8 +20,9 @@
 
 {% endblock %}
 
-{% block content %}
+{% block overlays %}
     {{ super() }}
+
 
     <div id="action_modal" class="modal bottom-sheet">
         <div class="modal-content">
@@ -129,10 +130,14 @@
         </div>
     </div>
 
+{% endblock %}
+
+{% block content %}
+    {{ super() }}
 
     <div class="zone_container">
         
-        <div class="zone_datetime_container">
+        <div id="zone_datetime_container">
             <div class="zone_datelist">
                 {% for w in nextWeek %}
                 <p>
@@ -149,16 +154,21 @@
                 <div id="timeslider" class="timeslider"></div>
                 <div id="timeslider-max" class="timeslider-hint">12:00</div>
             </div>
+            <div class="zone_datetime_close sidenav-close" data-target="zone_datetime_container">
+                <i class="material-icons">close</i>
+            </div>
         </div>
+    
 
         <div class="zone_map" id="zonemap">
             <div class="zonemap_help">
                 <img src="{{ url_for('static', filename='help_icon.png') }}">
             </div>
-
+            <div class="zonemap_datetime_trigger sidenav-trigger" data-target="zone_datetime_container">
+                <img src="{{ url_for('static', filename='schedule_icon_side.png') }}">
+            </div>            
             <img src="{{ url_for('static', filename=zone_data['image']) }}">                        
         </div>
-    </div>
 
 
 {% endblock %}

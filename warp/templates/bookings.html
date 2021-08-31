@@ -14,8 +14,10 @@
 
 {% endblock %}
 
-{% block container %}
+{% block content %}
+    {{ super() }}
 
-<div id="bookingsTable"></div>
-
+    <div class="container">
+        <div id="bookingsTable"></div>
+    </div>
 {% endblock %}

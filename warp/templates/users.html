@@ -13,7 +13,8 @@
 
 {% endblock %}
 
-{% block container %}
+{% block overlays %}
+    {{ super() }}
 
 <div id="edit_modal" class="modal">
     <div class="modal-content">
@@ -56,11 +57,20 @@
     </div>
 </div>
 
-
-
-<div class="usersTopDiv">
-    <a href="#!" class="waves-effect waves-light btn" id="add_user_btn"><i class="material-icons right">add</i>Add user</a>
+<div class="fixed-action-btn">
+    <a class="btn-floating btn-large waves-effect waves-light orange accent-4" id="add_user_btn">
+        <i class="large material-icons">add</i>
+    </a>
 </div>
-<div id="usersTable"></div>
+
+
+{% endblock %}
+
+{% block content %}
+    {{ super() }}
+
+    <div class="container">
+        <div id="usersTable"></div>
+    </div>
 
 {% endblock %}

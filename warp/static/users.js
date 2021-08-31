@@ -146,17 +146,17 @@ function initUsers(userData) {
     }
 
     var table = new Tabulator("#usersTable", {
-        height:"85%",
+        height:"100%",
         data:tableData,
         index:"login",
         layout:"fitColumns",
         resizableColumns:true,
         columns:[
+            {formatter:editFormatter, width:40, hozAlign:"center", cellClick:editClicked, headerSort:false},
             {title:"Login", field: "login", headerFilter:"input"},
             {title:"Name", field: "name", headerFilter:"input"},
             {title:"Role", field: "role", headerFilter:"input", formatter:roleFormatter, 
                 headerFilter:"select", headerFilterParams:{ values: rolesFilter } },
-            {formatter:editFormatter, width:40, hozAlign:"center", cellClick:editClicked, headerSort:false},
         ],
         initialSort:[
             {column:"Name", dir:"asc"}
