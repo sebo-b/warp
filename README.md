@@ -72,6 +72,19 @@ $ FLASK_APP=warp flask run
 
 # open http://127.0.0.1:5000/ in your web browser
 ```
+## Docker container
+
+For testing purposes you can use provided Dockerfile. The following command will build your image:
+
+```
+docker build -f Dockerfile_DEV -t warp:latest .
+```
+
+And that one will run it:
+
+```
+docker run -d -p 5000:5000 --name warp warp:latest
+```
 
 ## Production environment
 
