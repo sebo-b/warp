@@ -6,6 +6,8 @@ from . import auth
 from . import utils
 from jsonschema import validate, ValidationError
 from sqlite3.dbapi2 import Error, IntegrityError
+import xlsxwriter
+import io
 
 bp = flask.Blueprint('xhr', __name__)
 
@@ -574,3 +576,199 @@ def bookingsGet():
 
 
 
+@bp.route("/bookings/report", methods=["POST"])
+def bookingsReport():
+
+    if not flask.request.is_json:
+        flask.abort(404)
+
+    role = flask.session.get('role')
+
+    if role > auth.ROLE_MANAGER:
+        flask.abort(403)
+
+    requestData = flask.request.get_json()
+
+    schema = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+            "page" : {"type" : "integer"},
+            "size" : {"type" : "integer"},
+            "export": {"enum": ["xlsx"] },
+            "sorters": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "field" : {"type" : "string"},
+                        "dir" : {"enum" : ["asc", "desc"] }
+                    },
+                    "required": [ "field", "dir"],
+                },
+            },
+            "filters": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "field" : {"type" : "string"},
+                        "type" : {"enum" : ["starts", ">=","<="] }
+                    },
+                    "required": [ "field", "type", "value"],
+                    "if": {
+                        "properties": { "type" : {"enum" : ["starts"] } }
+                    },
+                    "then": {
+                        "properties": { "value" : {"type" : "string" } }
+                    },
+                    "else": {
+                        "properties": { "page" : {"type" : "integer" } }
+                    },
+                },
+            },
+        },
+        "dependencies": {
+            "page": ["size"]
+        }
+    }
+
+    try:
+        validate(requestData,schema)
+    except ValidationError as err:
+        return {"msg": "Data error" }, 400
+
+    db = getDB()
+
+    columnsMap = {
+        "id": "b.id",
+        "user_name": "u.name",
+        "login": "u.login",
+        "zone_name": "z.name",
+        "seat_name": "s.name",
+        "fromTS": "b.fromTS",
+        "toTS": "b.toTS"
+    }
+
+    sqlSort = []
+    if "sorters" in requestData:
+        for i in requestData['sorters']:
+            if i["field"] in columnsMap:
+                sqlSort.append(columnsMap[i["field"]] + " " + i["dir"])
+
+    if len(sqlSort):
+        sqlSort = " ORDER BY " + ",".join(sqlSort)
+    else:
+        sqlSort = ""
+
+    sqlParams = []
+
+    sqlFilters = []
+    if "filters" in requestData:
+        for i in requestData['filters']:
+            if i["field"] in columnsMap:
+                field = columnsMap[i["field"]]
+                if i['type'] == 'starts':
+                    sqlFilters.append(field + " LIKE ?")
+                    sqlParams.append(i["value"]+"%")
+                else:   # json schema allows only <= and >=
+                    sqlFilters.append(field + " " + i["type"] + " ?")
+                    sqlParams.append(i["value"])
+
+    if len(sqlFilters):
+        sqlFilters = " WHERE " + " AND ".join(sqlFilters)
+    else:
+        sqlFilters = ""
+
+    lastPage = None
+
+    sqlLimit = ""
+    if "size" in requestData:
+
+        limit = requestData['size']
+        sqlLimit = sqlLimit + " LIMIT ?"
+        sqlLimitParams = [limit]
+
+        if "page" in requestData:
+
+            count = db.cursor().execute("SELECT COUNT(*) FROM book b" \
+                                        " JOIN seat s ON b.sid = s.id" \
+                                        " JOIN zone z ON s.zid = z.id" \
+                                        " JOIN user u ON b.uid = u.id" + sqlFilters, sqlParams).fetchone()[0]
+            
+            lastPage = -(-count // limit)   # round up
+
+            sqlLimit = sqlLimit + " OFFSET ?"
+            offset = (requestData['page']-1)*requestData['size']
+            sqlLimitParams.append(offset)
+
+        sqlParams.extend(sqlLimitParams)
+
+    cursor = db.cursor().execute("SELECT b.id id, u.name user_name, login login, z.name zone_name, s.name seat_name, fromTS, toTS FROM book b" \
+                              " JOIN seat s ON b.sid = s.id" \
+                              " JOIN zone z ON s.zid = z.id" \
+                              " JOIN user u ON b.uid = u.id" +
+                              sqlFilters + sqlSort + sqlLimit,
+                              sqlParams)
+
+    if "export" in requestData:
+        # only xlsx for now
+
+        memoryBuffer = io.BytesIO()
+
+        workbook = xlsxwriter.Workbook(memoryBuffer, {'in_memory': True})
+        worksheet = workbook.add_worksheet()
+
+        columnsHeader = [ "User name", "Login", "Zone name", "Seat name", "From", "To" ]
+        columnsContent = [ "user_name", "login", "zone_name", "seat_name", "fromTS", "toTS" ]
+
+        worksheet.write_row(0,0,columnsHeader)
+
+        for rowNo,dbRow in enumerate(cursor,1):
+
+            rowData = []
+            for i in columnsContent:
+                if i[-2:] == "TS":
+                    rowData.append( (dbRow[i] / 86400)+25569 )
+                else:
+                    rowData.append(dbRow[i])
+
+            worksheet.write_row(rowNo,0,rowData)
+
+        dateFormat = workbook.add_format({'num_format': 'yyyy-mm-dd hh:mm'})
+        for colNo, col in enumerate(columnsContent):
+            if col[-2:] == "TS":
+                worksheet.set_column(colNo, colNo, None, dateFormat)
+
+        workbook.close()
+
+        memoryBuffer.seek(0)
+
+        return flask.send_file(
+            memoryBuffer,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            download_name="warp_export.xlsx"
+        )
+
+    else:
+
+        res = {
+            "data":[]
+        }
+
+        if lastPage is not None:
+            res["last_page"] = lastPage
+
+        for row in cursor:
+
+            res['data'].append({
+                "id": row["id"],
+                "user_name": row["user_name"],
+                "login": row["login"],
+                "zone_name": row["zone_name"],
+                "seat_name": row["seat_name"],
+                "fromTS": row["fromTS"],
+                "toTS": row["toTS"]
+            })
+
+        return flask.jsonify(res)

@@ -21,6 +21,7 @@ def headerDataInit():
             {"text": z['name'], "endpoint": "view.zone", "view_args": {"zid":str(z['id'])} })
 
     headerDataR = [
+        {"text": "Report", "endpoint": "view.report", "view_args": {} },
         {"text": "Users", "endpoint": "view.users", "view_args": {} }
     ]
 
@@ -49,6 +50,17 @@ def index():
 def bookings():
 
     return flask.render_template('bookings.html')
+
+@bp.route("/report")
+def report():
+
+    role = flask.session.get('role')
+
+    if role > auth.ROLE_MANAGER:
+        flask.abort(403)
+
+    return flask.render_template('report.html')
+
 
 @bp.route("/users")
 def users():

@@ -1,0 +1,37 @@
+{% extends 'base_logged.html' %}
+
+{% block header %}
+    {{ super() }}
+
+<script src="{{ url_for('static', filename='tabulator/tabulator.min.js') }}"></script>
+<link type="text/css" rel="stylesheet" href="{{ url_for('static', filename='tabulator/tabulator_materialize.min.css') }}"/>
+<style>
+    .tabulator-footer { text-align: left !important; }
+</style>
+
+<script>
+    window.warpGlobals.URLs['bookingsReport'] = "{{ url_for('xhr.bookingsReport') }}";
+</script>
+
+<script src="{{ url_for('static', filename='report.js') }}"></script>
+
+{% endblock %}
+
+{% block overlays %}
+    {{ super() }}
+
+    <div class="fixed-action-btn">
+        <a class="btn-floating btn-large waves-effect waves-light orange accent-4" id="export_btn">
+            <img src="{{ url_for('static', filename='excel_icon.png') }}">
+        </a>
+    </div>
+
+{% endblock %}
+
+{% block content %}
+    {{ super() }}
+
+    <div class="container">
+        <div id="reportTable"></div>
+    </div>
+{% endblock %}

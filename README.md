@@ -9,6 +9,7 @@ I've quickly evaluated a couple of existing solutions, but they were either too 
 - It allows people to check who else will be in the office.
 - It works on mobile.
 - All is done in an easy, visual way.
+- Generate a report of past bookings and export it to Excel file
 
 ## More advanced features
 - Seats can be limited to certain people, so other people cannot book them (it is called assigned seats).
@@ -21,8 +22,8 @@ I've quickly evaluated a couple of existing solutions, but they were either too 
 
 ## What's not done yet
 - Map/zone management - new zones have to be created directly in the database.
-- Reporting - at some point, you probably need a report from past reservations. It is not there yet.
 - Translations - it is now only in English (and texts are hardcoded).
+- Statistics dashboard
 
 ## What I'm not even planning to do
 - Approvals - the main goal of the system was to make it autonomous and management-free. So I don't plan to implement approval flows.
