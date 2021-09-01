@@ -242,6 +242,9 @@ function initAssignedSeatsModal(seat) {
 
 function initActionMenu(seatFactory) {
 
+    if (window.warpGlobals.isV)
+        return;
+
     var seat = null;    // used for passing seat to btn click events (closure)
                         // it is set at the end of seatFactory.on('click'
                         // it is used in actionBtn click event

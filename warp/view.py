@@ -39,6 +39,7 @@ def headerDataInit():
     return { "headerDataL": headerDataL,
              "headerDataR": headerDataR,
              "isManager": flask.session.get('role') <= auth.ROLE_MANAGER,
+             "isViewer": flask.session.get('role') >= auth.ROLE_VIEVER,
              'hasLogout': 'auth.logout' in flask.current_app.view_functions
     }
 

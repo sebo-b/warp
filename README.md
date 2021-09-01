@@ -154,7 +154,7 @@ The role is one of:
 0 - admin
 1 - manager - currently the same as admin
 2 - regular user
-3 - viewer (read-only) - not really implemented
+3 - viewer (read-only)
 100 - account blocked
 ```
 

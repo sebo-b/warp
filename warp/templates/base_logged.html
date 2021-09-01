@@ -12,6 +12,11 @@
     <script type="text/javascript" src="{{ url_for('static', filename='userdata.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='actas.js') }}"></script>
     {% endif %}
+    {% if isViewer %}
+    <script>
+        window.warpGlobals.isV = true;
+    </script>
+    {% endif %}
 
 {% endblock %}
 
