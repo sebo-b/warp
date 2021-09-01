@@ -187,10 +187,6 @@ function initUsers(userData) {
         errorDiv.style.display = "none";
 
         let roleSelect = M.FormSelect.getInstance(roleSelectEl);
-        // there is a bug in Materialize.Select which causes
-        // that getSelectedValues is not updated 
-        // this call updates it
-        roleSelect._setSelectedStates();
         let action = loginEl.disabled? "update": "add";
 
         let actionData = {
