@@ -224,7 +224,8 @@ function initAssignedSeatsModal(seat) {
                 data: chipsAutocompleteData,
                 minLength: 1,
                 dropdownOptions: {
-                    container: document.body
+                    container: document.body,
+                    constrainWidth: false
                 }
             },
             limit: Infinity,

@@ -61,6 +61,10 @@ function initActAs(userData) {
         let i = M.Autocomplete.getInstance(el);
         if (!i) {
             i = M.Autocomplete.init(el, { 
+                    dropdownOptions: { 
+                        constrainWidth: false, 
+                        container: document.body 
+                    },
                     minLength: 1,
                     onAutocomplete: onAutocomplete
                 });
