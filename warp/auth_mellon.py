@@ -36,6 +36,7 @@ def login():
     else:
 
         name = flask.request.environ['MELLON_cn']
+        name = bytes(name,'ISO-8859-1').decode('utf-8')
 
         try:
 
