@@ -21,9 +21,10 @@ def login():
     db = getDB()
     cursor = db.cursor()
 
-    u = flask.request.environ['MELLON_uid']
+    login = flask.request.environ['MELLON_uid']
+    userName = bytes(flask.request.environ['MELLON_cn'],'ISO-8859-1').decode('utf-8')
 
-    userRow = cursor.execute("SELECT * FROM user WHERE login = ?",(u,)).fetchone()
+    userRow = cursor.execute("SELECT id,role,name FROM user WHERE login = ?",(login,)).fetchone()
 
     if userRow is not None:
 
@@ -33,14 +34,19 @@ def login():
         flask.session['uid'] = userRow['id']
         flask.session['role'] = userRow['role']
 
-    else:
+        if userRow['name'] != userName:
+            try:
+                cursor.execute("UPDATE user SET name = ? WHERE login = ?",(userName,login))
+                db.commit()
+            except:
+                db.rollback()
+                raise
 
-        name = flask.request.environ['MELLON_cn']
-        name = bytes(name,'ISO-8859-1').decode('utf-8')
+    else:
 
         try:
 
-            cursor.execute("INSERT INTO user (login,password,name,role) VALUES (?,?,?,?)",(u,'*',name,ROLE_USER))
+            cursor.execute("INSERT INTO user (login,password,name,role) VALUES (?,?,?,?)",(login,'*',name,ROLE_USER))
             db.commit()
 
         except:
