@@ -18,13 +18,13 @@ def login():
         
         return flask.redirect(endpoint)
 
-    db = getDB()
-    cursor = db.cursor()
+    cursor = getDB().cursor()
 
     login = flask.request.environ['MELLON_uid']
     userName = bytes(flask.request.environ['MELLON_cn'],'ISO-8859-1').decode('utf-8')
 
-    userRow = cursor.execute("SELECT id,role,name FROM user WHERE login = ?",(login,)).fetchone()
+    cursor.execute("SELECT id,role,name FROM users WHERE login = ?",(login,))
+    userRow = cursor.fetchone()
 
     if userRow is not None:
 
@@ -36,21 +36,21 @@ def login():
 
         if userRow['name'] != userName:
             try:
-                cursor.execute("UPDATE user SET name = ? WHERE login = ?",(userName,login))
-                db.commit()
+                cursor.execute("UPDATE users SET name = ? WHERE login = ?",(userName,login))
+                getDB().commit()
             except:
-                db.rollback()
+                getDB().rollback()
                 raise
 
     else:
 
         try:
 
-            cursor.execute("INSERT INTO user (login,password,name,role) VALUES (?,?,?,?)",(login,'*',name,ROLE_USER))
-            db.commit()
+            cursor.execute("INSERT INTO users (login,password,name,role) VALUES (?,?,?,?)",(login,'*',userName,ROLE_USER))
+            getDB().commit()
 
         except:
-            db.rollback()
+            getDB().rollback()
             raise
 
         flask.session['uid'] = cursor.lastrowid

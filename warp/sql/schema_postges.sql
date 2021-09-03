@@ -9,7 +9,7 @@ DROP TABLE IF EXISTS zone;
 DROP TABLE IF EXISTS users;
 
 CREATE TABLE users (
-    id integer PRIMARY KEY ASC,
+    id SERIAL PRIMARY KEY, 
     login text UNIQUE NOT NULL, 
     password text,
     name text,
@@ -17,14 +17,14 @@ CREATE TABLE users (
     );
 
 CREATE TABLE zone (
-    id integer PRIMARY KEY ASC,
+    id SERIAL PRIMARY KEY,
     zone_group integer NOT NULL,
     name text NOT NULL,
     image text
     );
 
 CREATE TABLE seat (
-    id integer PRIMARY KEY ASC,
+    id SERIAL PRIMARY KEY, 
     zid integer NOT NULL,
     name text NOT NULL,
     x integer NOT NULL,
@@ -45,7 +45,7 @@ CREATE INDEX seat_zid
 ON seat(zid);
 
 CREATE TABLE book (
-    id integer PRIMARY KEY ASC,
+    id SERIAL PRIMARY KEY, 
     uid integer NOT NULL,
     sid integer NOT NULL,
     fromts integer NOT NULL,
@@ -66,19 +66,21 @@ ON book(fromts);
 CREATE INDEX book_toTS
 ON book(tots);
 
-CREATE TRIGGER book_overlap_insert
-BEFORE INSERT ON book
+CREATE OR REPLACE FUNCTION book_overlap_insert()
+  RETURNS TRIGGER 
+  LANGUAGE PLPGSQL
+  AS
+$$
 BEGIN
-
     SELECT CASE WHEN NEW.fromTS >= NEW.toTS THEN
-        RAISE(ABORT,"Incorect time")
+        RAISE EXCEPTION 'Incorect time';
     END;
 
     SELECT CASE WHEN
         (SELECT CASE WHEN COUNT(*) > 0 AND SUM(CASE WHEN uid = NEW.uid THEN 1 ELSE 0 END) = 0 THEN TRUE ELSE FALSE END 
         FROM assign WHERE sid = NEW.sid) > 0
     THEN
-        RAISE(ABORT,"Seat is assigned to another person")
+        RAISE EXCEPTION 'Seat is assigned to another person';
     END;
 
     SELECT CASE WHEN
@@ -91,19 +93,17 @@ BEGIN
          AND b.fromTS < NEW.toTS
          AND b.toTS > NEW.fromTS) > 0
     THEN
-        RAISE(ABORT,"Overlapping time for this seat or user")
+        RAISE EXCEPTION 'Overlapping time for this seat or users';
     END;
 
+    RETURN NEW;
 END;
+$$
 
-CREATE TRIGGER book_overlap_update
-BEFORE UPDATE OF sid, uid, fromTS, toTS ON book 
-BEGIN
-    SELECT CASE WHEN TRUE
-    THEN
-        RAISE(ABORT,"Not implemented")
-    END;
-END;
+
+CREATE TRIGGER book_overlap_insert_trig
+BEFORE INSERT ON book
+EXECUTE PROCEDURE book_overlap_insert();
 
 
 COMMIT;

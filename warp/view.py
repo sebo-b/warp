@@ -15,8 +15,10 @@ def headerDataInit():
     headerDataL.append(
         {"text": "Bookings", "endpoint": "view.bookings", "view_args": {} })
 
-    zones = getDB().cursor().execute("SELECT id,name FROM zone")
-    for z in zones:
+    zoneCursor = getDB().cursor()
+    zoneCursor.execute("SELECT id,name FROM zone")
+
+    for z in zoneCursor:
         headerDataL.append(
             {"text": z['name'], "endpoint": "view.zone", "view_args": {"zid":str(z['id'])} })
 
@@ -76,13 +78,14 @@ def users():
 @bp.route("/zone/<zid>")
 def zone(zid):
 
-    row = getDB().cursor().execute("SELECT id,name,image FROM zone")
+    zoneCursor = getDB().cursor()
+    zoneCursor.execute("SELECT id,name,image FROM zone")
 
     zone_data = {
         "names": {}
     }
 
-    for z in row:
+    for z in zoneCursor:
         zone_data["names"][z['id']] = z['name']
 
         if z['id'] == int(zid):

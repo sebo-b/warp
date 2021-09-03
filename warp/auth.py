@@ -26,9 +26,9 @@ def login():
         u = flask.request.form.get('login')
         p =  flask.request.form.get('password')
 
-        #print(generate_password_hash(p))
-
-        userRow = getDB().cursor().execute("SELECT * FROM user WHERE login = ?",(u,)).fetchone()
+        cursor = getDB().cursor()
+        cursor.execute("SELECT * FROM users WHERE login = ?",(u,))
+        userRow = cursor.fetchone()
 
         if userRow is not None \
            and userRow['password'] is not None \
@@ -86,7 +86,10 @@ def session():
     if flask.session.get('real-uid'):
         real_uid = flask.session.get('real-uid')
 
-    userRow = getDB().cursor().execute("SELECT * FROM user WHERE id = ?",(real_uid,)).fetchone()
+    cursor = getDB().cursor()
+    cursor.execute("SELECT * FROM users WHERE id = ?",(real_uid,))
+    userRow = cursor.fetchone()
+    
     if userRow is None or userRow['role'] >= ROLE_BLOCKED:
         return flask.redirect(
             flask.url_for('auth.login'))

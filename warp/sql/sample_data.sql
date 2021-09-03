@@ -1,8 +1,8 @@
 
-INSERT INTO user VALUES (1,"admin",'pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Admin',1);
-INSERT INTO user VALUES (2,"user1",'pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Foo',2);
-INSERT INTO user VALUES (3,"user2",'pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Bar',2);
-INSERT INTO user VALUES (4,"user3",'pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Baz',2);
+INSERT INTO users VALUES (1,'admin','pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Admin',1);
+INSERT INTO users VALUES (2,'user1','pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Foo',2);
+INSERT INTO users VALUES (3,'user2','pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Bar',2);
+INSERT INTO users VALUES (4,'user3','pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Baz',2);
 
 INSERT INTO zone VALUES (1,1,'Zone 1A','zone_maps/zone1a.png');
 INSERT INTO zone VALUES (2,1,'Zone 1B','zone_maps/zone1b.png');
@@ -72,21 +72,5 @@ INSERT INTO seat (zid,name,x,y,enabled) VALUES (3,'P.036',777,173,true);
 INSERT INTO seat (zid,name,x,y,enabled) VALUES (3,'P.037',769,227,true);
 INSERT INTO seat (zid,name,x,y,enabled) VALUES (3,'P.038',757,300,true);
 INSERT INTO seat (zid,name,x,y,enabled) VALUES (3,'P.039',748,358,true);
-
-
---INSERT INTO book (uid,sid,fromTS,toTS) VALUES (1,1,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','60 minutes'),
---                                                           strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','90 minutes'));
---INSERT INTO book (uid,sid,fromTS,toTS) VALUES (2,1,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','120 minutes'),
---                                                           strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','180 minutes'));
---INSERT INTO book (uid,sid,fromTS,toTS) VALUES (2,2,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','2 day','75 minutes'),
---                                                           strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','2 day','105 minutes'));
---INSERT INTO book (uid,sid,fromTS,toTS) VALUES (1,3,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','105 minutes'),
---                                                           strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','120 minutes'));
---INSERT INTO book (uid,sid,fromTS,toTS) VALUES (3,6,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','30 minutes'),
---                                                           strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','75 minutes'));
---INSERT INTO book (uid,sid,fromTS,toTS) VALUES (1,3,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','3 hours'),
---                                                           strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','3 hours','30 minutes'));
---INSERT INTO book (uid,sid,fromTS,toTS) VALUES (2,8,strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','180 minutes'),
---                                                           strftime("%s",strftime("%s",'now','localtime') - strftime("%s",'now','localtime') % 86400,'unixepoch','1 day','210 minutes'));
 
 
