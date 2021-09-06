@@ -492,6 +492,9 @@ def editUser():
 
             if action_data['action'] == "update":
 
+                if action_data['role'] < role:
+                    raise WarpErr('Cannot set higher role than yours')
+
                 updColumns = {
                     Users.name: action_data['name'],
                     Users.role: action_data['role'],
@@ -510,7 +513,7 @@ def editUser():
             elif action_data['action'] == "add":
 
                 if action_data['role'] < role:
-                    raise WarpErr('Cannot add user with higher role than itself')
+                    raise WarpErr('Cannot add user with higher role than yours')
 
                 Users.insert({ 
                     Users.login: action_data['login'],
