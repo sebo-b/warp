@@ -1,5 +1,5 @@
 import flask
-from .db2 import *
+from .db import *
 from warp.auth import ROLE_USER, ROLE_BLOCKED, session
 from . import utils
 

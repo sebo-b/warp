@@ -4,7 +4,7 @@ from . import auth
 from . import utils
 from time import strftime
 
-from warp.db2 import *
+from warp.db import *
 
 bp = flask.Blueprint('view', __name__)
 

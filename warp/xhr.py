@@ -7,7 +7,7 @@ from jsonschema import validate, ValidationError
 import xlsxwriter
 import io
 
-from .db2 import *
+from .db import *
 
 bp = flask.Blueprint('xhr', __name__)
 

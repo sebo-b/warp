@@ -1,6 +1,6 @@
 import flask
 from werkzeug.security import check_password_hash, generate_password_hash
-from warp.db2 import *
+from warp.db import *
 from . import utils
 
 

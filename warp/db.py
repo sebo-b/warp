@@ -2,7 +2,6 @@ from peewee import SqliteDatabase, Table, SQL, fn, IntegrityError
 import playhouse.db_url
 import click
 from flask.cli import with_appcontext
-from playhouse.sqlite_ext import SqliteExtDatabase
 
 DB = None
 
@@ -42,15 +41,14 @@ def init(app):
 
     if 'DATABASE_INIT_SCRIPT' in app.config:
 
-        commandParams = {"help": "Create and initialize database.", 'callback': initDB}
+        commandParams = {"help": "Create and initialize database.", 'callback': with_appcontext(initDB) }
 
         if 'DATABASE_SAMPLEDATA_SCRIPT' in app.config:
             commandParams['params'] = [ click.Option(('-s','--sample-data','sample_data'), is_flag = True, default = False, help = "Pupulate database with a sample data.") ]
 
-        cmd = click.Command('init-db2', **commandParams)
+        cmd = click.Command('init-db', **commandParams)
         app.cli.add_command(cmd)
 
-@with_appcontext
 def initDB(sample_data = False):
     
     from flask import current_app
