@@ -1,7 +1,8 @@
 import flask
 from werkzeug.security import check_password_hash, generate_password_hash
-from warp.db import getDB
+from warp.db2 import *
 from . import utils
+
 
 #NOTE: these roles are also defined in userdata.js
 ROLE_ADMIN = 0
@@ -26,21 +27,19 @@ def login():
         u = flask.request.form.get('login')
         p =  flask.request.form.get('password')
 
-        cursor = getDB().cursor()
-        cursor.execute("SELECT * FROM users WHERE login = ?",(u,))
-        userRow = cursor.fetchone()
+        c = Users.select().where(Users.login == u)
 
-        if userRow is not None \
-           and userRow['password'] is not None \
-           and check_password_hash(userRow['password'],p):
+        if len(c) == 1 \
+           and c[0]['password'] is not None \
+           and check_password_hash(c[0]['password'],p):
             
-            role = userRow['role']
+            role = c[0]['role']
 
             if role >= ROLE_BLOCKED:
                 flask.flash("Your account is blocked.")
             else:
-                flask.session['uid'] = userRow['id']
-                flask.session['role'] = userRow['role']
+                flask.session['uid'] = c[0]['id']
+                flask.session['role'] = c[0]['role']
                 flask.session['login_time'] = utils.now()
                 return flask.redirect(flask.url_for('view.index'))
 
@@ -86,15 +85,13 @@ def session():
     if flask.session.get('real-uid'):
         real_uid = flask.session.get('real-uid')
 
-    cursor = getDB().cursor()
-    cursor.execute("SELECT * FROM users WHERE id = ?",(real_uid,))
-    userRow = cursor.fetchone()
-    
-    if userRow is None or userRow['role'] >= ROLE_BLOCKED:
+    c = Users.select(Users.role).where(Users.id == real_uid)
+
+    if len(c) != 1 or c[0]['role'] >= ROLE_BLOCKED:
         return flask.redirect(
             flask.url_for('auth.login'))
 
-    if userRow['role'] != flask.session.get('role'):
-        flask.session['role'] = userRow['role']
+    if c[0]['role'] != flask.session.get('role'):
+        flask.session['role'] = c[0]['role']
 
 bp.before_app_request(session)

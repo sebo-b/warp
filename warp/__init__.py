@@ -5,9 +5,8 @@ def create_app():
     app = flask.Flask(__name__)
     app.config.from_object('warp.config')
 
-    from . import db
-    app.teardown_appcontext(db.closeDB)
-    app.cli.add_command(db.initDB)
+    from . import db2
+    db2.init(app)
 
     from . import view
     app.register_blueprint(view.bp)

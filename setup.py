@@ -7,6 +7,7 @@ setup(
     install_requires=[
         'flask',
         'jsonschema',
-        'xlsxwriter'
+        'xlsxwriter',
+        'peewee'
     ],
 )

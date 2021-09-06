@@ -1,13 +1,13 @@
 import flask
 from flask import app
 from werkzeug.utils import redirect
-from .db import getDB
 from . import auth
 from . import utils
 from jsonschema import validate, ValidationError
-from sqlite3.dbapi2 import Error, IntegrityError
 import xlsxwriter
 import io
+
+from .db2 import *
 
 bp = flask.Blueprint('xhr', __name__)
 
@@ -26,82 +26,81 @@ bp = flask.Blueprint('xhr', __name__)
 @bp.route("/zone/getSeats/<zid>")
 def zoneGetSeats(zid):
 
-    db = getDB()
-
     res = {}
 
-    zoneGroupCursor = getDB().cursor()
-    zoneGroupCursor.execute("SELECT zone_group FROM zone WHERE id = ?",(zid,))
+    zoneGroupCursor = Zone.select(Zone.zone_group).where(Zone.id == zid)
 
-    zoneGroup = zoneGroupCursor.fetchone()
-
-    if zoneGroup is None:
+    if len(zoneGroupCursor) != 1:
         flask.abort(404)
     else:
-        zoneGroup = zoneGroup[0]
+        zoneGroup = zoneGroupCursor[0]['zone_group']
 
     uid = flask.session.get('uid')
     role = flask.session.get('role')
 
-    assignCursor = getDB().cursor()
-    assignCursor.execute("SELECT a.sid, u.login, u.name FROM assign a " \
-                         " JOIN users u ON a.uid = u.id")
+    assignCursor = Assign.select(Assign.sid, Assign.uid, Users.login, Users.name).join(Users,on=(Assign.uid == Users.id))
 
     assignments = {}
     for r in assignCursor:
+
         if r['sid'] not in assignments:
-            assignments[r['sid']] = { 'logins': [], 'names': []}
+            assignments[r['sid']] = { 'assigned_to_me': False, 'logins': [], 'names': []}
+
+        if r['uid'] == uid:
+            assignments[r['sid']]['assigned_to_me'] = True
+
         assignments[r['sid']]['logins'].append(r['login'])
         assignments[r['sid']]['names'].append(r['name'])
 
-    seatsCursor = getDB().cursor()
-    seatsCursor.execute("SELECT s.*, CASE WHEN a.sid IS NOT NULL THEN TRUE ELSE FALSE END assigned_to_me, CASE WHEN a.sid IS NULL AND ac.count > 0 THEN TRUE ELSE FALSE END assigned FROM seat s" \
-                                " JOIN zone z ON s.zid = z.id" \
-                                " LEFT JOIN assign a ON s.id = a.sid AND a.uid = ?"
-                                " LEFT JOIN (SELECT sid,COUNT(*) count FROM assign GROUP BY sid) ac ON s.id = ac.sid"
-                                " WHERE z.zone_group = ?" \
-                                " AND (? OR enabled IS TRUE)",
-                                (uid,zoneGroup,role <= auth.ROLE_MANAGER))
+
+    seatsCursor = Seat.select(Seat.id, Seat.name, Seat.x, Seat.y, Seat.zid, Seat.enabled) \
+                      .join(Zone, on=(Seat.zid == Zone.id)) \
+                      .where(Zone.zone_group == zoneGroup)
+
+    if role > auth.ROLE_MANAGER:
+        seatsCursor = seatsCursor.where(Seat.enabled == True)
 
     for s in seatsCursor:
 
-        assigned = s['assigned']
-        if s['assigned_to_me']:
-            assigned = 2
-
-        res[s['id']] = {
+        seatD = {
             "name": s['name'],
             "x": s['x'],
             "y": s['y'],
             "zid": s['zid'],
             "enabled": s['enabled'] != 0,
-            "assigned": assigned,
+            "assigned": 0,
             "book": []
         }
 
         if s['id'] in assignments:
-            if role <= auth.ROLE_MANAGER:
-                res[s['id']]['assignments'] = assignments[s['id']]['logins']
-            else:
-                res[s['id']]['assignments'] = assignments[s['id']]['names']
+            
+            assign = assignments[s['id']]
+
+            # NOT_ASSIGNED: 0,
+            # ASSIGNED: 1,    // not to me
+            # ASSIGNED_TO_ME: 2
+            seatD['assigned'] = 2 if assign['assigned_to_me'] else 1
+            seatD['assignments'] = assign['logins'] if role <= auth.ROLE_MANAGER else assign['names']
+            
+        res[s['id']] = seatD
+
 
     tr = utils.getTimeRange()
     
-    bookingsCursor = getDB().cursor()
-    bookingsCursor.execute("SELECT b.*, u.name username FROM book b" \
-                           " JOIN users u ON u.id = b.uid" \
-                           " JOIN seat s ON b.sid = s.id" \
-                           " JOIN zone z ON s.zid = z.id" \
-                           " WHERE b.fromTS < ? AND b.toTS > ?" \
-                           " AND z.zone_group = ?" \
-                           " AND (? OR s.enabled IS TRUE)" \
-                           " ORDER BY fromTS",
-                           (tr['toTS'],tr['fromTS'],zoneGroup,role <= auth.ROLE_MANAGER))
+    bookingsCursor = Book.select(Book.id, Book.uid, Book.sid, Users.name.alias('username'), Book.fromts, Book.tots) \
+                         .join(Users, on=(Book.uid == Users.id)) \
+                         .join(Seat, on=(Book.sid == Seat.id)) \
+                         .join(Zone, on=(Seat.zid == Zone.id)) \
+                         .where((Book.fromts < tr['toTS']) & (Book.tots > tr['fromTS']) & (Zone.zone_group == zoneGroup)) \
+                         .order_by(Book.fromts)
+    
+    if role > auth.ROLE_MANAGER:
+        bookingsCursor = bookingsCursor.where(Seat.enabled == True)
 
     for b in bookingsCursor:
 
         sid = b['sid']
-        
+
         res[sid]['book'].append({ 
             "bid": b['id'],
             "isMine": b['uid'] == uid,
@@ -218,112 +217,106 @@ def zoneApply():
     if ('enable' in apply_data or 'disable' in apply_data or 'assign' in apply_data) and role > auth.ROLE_MANAGER:
         return {"msg": "Forbidden" }, 403
 
-    db = getDB()
-
     conflicts_in_disable = None
     conflicts_in_assign = None
 
+    class WarpErr(Exception):
+        pass
+
     try:
-        cursor = getDB().cursor()
 
-        if 'enable' in apply_data:
+        with DB.atomic():
 
-            stmt = "UPDATE seat SET enabled=TRUE WHERE id in (" + \
-                   ",".join(['?']*len(apply_data['enable'])) + \
-                   ")"
+            if 'enable' in apply_data:
 
-            cursor.execute(stmt,apply_data['enable'])
+                Seat.update({Seat.enabled: True}).where(Seat.id.in_(apply_data['enable'])).execute()
 
-        if 'disable' in apply_data:
-
-            ts = utils.getTimeRange(True)
-
-            stmt = "SELECT b.*, u.login, u.name FROM book b" \
-                   " JOIN users u ON b.uid = u.id" \
-                   " WHERE b.fromTS < ? AND b.toTS > ?" \
-                   " AND b.sid IN (" + \
-                   (",".join(['?']*len(apply_data['disable']))) + \
-                   ")"
-
-            cursor.execute(stmt, [ts['toTS'],ts['fromTS']]+apply_data['disable'])
-
-            conflicts_in_disable = [
-                {
-                    "sid": row['sid'],
-                    "fromTS": row['fromts'],
-                    "toTS": row['tots'],
-                    "login": row['login'],
-                    "username": row['name']
-                } for row in cursor
-            ]
-
-            stmt = "UPDATE seat SET enabled=FALSE WHERE id IN (" + \
-                   ",".join(['?']*len(apply_data['disable'])) + \
-                   ")"
-
-            cursor.execute(stmt, apply_data['disable'])
-
-        if 'assign' in apply_data:
-
-            cursor.execute("DELETE FROM assign WHERE sid = ?", (apply_data['assign']['sid'],))
-
-            if len(apply_data['assign']['logins']):
-
-                stmt = "INSERT INTO assign (sid,uid) SELECT ?, id FROM users WHERE LOGIN IN (" + \
-                       ",".join(['?']*len(apply_data['assign']['logins'])) + \
-                       ")"
-
-                cursor.execute(stmt, [apply_data['assign']['sid']]+apply_data['assign']['logins'])
-
-                if cursor.rowcount != len(apply_data['assign']['logins']):
-                    raise Error("Number of affected row is different then in assign.logins.")
+            if 'disable' in apply_data:
 
                 ts = utils.getTimeRange(True)
 
-                stmt = "SELECT b.*, u.login, u.name FROM book b" \
-                            " JOIN users u ON b.uid = u.id" \
-                            " WHERE b.fromTS < ? AND b.toTS > ?" \
-                            " AND b.sid = ?" \
-                            " AND u.login NOT IN (" + \
-                            ",".join(['?']*len(apply_data['assign']['logins'])) + \
-                            ")"
+                query = Book.select(Book.sid, Book.fromts, Book.tots, Users.login, Users.name) \
+                            .join(Users, on=(Book.uid == Users.id)) \
+                            .where((Book.fromts < ts['toTS']) & (Book.tots > ts['fromTS'])) \
+                            .where(Book.sid.in_(apply_data['disable']))
 
-                cursor.execute(stmt, [ts['toTS'],ts['fromTS'],apply_data['assign']['sid']]+apply_data['assign']['logins'] )
+                conflicts_in_disable = [
+                    {
+                        "sid": row['sid'],
+                        "fromTS": row['fromts'],
+                        "toTS": row['tots'],
+                        "login": row['login'],
+                        "username": row['name']
+                    } for row in query
+                ]
+
+                Seat.update({Seat.enabled: False}).where(Seat.id.in_(apply_data['disable'])).execute()
+
+            if 'assign' in apply_data:
+
+                Assign.delete().where(Assign.sid == apply_data['assign']['sid']).execute()
+
+                if len(apply_data['assign']['logins']):
+
+                    rowCount = Assign.insert(
+                        Users.select(apply_data['assign']['sid'],Users.id).where(Users.login.in_(apply_data['assign']['logins'])),
+                        (Assign.sid, Assign.uid)
+                    ).execute()
+                    
+
+                    if rowCount != len(apply_data['assign']['logins']):
+                        raise WarpErr("Number of affected row is different then in assign.logins.")
+
+                    ts = utils.getTimeRange(True)
+
+                    query = Book.select(Book.sid, Book.fromts, Book.tots, Users.login, Users.name) \
+                                .join(Users, on=(Book.uid == Users.id)) \
+                                .where((Book.fromts < ts['toTS']) & (Book.tots > ts['fromTS'])) \
+                                .where(Book.sid == apply_data['assign']['sid']) \
+                                .where(Users.login.not_in(apply_data['assign']['logins']))
+
+                    conflicts_in_assign = [
+                        {"sid": row['sid'],
+                        "fromTS": row['fromts'],
+                        "toTS": row['tots'],
+                        "login": row['login'],
+                        "username": row['name']} for row in query]
+
+            # befor book we have to remove reservations (as this can be list of conflicting reservations)
+            if 'remove' in apply_data:
+
+                stmt = Book.delete().where(Book.id.in_(apply_data['remove']))
+
+                if role > auth.ROLE_MANAGER:
+                    stmt = stmt.where(Book.uid == uid)
+
+                rowCount = stmt.execute()
+
+                if rowCount != len(apply_data['remove']):
+                    raise WarpErr("Number of affected row is different then in remove.")
+
+            # then we create new reservations
+            if 'book' in apply_data:
                 
-                conflicts_in_assign = [
-                    {"sid": row['sid'],
-                     "fromTS": row['fromts'],
-                     "toTS": row['tots'],
-                     "login": row['login'],
-                     "username": row['name']} for row in cursor]
+                stmt = Seat.select(True) \
+                           .where( (Seat.id == apply_data['book']['sid']) & (Seat.enabled == False))
 
-        # befor book we have to remove reservations (as this can be list of conflicting reservations)
-        if 'remove' in apply_data:
-            cursor.executemany("DELETE FROM book WHERE id = ? AND (? OR uid = ?)",
-                ((id,role < auth.ROLE_USER,uid) for id in apply_data['remove']))
+                if len(stmt):
+                    raise WarpErr("Booking a disabled seat is forbidden.")
 
-            if cursor.rowcount != len(apply_data['remove']):
-                raise Error("Number of affected row is different then in remove.")
+                insertData = [ {
+                        Book.uid: uid,
+                        Book.sid: apply_data['book']['sid'],
+                        Book.fromts: x['fromTS'], 
+                        Book.tots: x['toTS']
+                    } for x in apply_data['book']['dates'] ]
 
-        # then we create new reservations
-        if 'book' in apply_data:
+                stmt = Book.insert(insertData)
+                stmt.execute()
 
-            cursor.execute("SELECT enabled FROM seat WHERE id = ?",(apply_data['book']['sid'],))
-            seatEnabled = cursor.fetchone()
-            if not seatEnabled['enabled']:
-                raise Error("Booking a disabled seat is forbidden.")
 
-            cursor.executemany("INSERT INTO book (uid,sid,fromTS,toTS) VALUES (?,?,?,?)",
-                ((uid,apply_data['book']['sid'],x['fromTS'], x['toTS']) for x in apply_data['book']['dates']))
-
-        db.commit()
-
-    except Error as err:
-        db.rollback()
+    except WarpErr as err:
         return {"msg": "Error" }, 400
-    except:
-        db.rollback()
-        raise
 
     ret = { "msg": "ok" }
 
@@ -357,8 +350,7 @@ def getUsers():
     if role > auth.ROLE_MANAGER:
         flask.abort(403)
 
-    usersCursor = getDB().cursor()
-    usersCursor.execute("SELECT id,login,name,role FROM users")
+    usersCursor = Users.select()
 
     res = {
         "data": {},
@@ -410,17 +402,15 @@ def actAsSet():
     except ValidationError as err:
         return {"msg": "invalid input" }, 400
 
-    usersCursor = getDB().cursor()
-    usersCursor.execute("SELECT id FROM users WHERE login = ?",(action_data['login'],))
-    user = usersCursor.fetchone()
+    usersCursor = Users.select(Users.id).where(Users.login == action_data['login'])
 
-    if user is None:
+    if len(usersCursor) != 1:
         return {"msg": "not found"}, 404
 
     if not flask.session.get('real-uid'):
         flask.session['real-uid'] = flask.session.get('uid')
 
-    flask.session['uid'] = user['id']
+    flask.session['uid'] = usersCursor[0]['id']
 
     return {"msg": "ok"}, 200
 
@@ -489,74 +479,76 @@ def editUser():
     except ValidationError as err:
         return {"msg": "Data error" }, 400
 
-    cursor = getDB().cursor()
+    class WarpErr(Exception):
+        pass
 
     try:
 
-        passHash = None
-        if 'password' in action_data and len(action_data['password']) > 0:
-            passHash = generate_password_hash(action_data['password'])
+        with DB.atomic():
 
-        if action_data['action'] == "update":
+            passHash = None
+            if 'password' in action_data and len(action_data['password']) > 0:
+                passHash = generate_password_hash(action_data['password'])
 
-            cursor.execute("UPDATE users SET" \
-                                " name = ?, role = ?" \
-                                " WHERE login = ? AND role >= ?",
-                                (action_data['name'], action_data['role'], action_data['login'], role))
-            if cursor.rowcount != 1:
-                raise Error("Wrong number of affected rows")
+            if action_data['action'] == "update":
 
-            if passHash:
+                updColumns = {
+                    Users.name: action_data['name'],
+                    Users.role: action_data['role'],
+                }
 
-                cursor.execute("UPDATE users SET password = ?" \
-                               " WHERE login = ? AND role >= ?",
-                                (passHash, action_data['login'], role))
-                if cursor.rowcount != 1:
-                    raise Error("Wrong number of affected rows")
+                if passHash:
+                    updColumns[Users.password] = passHash
 
-        elif action_data['action'] == "add":
-            cursor.execute("INSERT INTO users(login, name, role, password) VALUES (?,?,?,?)",
-                            (action_data['login'],action_data['name'], action_data['role'], passHash)) 
-            if cursor.rowcount != 1:
-                raise Error("Wrong number of affected rows")
+                rowCount = Users.update(updColumns) \
+                                .where((Users.login == action_data['login']) & (Users.role >= role)) \
+                                .execute()
 
-        elif action_data['action'] == "delete":
-            cursor.execute("DELETE FROM users WHERE login = ? AND role >= ?",
-                            (action_data['login'],role)) 
-            if cursor.rowcount != 1:
-                raise Error("Wrong number of affected rows")
+                if rowCount != 1:
+                    raise WarpErr("Wrong number of affected rows")
 
-        getDB().commit()
+            elif action_data['action'] == "add":
+
+                if action_data['role'] < role:
+                    raise WarpErr('Cannot add user with higher role than itself')
+
+                Users.insert({ 
+                    Users.login: action_data['login'],
+                    Users.name: action_data['name'],
+                    Users.role: action_data['role'],
+                    Users.password: passHash
+                }).execute()
+
+            elif action_data['action'] == "delete":
+                
+                rowCount = Users.delete() \
+                                .where((Users.login == action_data['login']) & (Users.role >= role)) \
+                                .execute()
+                
+                if rowCount != 1:
+                    raise WarpErr("Wrong number of affected rows")
 
     except IntegrityError as err:
-        getDB().rollback()
         if action_data['action'] == "delete":
             return {"msg": "User cannot be deleted" }, 400
         elif action_data['action'] == "add":
             return {"msg": "Login exits" }, 400
         else:
             return {"msg": "Error" }, 400
-    except Error as err:
-        getDB().rollback()
+    except WarpErr as err:
         return {"msg": "Error" }, 400
-    except:
-        getDB().rollback()
-        raise
 
-    cursor.execute("SELECT login,name,role FROM users WHERE login = ?", (action_data['login'],))
-    row = cursor.fetchone()
+    query = Users.select(Users.login, Users.name, Users.role).where(Users.login == action_data['login'])
 
-    if row:
-
-        return flask.jsonify([{
-            "login": row['login'],
-            "name": row['name'],
-            "role": row['role']
-            }])
-    
+    if len(query) == 0:
+        return flask.jsonify([{"login": action_data['login']}])    
     else:
+        return flask.jsonify([{
+            "login": query[0]['login'],
+            "name": query[0]['name'],
+            "role": query[0]['role']
+            }])
 
-        return flask.jsonify([{"login": action_data['login']}])
 
 # Format
 @bp.route("/bookings/get")
@@ -565,29 +557,27 @@ def bookingsGet():
     uid = flask.session.get('uid')
     role = flask.session.get('role')
 
-    db = getDB()
     tr = utils.getTimeRange()
 
-    cursor = getDB().cursor()
-    cursor.execute("SELECT b.id bid,u.id uid, u.name user_name, u.login login, z.name zone_name, s.name seat_name, fromTS, toTS FROM book b" \
-                              " JOIN seat s ON b.sid = s.id"
-                              " JOIN zone z ON s.zid = z.id"
-                              " JOIN users u ON b.uid = u.id"
-                              " WHERE fromTS < ? AND toTS > ?",
-                              (tr["toTS"],tr["fromTS"]))
+    cursor = Book.select(Book.id, Book.uid, Users.name.alias('user_name'), Users.login, Zone.name.alias('zone_name'), Seat.name.alias('seat_name'), Book.fromts, Book.tots) \
+                 .join(Seat, on=(Book.sid == Seat.id)) \
+                 .join(Zone, on=(Seat.zid == Zone.id)) \
+                 .join(Users, on=(Book.uid == Users.id)) \
+                 .where((Book.fromts < tr["toTS"]) & (Book.tots > tr["fromTS"]))
 
     res = []
     
     for row in cursor:
 
-        can_edit = True if row['uid'] == uid else False
         if role >= auth.ROLE_VIEVER:
             can_edit = False
         elif role <= auth.ROLE_MANAGER:
             can_edit = True
+        else:
+            can_edit = row['uid'] == uid
 
         res.append({
-            "bid": row["bid"],
+            "bid": row["id"],
             "user_name": row["user_name"]+" ["+row["login"]+"]" if role <= auth.ROLE_MANAGER else row["user_name"],
             "zone_name": row["zone_name"],
             "seat_name": row["seat_name"],
@@ -662,81 +652,54 @@ def bookingsReport():
     except ValidationError as err:
         return {"msg": "Data error" }, 400
 
-    db = getDB()
-
     columnsMap = {
-        "id": "b.id",
-        "user_name": "u.name",
-        "login": "u.login",
-        "zone_name": "z.name",
-        "seat_name": "s.name",
-        "fromTS": "b.fromts",
-        "toTS": "b.tots"
+        "id": Book.id,
+        "user_name": Users.name,
+        "login": Users.login,
+        "zone_name": Zone.name,
+        "seat_name": Seat.name,
+        "fromTS": Book.fromts,
+        "toTS": Book.tots
     }
 
-    sqlSort = []
-    if "sorters" in requestData:
-        for i in requestData['sorters']:
-            if i["field"] in columnsMap:
-                sqlSort.append(columnsMap[i["field"]] + " " + i["dir"])
+    query = Book.select(Book.id, Users.name.alias('user_name'), Users.login, Zone.name.alias('zone_name'), Seat.name.alias('seat_name'), Book.fromts, Book.tots) \
+                      .join(Seat, on=(Book.sid == Seat.id)) \
+                      .join(Zone, on=(Seat.zid == Zone.id)) \
+                      .join(Users, on=(Book.uid == Users.id))
 
-    if len(sqlSort):
-        sqlSort = " ORDER BY " + ",".join(sqlSort)
-    else:
-        sqlSort = ""
-
-    sqlParams = []
-
-    sqlFilters = []
     if "filters" in requestData:
         for i in requestData['filters']:
             if i["field"] in columnsMap:
                 field = columnsMap[i["field"]]
-                if i['type'] == 'starts':
-                    sqlFilters.append(field + " LIKE ?")
-                    sqlParams.append(i["value"]+"%")
-                else:   # json schema allows only <= and >=
-                    sqlFilters.append(field + " " + i["type"] + " ?")
-                    sqlParams.append(i["value"])
-
-    if len(sqlFilters):
-        sqlFilters = " WHERE " + " AND ".join(sqlFilters)
-    else:
-        sqlFilters = ""
+                if i['type'] == '<=':
+                    query = query.where( field <= i["value"])
+                elif i['type'] == '>=':
+                    query = query.where( field >= i["value"])
+                elif i['type'] == 'starts':
+                    query = query.where( field.startswith(i["value"]))
 
     lastPage = None
-
-    sqlLimit = ""
     if "size" in requestData:
 
         limit = requestData['size']
-        sqlLimit = sqlLimit + " LIMIT ?"
-        sqlLimitParams = [limit]
 
         if "page" in requestData:
-
-            countCursor = getDB().cursor()
-            countCursor.execute("SELECT COUNT(*) FROM book b" \
-                                        " JOIN seat s ON b.sid = s.id" \
-                                        " JOIN zone z ON s.zid = z.id" \
-                                        " JOIN users u ON b.uid = u.id" + sqlFilters, sqlParams)
-            count = countCursor.fetchone()[0]
+            
+            countCursor = query.columns(COUNT_STAR.alias('count'))                            
+            count = countCursor[0]['count']
             
             lastPage = -(-count // limit)   # round up
-
-            sqlLimit = sqlLimit + " OFFSET ?"
+            
             offset = (requestData['page']-1)*requestData['size']
-            sqlLimitParams.append(offset)
+            query = query.offset(offset)
+        
+        query = query.limit(limit)
 
-        sqlParams.extend(sqlLimitParams)
+    if "sorters" in requestData:
+        for i in requestData['sorters']:
+            if i["field"] in columnsMap:
+                query = query.order_by_extend( columnsMap[i["field"]].asc() if i["dir"] == "asc" else columnsMap[i["field"]].desc() )
 
-    dataCursor = getDB().cursor()
-    dataCursor.execute("SELECT b.id id, u.name user_name, login login, z.name zone_name, s.name seat_name, fromTS, toTS FROM book b" \
-                              " JOIN seat s ON b.sid = s.id" \
-                              " JOIN zone z ON s.zid = z.id" \
-                              " JOIN users u ON b.uid = u.id" +
-                              sqlFilters + sqlSort + sqlLimit,
-                              sqlParams)
 
     if "export" in requestData:
         # only xlsx for now
@@ -751,7 +714,7 @@ def bookingsReport():
 
         worksheet.write_row(0,0,columnsHeader)
 
-        for rowNo,dbRow in enumerate(dataCursor,1):
+        for rowNo,dbRow in enumerate(query,1):
 
             rowData = []
             for i in columnsContent:
@@ -786,7 +749,7 @@ def bookingsReport():
         if lastPage is not None:
             res["last_page"] = lastPage
 
-        for row in dataCursor:
+        for row in query:
 
             res['data'].append({
                 "id": row["id"],

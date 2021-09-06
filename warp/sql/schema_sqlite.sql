@@ -1,6 +1,3 @@
-BEGIN TRANSACTION;
-
---PRAGMA foreign_keys = OFF;
 
 DROP TABLE IF EXISTS assign;
 DROP TABLE IF EXISTS book;
@@ -9,7 +6,7 @@ DROP TABLE IF EXISTS zone;
 DROP TABLE IF EXISTS users;
 
 CREATE TABLE users (
-    id SERIAL PRIMARY KEY, 
+    id integer PRIMARY KEY ASC,
     login text UNIQUE NOT NULL, 
     password text,
     name text,
@@ -17,19 +14,19 @@ CREATE TABLE users (
     );
 
 CREATE TABLE zone (
-    id SERIAL PRIMARY KEY,
+    id integer PRIMARY KEY ASC,
     zone_group integer NOT NULL,
     name text NOT NULL,
     image text
     );
 
 CREATE TABLE seat (
-    id SERIAL PRIMARY KEY, 
+    id integer PRIMARY KEY ASC,
     zid integer NOT NULL,
     name text NOT NULL,
     x integer NOT NULL,
     y integer NOT NULL,
-    enabled boolean NOT NULL DEFAULT TRUE,
+    enabled boolean NOT NULL DEFAULT 1,
     FOREIGN KEY (zid) REFERENCES zone(id)
     );
 
@@ -45,7 +42,7 @@ CREATE INDEX seat_zid
 ON seat(zid);
 
 CREATE TABLE book (
-    id SERIAL PRIMARY KEY, 
+    id integer PRIMARY KEY ASC,
     uid integer NOT NULL,
     sid integer NOT NULL,
     fromts integer NOT NULL,
@@ -66,21 +63,19 @@ ON book(fromts);
 CREATE INDEX book_toTS
 ON book(tots);
 
-CREATE OR REPLACE FUNCTION book_overlap_insert()
-  RETURNS TRIGGER 
-  LANGUAGE PLPGSQL
-  AS
-$$
+CREATE TRIGGER book_overlap_insert
+BEFORE INSERT ON book
 BEGIN
+
     SELECT CASE WHEN NEW.fromTS >= NEW.toTS THEN
-        RAISE EXCEPTION 'Incorect time';
+        RAISE(ABORT,"Incorect time")
     END;
 
     SELECT CASE WHEN
-        (SELECT CASE WHEN COUNT(*) > 0 AND SUM(CASE WHEN uid = NEW.uid THEN 1 ELSE 0 END) = 0 THEN TRUE ELSE FALSE END 
+        (SELECT CASE WHEN COUNT(*) > 0 AND SUM(CASE WHEN uid = NEW.uid THEN 1 ELSE 0 END) = 0 THEN 1 ELSE 0 END 
         FROM assign WHERE sid = NEW.sid) > 0
     THEN
-        RAISE EXCEPTION 'Seat is assigned to another person';
+        RAISE(ABORT,"Seat is assigned to another person")
     END;
 
     SELECT CASE WHEN
@@ -93,17 +88,16 @@ BEGIN
          AND b.fromTS < NEW.toTS
          AND b.toTS > NEW.fromTS) > 0
     THEN
-        RAISE EXCEPTION 'Overlapping time for this seat or users';
+        RAISE(ABORT,"Overlapping time for this seat or user")
     END;
 
-    RETURN NEW;
 END;
-$$
 
-
-CREATE TRIGGER book_overlap_insert_trig
-BEFORE INSERT ON book
-EXECUTE PROCEDURE book_overlap_insert();
-
-
-COMMIT;
+CREATE TRIGGER book_overlap_update
+BEFORE UPDATE OF sid, uid, fromTS, toTS ON book 
+BEGIN
+    SELECT CASE WHEN 1
+    THEN
+        RAISE(ABORT,"Not implemented")
+    END;
+END;

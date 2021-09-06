@@ -1,9 +1,10 @@
 import flask
 from werkzeug.utils import redirect
-from .db import getDB
 from . import auth
 from . import utils
 from time import strftime
+
+from warp.db2 import *
 
 bp = flask.Blueprint('view', __name__)
 
@@ -15,8 +16,7 @@ def headerDataInit():
     headerDataL.append(
         {"text": "Bookings", "endpoint": "view.bookings", "view_args": {} })
 
-    zoneCursor = getDB().cursor()
-    zoneCursor.execute("SELECT id,name FROM zone")
+    zoneCursor = Zone.select(Zone.id, Zone.name)
 
     for z in zoneCursor:
         headerDataL.append(
@@ -78,8 +78,7 @@ def users():
 @bp.route("/zone/<zid>")
 def zone(zid):
 
-    zoneCursor = getDB().cursor()
-    zoneCursor.execute("SELECT id,name,image FROM zone")
+    zoneCursor = Zone.select(Zone.id, Zone.name, Zone.image)
 
     zone_data = {
         "names": {}
