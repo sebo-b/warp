@@ -52,7 +52,6 @@ def zoneGetSeats(zid):
         assignments[r['sid']]['logins'].append(r['login'])
         assignments[r['sid']]['names'].append(r['name'])
 
-
     seatsCursor = Seat.select(Seat.id, Seat.name, Seat.x, Seat.y, Seat.zid, Seat.enabled) \
                       .join(Zone, on=(Seat.zid == Zone.id)) \
                       .where(Zone.zone_group == zoneGroup)
@@ -84,10 +83,9 @@ def zoneGetSeats(zid):
             
         res[s['id']] = seatD
 
-
     tr = utils.getTimeRange()
     
-    bookingsCursor = Book.select(Book.id, Book.uid, Book.sid, Users.name.alias('username'), Book.fromts, Book.tots) \
+    bookQuery = Book.select(Book.id, Book.uid, Book.sid, Users.name.alias('username'), Book.fromts, Book.tots) \
                          .join(Users, on=(Book.uid == Users.id)) \
                          .join(Seat, on=(Book.sid == Seat.id)) \
                          .join(Zone, on=(Seat.zid == Zone.id)) \
@@ -95,9 +93,9 @@ def zoneGetSeats(zid):
                          .order_by(Book.fromts)
     
     if role > auth.ROLE_MANAGER:
-        bookingsCursor = bookingsCursor.where(Seat.enabled == True)
+        bookQuery = bookQuery.where(Seat.enabled == True)
 
-    for b in bookingsCursor:
+    for b in bookQuery.iterator():
 
         sid = b['sid']
 
