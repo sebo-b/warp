@@ -18,8 +18,6 @@ def login():
         
         return flask.redirect(endpoint)
 
-    cursor = getDB().cursor()
-
     login = flask.request.environ['MELLON_uid']
     userName = bytes(flask.request.environ['MELLON_cn'],'ISO-8859-1').decode('utf-8')
 
