@@ -5,6 +5,7 @@ from . import auth
 from . import utils
 from jsonschema import validate, ValidationError
 import xlsxwriter
+import orjson
 import io
 
 from .db import *
@@ -28,13 +29,6 @@ def zoneGetSeats(zid):
 
     res = {}
 
-    zoneGroupCursor = Zone.select(Zone.zone_group).where(Zone.id == zid)
-
-    if len(zoneGroupCursor) != 1:
-        flask.abort(404)
-    else:
-        zoneGroup = zoneGroupCursor[0]['zone_group']
-
     uid = flask.session.get('uid')
     role = flask.session.get('role')
 
@@ -53,8 +47,9 @@ def zoneGetSeats(zid):
         assignments[r['sid']]['names'].append(r['name'])
 
     seatsCursor = Seat.select(Seat.id, Seat.name, Seat.x, Seat.y, Seat.zid, Seat.enabled) \
-                      .join(Zone, on=(Seat.zid == Zone.id)) \
-                      .where(Zone.zone_group == zoneGroup)
+                        .where(Seat.zid == zid)
+#                      .join(Zone, on=(Seat.zid == Zone.id)) \
+#                      .where(Zone.zone_group == zoneGroup)
 
     if role > auth.ROLE_MANAGER:
         seatsCursor = seatsCursor.where(Seat.enabled == True)
@@ -81,32 +76,65 @@ def zoneGetSeats(zid):
             seatD['assigned'] = 2 if assign['assigned_to_me'] else 1
             seatD['assignments'] = assign['logins'] if role <= auth.ROLE_MANAGER else assign['names']
             
-        res[s['id']] = seatD
+        res[str(s['id'])] = seatD
 
     tr = utils.getTimeRange()
-    
+
     bookQuery = Book.select(Book.id, Book.uid, Book.sid, Users.name.alias('username'), Book.fromts, Book.tots) \
                          .join(Users, on=(Book.uid == Users.id)) \
                          .join(Seat, on=(Book.sid == Seat.id)) \
-                         .join(Zone, on=(Seat.zid == Zone.id)) \
-                         .where((Book.fromts < tr['toTS']) & (Book.tots > tr['fromTS']) & (Zone.zone_group == zoneGroup)) \
+                         .where((Book.fromts < tr['toTS']) & (Book.tots > tr['fromTS']) & (Seat.zid == zid)) \
                          .order_by(Book.fromts)
     
     if role > auth.ROLE_MANAGER:
         bookQuery = bookQuery.where(Seat.enabled == True)
 
-    for b in bookQuery.iterator():
+    for b in DB.execute(bookQuery):
 
-        sid = b['sid']
+        sid = str(b[2])
 
         res[sid]['book'].append({ 
-            "bid": b['id'],
-            "isMine": b['uid'] == uid,
-            "username": b['username'],
-            "fromTS": b['fromts'], 
-            "toTS": b['tots'] })
+            "bid": b[0],
+            "isMine": b[1] == uid,
+            "username": b[3],
+            "fromTS": b[4], 
+            "toTS": b[5] })
 
-    return flask.jsonify(res)
+    otherZoneBookQuery = Book.select(Book.sid, Book.id, Seat.name, Seat.zid, Book.fromts, Book.tots) \
+                            .join(Users, on=(Book.uid == Users.id)) \
+                            .join(Seat, on=(Book.sid == Seat.id)) \
+                            .join(Zone, on=(Seat.zid == Zone.id)) \
+                            .where( (Seat.zid != zid) & (Seat.enabled == True) ) \
+                            .where(Zone.zone_group == ( \
+                                Zone.select(Zone.zone_group).where(Zone.id == zid)) ) \
+                            .where(Book.uid == uid) \
+                            .order_by(Book.fromts).tuples()
+
+    for b in otherZoneBookQuery.iterator():
+
+        sid = str(b[0])
+
+        if sid not in res:
+            res[sid] = {
+                "name": b[2],
+                "zid": b[3],
+                "book": []
+            }
+
+        res[sid]['book'].append({ 
+            "bid": b[1],
+            "isMine": True,
+            "fromTS": b[4], 
+            "toTS": b[5] 
+            })
+
+    resR = flask.current_app.response_class(
+        response=orjson.dumps(res),
+        status=200,
+        mimetype='application/json')
+
+    return resR
+
 
 # format:
 # { 

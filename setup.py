@@ -8,6 +8,7 @@ setup(
         'flask',
         'jsonschema',
         'xlsxwriter',
-        'peewee'
+        'peewee',
+        'orjson'
     ],
 )

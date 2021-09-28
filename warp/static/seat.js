@@ -19,14 +19,18 @@ function WarpSeat(sid,seatData,factory) {
     this._setData(seatData);
 
     this.sid = sid;
-    this.x = seatData.x;
-    this.y = seatData.y;
     this.zid = seatData.zid;
+    if ('x' in seatData && 'y' in seatData && this.zid == factory.zoneData['id']) {
+        this.x = seatData.x;
+        this.y = seatData.y;
 
+//        console.assert(this.zid == factory.zoneData['id']);
 
-    if (this.zid == factory.zoneData['id']) {
         this._createDiv(factory.rootDiv, factory.spriteURL);
     }
+//    if (this.zid == factory.zoneData['id']) {
+//        this._createDiv(factory.rootDiv, factory.spriteURL);
+//    }
     
     this.action = WarpSeat.SeatStates.NOT_AVAILABLE;
 };
@@ -423,8 +427,8 @@ WarpSeat.prototype.handleEvent = function(e) {
 WarpSeat.prototype._setData = function(seatData) {
 
     this.name = seatData.name;
-    this.enabled = seatData.enabled;
-    this.assigned = seatData.assigned;
+    this.enabled = ('enabled' in seatData)? seatData.enabled: true;
+    this.assigned = ('assigned' in seatData)? seatData.assigned: WarpSeat.SeatStates.NOT_ASSIGNED;
     this.book = seatData.book;  //NOTE: just reference
 
     if ('assignments' in seatData)

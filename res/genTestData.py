@@ -9,6 +9,8 @@ DAYS = 14
 NO_OF_SEATS = 500
 NO_OF_USERS = 600
 
+ZONES = [1, 2]
+
 SLOT = 15*60
 
 MAX_LEN = 24    # booking max len in slots
@@ -19,10 +21,10 @@ MAX_GAPE = 4    # in slots
 GAPE_ARR = [0]*GAPE_0_PROB + list(range(1,MAX_GAPE+1))
 DAY_LEN = (24*3600 / SLOT)
 
-#DATABASE = "postgresql://warp@localhost:5432/warp"
-#DATABASE_ARGS = {}
-DATABASE = "sqlite:///../warp/db.sqlite"
-DATABASE_ARGS = {"pragmas": {"foreign_keys": "ON"}}
+DATABASE = "postgresql://warp@localhost:5432/warp"
+DATABASE_ARGS = {}
+#DATABASE = "sqlite:///../warp/db.sqlite"
+#DATABASE_ARGS = {"pragmas": {"foreign_keys": "ON"}}
 
 DB = playhouse.db_url.connect(DATABASE, autoconnect=False, thread_safe=True, **DATABASE_ARGS)
 
@@ -44,12 +46,12 @@ def generateTableData():
     Book.delete().execute()
     Seat.delete().execute()
 
-    zone = 1
     space = 50
     len = ceil(sqrt(NO_OF_SEATS))
     for seat in range(NO_OF_SEATS):
         x = (seat % len) * space
         y = floor(seat / len) * space
+        zone = random.choice(ZONES)
         name = f"S.{seat}"
         Seat.insert({
             'id': seat,
