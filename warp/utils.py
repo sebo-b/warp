@@ -19,14 +19,12 @@ def getTimeRange(extended = False):
     """ Returns a dict with fromTS and toTS """
     """ today's midnight, today's midnight + WEEKS_IN_ADVANCE """
 
-    res = {}
-
     fromTS = today()
 
     weeksInAdvance = current_app.config['WEEKS_IN_ADVANCE']
     if extended:
-        weeksInAdvance = weeksInAdvance + 2
-        
+        weeksInAdvance += 2
+
     t = gmtime(fromTS)
     toTS = (7 - t.tm_wday) + weeksInAdvance*7
     toTS = 24*3600*toTS + fromTS
@@ -50,11 +48,11 @@ def getNextWeek():
     res = []
     noOfSundays = 0
 
-    weeksInAdvance = current_app.config['WEEKS_IN_ADVANCE'];
+    weeksInAdvance = current_app.config['WEEKS_IN_ADVANCE']
 
     while noOfSundays <= weeksInAdvance:
 
-        t = gmtime(ts)        
+        t = gmtime(ts)
         res.append( {
             "timestamp": ts,
             "date": strftime("%Y-%m-%d",t),

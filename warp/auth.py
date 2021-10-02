@@ -1,5 +1,5 @@
 import flask
-from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.security import check_password_hash
 from warp.db import *
 from . import utils
 
@@ -32,7 +32,7 @@ def login():
         if len(c) == 1 \
            and c[0]['password'] is not None \
            and check_password_hash(c[0]['password'],p):
-            
+
             role = c[0]['role']
 
             if role >= ROLE_BLOCKED:
@@ -45,7 +45,7 @@ def login():
 
         else:
             flask.flash("Wrong username or password")
-        
+
     return flask.render_template('login.html')
 
 @bp.route('/logout')
@@ -55,7 +55,7 @@ def logout():
 
 # We don't use before_app_request decorator here (we register it after the function)
 # to expose a raw function ,so it can be registered in alternative auth modules.
-# 
+#
 # Note: bp.before_app_request is just registering a function, it returns unwrapped function reference
 #       however this may change in the future, so let's keep it clean
 # @bp.before_app_request
