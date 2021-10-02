@@ -12,10 +12,10 @@ def login():
     if flask.session.get('uid'):
 
         flask.session.clear()
-        
+
         mellonEndpoint = flask.current_app.config['MELLON_ENDPOINT']
         endpoint = f"{mellonEndpoint}/login?ReturnTo={flask.url_for('auth.login')}"
-        
+
         return flask.redirect(endpoint)
 
     login = flask.request.environ['MELLON_uid']
@@ -38,7 +38,7 @@ def login():
     else:
 
         with DB.atomic():
-            lastrowid = Users.insert({ 
+            lastrowid = Users.insert({
                     Users.login: login,
                     Users.name: userName,
                     Users.role: ROLE_USER,
@@ -56,10 +56,10 @@ def login():
 def logout():
 
     flask.session.clear()
-    
+
     mellonEndpoint = flask.current_app.config['MELLON_ENDPOINT']
     endpoint = f"{mellonEndpoint}/logout?ReturnTo={flask.url_for('auth.login')}"
-    
+
     return flask.redirect(endpoint)
 
 
