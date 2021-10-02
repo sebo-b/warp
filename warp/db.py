@@ -27,7 +27,7 @@ def init(app):
 
     connStr = app.config['DATABASE']
     connArgs = app.config['DATABASE_ARGS'] if 'DATABASE_ARGS' in app.config else {}
-    
+
     DB = playhouse.db_url.connect(connStr, autoconnect=False, thread_safe=True, **connArgs)
 
     Users.bind(DB)
@@ -44,20 +44,20 @@ def init(app):
         commandParams = {"help": "Create and initialize database.", 'callback': with_appcontext(initDB) }
 
         if 'DATABASE_SAMPLEDATA_SCRIPT' in app.config:
-            commandParams['params'] = [ click.Option(('-s','--sample-data','sample_data'), is_flag = True, default = False, help = "Pupulate database with a sample data.") ]
+            commandParams['params'] = [ click.Option(('-s','--sample-data','sample_data'), is_flag = True, default = False, help = "Populate database with a sample data.") ]
 
         cmd = click.Command('init-db', **commandParams)
         app.cli.add_command(cmd)
 
 def initDB(sample_data = False):
-    
+
     from flask import current_app
 
     schemaPath = current_app.config['DATABASE_INIT_SCRIPT']
 
     with current_app.open_resource(schemaPath) as f, DB:
         sql = f.read().decode('utf8')
-        
+
         # for sqlite we need to use non-standard executescript
         if isinstance(DB,SqliteDatabase):
             DB.cursor().executescript(sql)
