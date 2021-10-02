@@ -1,5 +1,4 @@
 import flask
-from werkzeug.utils import redirect
 from . import auth
 from . import utils
 
