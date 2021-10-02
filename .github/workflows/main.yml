@@ -1,0 +1,12 @@
+on: [push]
+
+jobs:
+  build_container_with_docker:
+    runs-on: ubuntu-latest
+    name: Build containe with Docker
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1
+    - name: Build docker image
+      id: build_docker_image
+      run: docker build -f Dockerfile_DEV -t warp:latest .
