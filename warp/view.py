@@ -1,8 +1,6 @@
 import flask
-from werkzeug.utils import redirect
 from . import auth
 from . import utils
-from time import strftime
 
 from warp.db import *
 
@@ -12,7 +10,7 @@ bp = flask.Blueprint('view', __name__)
 def headerDataInit():
 
     headerDataL = []
-    
+
     headerDataL.append(
         {"text": "Bookings", "endpoint": "view.bookings", "view_args": {} })
 
@@ -67,7 +65,7 @@ def report():
 
 @bp.route("/users")
 def users():
-        
+
     role = flask.session.get('role')
 
     if role > auth.ROLE_MANAGER:

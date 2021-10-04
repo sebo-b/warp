@@ -1,6 +1,4 @@
 import flask
-from flask import app
-from werkzeug.utils import redirect
 from . import auth
 from . import utils
 from jsonschema import validate, ValidationError
@@ -13,11 +11,11 @@ from .db import *
 bp = flask.Blueprint('xhr', __name__)
 
 #Format JSON
-#    sidN: { 
-#       name: "name", 
-#       x: 10, y: 10, 
-#       zid: zid, 
-#       enabled: true|false, 
+#    sidN: {
+#       name: "name",
+#       x: 10, y: 10,
+#       zid: zid,
+#       enabled: true|false,
 #       assigned: 0, 1, 2 (look at WarpSeat.SeatAssignedStates in seat.js)
 #       book: [
 #           { bid: 10, isMine: true, username: "sebo", fromTS: 1, toTS: 2 }
@@ -67,7 +65,7 @@ def zoneGetSeats(zid):
         }
 
         if s['id'] in assignments:
-            
+
             assign = assignments[s['id']]
 
             # NOT_ASSIGNED: 0,
@@ -85,7 +83,7 @@ def zoneGetSeats(zid):
                          .join(Seat, on=(Book.sid == Seat.id)) \
                          .where((Book.fromts < tr['toTS']) & (Book.tots > tr['fromTS']) & (Seat.zid == zid)) \
                          .order_by(Book.fromts)
-    
+
     if role > auth.ROLE_MANAGER:
         bookQuery = bookQuery.where(Seat.enabled == True)
 
@@ -93,11 +91,11 @@ def zoneGetSeats(zid):
 
         sid = str(b[2])
 
-        res[sid]['book'].append({ 
+        res[sid]['book'].append({
             "bid": b[0],
             "isMine": b[1] == uid,
             "username": b[3],
-            "fromTS": b[4], 
+            "fromTS": b[4],
             "toTS": b[5] })
 
     otherZoneBookQuery = Book.select(Book.sid, Book.id, Seat.name, Seat.zid, Book.fromts, Book.tots) \
@@ -124,8 +122,8 @@ def zoneGetSeats(zid):
         res[sid]['book'].append({ 
             "bid": b[1],
             "isMine": True,
-            "fromTS": b[4], 
-            "toTS": b[5] 
+            "fromTS": b[4],
+            "toTS": b[5]
             })
 
     resR = flask.current_app.response_class(
@@ -137,7 +135,7 @@ def zoneGetSeats(zid):
 
 
 # format:
-# { 
+# {
 #   enable: [ sid, sid, ...],
 #   disable: [ sid, sid, ...],
 #   assign: {
@@ -207,7 +205,7 @@ def zoneApply():
                                 "toTS": {"type" : "integer"}
                             },
                             "required": [ "fromTS", "toTS"]
-                        }                       
+                        }
                     }
                 },
                 "required": [ "sid", "dates"],
@@ -288,7 +286,7 @@ def zoneApply():
                         Users.select(apply_data['assign']['sid'],Users.id).where(Users.login.in_(apply_data['assign']['logins'])),
                         (Assign.sid, Assign.uid)
                     ).execute()
-                    
+
 
                     if rowCount != len(apply_data['assign']['logins']):
                         raise WarpErr("Number of affected row is different then in assign.logins.")
@@ -303,10 +301,10 @@ def zoneApply():
 
                     conflicts_in_assign = [
                         {"sid": row['sid'],
-                        "fromTS": row['fromts'],
-                        "toTS": row['tots'],
-                        "login": row['login'],
-                        "username": row['name']} for row in query]
+                         "fromTS": row['fromts'],
+                         "toTS": row['tots'],
+                         "login": row['login'],
+                         "username": row['name']} for row in query]
 
             # befor book we have to remove reservations (as this can be list of conflicting reservations)
             if 'remove' in apply_data:
@@ -323,7 +321,7 @@ def zoneApply():
 
             # then we create new reservations
             if 'book' in apply_data:
-                
+
                 stmt = Seat.select(True) \
                            .where( (Seat.id == apply_data['book']['sid']) & (Seat.enabled == False))
 
@@ -333,7 +331,7 @@ def zoneApply():
                 insertData = [ {
                         Book.uid: uid,
                         Book.sid: apply_data['book']['sid'],
-                        Book.fromts: x['fromTS'], 
+                        Book.fromts: x['fromTS'],
                         Book.tots: x['toTS']
                     } for x in apply_data['book']['dates'] ]
 
@@ -360,7 +358,7 @@ def zoneApply():
 #   data: {
 #         login1: { name: "User 1", role: 1 }
 #         login2: { name: "User 2", role: 2 }
-#         ...    
+#         ...
 #       },
 #   login: user1
 #   real_login: user2
@@ -541,7 +539,7 @@ def editUser():
                 if action_data['role'] < role:
                     raise WarpErr('Cannot add user with higher role than yours')
 
-                Users.insert({ 
+                Users.insert({
                     Users.login: action_data['login'],
                     Users.name: action_data['name'],
                     Users.role: action_data['role'],
@@ -549,11 +547,11 @@ def editUser():
                 }).execute()
 
             elif action_data['action'] == "delete":
-                
+
                 rowCount = Users.delete() \
                                 .where((Users.login == action_data['login']) & (Users.role >= role)) \
                                 .execute()
-                
+
                 if rowCount != 1:
                     raise WarpErr("Wrong number of affected rows")
 
@@ -570,7 +568,7 @@ def editUser():
     query = Users.select(Users.login, Users.name, Users.role).where(Users.login == action_data['login'])
 
     if len(query) == 0:
-        return flask.jsonify([{"login": action_data['login']}])    
+        return flask.jsonify([{"login": action_data['login']}])
     else:
         return flask.jsonify([{
             "login": query[0]['login'],
@@ -595,7 +593,7 @@ def bookingsGet():
                  .where((Book.fromts < tr["toTS"]) & (Book.tots > tr["fromTS"]))
 
     res = []
-    
+
     for row in cursor:
 
         if role >= auth.ROLE_VIEVER:
@@ -713,15 +711,15 @@ def bookingsReport():
         limit = requestData['size']
 
         if "page" in requestData:
-            
-            countCursor = query.columns(COUNT_STAR.alias('count'))                            
+
+            countCursor = query.columns(COUNT_STAR.alias('count'))
             count = countCursor[0]['count']
-            
+
             lastPage = -(-count // limit)   # round up
-            
+
             offset = (requestData['page']-1)*requestData['size']
             query = query.offset(offset)
-        
+
         query = query.limit(limit)
 
     if "sorters" in requestData:
