@@ -28,18 +28,18 @@ function getSelectedDates() {
     for (var e of document.getElementsByClassName('date_checkbox')) {
         if (e.checked) {
             res.push( {
-                fromTS: parseInt(e.value) + parseInt(times[0]), 
-                toTS: parseInt(e.value) + parseInt(times[1]) 
+                fromTS: parseInt(e.value) + parseInt(times[0]),
+                toTS: parseInt(e.value) + parseInt(times[1])
             });
         }
     };
-    
+
     return res;
 }
 
 function initSlider() {
 
-    var slider = document.getElementById('timeslider');      
+    var slider = document.getElementById('timeslider');
     noUiSlider.create(slider, {
         start: window.warpGlobals['defaultSelectedDates'].slider,    //this later on can be anyway overwritten from session storage
         connect: true,
@@ -62,7 +62,10 @@ function initSlider() {
 
 function initSeats() {
 
-    var seatFactory = new WarpSeatFactory(window.warpGlobals.URLs['seatSprite'],"zonemap",window.warpGlobals['zoneData']);
+    var seatFactory = new WarpSeatFactory(
+        window.warpGlobals.URLs['seatSprite'],
+        "zonemap",
+        window.warpGlobals.login);
 
     // register WarpSeats for updates
     var updateSeatsView = function() {
@@ -88,14 +91,14 @@ function initSeatPreview(seatFactory) {
 
         var previewDiv = document.createElement("div");
         previewDiv.className = 'seat_preview';
-    
+
         var previewTitle = previewDiv.appendChild(document.createElement("div"));
         previewTitle.innerText = "Seat "+this.getName();
         previewTitle.className = "seat_preview_title";
 
         // position of the frame
         var pands = this.getPositionAndSize();
-        
+
         var parentWidth = zoneMap.clientWidth;
         var clientPosX = pands.x - zoneMap.scrollLeft;
 
@@ -119,9 +122,9 @@ function initSeatPreview(seatFactory) {
             previewDiv.style.top = "";
             previewDiv.style.bottom = (parentHeight - pands.y - pands.size * 0.30) + "px";
         }
-    
+
         // content of the frame
-        var assignments = this.getAssignments();
+        var assignments = Object.values(this.getAssignments());
         if (assignments.length) {
 
             var header = previewDiv.appendChild(document.createElement("span"));
@@ -129,40 +132,35 @@ function initSeatPreview(seatFactory) {
             header.className = "seat_preview_header";
 
             var table =  previewDiv.appendChild(document.createElement("table"));
-            for (let a of assignments) {   
-                let name = a;                
-                // assignments are either logins or usernames
-                if (typeof(UserData) !== 'undefined') {
-                    name = UserData.getInstance().makeUserStr(a);
-                }             
+            for (let a of assignments) {
                 var tr = table.appendChild( document.createElement("tr"));
-                tr.appendChild( document.createElement("td")).appendChild( document.createTextNode(name));                
+                tr.appendChild( document.createElement("td")).appendChild( document.createTextNode(a));
             }
         }
 
         var bookings = this.getBookings();
         if (bookings.length) {
-            
+
             var header = previewDiv.appendChild(document.createElement("span"))
             header.appendChild(document.createTextNode("Bookings:"));
             header.className = "seat_preview_header";
-            
+
             var table =  previewDiv.appendChild(document.createElement("table"));
             var maxToShow = 8;
 
             for (var b of bookings) {
-    
+
                 if (maxToShow-- == 0) {
                     b.datetime1 = "...";
                     b.datetime2 = "";
                     b.username = "";
                 }
-    
+
                 var tr = table.appendChild( document.createElement("tr"));
                 tr.appendChild( document.createElement("td")).innerText = b.datetime1;
                 tr.appendChild( document.createElement("td")).innerText = b.datetime2;
                 tr.appendChild( document.createElement("td")).innerText = b.username;
-    
+
                 if (maxToShow == 0)
                     break;
             }
@@ -170,7 +168,7 @@ function initSeatPreview(seatFactory) {
 
         zoneMap.appendChild(previewDiv);
     });
-    
+
     seatFactory.on( 'mouseout', function() {
         var previewDivs = document.getElementsByClassName('seat_preview');
         for (var d of previewDivs) {
@@ -183,7 +181,7 @@ function initSeatPreview(seatFactory) {
 function initAssignedSeatsModal(seat) {
 
     var assignModalEl = document.getElementById("assigned_seat_modal");
-    if (!assignModalEl || typeof(UserData) === 'undefined')
+    if (!assignModalEl || typeof(ZoneUserData) === 'undefined')
         return null;
 
     var assignModal = M.Modal.getInstance(assignModalEl);
@@ -191,12 +189,12 @@ function initAssignedSeatsModal(seat) {
         assignModal = M.Modal.init(assignModalEl, {});
     }
 
-    var userData = UserData.getInstance();
+    var zoneUserData = ZoneUserData.getInstance();
 
     var chipsEl = document.getElementById('assigned_seat_chips');
 
     var chipsOptions;
-    var chips = M.Chips.getInstance(chipsEl); 
+    var chips = M.Chips.getInstance(chipsEl);
     if (chips) {
         chipsOptions = chips.options;
         chips.destroy(); // we have to recreate chips instance to clean up all chips inside
@@ -204,21 +202,20 @@ function initAssignedSeatsModal(seat) {
     else {
 
         var onChipApp = function(chip) {
-    
+
             var i = this.chipsData.length - 1;  // chips are always pushed
             var t = this.chipsData[i].tag;
-    
+
             if (!(t in this.autocomplete.options.data)) {
                 this.deleteChip(i);
             }
         }
-    
+
         var chipsAutocompleteData = {};
-        var data = userData.getData();
-        for (let login in data) {
-            chipsAutocompleteData[ userData.makeUserStr(login)] = null;
+        for (let d of zoneUserData.formatedIterator()) {
+            chipsAutocompleteData[ d] = null;
         }
-    
+
         chipsOptions = {
             autocompleteOptions: {
                 data: chipsAutocompleteData,
@@ -230,14 +227,14 @@ function initAssignedSeatsModal(seat) {
             },
             limit: Infinity,
             onChipAdd: onChipApp
-        };        
+        };
     }
 
-    chips = M.Chips.init(chipsEl, chipsOptions);    
+    chips = M.Chips.init(chipsEl, chipsOptions);
 
     var assignments = seat.getAssignments();
-    for (let login of assignments) {
-        chips.addChip({tag: userData.makeUserStr(login)})
+    for (let login in assignments) {
+        chips.addChip({tag: ZoneUserData.makeUserStr(login,assignments[login])})
     }
 
     return assignModal;
@@ -246,7 +243,7 @@ function initAssignedSeatsModal(seat) {
 
 function initActionMenu(seatFactory) {
 
-    if (window.warpGlobals.isV)
+    if (window.warpGlobals.isZoneViewer)
         return;
 
     var seat = null;    // used for passing seat to btn click events (closure)
@@ -291,7 +288,7 @@ function initActionMenu(seatFactory) {
                 break;
         };
 
-        if (window.warpGlobals.isM) {
+        if (window.warpGlobals.isZoneAdmin) {
             actions.push('assign-modal');
             actions.push('assign');
             if (state == WarpSeat.SeatStates.DISABLED)
@@ -302,7 +299,7 @@ function initActionMenu(seatFactory) {
 
         if (!actions.length)
             return;
-        
+
         let msg1El = document.getElementById("action_modal_msg1");
         msg1El.innerHTML = "";
 
@@ -326,7 +323,7 @@ function initActionMenu(seatFactory) {
         let msg2El = document.getElementById("action_modal_msg2");
         msg2El.innerHTML = "";
 
-        if (removeMsg) {            
+        if (removeMsg) {
 
             var myConflictsTable = document.createElement("table");
             for (let c of seatFactory.getMyConflictingBookings()) {
@@ -350,7 +347,7 @@ function initActionMenu(seatFactory) {
             else
                 btn.style.display = "none";
         }
-    
+
         //var actionElTitle = document.getElementById('action_modal_title');
         //actionElTitle.innerText = "Seat: "+this.getName();
 
@@ -359,7 +356,7 @@ function initActionMenu(seatFactory) {
     });
 
     var actionBtnClicked = function(e) {
-        
+
         // this is not a real action, it should just show modal
         // real action button is inside modal
         if (this.dataset.action == 'assign-modal') {
@@ -368,8 +365,8 @@ function initActionMenu(seatFactory) {
             assignModal.open();
             return;
         }
- 
-        var xhr = new XMLHttpRequest();    
+
+        var xhr = new XMLHttpRequest();
         xhr.open("POST", window.warpGlobals.URLs['zoneApply']);
         xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
         xhr.addEventListener("load", function(e) {
@@ -398,7 +395,7 @@ function initActionMenu(seatFactory) {
                     }
                     msg += rList.join('<br>');
                 }
-                
+
                 if (msg == "")
                     M.toast({html: 'Action successfull.'});
                 else
@@ -413,16 +410,14 @@ function initActionMenu(seatFactory) {
 
         var applyData = {};
 
-        if (this.dataset.action == "assign" && typeof(UserData) !== 'undefined') {
-
-            var userData = UserData.getInstance();
+        if (this.dataset.action == "assign" && typeof(ZoneUserData) !== 'undefined') {
 
             var chipsEl = document.getElementById('assigned_seat_chips');
             var chips = M.Chips.getInstance(chipsEl);
 
             var logins = [];
             for (var c of chips.getData()) {
-                logins.push(userData.makeUserStrRev(c.tag));
+                logins.push(ZoneUserData.makeUserStrRev(c.tag));
             }
 
             applyData['assign'] = {
@@ -430,7 +425,7 @@ function initActionMenu(seatFactory) {
                 logins: logins
             }
         }
-        
+
         if (this.dataset.action == 'enable' || this.dataset.action == 'disable') {
             applyData[this.dataset.action] = [ seat.getSid() ];
         }
@@ -480,8 +475,8 @@ function initDateSelectorStorage() {
 
         if (cleanCBSelections.length)
             break;
-        
-        restoredSelections.cb = window.warpGlobals['defaultSelectedDates'].cb;        
+
+        restoredSelections.cb = window.warpGlobals['defaultSelectedDates'].cb;
     }
 
     restoredSelections.cb = cleanCBSelections;
@@ -505,7 +500,7 @@ function initDateSelectorStorage() {
 
     for (let cb of document.getElementsByClassName('date_checkbox'))
         cb.addEventListener('change', cbChange);
-    
+
     slider.noUiSlider.on('update', function(values, handle, unencoded, tap, positions, noUiSlider) {
 
         let zoneSelections = JSON.parse( storage.getItem('zoneSelections'));
@@ -513,7 +508,7 @@ function initDateSelectorStorage() {
         storage.setItem('zoneSelections', JSON.stringify(zoneSelections));
 
     });
-        
+
 }
 
 function initShiftSelectDates() {
@@ -545,7 +540,7 @@ function initShiftSelectDates() {
                             new Event('change', {bubbles: true, cancelable: false}));
                     }
                 }
-                    
+
             }
 
             // we should not call preventDefault() as this checkbox must be switched as well (and 'change' event dispatched)
@@ -579,7 +574,7 @@ function initZoneHelp() {
         d.addEventListener('click', function() { helpModal.open(); } )
     }
 
-    
+
 }
 
 function initDatetimeSidenav() {

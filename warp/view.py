@@ -1,4 +1,5 @@
 import flask
+import peewee
 from . import auth
 from . import utils
 
@@ -15,6 +16,11 @@ def headerDataInit():
         {"text": "Bookings", "endpoint": "view.bookings", "view_args": {} })
 
     zoneCursor = Zone.select(Zone.id, Zone.name)
+
+    if not flask.g.isAdmin:
+        zoneCursor = zoneCursor.where(
+            Zone.id.in_( ZoneAssign.select(ZoneAssign.zid).where(ZoneAssign.login.in_(flask.g.groups)) )
+            )
 
     for z in zoneCursor:
         headerDataL.append(
@@ -38,8 +44,6 @@ def headerDataInit():
 
     return { "headerDataL": headerDataL,
              "headerDataR": headerDataR,
-             "isManager": flask.session.get('role') <= auth.ROLE_MANAGER,
-             "isViewer": flask.session.get('role') >= auth.ROLE_VIEVER,
              'hasLogout': 'auth.logout' in flask.current_app.view_functions
     }
 
@@ -55,9 +59,7 @@ def bookings():
 @bp.route("/report")
 def report():
 
-    role = flask.session.get('role')
-
-    if role > auth.ROLE_MANAGER:
+    if not flask.g.isAdmin:
         flask.abort(403)
 
     return flask.render_template('report.html')
@@ -66,9 +68,7 @@ def report():
 @bp.route("/users")
 def users():
 
-    role = flask.session.get('role')
-
-    if role > auth.ROLE_MANAGER:
+    if not flask.g.isAdmin:
         flask.abort(403)
 
     return flask.render_template('users.html')
@@ -76,20 +76,21 @@ def users():
 @bp.route("/zone/<zid>")
 def zone(zid):
 
-    zoneCursor = Zone.select(Zone.id, Zone.name, Zone.image)
+    if flask.g.isAdmin:
+        zoneRole = ZONE_ROLE_ADMIN
+    else:
+        zoneRole = ZoneAssign.select(peewee.fn.MIN(ZoneAssign.zone_role) ) \
+                                    .where(ZoneAssign.zid == zid) \
+                                    .where(ZoneAssign.login.in_(flask.g.groups)) \
+                                    .group_by(ZoneAssign.zid).scalar()
 
-    zone_data = {
-        "names": {}
-    }
+        if zoneRole is None:
+            flask.abort(403)
 
-    for z in zoneCursor:
-        zone_data["names"][z['id']] = z['name']
+    zoneMapImage = Zone.select(Zone.image) \
+                         .where(Zone.id == zid).scalar()
 
-        if z['id'] == int(zid):
-            zone_data['id'] = zid
-            zone_data['image'] = z['image']
-
-    if "id" not in zone_data:
+    if zoneMapImage is None:
         flask.abort(404)
 
     nextWeek = utils.getNextWeek()
@@ -102,4 +103,19 @@ def zone(zid):
             defaultSelectedDates['cb'] = [d['timestamp']]
             break
 
-    return flask.render_template('zone.html',zone_data=zone_data, nextWeek=nextWeek, defaultSelectedDates=defaultSelectedDates)
+    if flask.g.isAdmin or zoneRole <= ZONE_ROLE_ADMIN:
+        zoneRole = {'isZoneAdmin': True}
+    elif zoneRole <= ZONE_ROLE_USER:
+        zoneRole = {}
+    elif zoneRole <= ZONE_ROLE_VIEWER:
+        zoneRole = {'isZoneViewer': True}
+    else:
+        raise Exception('Undefined role')
+
+
+    return flask.render_template('zone.html',
+        zoneMapImage=zoneMapImage,
+        **zoneRole,
+        zoneId = zid,
+        nextWeek=nextWeek,
+        defaultSelectedDates=defaultSelectedDates)

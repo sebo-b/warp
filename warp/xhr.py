@@ -5,54 +5,61 @@ from jsonschema import validate, ValidationError
 import xlsxwriter
 import orjson
 import io
+import peewee
 
 from .db import *
 
 bp = flask.Blueprint('xhr', __name__)
 
 #Format JSON
-#    sidN: {
-#       name: "name",
-#       x: 10, y: 10,
-#       zid: zid,
-#       enabled: true|false,
-#       assigned: 0, 1, 2 (look at WarpSeat.SeatAssignedStates in seat.js)
-#       book: [
-#           { bid: 10, isMine: true, username: "sebo", fromTS: 1, toTS: 2 }
-#       assignments: [ login1, login2, ... ]        #only for admin
-#       assignments: [ name1, name2, ... ]          #for non-admins
-# note that book array is sorted on fromTS
+#   zones: {
+#       zidN: "Zone name" }
+#   seats: {
+#       sidN: {
+#          name: "name",
+#          x: 10, y: 10,
+#          zid: zid,
+#          enabled: true|false,
+#          assigned: 0, 1, 2 (look at WarpSeat.SeatAssignedStates in seat.js)
+#          book: [
+#              { bid: 10, isMine: true, username: "sebo", fromTS: 1, toTS: 2 }
+#          assignments: { login1: name1, login2: name2, ... ]
+#    note that book array is sorted on fromTS
 @bp.route("/zone/getSeats/<zid>")
 def zoneGetSeats(zid):
 
-    res = {}
+    res = {
+        "zones": {},
+        "seats": {}
+    }
 
-    uid = flask.session.get('uid')
-    role = flask.session.get('role')
+    if flask.g.isAdmin:
+        zoneRole = ZONE_ROLE_ADMIN
+    else:
+        zoneRole = ZoneAssign.select(peewee.fn.MIN(ZoneAssign.zone_role)) \
+                       .where((ZoneAssign.zid == zid) & (ZoneAssign.login.in_(flask.g.groups))) \
+                       .group_by(ZoneAssign.zid).scalar()
 
-    assignCursor = Assign.select(Assign.sid, Assign.uid, Users.login, Users.name).join(Users,on=(Assign.uid == Users.id))
+    assignCursor = SeatAssign.select(SeatAssign.sid, Users.login, Users.name) \
+                             .join(Users,on=(SeatAssign.login == Users.login)) \
+                             .join(Seat, on=(SeatAssign.sid == Seat.id)) \
+                             .where(Seat.zid == zid)
 
     assignments = {}
     for r in assignCursor:
 
         if r['sid'] not in assignments:
-            assignments[r['sid']] = { 'assigned_to_me': False, 'logins': [], 'names': []}
+            assignments[r['sid']] = {}
 
-        if r['uid'] == uid:
-            assignments[r['sid']]['assigned_to_me'] = True
-
-        assignments[r['sid']]['logins'].append(r['login'])
-        assignments[r['sid']]['names'].append(r['name'])
+        assignments[r['sid']][r['login']] = r['name']
 
     seatsCursor = Seat.select(Seat.id, Seat.name, Seat.x, Seat.y, Seat.zid, Seat.enabled) \
                         .where(Seat.zid == zid)
-#                      .join(Zone, on=(Seat.zid == Zone.id)) \
-#                      .where(Zone.zone_group == zoneGroup)
 
-    if role > auth.ROLE_MANAGER:
+    if zoneRole != ZONE_ROLE_ADMIN:
         seatsCursor = seatsCursor.where(Seat.enabled == True)
 
-    for s in seatsCursor:
+    for s in seatsCursor.iterator():
 
         seatD = {
             "name": s['name'],
@@ -60,71 +67,72 @@ def zoneGetSeats(zid):
             "y": s['y'],
             "zid": s['zid'],
             "enabled": s['enabled'] != 0,
-            "assigned": 0,
             "book": []
         }
 
         if s['id'] in assignments:
+            seatD['assignments'] = assignments[s['id']]
 
-            assign = assignments[s['id']]
-
-            # NOT_ASSIGNED: 0,
-            # ASSIGNED: 1,    // not to me
-            # ASSIGNED_TO_ME: 2
-            seatD['assigned'] = 2 if assign['assigned_to_me'] else 1
-            seatD['assignments'] = assign['logins'] if role <= auth.ROLE_MANAGER else assign['names']
-            
-        res[str(s['id'])] = seatD
+        res['seats'][ str(s['id']) ] = seatD
 
     tr = utils.getTimeRange()
 
-    bookQuery = Book.select(Book.id, Book.uid, Book.sid, Users.name.alias('username'), Book.fromts, Book.tots) \
-                         .join(Users, on=(Book.uid == Users.id)) \
+    bookQuery = Book.select(Book.id, Book.login, Book.sid, Users.name.alias('username'), Book.fromts, Book.tots) \
+                         .join(Users, on=(Book.login == Users.login)) \
                          .join(Seat, on=(Book.sid == Seat.id)) \
                          .where((Book.fromts < tr['toTS']) & (Book.tots > tr['fromTS']) & (Seat.zid == zid)) \
                          .order_by(Book.fromts)
 
-    if role > auth.ROLE_MANAGER:
+    if zoneRole != ZONE_ROLE_ADMIN:
         bookQuery = bookQuery.where(Seat.enabled == True)
 
     for b in DB.execute(bookQuery):
 
         sid = str(b[2])
 
-        res[sid]['book'].append({
+        res['seats'][sid]['book'].append({
             "bid": b[0],
-            "isMine": b[1] == uid,
+            "isMine": b[1] == flask.g.login,    #TODO_X
             "username": b[3],
             "fromTS": b[4],
             "toTS": b[5] })
 
+    # User should get all his conflicting bookings even if he is not assigned to the zone
+    # this is useful in case of reassignment
+    # Also user is not allowed to book in not-assigned zones, but he/she is allowed to delete
+    # own bookings from not-assigned zones
     otherZoneBookQuery = Book.select(Book.sid, Book.id, Seat.name, Seat.zid, Book.fromts, Book.tots) \
-                            .join(Users, on=(Book.uid == Users.id)) \
                             .join(Seat, on=(Book.sid == Seat.id)) \
                             .join(Zone, on=(Seat.zid == Zone.id)) \
                             .where( (Seat.zid != zid) & (Seat.enabled == True) ) \
                             .where(Zone.zone_group == ( \
                                 Zone.select(Zone.zone_group).where(Zone.id == zid)) ) \
-                            .where(Book.uid == uid) \
+                            .where(Book.login == flask.g.login) \
                             .order_by(Book.fromts).tuples()
+
+    usedZones = {zid}
 
     for b in otherZoneBookQuery.iterator():
 
         sid = str(b[0])
 
         if sid not in res:
-            res[sid] = {
+            res['seats'][sid] = {
                 "name": b[2],
                 "zid": b[3],
                 "book": []
             }
+            usedZones.add(b[3])
 
-        res[sid]['book'].append({ 
+        res['seats'][sid]['book'].append({
             "bid": b[1],
             "isMine": True,
             "fromTS": b[4],
             "toTS": b[5]
             })
+
+    usedZonesQuery = Zone.select(Zone.id,Zone.name).where(Zone.id.in_(usedZones)).tuples()
+    res['zones'] = {str(i[0]): i[1] for i in usedZonesQuery}
 
     resR = flask.current_app.response_class(
         response=orjson.dumps(res),
@@ -156,12 +164,6 @@ def zoneApply():
 
     if not flask.request.is_json:
         flask.abort(404)
-
-    uid = flask.session.get('uid')
-    role = flask.session.get('role')
-
-    if role >= auth.ROLE_VIEVER:
-        flask.abort(403)
 
     apply_data = flask.request.get_json()
 
@@ -226,7 +228,8 @@ def zoneApply():
         ]
     }
 
-    if role >= auth.ROLE_USER:
+    #Global admin doesn't have time restriction
+    if not flask.g.isAdmin:
         ts = utils.getTimeRange()
         schema["properties"]["book"]["properties"]['dates']['items']["properties"]["fromTS"]["minimum"] = ts["fromTS"]
         schema["properties"]["book"]["properties"]['dates']['items']["properties"]["fromTS"]["maximum"] = ts["toTS"]
@@ -238,8 +241,39 @@ def zoneApply():
     except ValidationError as err:
         return {"msg": "invalid input" }, 400
 
-    if ('enable' in apply_data or 'disable' in apply_data or 'assign' in apply_data) and role > auth.ROLE_MANAGER:
-        return {"msg": "Forbidden" }, 403
+    if not flask.g.isAdmin:
+
+        seatsReqAdmin = []
+        if 'enable' in apply_data: seatsReqAdmin.extend(apply_data['enable'])
+        if 'disable' in apply_data: seatsReqAdmin.extend(apply_data['disable'])
+        if 'assign' in apply_data: seatsReqAdmin.append(apply_data['assign']['sid'])
+
+        seatsReqUser = []
+        if 'book' in apply_data: seatsReqUser.append(apply_data['book']['sid'])
+        if 'remove' in apply_data:
+            removeQ = Book.select(Book.sid.distinct()) \
+                          .where(Book.id.in_(apply_data['remove'])).tuples()
+            seatsReqUser.extend( [ i[0] for i in removeQ] )
+
+        if seatsReqAdmin or seatsReqUser:
+
+            zoneAssignQuery = ZoneAssign.select(ZoneAssign.zid.alias('zid'), peewee.fn.MIN(ZoneAssign.zone_role).alias('zone_role') ) \
+                                        .where(ZoneAssign.login.in_(flask.g.groups)) \
+                                        .group_by(ZoneAssign.zid)
+
+            rolesQuery = Seat.select( Seat.id, zoneAssignQuery.c.zone_role ) \
+                            .join( zoneAssignQuery, join_type=peewee.JOIN.LEFT_OUTER,  on=(Seat.zid == zoneAssignQuery.c.zid) ) \
+                            .where(Seat.id.in_(seatsReqAdmin+seatsReqUser)) \
+                            .tuples()
+
+            if len(rolesQuery) == 0:
+                return flask.abort(403)
+
+            for r in rolesQuery:
+                if r[1] is None \
+                    or ( r[1] > ZONE_ROLE_USER and r[0] in seatsReqUser ) \
+                    or ( r[1] > ZONE_ROLE_ADMIN and r[0] in seatsReqAdmin ):
+                    return {"msg": "Forbidden" }, 403
 
     conflicts_in_disable = None
     conflicts_in_assign = None
@@ -260,7 +294,7 @@ def zoneApply():
                 ts = utils.getTimeRange(True)
 
                 query = Book.select(Book.sid, Book.fromts, Book.tots, Users.login, Users.name) \
-                            .join(Users, on=(Book.uid == Users.id)) \
+                            .join(Users, on=(Book.login == Users.login)) \
                             .where((Book.fromts < ts['toTS']) & (Book.tots > ts['fromTS'])) \
                             .where(Book.sid.in_(apply_data['disable']))
 
@@ -278,15 +312,16 @@ def zoneApply():
 
             if 'assign' in apply_data:
 
-                Assign.delete().where(Assign.sid == apply_data['assign']['sid']).execute()
+                SeatAssign.delete().where(SeatAssign.sid == apply_data['assign']['sid']).execute()
 
                 if len(apply_data['assign']['logins']):
 
-                    rowCount = Assign.insert(
-                        Users.select(apply_data['assign']['sid'],Users.id).where(Users.login.in_(apply_data['assign']['logins'])),
-                        (Assign.sid, Assign.uid)
-                    ).execute()
+                    insertData = [{
+                        SeatAssign.sid: apply_data['assign']['sid'],
+                        SeatAssign.login: l
+                        } for l in apply_data['assign']['logins']]
 
+                    rowCount = SeatAssign.insert(insertData).execute()
 
                     if rowCount != len(apply_data['assign']['logins']):
                         raise WarpErr("Number of affected row is different then in assign.logins.")
@@ -294,7 +329,7 @@ def zoneApply():
                     ts = utils.getTimeRange(True)
 
                     query = Book.select(Book.sid, Book.fromts, Book.tots, Users.login, Users.name) \
-                                .join(Users, on=(Book.uid == Users.id)) \
+                                .join(Users, on=(Book.login == Users.login)) \
                                 .where((Book.fromts < ts['toTS']) & (Book.tots > ts['fromTS'])) \
                                 .where(Book.sid == apply_data['assign']['sid']) \
                                 .where(Users.login.not_in(apply_data['assign']['logins']))
@@ -310,10 +345,6 @@ def zoneApply():
             if 'remove' in apply_data:
 
                 stmt = Book.delete().where(Book.id.in_(apply_data['remove']))
-
-                if role > auth.ROLE_MANAGER:
-                    stmt = stmt.where(Book.uid == uid)
-
                 rowCount = stmt.execute()
 
                 if rowCount != len(apply_data['remove']):
@@ -328,8 +359,9 @@ def zoneApply():
                 if len(stmt):
                     raise WarpErr("Booking a disabled seat is forbidden.")
 
+                # TODO_X act as
                 insertData = [ {
-                        Book.uid: uid,
+                        Book.login: flask.g.login,
                         Book.sid: apply_data['book']['sid'],
                         Book.fromts: x['fromTS'],
                         Book.tots: x['toTS']
@@ -364,40 +396,32 @@ def zoneApply():
 #   real_login: user2
 #   role: 2
 # }
-@bp.route("/api/getUsers")
-def getUsers():
+@bp.route("/zone/getUsers/<zid>")
+def zoneGetUsers(zid):
 
-    uid = flask.session.get('uid')
-    real_uid = flask.session.get('real-uid')
-    role = flask.session.get('role')
+    if not flask.g.isAdmin:
+        zoneRole = ZoneAssign.select(peewee.fn.MIN(ZoneAssign.zone_role)) \
+                       .where((ZoneAssign.zid == zid) & (ZoneAssign.login.in_(flask.g.groups))) \
+                       .group_by(ZoneAssign.zid).scalar()
+        if zoneRole > ZONE_ROLE_ADMIN:
+            flask.abort(403)
 
-    if role > auth.ROLE_MANAGER:
-        flask.abort(403)
 
-    usersCursor = Users.select()
+    zoneUsers = ZoneAssign.select( \
+            peewee.Case(Groups.login.is_null(), ((True, ZoneAssign.login),), Groups.login).distinct() ) \
+        .where(ZoneAssign.zid == zid) \
+        .join(Groups, join_type=peewee.JOIN.LEFT_OUTER, on=(ZoneAssign.login == Groups.group)).tuples()
 
-    res = {
-        "data": {},
-        "role": role
-    }
+    usersQuery = Users.select(Users.login, Users.name) \
+                       .where(Users.login.in_(zoneUsers)).tuples()
 
-    for u in usersCursor:
+    res = { i[0]: i[1] for i in usersQuery.iterator() }
 
-        res["data"][u["login"]] = {
-            "name": u['name'],
-            "role": u['role']
-        }
+    return flask.current_app.response_class(
+        response=orjson.dumps(res),
+        status=200,
+        mimetype='application/json')
 
-        if u['id'] == uid:
-            res["login"] = u['login']
-
-        if real_uid and u['id'] == real_uid:
-            res["real_login"] = u['login']
-
-    if "real_login" not in res:
-        res["real_login"] = res["login"]
-
-    return res, 200
 
 # Format
 # { login: login }
@@ -623,9 +647,7 @@ def bookingsReport():
     if not flask.request.is_json:
         flask.abort(404)
 
-    role = flask.session.get('role')
-
-    if role > auth.ROLE_MANAGER:
+    if not flask.g.isAdmin:
         flask.abort(403)
 
     requestData = flask.request.get_json()
@@ -692,7 +714,7 @@ def bookingsReport():
     query = Book.select(Book.id, Users.name.alias('user_name'), Users.login, Zone.name.alias('zone_name'), Seat.name.alias('seat_name'), Book.fromts, Book.tots) \
                       .join(Seat, on=(Book.sid == Seat.id)) \
                       .join(Zone, on=(Seat.zid == Zone.id)) \
-                      .join(Users, on=(Book.uid == Users.id))
+                      .join(Users, on=(Book.login == Users.login))
 
     if "filters" in requestData:
         for i in requestData['filters']:

@@ -1,16 +1,27 @@
-DROP TABLE IF EXISTS assign;
+DROP TABLE IF EXISTS seat_assign;
 DROP TABLE IF EXISTS book;
 DROP TABLE IF EXISTS seat;
+DROP TABLE IF EXISTS zone_assign;
 DROP TABLE IF EXISTS zone;
+DROP TABLE IF EXISTS groups;
 DROP TABLE IF EXISTS users;
 
+-- TODO_X type limit
 CREATE TABLE users (
-    id SERIAL PRIMARY KEY, 
-    login text UNIQUE NOT NULL, 
+    login text PRIMARY KEY,
     password text,
     name text,
-    role integer NOT NULL
+    account_type integer NOT NULL
     );
+
+CREATE TABLE groups (
+    "group" text NOT NULL,
+    login text NOT NULL,
+    PRIMARY KEY ("group",login),
+    FOREIGN KEY ("group") REFERENCES users(login),
+    FOREIGN KEY (login) REFERENCES users(login)
+    );
+
 
 CREATE TABLE zone (
     id SERIAL PRIMARY KEY,
@@ -19,8 +30,18 @@ CREATE TABLE zone (
     image text
     );
 
+-- TODO_X zone_role limit
+CREATE TABLE zone_assign (
+    zid integer NOT NULL,
+    login text NOT NULL,
+    zone_role integer NOT NULL,
+    PRIMARY KEY (zid,login),
+    FOREIGN KEY (zid) REFERENCES zone(id),
+    FOREIGN KEY (login) REFERENCES users(login)
+    );
+
 CREATE TABLE seat (
-    id SERIAL PRIMARY KEY, 
+    id SERIAL PRIMARY KEY,
     zid integer NOT NULL,
     name text NOT NULL,
     x integer NOT NULL,
@@ -29,29 +50,29 @@ CREATE TABLE seat (
     FOREIGN KEY (zid) REFERENCES zone(id)
     );
 
-CREATE TABLE assign (
+CREATE TABLE seat_assign (
     sid integer NOT NULL,
-    uid integer NOT NULL,
-    PRIMARY KEY (sid,uid),
+    login text NOT NULL,
+    PRIMARY KEY (sid,login),
     FOREIGN KEY (sid) REFERENCES seat(id),
-    FOREIGN KEY (uid) REFERENCES users(id)
+    FOREIGN KEY (login) REFERENCES users(login)
     );
 
 CREATE INDEX seat_zid
 ON seat(zid);
 
 CREATE TABLE book (
-    id SERIAL PRIMARY KEY, 
-    uid integer NOT NULL,
+    id SERIAL PRIMARY KEY,
+    login text NOT NULL,
     sid integer NOT NULL,
     fromts integer NOT NULL,
     tots integer NOT NULL,
-    FOREIGN KEY (uid) REFERENCES users(id),
+    FOREIGN KEY (login) REFERENCES users(login),
     FOREIGN KEY (sid) REFERENCES seat(id)
     );
 
-CREATE INDEX book_uid
-ON book(uid);
+CREATE INDEX book_login
+ON book(login);
 
 CREATE INDEX book_sid
 ON book(sid);
@@ -62,6 +83,8 @@ ON book(fromts);
 CREATE INDEX book_toTS
 ON book(tots);
 
+
+-- TODO_X check if this works for same time same user
 CREATE OR REPLACE FUNCTION public.book_overlap_insert()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -72,8 +95,8 @@ BEGIN
     END IF;
 
     IF
-        (SELECT CASE WHEN COUNT(*) > 0 AND SUM(CASE WHEN uid = NEW.uid THEN 1 ELSE 0 END) = 0 THEN TRUE ELSE FALSE END 
-        FROM assign WHERE sid = NEW.sid) IS TRUE
+        (SELECT CASE WHEN COUNT(*) > 0 AND SUM(CASE WHEN login = NEW.login THEN 1 ELSE 0 END) = 0 THEN TRUE ELSE FALSE END
+        FROM seat_assign WHERE sid = NEW.sid) IS TRUE
     THEN
         RAISE EXCEPTION 'Seat is assigned to another person';
     END IF;
@@ -82,9 +105,9 @@ BEGIN
         (SELECT COUNT(*) FROM book b
          JOIN seat s on b.sid = s.id
          JOIN zone z on s.zid = z.id
-         WHERE z.zone_group = 
+         WHERE z.zone_group =
             (SELECT zone_group FROM zone z JOIN seat s on z.id = s.zid WHERE s.id = NEW.sid LIMIT 1)
-         AND (b.sid = NEW.sid OR b.uid = NEW.uid)
+         AND (b.sid = NEW.sid OR b.login = NEW.login)
          AND b.fromTS < NEW.toTS
          AND b.toTS > NEW.fromTS) > 0
     THEN

@@ -8,12 +8,26 @@
 
     <script>
         window.warpGlobals.URLs['zoneApply'] = "{{ url_for('xhr.zoneApply') }}";
-        window.warpGlobals.URLs['getSeat'] = "{{ url_for('xhr.zoneGetSeats',zid=zone_data['id']) }}";
+        window.warpGlobals.URLs['getSeat'] = "{{ url_for('xhr.zoneGetSeats',zid=zoneId) }}";
         window.warpGlobals.URLs['seatSprite'] = "{{ url_for('static',filename='seat_icons.png') }}";
 
         window.warpGlobals['defaultSelectedDates'] = {{ defaultSelectedDates | tojson }};
-        window.warpGlobals['zoneData'] = {{ zone_data | tojson }};
+
+        {% if isZoneAdmin %}
+        window.warpGlobals.isZoneAdmin = true;
+
+        window.warpGlobals.URLs['zoneGetUsers'] = "{{ url_for('xhr.zoneGetUsers',zid=zoneId)}}";
+        window.warpGlobals.URLs['actAsSet'] = "{{ url_for('xhr.actAsSet')}}";
+        {% elif isZoneViewer %}
+        window.warpGlobals.isZoneViewer = true;
+        {% endif %}
+
     </script>
+
+    {% if isZoneAdmin %}
+    <script type="text/javascript" src="{{ url_for('static', filename='zoneuserdata.js') }}"></script>
+    {# TODO2 <script type="text/javascript" src="{{ url_for('static', filename='actas.js') }}"></script> #}
+    {% endif %}
 
     <script src="{{ url_for('static', filename='zone.js') }}"></script>
     <script src="{{ url_for('static', filename='seat.js') }}"></script>
@@ -24,6 +38,7 @@
     {{ super() }}
 
 
+    {% if not isZoneViewer %}
     <div id="action_modal" class="modal bottom-sheet">
         <div class="modal-content">
             <h4 id="action_modal_title" style="display: none;"></h4>
@@ -38,7 +53,7 @@
                     <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="book">Book</a>
                     <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="update">Update</a>
                     <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="delete">Remove</a>
-                    {% if isManager %}
+                    {% if isZoneAdmin %}
                     <br>
                     <a href="#!" class="modal-close waves-effect waves-light btn red darken-2 zone_action_btn" data-action="assign-modal">Assign</a>
                     <a href="#!" class="modal-close waves-effect waves-light btn red darken-2 zone_action_btn" data-action="enable">Enable</a>
@@ -48,8 +63,9 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
-    {% if isManager %}
+    {% if isZoneAdmin %}
     <div id="assigned_seat_modal" class="modal">
         <div class="modal-content">
             <h4 id="assigned_seat_header"></h4>
@@ -57,7 +73,7 @@
             <div class="chips chips-autocomplete" id="assigned_seat_chips"></div>
           </div>
           <div class="modal-footer">
-            <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="assign">Set</a>              
+            <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="assign">Set</a>
             <a href="#!" class="modal-close waves-effect waves-light btn-flat">Cancel</a>
           </div>
     </div>
@@ -87,13 +103,13 @@
                 </tr>
                 <tr>
                     <td><div class="help_modal_sprite" data-sprite="userRebook"></div></td>
-                    <td>The seat is booked by you, but not exactly on the selected date or time. 
+                    <td>The seat is booked by you, but not exactly on the selected date or time.
                         You can update booking, all your other reservations at that time will be automatically updated.
                     </td>
                 </tr>
                 <tr>
                     <td><div class="help_modal_sprite" data-sprite="userConflict"></div></td>
-                    <td>The seat is booked by you, but not exactly on the selected date or time. 
+                    <td>The seat is booked by you, but not exactly on the selected date or time.
                         You CANNOT update the booking as it is conflicting with another user booking.
                     </td>
                 </tr>
@@ -105,11 +121,11 @@
                 </tr>
                 <tr>
                     <td><div class="help_modal_sprite" data-sprite="rebookAssigned"></div></td>
-                    <td>The same meaning as the green type icon, but the seat is assigned to you, not assigned people cannot book it. 
+                    <td>The same meaning as the green type icon, but the seat is assigned to you, not assigned people cannot book it.
                         Note that assignment isn't necessarily exclusive, the seat can be assigned to more than one person.
                     </td>
                 </tr>
-                {% if isManager %}
+                {% if isZoneAdmin %}
                 <tr>
                     <td><div class="help_modal_sprite" data-sprite="disabled"></div></td>
                     <td>The seat is disabled, cannot be booked, and is not visible to non-admins.</td>
@@ -136,7 +152,7 @@
     {{ super() }}
 
     <div class="zone_container">
-        
+
         <div id="zone_datetime_container">
             <div class="zone_datelist">
                 {% for w in nextWeek %}
@@ -145,7 +161,7 @@
                         <input class="filled-in date_checkbox" type="checkbox" value="{{w['timestamp']}}" />
                         <span>{{ w['weekday'] }}, {{ w['date'] }}</span>
                     </label>
-                </p>        
+                </p>
                 {% endfor %}
             </div>
 
@@ -158,7 +174,7 @@
                 <i class="material-icons">close</i>
             </div>
         </div>
-    
+
 
         <div class="zone_map" id="zonemap">
             <div class="zonemap_help">
@@ -166,8 +182,8 @@
             </div>
             <div class="zonemap_datetime_trigger sidenav-trigger" data-target="zone_datetime_container">
                 <img src="{{ url_for('static', filename='schedule_icon_side.png') }}">
-            </div>            
-            <img src="{{ url_for('static', filename=zone_data['image']) }}">                        
+            </div>
+            <img src="{{ url_for('static', filename=zoneMapImage) }}">
         </div>
 
 

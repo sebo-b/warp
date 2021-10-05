@@ -27,19 +27,18 @@ def login():
         u = flask.request.form.get('login')
         p =  flask.request.form.get('password')
 
-        c = Users.select().where(Users.login == u)
+        c = Users.select().where((Users.login == u) & (Users.account_type != ACCOUNT_TYPE_GROUP))
 
         if len(c) == 1 \
            and c[0]['password'] is not None \
            and check_password_hash(c[0]['password'],p):
 
-            role = c[0]['role']
+            account_type = c[0]['account_type']
 
-            if role >= ROLE_BLOCKED:
+            if account_type == ACCOUNT_TYPE_BLOCKED:
                 flask.flash("Your account is blocked.")
             else:
-                flask.session['uid'] = c[0]['id']
-                flask.session['role'] = c[0]['role']
+                flask.session['login'] = c[0]['login']
                 flask.session['login_time'] = utils.now()
                 return flask.redirect(flask.url_for('view.index'))
 
@@ -67,9 +66,9 @@ def session():
     if flask.request.endpoint == 'static' and 'zone_maps' not in flask.request.view_args['filename']:
         return
 
-    uid = flask.session.get('uid')
+    login = flask.session.get('login')
 
-    if uid is None:
+    if login is None:
         return flask.redirect(
             flask.url_for('auth.login'))
 
@@ -81,17 +80,16 @@ def session():
             flask.url_for('auth.login'))
 
     # check if user still exists and if it is not blocked
-    real_uid = uid
-    if flask.session.get('real-uid'):
-        real_uid = flask.session.get('real-uid')
+    c = Users.select(Users.account_type).where(Users.login == login)
 
-    c = Users.select(Users.role).where(Users.id == real_uid)
-
-    if len(c) != 1 or c[0]['role'] >= ROLE_BLOCKED:
+    if len(c) != 1 or c[0]['account_type'] >= ACCOUNT_TYPE_BLOCKED:
         return flask.redirect(
             flask.url_for('auth.login'))
 
-    if c[0]['role'] != flask.session.get('role'):
-        flask.session['role'] = c[0]['role']
+    flask.g.isAdmin = c[0]['account_type'] == ACCOUNT_TYPE_ADMIN
+
+    groups = Groups.select(Groups.group).where(Groups.login == login).tuples()
+    flask.g.login = login
+    flask.g.groups = [login] + [ g[0] for g in groups ]
 
 bp.before_app_request(session)

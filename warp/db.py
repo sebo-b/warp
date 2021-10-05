@@ -5,15 +5,31 @@ from flask.cli import with_appcontext
 
 DB = None
 
-Users = Table('users',('id','login','password','name','role'))
+Users = Table('users',('login','password','name','account_type'))
+Groups = Table('groups',('group','login'))
 Seat = Table('seat',('id','zid','name','x','y','enabled'))
 Zone = Table('zone',('id','zone_group','name','image'))
-Book = Table('book',('id','uid','sid','fromts','tots'))
-Assign = Table('assign',('sid','uid'))
+ZoneAssign = Table('zone_assign',('zid','login','zone_role'))
+Book = Table('book',('id','login','sid','fromts','tots'))
+SeatAssign = Table('seat_assign',('sid','login'))
 
 COUNT_STAR = fn.COUNT(SQL('*'))
 
-__all__ = ["DB", "Users", "Seat", "Zone", "Book","Assign", "IntegrityError", "COUNT_STAR"]
+# the highest role must be the lowest value
+ACCOUNT_TYPE_ADMIN = 10
+ACCOUNT_TYPE_USER = 20
+ACCOUNT_TYPE_BLOCKED = 90
+ACCOUNT_TYPE_GROUP = 100
+
+# the highest role must be the lowest value
+ZONE_ROLE_ADMIN = 10
+ZONE_ROLE_USER = 20
+ZONE_ROLE_VIEWER = 30
+
+__all__ = ["DB", "Users", "Groups","Seat", "Zone", "ZoneAssign", "Book","SeatAssign",
+           "IntegrityError", "COUNT_STAR",
+           'ACCOUNT_TYPE_ADMIN','ACCOUNT_TYPE_USER','ACCOUNT_TYPE_BLOCKED','ACCOUNT_TYPE_GROUP',
+           'ZONE_ROLE_ADMIN', 'ZONE_ROLE_USER', 'ZONE_ROLE_VIEWER']
 
 def _connect():
     DB.connect()
@@ -31,10 +47,12 @@ def init(app):
     DB = playhouse.db_url.connect(connStr, autoconnect=False, thread_safe=True, **connArgs)
 
     Users.bind(DB)
+    Groups.bind(DB)
     Seat.bind(DB)
     Zone.bind(DB)
+    ZoneAssign.bind(DB)
     Book.bind(DB)
-    Assign.bind(DB)
+    SeatAssign.bind(DB)
 
     app.before_request(_connect)
     app.teardown_request(_disconnect)

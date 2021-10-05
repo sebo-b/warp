@@ -3,20 +3,9 @@
 {% block header %}
     {{ super() }}
 
-    {% if isManager %}
     <script>
-        window.warpGlobals.URLs['getUsers'] = "{{ url_for('xhr.getUsers')}}";
-        window.warpGlobals.URLs['actAsSet'] = "{{ url_for('xhr.actAsSet')}}";
-        window.warpGlobals.isM = true;
-    </script> 
-    <script type="text/javascript" src="{{ url_for('static', filename='userdata.js') }}"></script>
-    <script type="text/javascript" src="{{ url_for('static', filename='actas.js') }}"></script>
-    {% endif %}
-    {% if isViewer %}
-    <script>
-        window.warpGlobals.isV = true;
+        window.warpGlobals.login = "{{ g.login }}";
     </script>
-    {% endif %}
 
 {% endblock %}
 
@@ -27,7 +16,7 @@
         {% for i in headerDataL %}
         <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}">{{i['text']}}</a></li>
         {% endfor %}
-        {% if isManager %}
+        {% if g.isAdmin %}
         <li class="divider"></li>
         <li class="act-as-container">
             <div class="input-field">
@@ -44,14 +33,14 @@
         <li><a href="{{ url_for('auth.logout') }}">Logout</a></li>
         {% endif %}
     </ul>
-    
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             var e = document.getElementById('mobile-nav');
             M.Sidenav.init(e);
         });
     </script>
-    
+
 {% endblock  %}
 
 {% block content %}
@@ -63,7 +52,7 @@
             <div class='right'>
                 <a href="{{ url_for('view.index')}}" class="right"><img class="logo" src="{{ url_for('static', filename='logo.png') }}"></a>
             </div>
-            {% if isManager %}
+            {% if g.isAdmin %}
             <ul class="right hide-on-med-and-down">
                 {% for i in headerDataR %}
                 <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}">{{i['text']}}</a></li>
@@ -73,7 +62,7 @@
                     <div class="input-field">
                         <input type="text" id="act-as1" class="autocomplete act-as-input" autocomplete="off">
                         <label for="act-as1" class="active">Book as</label>
-                    </div>    
+                    </div>
                 </li>
             </ul>
             {% endif %}
@@ -93,11 +82,11 @@
 {% endblock %}
 
 
-{# 
+{#
 {% if self.container() | trim %}
 <div class="container">
     {% block container %}{% endblock %}
 </div>
 {% endif %}
-#} 
+#}
 

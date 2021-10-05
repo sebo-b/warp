@@ -1,12 +1,25 @@
 
-INSERT INTO users VALUES (1,'admin','pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Admin',1);
-INSERT INTO users VALUES (2,'user1','pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Foo',2);
-INSERT INTO users VALUES (3,'user2','pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Bar',2);
-INSERT INTO users VALUES (4,'user3','pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Baz',2);
+INSERT INTO users VALUES ('admin','pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Admin',10);
+INSERT INTO users VALUES ('user1','pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Foo',20);
+INSERT INTO users VALUES ('user2','pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Bar',20);
+INSERT INTO users VALUES ('user3','pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Baz',20);
 
 INSERT INTO zone VALUES (1,1,'Zone 1A','zone_maps/zone1a.png');
 INSERT INTO zone VALUES (2,1,'Zone 1B','zone_maps/zone1b.png');
 INSERT INTO zone VALUES (3,2,'Parking','zone_maps/parking.png');
+
+INSERT INTO users VALUES ('group_1a',NULL,'Group 1A',100);
+INSERT INTO users VALUES ('group_1b',NULL,'Group 1B',100);
+INSERT INTO users VALUES ('group_parking',NULL,'Group Parking',100);
+
+--INSERT INTO groups VALUES ('group_1a','user1');
+INSERT INTO groups VALUES ('group_1b','user1');
+INSERT INTO groups VALUES ('group_1a','user2');
+
+INSERT INTO zone_assign VALUES (1,'user1',10);
+INSERT INTO zone_assign VALUES (1,'group_1a',20);
+INSERT INTO zone_assign VALUES (2,'group_1b',20);
+INSERT INTO zone_assign VALUES (3,'group_parking',30);
 
 INSERT INTO seat (zid,name,x,y) VALUES (1,'1.1',22,94);
 INSERT INTO seat (zid,name,x,y) VALUES (1,'1.2',84,85);
