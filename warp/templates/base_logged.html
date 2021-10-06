@@ -18,12 +18,6 @@
         {% endfor %}
         {% if g.isAdmin %}
         <li class="divider"></li>
-        <li class="act-as-container">
-            <div class="input-field">
-                <input type="text" id="act-as2" class="autocomplete act-as-input" autocomplete="off">
-                <label for="act-as2" class="active">Book as</label>
-            </div>
-        </li>
         {% for i in headerDataR %}
         <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}">{{i['text']}}</a></li>
         {% endfor %}
@@ -57,13 +51,6 @@
                 {% for i in headerDataR %}
                 <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}">{{i['text']}}</a></li>
                 {% endfor %}
-                <li style="width: 20px">&nbsp;</li>
-                <li class="act-as-container">
-                    <div class="input-field">
-                        <input type="text" id="act-as1" class="autocomplete act-as-input" autocomplete="off">
-                        <label for="act-as1" class="active">Book as</label>
-                    </div>
-                </li>
             </ul>
             {% endif %}
 

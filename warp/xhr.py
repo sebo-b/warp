@@ -14,17 +14,28 @@ bp = flask.Blueprint('xhr', __name__)
 #Format JSON
 #   zones: {
 #       zidN: "Zone name" }
+#   users: {
+#       login: "name"               #TODO_X
 #   seats: {
-#       sidN: {
+#       sidN: {                     # FOR SEAT IN THE CURRENT ZONE
 #          name: "name",
 #          x: 10, y: 10,
 #          zid: zid,
 #          enabled: true|false,
-#          assigned: 0, 1, 2 (look at WarpSeat.SeatAssignedStates in seat.js)
 #          book: [
-#              { bid: 10, isMine: true, username: "sebo", fromTS: 1, toTS: 2 }
+#              { bid: 10, login: "sebo", fromTS: 1, toTS: 2 }
 #          assignments: { login1: name1, login2: name2, ... ]
-#    note that book array is sorted on fromTS
+#       sidM: {                     # FOR SEAT NOT IN THE CURRENT ZONE
+#          name: "name",
+#          zid: zid,
+#          book: [
+#              { bid: 10, fromTS: 1, toTS: 2 }
+#
+#  note that book array is sorted on fromTS
+#
+# this route accepts the following optional arguments:
+#   login=string - sidM... will be for a given user (requires zoneAdmin)
+#   onlyOtherZone=0|1 - returns only zones, users for other zones (sidM...)
 @bp.route("/zone/getSeats/<zid>")
 def zoneGetSeats(zid):
 
@@ -40,93 +51,110 @@ def zoneGetSeats(zid):
                        .where((ZoneAssign.zid == zid) & (ZoneAssign.login.in_(flask.g.groups))) \
                        .group_by(ZoneAssign.zid).scalar()
 
-    assignCursor = SeatAssign.select(SeatAssign.sid, Users.login, Users.name) \
-                             .join(Users,on=(SeatAssign.login == Users.login)) \
-                             .join(Seat, on=(SeatAssign.sid == Seat.id)) \
-                             .where(Seat.zid == zid)
-
-    assignments = {}
-    for r in assignCursor:
-
-        if r['sid'] not in assignments:
-            assignments[r['sid']] = {}
-
-        assignments[r['sid']][r['login']] = r['name']
-
-    seatsCursor = Seat.select(Seat.id, Seat.name, Seat.x, Seat.y, Seat.zid, Seat.enabled) \
-                        .where(Seat.zid == zid)
-
-    if zoneRole != ZONE_ROLE_ADMIN:
-        seatsCursor = seatsCursor.where(Seat.enabled == True)
-
-    for s in seatsCursor.iterator():
-
-        seatD = {
-            "name": s['name'],
-            "x": s['x'],
-            "y": s['y'],
-            "zid": s['zid'],
-            "enabled": s['enabled'] != 0,
-            "book": []
-        }
-
-        if s['id'] in assignments:
-            seatD['assignments'] = assignments[s['id']]
-
-        res['seats'][ str(s['id']) ] = seatD
+    if ('login' in flask.request.args or 'onlyOtherZone' in flask.request.args) and zoneRole > ZONE_ROLE_ADMIN:
+        return {"msg": "not allowed"}, 403
 
     tr = utils.getTimeRange()
+    usedZones = set()
 
-    bookQuery = Book.select(Book.id, Book.login, Book.sid, Users.name.alias('username'), Book.fromts, Book.tots) \
-                         .join(Users, on=(Book.login == Users.login)) \
-                         .join(Seat, on=(Book.sid == Seat.id)) \
-                         .where((Book.fromts < tr['toTS']) & (Book.tots > tr['fromTS']) & (Seat.zid == zid)) \
-                         .order_by(Book.fromts)
+    if flask.request.args.get('onlyOtherZone') not in {'1','True','true'}:
 
-    if zoneRole != ZONE_ROLE_ADMIN:
-        bookQuery = bookQuery.where(Seat.enabled == True)
+        assignCursor = SeatAssign.select(SeatAssign.sid, Users.login, Users.name) \
+                                .join(Users,on=(SeatAssign.login == Users.login)) \
+                                .join(Seat, on=(SeatAssign.sid == Seat.id)) \
+                                .where(Seat.zid == zid)
 
-    for b in DB.execute(bookQuery):
+        assignments = {}
+        for r in assignCursor:
 
-        sid = str(b[2])
+            if r['sid'] not in assignments:
+                assignments[r['sid']] = {}
 
-        res['seats'][sid]['book'].append({
-            "bid": b[0],
-            "isMine": b[1] == flask.g.login,    #TODO_X
-            "username": b[3],
-            "fromTS": b[4],
-            "toTS": b[5] })
+            assignments[r['sid']][r['login']] = r['name']
+
+        seatsCursor = Seat.select(Seat.id, Seat.name, Seat.x, Seat.y, Seat.zid, Seat.enabled) \
+                            .where(Seat.zid == zid)
+
+        if zoneRole != ZONE_ROLE_ADMIN:
+            seatsCursor = seatsCursor.where(Seat.enabled == True)
+
+        for s in seatsCursor.iterator():
+
+            seatD = {
+                "name": s['name'],
+                "x": s['x'],
+                "y": s['y'],
+                "zid": s['zid'],
+                "enabled": s['enabled'] != 0,
+                "book": []
+            }
+
+            if s['id'] in assignments:
+                seatD['assignments'] = assignments[s['id']]
+
+            res['seats'][ str(s['id']) ] = seatD
+
+
+        bookQuery = Book.select(Book.id, Book.login, Book.sid, Users.name.alias('username'), Book.fromts, Book.tots) \
+                            .join(Users, on=(Book.login == Users.login)) \
+                            .join(Seat, on=(Book.sid == Seat.id)) \
+                            .where((Book.fromts < tr['toTS']) & (Book.tots > tr['fromTS']) & (Seat.zid == zid)) \
+                            .order_by(Book.fromts)
+
+        if zoneRole != ZONE_ROLE_ADMIN:
+            bookQuery = bookQuery.where(Seat.enabled == True)
+
+        for b in DB.execute(bookQuery):
+
+            sid = str(b[2])
+
+            res['seats'][sid]['book'].append({
+                "bid": b[0],
+                "login": b[1],
+                "fromTS": b[4],
+                "toTS": b[5] })
+
+        usedZones.add(zid)
+
+    login = flask.request.args.get('login')
+    if login is None:
+         login = flask.g.login
+    else:
+        isLoginInZone = ZoneAssign.select(SQL_ONE) \
+                                .join(Groups, join_type=peewee.JOIN.LEFT_OUTER, on=(ZoneAssign.login == Groups.group)) \
+                                .where(ZoneAssign.zid == zid) \
+                                .where( (Groups.login == login) | (ZoneAssign.login == login)).first()
+
+        if isLoginInZone is None:
+            return {"msg": "not allowed"}, 403
 
     # User should get all his conflicting bookings even if he is not assigned to the zone
     # this is useful in case of reassignment
     # Also user is not allowed to book in not-assigned zones, but he/she is allowed to delete
     # own bookings from not-assigned zones
-    otherZoneBookQuery = Book.select(Book.sid, Book.id, Seat.name, Seat.zid, Book.fromts, Book.tots) \
+    otherZoneBookQuery = Book.select(Book.sid, Seat.name, Seat.zid, Book.id, Book.fromts, Book.tots) \
                             .join(Seat, on=(Book.sid == Seat.id)) \
                             .join(Zone, on=(Seat.zid == Zone.id)) \
                             .where( (Seat.zid != zid) & (Seat.enabled == True) ) \
                             .where(Zone.zone_group == ( \
                                 Zone.select(Zone.zone_group).where(Zone.id == zid)) ) \
-                            .where(Book.login == flask.g.login) \
+                            .where(Book.login == login) \
                             .order_by(Book.fromts).tuples()
-
-    usedZones = {zid}
 
     for b in otherZoneBookQuery.iterator():
 
         sid = str(b[0])
 
-        if sid not in res:
+        if sid not in res['seats']:
             res['seats'][sid] = {
-                "name": b[2],
-                "zid": b[3],
+                "name": b[1],
+                "zid": b[2],
                 "book": []
             }
-            usedZones.add(b[3])
+            usedZones.add(b[2])
 
         res['seats'][sid]['book'].append({
-            "bid": b[1],
-            "isMine": True,
+            "bid": b[3],
             "fromTS": b[4],
             "toTS": b[5]
             })
@@ -151,6 +179,7 @@ def zoneGetSeats(zid):
 #       logins: [ login, login, ... ]
 #   },
 #   book: {
+#       login: login,       #optional, requires ZONE_ROLE_ADMIN and login assigned to the zone
 #       sid: sid,
 #       dates: [
 #           { fromTS: timestamp, toTS: timestamp },
@@ -197,6 +226,7 @@ def zoneApply():
             "book": {
                 "type": "object",
                 "properties": {
+                    "login": {"type": "string"},
                     "sid" : {"type" : "integer"},
                     "dates": {
                         "type": "array",
@@ -247,10 +277,13 @@ def zoneApply():
         if 'enable' in apply_data: seatsReqAdmin.extend(apply_data['enable'])
         if 'disable' in apply_data: seatsReqAdmin.extend(apply_data['disable'])
         if 'assign' in apply_data: seatsReqAdmin.append(apply_data['assign']['sid'])
+        if 'book' in apply_data and 'login' in apply_data['book']: seatsReqAdmin.append(apply_data['book']['sid'])
 
         seatsReqUser = []
         if 'book' in apply_data: seatsReqUser.append(apply_data['book']['sid'])
-        if 'remove' in apply_data:
+
+        # TODO_Xremove require user only for own bookings
+        if 'remove' in apply_data:  #TODO_X remove bids of other user in other zone where current user is not admin
             removeQ = Book.select(Book.sid.distinct()) \
                           .where(Book.id.in_(apply_data['remove'])).tuples()
             seatsReqUser.extend( [ i[0] for i in removeQ] )
@@ -274,6 +307,20 @@ def zoneApply():
                     or ( r[1] > ZONE_ROLE_USER and r[0] in seatsReqUser ) \
                     or ( r[1] > ZONE_ROLE_ADMIN and r[0] in seatsReqAdmin ):
                     return {"msg": "Forbidden" }, 403
+
+    # check if user is assigned to the zone
+    if 'book' in apply_data and 'login' in apply_data['book']:
+        login = apply_data['book']['login']
+        sid = apply_data['book']['sid']
+
+        isLoginInZone = Seat.select(SQL_ONE) \
+                                .join(ZoneAssign, on=(Seat.zid == ZoneAssign.zid)) \
+                                .join(Groups, join_type=peewee.JOIN.LEFT_OUTER, on=(ZoneAssign.login == Groups.group)) \
+                                .where(Seat.id == sid) \
+                                .where( (Groups.login == login) | (ZoneAssign.login == login)).first()
+
+        if isLoginInZone is None:
+            return {"msg": "login not allowed"}, 403
 
     conflicts_in_disable = None
     conflicts_in_assign = None
@@ -341,7 +388,7 @@ def zoneApply():
                          "login": row['login'],
                          "username": row['name']} for row in query]
 
-            # befor book we have to remove reservations (as this can be list of conflicting reservations)
+            # before book we have to remove reservations (as this can be list of conflicting reservations)
             if 'remove' in apply_data:
 
                 stmt = Book.delete().where(Book.id.in_(apply_data['remove']))
@@ -359,9 +406,15 @@ def zoneApply():
                 if len(stmt):
                     raise WarpErr("Booking a disabled seat is forbidden.")
 
-                # TODO_X act as
+                # TODO_X check overlaping dates and remove trigger
+
+                if 'book' in apply_data and 'login' in apply_data['book']:
+                    login = apply_data['book']['login']
+                else:
+                    login = flask.g.login
+
                 insertData = [ {
-                        Book.login: flask.g.login,
+                        Book.login: login,
                         Book.sid: apply_data['book']['sid'],
                         Book.fromts: x['fromTS'],
                         Book.tots: x['toTS']
@@ -421,46 +474,6 @@ def zoneGetUsers(zid):
         response=orjson.dumps(res),
         status=200,
         mimetype='application/json')
-
-
-# Format
-# { login: login }
-@bp.route("/actas/set", methods=["POST"])
-def actAsSet():
-
-    if not flask.request.is_json:
-        flask.abort(404)
-
-    role = flask.session.get('role')
-
-    if role > auth.ROLE_MANAGER:
-        flask.abort(403)
-
-    action_data = flask.request.get_json()
-
-    schema = {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "properties": {
-            "login" : {"type" : "string"}
-        }
-    }
-
-    try:
-        validate(action_data,schema)
-    except ValidationError as err:
-        return {"msg": "invalid input" }, 400
-
-    usersCursor = Users.select(Users.id).where(Users.login == action_data['login'])
-
-    if len(usersCursor) != 1:
-        return {"msg": "not found"}, 404
-
-    if not flask.session.get('real-uid'):
-        flask.session['real-uid'] = flask.session.get('uid')
-
-    flask.session['uid'] = usersCursor[0]['id']
-
-    return {"msg": "ok"}, 200
 
 ##
 # Format:

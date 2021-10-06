@@ -9,20 +9,16 @@
  */
 function WarpSeat(sid,seatData,zonesNames,factory) {
 
-    // reference to some factory properties
-    // we don't want to reference whole factory to not create circular references
-    // between WarpSeat and WarpSeatFactory
-    this.listeners = factory.listeners;
-    this.login = factory.login;
-    this.selectedDates = factory.selectedDates;
-    this.myConflictingBookings = factory.myConflictingBookings;
+    this.factory = factory; //this creates a cycle, but afaik GC can manage it
 
     this.sid = sid;
     this.zoneName = zonesNames[seatData.zid];
+    this.otherZone = !('x' in seatData && 'y' in seatData);
 
     this._setData(seatData);
 
-    if ('x' in seatData && 'y' in seatData) {
+    if (!this.otherZone) {
+
         this.x = seatData.x;
         this.y = seatData.y;
 
@@ -86,7 +82,7 @@ function WarpSeatFactory(spriteURL,rootDivId,login) {
             this.selectedDates.push( Object.assign({},d));
         }
 
-        // for efficient iteration selectedDates must be sorted by fromTS
+        // for efficient iteration selectedDates MUST BE sorted by fromTS
         this.selectedDates.sort((e1,e2) => e1.fromTS - e2.fromTS);  // this could have been done at 'push', but for such a small
                                                                     // array it is not worth it
     }
@@ -100,6 +96,7 @@ function WarpSeatFactory(spriteURL,rootDivId,login) {
  }
 
 // NOTE: seatsData is not cloned
+// you have to call updateAllStates after this method
 WarpSeatFactory.prototype.setSeatsData = function(seatsData = {}) {
 
     var oldSeatsIds = new Set( Object.keys(this.instances))
@@ -121,6 +118,27 @@ WarpSeatFactory.prototype.setSeatsData = function(seatsData = {}) {
     }
 };
 
+// NOTE: seatsData is not cloned
+// you have to call updateAllStates after this method
+WarpSeatFactory.prototype.updateLogin = function(login, seatsData) {
+
+    //delete all other zones seats
+    for (let sid in this.instances) {
+        if (this.instances[sid].isOtherZone()) {
+            this.instances[sid]._destroy();
+            delete this.instances[sid]; //according to the spec it is safe to delete property during iteration
+        }
+    }
+
+    this.login = login;
+
+    //create new seats (all in other zone)
+    for (var sid in seatsData.seats) {
+        var s = new WarpSeat(sid,seatsData.seats[sid],seatsData.zones,this);
+        this.instances[sid] = s;
+    }
+}
+
 /**
  * Returns a list of my bookings which conflicts in the given datetime
  * @param raw if true returns an array of bid's
@@ -136,7 +154,7 @@ WarpSeatFactory.prototype.setSeatsData = function(seatsData = {}) {
 
         for (let i of seat._bookingsIterator()) {
 
-            if (!i.book.isMine)
+            if (!i.book.login == this.login)
                 continue;
 
             if (raw) {
@@ -206,10 +224,22 @@ WarpSeatFactory._formatDatePair = function(b) {
 }
 
 WarpSeat.prototype.getState = function() {
+
+    if (this.otherZone)
+        throw Error("getState can be called only for seats in the current zone")
+
     return this.state;
 }
 
+WarpSeat.prototype.isOtherZone = function() {
+    return this.otherZone;
+}
+
 WarpSeat.prototype.getPositionAndSize = function() {
+
+    if (this.otherZone)
+        throw Error("getPositionAndSize can be called only for seats in the current zone")
+
     return {
         x: this.x,
         y: this.y,
@@ -231,12 +261,14 @@ WarpSeat.prototype.getSid = function() {
 }
 
 WarpSeat.prototype.getAssignments = function() {
+
+    console.assert(!this.otherZone);
     return this.assignments;
 }
 
 /**
  * Returns preformatted booking list
- * @returns array { bid: 10, username: "sebo", isMine: true, fromTS: 1, toTS: 2, datetime1: "yyyy-mm-dd", datetime2: "hh:mm-hh:mm" }
+ * @returns array { username: "sebo", datetime1: "yyyy-mm-dd", datetime2: "hh:mm-hh:mm" }
  *          in case (which should not happen) that reservation is accross days,
  *          datetime{12} will be "yyyy-mm-dd hh:mm"
  */
@@ -245,7 +277,11 @@ WarpSeat.prototype.getBookings = function() {
     var res = [];
 
     for (let i of this._bookingsIterator()) {
-        res.push( Object.assign({}, i.book, WarpSeatFactory._formatDatePair(i.book)));
+        res.push( Object.assign({
+                            username: i.book.login      //TODO_X user name
+                        },
+                        WarpSeatFactory._formatDatePair(i.book)
+                    ));
     }
 
     return res;
@@ -258,7 +294,7 @@ WarpSeat.prototype._bookingsIterator = function*() {
 
     var bookStartIdx = 0;
 
-    for (let date of this.selectedDates) {
+    for (let date of this.factory.selectedDates) {
         for (let b = bookStartIdx; b < this.book.length; ++b) {
 
             let book = this.book[b];
@@ -278,7 +314,7 @@ WarpSeat.prototype._bookingsIterator = function*() {
 
 WarpSeat.prototype._updateState = function() {
 
-    if (!this.selectedDates.length) {
+    if (!this.factory.selectedDates.length) {
         this.state = WarpSeat.SeatStates.NOT_AVAILABLE;
         return this.state;
     }
@@ -288,7 +324,7 @@ WarpSeat.prototype._updateState = function() {
         return this.state;
     }
 
-    if (Object.keys(this.assignments).length > 0 && !(this.login in this.assignments)) {
+    if (Object.keys(this.assignments).length > 0 && !(this.factory.login in this.assignments)) {
         this.state = WarpSeat.SeatStates.ASSIGNED;
         return this.state;
     }
@@ -301,7 +337,7 @@ WarpSeat.prototype._updateState = function() {
 
     for (var i of this._bookingsIterator()) {
 
-        if (i.book.isMine) {
+        if (i.book.login == this.factory.login) {
 
             isMine = true;
 
@@ -319,13 +355,18 @@ WarpSeat.prototype._updateState = function() {
     }
 
     if (isMine)
-        this.myConflictingBookings.add(this.sid);
+        this.factory.myConflictingBookings.add(this.sid);
     else
-        this.myConflictingBookings.delete(this.sid);
+        this.factory.myConflictingBookings.delete(this.sid);
+
+    if (this.otherZone) {
+        this.state = WarpSeat.SeatStates.DISABLED;
+        return this.state;
+    }
 
     if (isMine) {
 
-        if (isExact == this.selectedDates.length)
+        if (isExact == this.factory.selectedDates.length)
             this.state = WarpSeat.SeatStates.CAN_DELETE_EXACT;
         else if (isFree)
             this.state = WarpSeat.SeatStates.CAN_CHANGE;
@@ -346,10 +387,10 @@ WarpSeat.prototype._updateState = function() {
 WarpSeat.prototype._updateView = function() {
 
     // seats form other zones doesn't have divs created
-    if (!this.seatDiv)
+    if (this.otherZone)
         return;
 
-    var assignedToMe = this.login in this.assignments;
+    var assignedToMe = this.factory.login in this.assignments;
 
     switch (this.state) {
 
@@ -363,7 +404,7 @@ WarpSeat.prototype._updateView = function() {
             this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.userConflictOffset;
             break;
         case WarpSeat.SeatStates.CAN_BOOK:
-            if (this.myConflictingBookings.size > 0) {
+            if (this.factory.myConflictingBookings.size > 0) {
                 this.state = WarpSeat.SeatStates.CAN_REBOOK;    //this is not very elegant
                 this.seatDiv.style.backgroundPositionX =
                     assignedToMe ? WarpSeat.Sprites.rebookAssignedOffset : WarpSeat.Sprites.rebookOffset;
@@ -393,12 +434,8 @@ WarpSeat.prototype._updateView = function() {
 
 WarpSeat.prototype._destroy = function() {
 
-    this.myConflictingBookings.delete(this.sid);
-
-    // dereference factory objects
-    this.listeners = null;
-    this.selectedDates = null;
-    this.myConflictingBookings = null;
+    this.factory.myConflictingBookings.delete(this.sid);
+    this.factory = null;
 
     if (this.seatDiv) {
         this.seatDiv.removeEventListener('click',this);
@@ -409,8 +446,8 @@ WarpSeat.prototype._destroy = function() {
 };
 
 WarpSeat.prototype.handleEvent = function(e) {
-    if (e.type in this.listeners) {
-        for (var l of this.listeners[e.type]) {
+    if (e.type in this.factory.listeners) {
+        for (var l of this.factory.listeners[e.type]) {
             l.call(this);
         }
     }
@@ -420,9 +457,19 @@ WarpSeat.prototype.handleEvent = function(e) {
 WarpSeat.prototype._setData = function(seatData) {
 
     this.name = seatData.name;
-    this.enabled = ('enabled' in seatData)? seatData.enabled: true;
-    this.assignments = ('assignments' in seatData)? seatData.assignments: {};
     this.book = seatData.book;  //NOTE: just reference
+
+    if (this.otherZone) {
+        this.enabled = true;
+        this.assignments = {}
+        for (let b in this.book) {
+            this.book[b].login = this.factory.login;
+        }
+    }
+    else {
+        this.enabled = ('enabled' in seatData)? seatData.enabled: true;
+        this.assignments = ('assignments' in seatData)? seatData.assignments: {};
+    }
 
     //this data cannot be updated (at least for now)
     //this.sid = sid;

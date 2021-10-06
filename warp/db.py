@@ -14,6 +14,7 @@ Book = Table('book',('id','login','sid','fromts','tots'))
 SeatAssign = Table('seat_assign',('sid','login'))
 
 COUNT_STAR = fn.COUNT(SQL('*'))
+SQL_ONE = SQL('1')
 
 # the highest role must be the lowest value
 ACCOUNT_TYPE_ADMIN = 10
@@ -27,7 +28,7 @@ ZONE_ROLE_USER = 20
 ZONE_ROLE_VIEWER = 30
 
 __all__ = ["DB", "Users", "Groups","Seat", "Zone", "ZoneAssign", "Book","SeatAssign",
-           "IntegrityError", "COUNT_STAR",
+           "IntegrityError", "COUNT_STAR", "SQL_ONE",
            'ACCOUNT_TYPE_ADMIN','ACCOUNT_TYPE_USER','ACCOUNT_TYPE_BLOCKED','ACCOUNT_TYPE_GROUP',
            'ZONE_ROLE_ADMIN', 'ZONE_ROLE_USER', 'ZONE_ROLE_VIEWER']
 

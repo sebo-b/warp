@@ -49,30 +49,31 @@ ZoneUserData.prototype.formatedIterator = function*() {
     }
 }
 
+// this is just a shortcut function to warp globals
+ZoneUserData.prototype.whoami = function() {
+    let login = window.warpGlobals.login;
+    if (typeof(login) === 'undefined')
+        throw Error('document.warpGlobals.login not defined');
 
-//ZoneUserData.prototype.makeUserStr = function(login) {
-//
-//    if (typeof(login) === 'undefined')
-//        login = this.login;
-//
-//    if (!this.data || !(login in this.data))
-//        return login;
-//
-//    return  this.data[login].name + " ["+login+"]";
-//};
-//
-//ZoneUserData.prototype.makeUserStrRev = function (str) {
-//    const regEx = /\[([^[]*)\]$/;
-//    var login = str.match(regEx);
-//
-//    if (login !== null && login[1] in this.data)
-//        return login[1];
-//
-//    if (str in this.data)
-//        return str;
-//
-//    throw Error("Unknown login");
-//};
+    return login;
+}
+
+ZoneUserData.prototype.makeUserStr = function(login) {
+
+    if (!(login in this.data))
+        throw Error('Unknown login');
+
+    return ZoneUserData.makeUserStr( login, this.data[login]);
+}
+
+ZoneUserData.prototype.makeUserStrRev = function (str) {
+
+    let login = ZoneUserData.makeUserStrRev(str);
+    if (!(login in this.data))
+        return null;
+
+    return login;
+}
 
 ZoneUserData.prototype.on = function (type,listener) {
 

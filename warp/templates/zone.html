@@ -17,7 +17,6 @@
         window.warpGlobals.isZoneAdmin = true;
 
         window.warpGlobals.URLs['zoneGetUsers'] = "{{ url_for('xhr.zoneGetUsers',zid=zoneId)}}";
-        window.warpGlobals.URLs['actAsSet'] = "{{ url_for('xhr.actAsSet')}}";
         {% elif isZoneViewer %}
         window.warpGlobals.isZoneViewer = true;
         {% endif %}
@@ -26,7 +25,7 @@
 
     {% if isZoneAdmin %}
     <script type="text/javascript" src="{{ url_for('static', filename='zoneuserdata.js') }}"></script>
-    {# TODO2 <script type="text/javascript" src="{{ url_for('static', filename='actas.js') }}"></script> #}
+    <script type="text/javascript" src="{{ url_for('static', filename='bookas.js') }}"></script>
     {% endif %}
 
     <script src="{{ url_for('static', filename='zone.js') }}"></script>
@@ -153,26 +152,40 @@
 
     <div class="zone_container">
 
-        <div id="zone_datetime_container">
-            <div class="zone_datelist">
-                {% for w in nextWeek %}
-                <p>
-                    <label>
-                        <input class="filled-in date_checkbox" type="checkbox" value="{{w['timestamp']}}" />
-                        <span>{{ w['weekday'] }}, {{ w['date'] }}</span>
-                    </label>
-                </p>
-                {% endfor %}
+        <div id="zone_sidepanel">
+
+            <div class="zone_sidepanel_topcontainer">
+
+                <div class="input-field book-as_container">
+                    <input type="text" id="book-as" class="autocomplete book-as_input" autocomplete="off">
+                    <label for="book-as" class="active">Book as</label>
+                </div>
+
+                <div class="zone_sidepanel_close sidenav-close" data-target="zone_sidepanel">
+                    <i class="material-icons">close</i>
+                </div>
             </div>
 
-            <div class="zone_timeslider">
-                <div id="timeslider-min" class="timeslider-hint">12:00</div>
-                <div id="timeslider" class="timeslider"></div>
-                <div id="timeslider-max" class="timeslider-hint">12:00</div>
+            <div class="zone_datetime_container">
+
+                <div class="zone_datelist">
+                    {% for w in nextWeek %}
+                    <p>
+                        <label>
+                            <input class="filled-in date_checkbox" type="checkbox" value="{{w['timestamp']}}" />
+                            <span>{{ w['weekday'] }}, {{ w['date'] }}</span>
+                        </label>
+                    </p>
+                    {% endfor %}
+                </div>
+
+                <div class="zone_timeslider">
+                    <div id="timeslider-min" class="timeslider-hint">12:00</div>
+                    <div id="timeslider" class="timeslider"></div>
+                    <div id="timeslider-max" class="timeslider-hint">12:00</div>
+                </div>
             </div>
-            <div class="zone_datetime_close sidenav-close" data-target="zone_datetime_container">
-                <i class="material-icons">close</i>
-            </div>
+
         </div>
 
 
@@ -180,12 +193,11 @@
             <div class="zonemap_help">
                 <img src="{{ url_for('static', filename='help_icon.png') }}">
             </div>
-            <div class="zonemap_datetime_trigger sidenav-trigger" data-target="zone_datetime_container">
+            <div class="zonemap_datetime_trigger sidenav-trigger" data-target="zone_sidepanel">
                 <img src="{{ url_for('static', filename='schedule_icon_side.png') }}">
             </div>
             <img src="{{ url_for('static', filename=zoneMapImage) }}">
         </div>
-
 
 {% endblock %}
 

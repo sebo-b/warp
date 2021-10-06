@@ -435,6 +435,12 @@ function initActionMenu(seatFactory) {
                 sid: seat.getSid(),
                 dates: getSelectedDates()
             }
+
+            if (window.warpGlobals.isZoneAdmin) {
+                let login = BookAs.getInstance().getSelectedLogin(true);
+                if (login !== null)
+                    applyData['book']['login'] = login;
+            }
         }
 
         if (this.dataset.action == 'delete' || this.dataset.action == 'update') {
@@ -587,6 +593,26 @@ function initDatetimeSidenav() {
     });
 }
 
+function initBookAs(seatFactory) {
+
+    BookAs.getInstance().on('change', function(newLogin) {
+
+        var xhr = new XMLHttpRequest();
+        xhr.addEventListener("load", function() {
+
+            var seatData = JSON.parse(this.responseText);
+
+            seatFactory.updateLogin(newLogin, seatData);
+            seatFactory.updateAllStates( getSelectedDates());
+        });
+
+        var url = window.warpGlobals.URLs['getSeat'] + "?onlyOtherZone=1&login=" + newLogin;
+        xhr.open("GET", url);
+        xhr.send();
+    })
+
+}
+
 function initZone() {
 
     initSlider();
@@ -600,6 +626,10 @@ function initZone() {
     initDatetimeSidenav();
 
     downloadSeatData(seatFactory);
+
+    if (window.warpGlobals.isZoneAdmin) {
+        initBookAs(seatFactory);
+    }
 }
 
 window.addEventListener("load",initZone);
