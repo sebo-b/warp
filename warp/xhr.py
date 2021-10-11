@@ -15,7 +15,7 @@ bp = flask.Blueprint('xhr', __name__)
 #   zones: {
 #       zidN: "Zone name" }
 #   users: {
-#       login: "name"               #TODO_X
+#       login: "name"
 #   seats: {
 #       sidN: {                     # FOR SEAT IN THE CURRENT ZONE
 #          name: "name",
@@ -24,7 +24,7 @@ bp = flask.Blueprint('xhr', __name__)
 #          enabled: true|false,
 #          book: [
 #              { bid: 10, login: "sebo", fromTS: 1, toTS: 2 }
-#          assignments: { login1: name1, login2: name2, ... ]
+#          assignments: [ login1, login2, ... ]
 #       sidM: {                     # FOR SEAT NOT IN THE CURRENT ZONE
 #          name: "name",
 #          zid: zid,
@@ -40,7 +40,6 @@ bp = flask.Blueprint('xhr', __name__)
 def zoneGetSeats(zid):
 
     res = {
-        "zones": {},
         "seats": {}
     }
 
@@ -56,10 +55,11 @@ def zoneGetSeats(zid):
 
     tr = utils.getTimeRange()
     usedZones = set()
+    usedUsers = set()
 
     if flask.request.args.get('onlyOtherZone') not in {'1','True','true'}:
 
-        assignCursor = SeatAssign.select(SeatAssign.sid, Users.login, Users.name) \
+        assignCursor = SeatAssign.select(SeatAssign.sid, Users.login) \
                                 .join(Users,on=(SeatAssign.login == Users.login)) \
                                 .join(Seat, on=(SeatAssign.sid == Seat.id)) \
                                 .where(Seat.zid == zid)
@@ -68,9 +68,10 @@ def zoneGetSeats(zid):
         for r in assignCursor:
 
             if r['sid'] not in assignments:
-                assignments[r['sid']] = {}
+                assignments[r['sid']] = set()
 
-            assignments[r['sid']][r['login']] = r['name']
+            assignments[r['sid']].add(r['login'])
+            usedUsers.add(r['login'])
 
         seatsCursor = Seat.select(Seat.id, Seat.name, Seat.x, Seat.y, Seat.zid, Seat.enabled) \
                             .where(Seat.zid == zid)
@@ -90,7 +91,7 @@ def zoneGetSeats(zid):
             }
 
             if s['id'] in assignments:
-                seatD['assignments'] = assignments[s['id']]
+                seatD['assignments'] = [*assignments[s['id']]]
 
             res['seats'][ str(s['id']) ] = seatD
 
@@ -113,6 +114,8 @@ def zoneGetSeats(zid):
                 "login": b[1],
                 "fromTS": b[4],
                 "toTS": b[5] })
+
+            usedUsers.add(b[1])
 
         usedZones.add(zid)
 
@@ -160,7 +163,10 @@ def zoneGetSeats(zid):
             })
 
     usedZonesQuery = Zone.select(Zone.id,Zone.name).where(Zone.id.in_(usedZones)).tuples()
-    res['zones'] = {str(i[0]): i[1] for i in usedZonesQuery}
+    res['zones'] = {str(i[0]): i[1] for i in usedZonesQuery.iterator()}
+
+    usedUsersQuery = Users.select(Users.login, Users.name).where(Users.login.in_(usedUsers)).tuples()
+    res['users'] = {str(i[0]): i[1] for i in usedUsersQuery.iterator()}
 
     resR = flask.current_app.response_class(
         response=orjson.dumps(res),

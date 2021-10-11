@@ -11,7 +11,14 @@ function downloadSeatData(seatFactory) {
         seatFactory.updateAllStates( getSelectedDates());
     });
 
-    xhr.open("GET", window.warpGlobals.URLs['getSeat']);
+    var url = window.warpGlobals.URLs['getSeat'];
+
+    var login = seatFactory.getLogin();
+    if (login !== window.warpGlobals.login) {
+        url += "?login=" + login;
+    }
+
+    xhr.open("GET", url);
     xhr.send();
 }
 

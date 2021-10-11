@@ -7,7 +7,7 @@
  * @param {object} seatData - object described in zoneGetSeats
  * @returns
  */
-function WarpSeat(sid,seatData,zonesNames,factory) {
+function WarpSeat(sid,seatData,zonesNames,usersNames,factory) {
 
     this.factory = factory; //this creates a cycle, but afaik GC can manage it
 
@@ -15,7 +15,7 @@ function WarpSeat(sid,seatData,zonesNames,factory) {
     this.zoneName = zonesNames[seatData.zid];
     this.otherZone = !('x' in seatData && 'y' in seatData);
 
-    this._setData(seatData);
+    this._setData(seatData,usersNames);
 
     if (!this.otherZone) {
 
@@ -71,6 +71,10 @@ function WarpSeatFactory(spriteURL,rootDivId,login) {
     this.myConflictingBookings = new Set();
 }
 
+WarpSeatFactory.prototype.getLogin = function() {
+    return this.login;
+}
+
 /**
  * @param {Object[]} selectedDates - list of selected dates [ {from: timestamp, to: timestamp}, ... ]
  */
@@ -104,11 +108,11 @@ WarpSeatFactory.prototype.setSeatsData = function(seatsData = {}) {
     //create possibly missing seats
     for (var sid in seatsData.seats) {
         if (!oldSeatsIds.delete(sid)) {
-            var s = new WarpSeat(sid,seatsData.seats[sid],seatsData.zones,this);
+            var s = new WarpSeat(sid,seatsData.seats[sid],seatsData.zones,seatsData.users,this);
             this.instances[sid] = s;
         }
         else {
-            this.instances[sid]._setData(seatsData.seats[sid]);
+            this.instances[sid]._setData(seatsData.seats[sid],seatsData.users);
         }
     }
     //delete seats which don't exist anymore
@@ -134,7 +138,7 @@ WarpSeatFactory.prototype.updateLogin = function(login, seatsData) {
 
     //create new seats (all in other zone)
     for (var sid in seatsData.seats) {
-        var s = new WarpSeat(sid,seatsData.seats[sid],seatsData.zones,this);
+        var s = new WarpSeat(sid,seatsData.seats[sid],seatsData.zones,seatsData.users,this);
         this.instances[sid] = s;
     }
 }
@@ -278,7 +282,7 @@ WarpSeat.prototype.getBookings = function() {
 
     for (let i of this._bookingsIterator()) {
         res.push( Object.assign({
-                            username: i.book.login      //TODO_X user name
+                            username: i.book.username
                         },
                         WarpSeatFactory._formatDatePair(i.book)
                     ));
@@ -289,7 +293,6 @@ WarpSeat.prototype.getBookings = function() {
 
 /**
  * Iterates over relevant (by given selectedDates) seat bookings
- * TODO_X optimize as dates are disjoined
  */
 WarpSeat.prototype._bookingsIterator = function*() {
 
@@ -459,7 +462,7 @@ WarpSeat.prototype.handleEvent = function(e) {
 };
 
 // NOTE: book and assignments from seatData is not cloned, it is stored as reference
-WarpSeat.prototype._setData = function(seatData) {
+WarpSeat.prototype._setData = function(seatData,usersNames) {
 
     this.name = seatData.name;
     this.book = seatData.book;  //NOTE: just reference
@@ -473,15 +476,16 @@ WarpSeat.prototype._setData = function(seatData) {
     }
     else {
         this.enabled = ('enabled' in seatData)? seatData.enabled: true;
-        this.assignments = ('assignments' in seatData)? seatData.assignments: {};
-    }
+        this.assignments = {}
 
-    //this data cannot be updated (at least for now)
-    //this.sid = sid;
-    //this.x = seatData.x;
-    //this.y = seatData.y;
-    //this.zoneName
-    //this.seatDiv = null;
+        for (let b in this.book) {
+            this.book[b].username = usersNames[this.book[b].login];
+        }
+        if ('assignments' in seatData) {
+            for (let login of seatData.assignments)
+                this.assignments[login] = usersNames[login]
+        }
+    }
 }
 
 

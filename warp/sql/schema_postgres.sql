@@ -83,8 +83,6 @@ ON book(fromts);
 CREATE INDEX book_toTS
 ON book(tots);
 
-
--- TODO_X check if this works for same time same user
 CREATE OR REPLACE FUNCTION public.book_overlap_insert()
  RETURNS trigger
  LANGUAGE plpgsql
