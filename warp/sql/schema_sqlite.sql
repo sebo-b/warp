@@ -1,17 +1,27 @@
 
-DROP TABLE IF EXISTS assign;
+DROP TABLE IF EXISTS seat_assign;
 DROP TABLE IF EXISTS book;
 DROP TABLE IF EXISTS seat;
+DROP TABLE IF EXISTS zone_assign;
 DROP TABLE IF EXISTS zone;
+DROP TABLE IF EXISTS groups;
 DROP TABLE IF EXISTS users;
 
 CREATE TABLE users (
-    id integer PRIMARY KEY ASC,
-    login text UNIQUE NOT NULL, 
+    login text PRIMARY KEY,
     password text,
     name text,
-    role integer NOT NULL
-    );
+    account_type integer NOT NULL
+    ) WITHOUT ROWID;
+
+CREATE TABLE groups (
+    "group" text NOT NULL,
+    login text NOT NULL,
+    PRIMARY KEY ("group",login),
+    FOREIGN KEY ("group") REFERENCES users(login),
+    FOREIGN KEY (login) REFERENCES users(login)
+    ) WITHOUT ROWID;
+
 
 CREATE TABLE zone (
     id integer PRIMARY KEY ASC,
@@ -19,6 +29,15 @@ CREATE TABLE zone (
     name text NOT NULL,
     image text
     );
+
+CREATE TABLE zone_assign (
+    zid integer NOT NULL,
+    login text NOT NULL,
+    zone_role integer NOT NULL,
+    PRIMARY KEY (zid,login),
+    FOREIGN KEY (zid) REFERENCES zone(id),
+    FOREIGN KEY (login) REFERENCES users(login)
+    ) WITHOUT ROWID;
 
 CREATE TABLE seat (
     id integer PRIMARY KEY ASC,
@@ -30,29 +49,29 @@ CREATE TABLE seat (
     FOREIGN KEY (zid) REFERENCES zone(id)
     );
 
-CREATE TABLE assign (
+CREATE TABLE seat_assign (
     sid integer NOT NULL,
-    uid integer NOT NULL,
-    PRIMARY KEY (sid,uid),
+    login text NOT NULL,
+    PRIMARY KEY (sid,login),
     FOREIGN KEY (sid) REFERENCES seat(id),
-    FOREIGN KEY (uid) REFERENCES users(id)
-    ) WITHOUT ROWID;
+    FOREIGN KEY (login) REFERENCES users(login)
+    );
 
 CREATE INDEX seat_zid
 ON seat(zid);
 
 CREATE TABLE book (
     id integer PRIMARY KEY ASC,
-    uid integer NOT NULL,
+    login text NOT NULL,
     sid integer NOT NULL,
     fromts integer NOT NULL,
     tots integer NOT NULL,
-    FOREIGN KEY (uid) REFERENCES users(id),
+    FOREIGN KEY (login) REFERENCES users(login),
     FOREIGN KEY (sid) REFERENCES seat(id)
     );
 
-CREATE INDEX book_uid
-ON book(uid);
+CREATE INDEX book_login
+ON book(login);
 
 CREATE INDEX book_sid
 ON book(sid);
@@ -72,32 +91,16 @@ BEGIN
     END;
 
     SELECT CASE WHEN
-        (SELECT CASE WHEN COUNT(*) > 0 AND SUM(CASE WHEN uid = NEW.uid THEN 1 ELSE 0 END) = 0 THEN 1 ELSE 0 END 
-        FROM assign WHERE sid = NEW.sid) > 0
-    THEN
-        RAISE(ABORT,"Seat is assigned to another person")
-    END;
-
-    SELECT CASE WHEN
-        (SELECT COUNT(*) FROM book b
+        (SELECT 1 FROM book b
          JOIN seat s on b.sid = s.id
          JOIN zone z on s.zid = z.id
-         WHERE z.zone_group = 
+         WHERE z.zone_group =
             (SELECT zone_group FROM zone z JOIN seat s on z.id = s.zid WHERE s.id = NEW.sid LIMIT 1)
-         AND (b.sid = NEW.sid OR b.uid = NEW.uid)
+         AND (b.sid = NEW.sid OR b.login = NEW.login)
          AND b.fromTS < NEW.toTS
-         AND b.toTS > NEW.fromTS) > 0
+         AND b.toTS > NEW.fromTS) IS NOT NULL
     THEN
         RAISE(ABORT,"Overlapping time for this seat or user")
     END;
 
-END;
-
-CREATE TRIGGER book_overlap_update
-BEFORE UPDATE OF sid, uid, fromTS, toTS ON book 
-BEGIN
-    SELECT CASE WHEN 1
-    THEN
-        RAISE(ABORT,"Not implemented")
-    END;
 END;

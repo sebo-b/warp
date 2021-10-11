@@ -289,25 +289,30 @@ WarpSeat.prototype.getBookings = function() {
 
 /**
  * Iterates over relevant (by given selectedDates) seat bookings
+ * TODO_X optimize as dates are disjoined
  */
 WarpSeat.prototype._bookingsIterator = function*() {
 
-    var bookStartIdx = 0;
+    var bookIdx = 0;
 
+    /* Both dates and bookings collections are:
+     * - sorted by fromTS
+     * - disjoined
+     *
+     * so this iteration can be highly optimized,
+     * taking only O(m+n)
+     */
     for (let date of this.factory.selectedDates) {
-        for (let b = bookStartIdx; b < this.book.length; ++b) {
+        for (; bookIdx < this.book.length; ++bookIdx) {
 
-            let book = this.book[b];
+            let book = this.book[bookIdx];
 
-            if ( book.fromTS >= date.toTS ) { // book is sorted by fromTS, so we can optimize here
+            if ( book.fromTS >= date.toTS )
                 break;
-            }
-            else if (book.toTS > date.fromTS) {
+            else if ( book.toTS <= date.fromTS )
+                continue;
+            else
                 yield {book: book, date: date};
-            }
-            else if (b == bookStartIdx+1) { // dates are sorted by fromTS, so we can skip non-relevant bookings in the next iteration
-                bookStartIdx = b;           // but only step by step as we can skip only the beggining of the array
-            }
         }
     }
 }

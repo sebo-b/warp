@@ -88,36 +88,32 @@ ON book(tots);
 CREATE OR REPLACE FUNCTION public.book_overlap_insert()
  RETURNS trigger
  LANGUAGE plpgsql
-AS $function$
+AS $$
 BEGIN
     IF NEW.fromTS >= NEW.toTS THEN
         RAISE EXCEPTION 'Incorect time';
     END IF;
 
     IF
-        (SELECT CASE WHEN COUNT(*) > 0 AND SUM(CASE WHEN login = NEW.login THEN 1 ELSE 0 END) = 0 THEN TRUE ELSE FALSE END
-        FROM seat_assign WHERE sid = NEW.sid) IS TRUE
-    THEN
-        RAISE EXCEPTION 'Seat is assigned to another person';
-    END IF;
-
-    IF
-        (SELECT COUNT(*) FROM book b
+        (SELECT 1 FROM book b
          JOIN seat s on b.sid = s.id
          JOIN zone z on s.zid = z.id
          WHERE z.zone_group =
             (SELECT zone_group FROM zone z JOIN seat s on z.id = s.zid WHERE s.id = NEW.sid LIMIT 1)
          AND (b.sid = NEW.sid OR b.login = NEW.login)
          AND b.fromTS < NEW.toTS
-         AND b.toTS > NEW.fromTS) > 0
+         AND b.toTS > NEW.fromTS) IS NOT NULL
     THEN
         RAISE EXCEPTION 'Overlapping time for this seat or users';
     END IF;
 
     RETURN NEW;
 END;
-$function$;
+$$;
+
+DROP TRIGGER IF EXISTS book_overlap_insert_trig on book;
 
 CREATE TRIGGER book_overlap_insert_trig
 BEFORE INSERT ON book
+FOR EACH ROW
 EXECUTE PROCEDURE book_overlap_insert();

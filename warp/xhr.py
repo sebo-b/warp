@@ -6,7 +6,6 @@ import xlsxwriter
 import orjson
 import io
 import peewee
-from functools import reduce
 
 from .db import *
 
@@ -408,7 +407,7 @@ def zoneApply():
     # APPLY CHANGES
     # -------------------------------------
 
-    class WarpErr(Exception):
+    class ApplyError(Exception):
         pass
 
     try:
@@ -437,7 +436,7 @@ def zoneApply():
                     rowCount = SeatAssign.insert(insertData).execute()
 
                     if rowCount != len(apply_data['assign']['logins']):
-                        raise WarpErr("Number of affected row is different then in assign.logins.")
+                        raise ApplyError("Number of affected row is different then in assign.logins.", 107)
 
             # remove must be executed before book
             if 'remove' in apply_data:
@@ -446,7 +445,7 @@ def zoneApply():
                 rowCount = stmt.execute()
 
                 if rowCount != len(apply_data['remove']):
-                    raise WarpErr("Number of affected row is different then in remove.")
+                    raise ApplyError("Number of affected row is different then in remove.",108)
 
             # then we create new reservations
             if 'book' in apply_data:
@@ -454,32 +453,30 @@ def zoneApply():
                 sid = apply_data['book']['sid']
                 login = apply_data['book'].get('login', flask.g.login)
 
-                # check if there is overlap in booking
-                zoneGroupQ = Seat.select(Zone.zone_group) \
-                                .join(Zone, on=(Seat.zid == Zone.id)) \
-                                .where(Seat.id == sid)
-
-                minFromTS = reduce(lambda a,b: a if a['fromTS'] < b['fromTS'] else b, apply_data['book']['dates'])['fromTS']
-                maxToTS = reduce(lambda a,b: a if a['toTS'] > b['toTS'] else b, apply_data['book']['dates'])['toTS']
-                overlapsQ = Book.select(Book.sid, Book.fromts, Book.tots) \
-                               .join(Seat, on=(Book.sid == Seat.id)) \
-                               .join(Zone, on=(Seat.zid == Zone.id)) \
-                               .where( Zone.zone_group == zoneGroupQ) \
-                               .where((Book.sid == sid) | (Book.login == login)) \
-                               .where((Book.fromts < maxToTS) & (Book.tots > minFromTS)) \
-                               .order_by(Book.fromts)
-
-                # TODO_X  overlaps
-                #data = apply_data['book']['data']
-                #data.sort(key=lambda a: a['fromTS'])
-                #overlaps = [ i for i in overlapsQ.iterator() ]
-
-                #dataStart = 0
-                #for overlapIt in overlaps:
-                #    for dataIndex in range(dataStart, len(data)):
-                #        if overlapIt['fromTS'] >= data[dataIndex]['toTS']:
-                #            dataStart = dataIndex + 1
-                #        elif overlapIt['toTS']
+#                THIS IS DONE IN A TRIGGER - so it is atomic without using higer isolation level
+#                # check if there is overlap in booking
+#                zoneGroupQ = Seat.select(Zone.zone_group) \
+#                                .join(Zone, on=(Seat.zid == Zone.id)) \
+#                                .where(Seat.id == sid)
+#
+#                minFromTS = reduce(lambda a,b: a if a['fromTS'] < b['fromTS'] else b, apply_data['book']['dates'])['fromTS']
+#                maxToTS = reduce(lambda a,b: a if a['toTS'] > b['toTS'] else b, apply_data['book']['dates'])['toTS']
+#                overlapsQ = Book.select(Book.sid, Book.fromts.alias('fromTS'), Book.tots.alias('toTS')) \
+#                               .join(Seat, on=(Book.sid == Seat.id)) \
+#                               .join(Zone, on=(Seat.zid == Zone.id)) \
+#                               .where( Zone.zone_group == zoneGroupQ) \
+#                               .where((Book.sid == sid) | (Book.login == login)) \
+#                               .where((Book.fromts < maxToTS) & (Book.tots > minFromTS)) \
+#                               .order_by(Book.fromts)
+#
+#                dates = apply_data['book']['dates']
+#                dates.sort(key=lambda a: a['fromTS'])
+#
+#                last = {'fromTS': 0, 'toTS':  0 }
+#                for i in heapq.merge(dates,overlapsQ.iterator(), key=lambda a: a['fromTS']):
+#                    if i['fromTS'] <= last['toTS'] and i['toTS'] > last['fromTS']:
+#                        raise ApplyError("Overlap.",109)
+#                    last = i
 
                 insertData = [ {
                         Book.login: login,
@@ -489,11 +486,15 @@ def zoneApply():
                     } for x in apply_data['book']['dates'] ]
 
                 stmt = Book.insert(insertData)
-                stmt.execute()
+
+                try:
+                    stmt.execute()
+                except peewee.IntegrityError:
+                    raise ApplyError("Overlapping time",109)
 
 
-    except WarpErr as err:
-        return {"msg": "Error" }, 400
+    except ApplyError as err:
+        return {"msg": "Error", "code": err.args[1] }, 400
 
     ret = { "msg": "ok" }
 

@@ -1,10 +1,10 @@
 
-#DATABASE = "sqlite:///warp/db.sqlite"
-#DATABASE_ARGS = {"pragmas": {"foreign_keys": "ON"}}
-DATABASE = "postgresql://warp:warp@localhost:5432/warp"
+DATABASE = "sqlite:///warp/db.sqlite"
+DATABASE_ARGS = {"pragmas": {"foreign_keys": "ON"}}
+#DATABASE = "postgresql://warp:warp@localhost:5432/warp"
 
-#DATABASE_INIT_SCRIPT = "sql/schema_sqlite.sql"
-DATABASE_INIT_SCRIPT = "sql/schema_postgres.sql"
+DATABASE_INIT_SCRIPT = "sql/schema_sqlite.sql"
+#DATABASE_INIT_SCRIPT = "sql/schema_postgres.sql"
 DATABASE_SAMPLEDATA_SCRIPT = "sql/sample_data.sql"
 
 SECRET_KEY = b'change_me'
