@@ -6,6 +6,7 @@ import xlsxwriter
 import orjson
 import io
 import peewee
+from functools import reduce
 
 from .db import *
 
@@ -230,6 +231,7 @@ def zoneApply():
                     "sid" : {"type" : "integer"},
                     "dates": {
                         "type": "array",
+                        "minItems": 1,
                         "items": {
                             "type": "object",
                             "properties": {
@@ -271,44 +273,68 @@ def zoneApply():
     except ValidationError as err:
         return {"msg": "invalid input" }, 400
 
-    if not flask.g.isAdmin:
+    # -------------------------------------
+    # PERMISSIONS CHECK
+    # -------------------------------------
+    if 'remove' in apply_data:
 
-        seatsReqAdmin = []
-        if 'enable' in apply_data: seatsReqAdmin.extend(apply_data['enable'])
-        if 'disable' in apply_data: seatsReqAdmin.extend(apply_data['disable'])
-        if 'assign' in apply_data: seatsReqAdmin.append(apply_data['assign']['sid'])
-        if 'book' in apply_data and 'login' in apply_data['book']: seatsReqAdmin.append(apply_data['book']['sid'])
+        # list non-owned bookings
+        removeQ = Book.select(Book.id, Book.login, Seat.zid) \
+                        .join(Seat, on=(Book.sid == Seat.id)) \
+                        .where(Book.id.in_(apply_data['remove'])) \
+                        .where(Book.login != flask.g.login)
 
-        seatsReqUser = []
-        if 'book' in apply_data: seatsReqUser.append(apply_data['book']['sid'])
+        remove = [ i for i in removeQ.iterator() ]
 
-        # TODO_Xremove require user only for own bookings
-        if 'remove' in apply_data:  #TODO_X remove bids of other user in other zone where current user is not admin
-            removeQ = Book.select(Book.sid.distinct()) \
-                          .where(Book.id.in_(apply_data['remove'])).tuples()
-            seatsReqUser.extend( [ i[0] for i in removeQ] )
+        # check if current user is admin in the zones where bookings are made
+        if len(remove):
 
-        if seatsReqAdmin or seatsReqUser:
+            removeZones = [ i['zid'] for i in remove ]
+            rolesQuery = ZoneAssign.select(ZoneAssign.zid, peewee.fn.MIN(ZoneAssign.zone_role).alias('zone_role') ) \
+                                    .where(ZoneAssign.zid.in_(removeZones) ) \
+                                    .where(ZoneAssign.login.in_(flask.g.groups)) \
+                                    .group_by(ZoneAssign.zid)
 
-            zoneAssignQuery = ZoneAssign.select(ZoneAssign.zid.alias('zid'), peewee.fn.MIN(ZoneAssign.zone_role).alias('zone_role') ) \
-                                        .where(ZoneAssign.login.in_(flask.g.groups)) \
-                                        .group_by(ZoneAssign.zid)
+            for rqI in rolesQuery.iterator():
+                if rqI['zone_role'] <= ZONE_ROLE_ADMIN:
+                    remove = [ i for i in remove if i['zid'] != rqI['zid']]
 
-            rolesQuery = Seat.select( Seat.id, zoneAssignQuery.c.zone_role ) \
-                            .join( zoneAssignQuery, join_type=peewee.JOIN.LEFT_OUTER,  on=(Seat.zid == zoneAssignQuery.c.zid) ) \
-                            .where(Seat.id.in_(seatsReqAdmin+seatsReqUser)) \
-                            .tuples()
+        if len(remove):
+            return {"msg": "Forbidden", "code": 101 }, 403
 
-            if len(rolesQuery) == 0:
-                return flask.abort(403)
+    # zone access
+    seatsReqZoneAdmin = []
+    seatsReqZoneUser = []
+    if 'enable' in apply_data: seatsReqZoneAdmin.extend(apply_data['enable'])
+    if 'disable' in apply_data: seatsReqZoneAdmin.extend(apply_data['disable'])
+    if 'assign' in apply_data: seatsReqZoneAdmin.append(apply_data['assign']['sid'])
+    if 'book' in apply_data:
+        if 'login' in apply_data['book']:
+            seatsReqZoneAdmin.append(apply_data['book']['sid'])
+        else:
+            seatsReqZoneUser.append(apply_data['book']['sid'])
 
-            for r in rolesQuery:
-                if r[1] is None \
-                    or ( r[1] > ZONE_ROLE_USER and r[0] in seatsReqUser ) \
-                    or ( r[1] > ZONE_ROLE_ADMIN and r[0] in seatsReqAdmin ):
-                    return {"msg": "Forbidden" }, 403
+    if seatsReqZoneAdmin or seatsReqZoneUser:
 
-    # check if user is assigned to the zone
+        zoneAssignQuery = ZoneAssign.select(ZoneAssign.zid.alias('zid'), peewee.fn.MIN(ZoneAssign.zone_role).alias('zone_role') ) \
+                                    .where(ZoneAssign.login.in_(flask.g.groups)) \
+                                    .group_by(ZoneAssign.zid)
+
+        rolesQuery = Seat.select( Seat.id, zoneAssignQuery.c.zone_role ) \
+                        .join( zoneAssignQuery, join_type=peewee.JOIN.LEFT_OUTER,  on=(Seat.zid == zoneAssignQuery.c.zid) ) \
+                        .where(Seat.id.in_(seatsReqZoneAdmin+seatsReqZoneUser)) \
+                        .tuples()
+
+        if len(rolesQuery) == 0:
+            return {"msg": "Forbidden", "code": 102 }, 403
+
+        for r in rolesQuery:
+            if r[1] is None \
+                or ( r[1] > ZONE_ROLE_USER and r[0] in seatsReqZoneUser ) \
+                or ( r[1] > ZONE_ROLE_ADMIN and r[0] in seatsReqZoneAdmin ):
+                return {"msg": "Forbidden", "code": 103 }, 403
+
+    # if login is set in book, check if user is assigned to the zone
     if 'book' in apply_data and 'login' in apply_data['book']:
         login = apply_data['book']['login']
         sid = apply_data['book']['sid']
@@ -320,10 +346,67 @@ def zoneApply():
                                 .where( (Groups.login == login) | (ZoneAssign.login == login)).first()
 
         if isLoginInZone is None:
-            return {"msg": "login not allowed"}, 403
+            return {"msg": "Forbidden", "code": 104}, 403
+
+    if 'book' in apply_data:
+
+        sid = apply_data['book']['sid']
+
+        # check if seat is enabled
+        enabled = Seat.select(SQL_ONE).where((Seat.id == sid) & (Seat.enabled == True)).scalar()
+        if enabled is None:
+            return {"msg": "Forbidden", "code": 105}, 403
+
+        # check if user is assigned to the seat
+        login = apply_data['book'].get('login', flask.g.login)
+        assignedQ = SeatAssign.select(SQL_ONE).where(SeatAssign.sid == sid)
+        assignedToMeQ = assignedQ.where(SeatAssign.login == login)
+
+        if (assignedQ.scalar() is not None and assignedToMeQ.scalar() is None):
+            return {"msg": "Forbidden", "code": 106}, 403
+
+    # -------------------------------------
+    # CALCULATE CONFLICTS
+    # -------------------------------------
+    ts = utils.getTimeRange(True)
 
     conflicts_in_disable = None
+    if 'disable' in apply_data:
+
+        query = Book.select(Book.sid, Book.fromts, Book.tots, Users.login, Users.name) \
+                    .join(Users, on=(Book.login == Users.login)) \
+                    .where((Book.fromts < ts['toTS']) & (Book.tots > ts['fromTS'])) \
+                    .where(Book.sid.in_(apply_data['disable']))
+
+        conflicts_in_disable = [
+            {
+                "sid": row['sid'],
+                "fromTS": row['fromts'],
+                "toTS": row['tots'],
+                "login": row['login'],
+                "username": row['name']
+            } for row in query
+        ]
+
     conflicts_in_assign = None
+    if 'assign' in apply_data:
+
+        query = Book.select(Book.sid, Book.fromts, Book.tots, Users.login, Users.name) \
+                    .join(Users, on=(Book.login == Users.login)) \
+                    .where((Book.fromts < ts['toTS']) & (Book.tots > ts['fromTS'])) \
+                    .where(Book.sid == apply_data['assign']['sid']) \
+                    .where(Users.login.not_in(apply_data['assign']['logins']))
+
+        conflicts_in_assign = [
+            {"sid": row['sid'],
+                "fromTS": row['fromts'],
+                "toTS": row['tots'],
+                "login": row['login'],
+                "username": row['name']} for row in query]
+
+    # -------------------------------------
+    # APPLY CHANGES
+    # -------------------------------------
 
     class WarpErr(Exception):
         pass
@@ -337,23 +420,6 @@ def zoneApply():
                 Seat.update({Seat.enabled: True}).where(Seat.id.in_(apply_data['enable'])).execute()
 
             if 'disable' in apply_data:
-
-                ts = utils.getTimeRange(True)
-
-                query = Book.select(Book.sid, Book.fromts, Book.tots, Users.login, Users.name) \
-                            .join(Users, on=(Book.login == Users.login)) \
-                            .where((Book.fromts < ts['toTS']) & (Book.tots > ts['fromTS'])) \
-                            .where(Book.sid.in_(apply_data['disable']))
-
-                conflicts_in_disable = [
-                    {
-                        "sid": row['sid'],
-                        "fromTS": row['fromts'],
-                        "toTS": row['tots'],
-                        "login": row['login'],
-                        "username": row['name']
-                    } for row in query
-                ]
 
                 Seat.update({Seat.enabled: False}).where(Seat.id.in_(apply_data['disable'])).execute()
 
@@ -373,22 +439,7 @@ def zoneApply():
                     if rowCount != len(apply_data['assign']['logins']):
                         raise WarpErr("Number of affected row is different then in assign.logins.")
 
-                    ts = utils.getTimeRange(True)
-
-                    query = Book.select(Book.sid, Book.fromts, Book.tots, Users.login, Users.name) \
-                                .join(Users, on=(Book.login == Users.login)) \
-                                .where((Book.fromts < ts['toTS']) & (Book.tots > ts['fromTS'])) \
-                                .where(Book.sid == apply_data['assign']['sid']) \
-                                .where(Users.login.not_in(apply_data['assign']['logins']))
-
-                    conflicts_in_assign = [
-                        {"sid": row['sid'],
-                         "fromTS": row['fromts'],
-                         "toTS": row['tots'],
-                         "login": row['login'],
-                         "username": row['name']} for row in query]
-
-            # before book we have to remove reservations (as this can be list of conflicting reservations)
+            # remove must be executed before book
             if 'remove' in apply_data:
 
                 stmt = Book.delete().where(Book.id.in_(apply_data['remove']))
@@ -400,22 +451,39 @@ def zoneApply():
             # then we create new reservations
             if 'book' in apply_data:
 
-                stmt = Seat.select(True) \
-                           .where( (Seat.id == apply_data['book']['sid']) & (Seat.enabled == False))
+                sid = apply_data['book']['sid']
+                login = apply_data['book'].get('login', flask.g.login)
 
-                if len(stmt):
-                    raise WarpErr("Booking a disabled seat is forbidden.")
+                # check if there is overlap in booking
+                zoneGroupQ = Seat.select(Zone.zone_group) \
+                                .join(Zone, on=(Seat.zid == Zone.id)) \
+                                .where(Seat.id == sid)
 
-                # TODO_X check overlaping dates and remove trigger
+                minFromTS = reduce(lambda a,b: a if a['fromTS'] < b['fromTS'] else b, apply_data['book']['dates'])['fromTS']
+                maxToTS = reduce(lambda a,b: a if a['toTS'] > b['toTS'] else b, apply_data['book']['dates'])['toTS']
+                overlapsQ = Book.select(Book.sid, Book.fromts, Book.tots) \
+                               .join(Seat, on=(Book.sid == Seat.id)) \
+                               .join(Zone, on=(Seat.zid == Zone.id)) \
+                               .where( Zone.zone_group == zoneGroupQ) \
+                               .where((Book.sid == sid) | (Book.login == login)) \
+                               .where((Book.fromts < maxToTS) & (Book.tots > minFromTS)) \
+                               .order_by(Book.fromts)
 
-                if 'book' in apply_data and 'login' in apply_data['book']:
-                    login = apply_data['book']['login']
-                else:
-                    login = flask.g.login
+                # TODO_X  overlaps
+                #data = apply_data['book']['data']
+                #data.sort(key=lambda a: a['fromTS'])
+                #overlaps = [ i for i in overlapsQ.iterator() ]
+
+                #dataStart = 0
+                #for overlapIt in overlaps:
+                #    for dataIndex in range(dataStart, len(data)):
+                #        if overlapIt['fromTS'] >= data[dataIndex]['toTS']:
+                #            dataStart = dataIndex + 1
+                #        elif overlapIt['toTS']
 
                 insertData = [ {
                         Book.login: login,
-                        Book.sid: apply_data['book']['sid'],
+                        Book.sid: sid,
                         Book.fromts: x['fromTS'],
                         Book.tots: x['toTS']
                     } for x in apply_data['book']['dates'] ]
