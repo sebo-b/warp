@@ -15,12 +15,8 @@ def headerDataInit():
     headerDataL.append(
         {"text": "Bookings", "endpoint": "view.bookings", "view_args": {} })
 
-    zoneCursor = Zone.select(Zone.id, Zone.name)
-
-    if not flask.g.isAdmin:
-        zoneCursor = zoneCursor.where(
-            Zone.id.in_( ZoneAssign.select(ZoneAssign.zid).where(ZoneAssign.login.in_(flask.g.groups)) )
-            )
+    zoneCursor = Zone.select(Zone.id, Zone.name) \
+                     .where( Zone.id.in_( ZoneAssign.select(ZoneAssign.zid).where(ZoneAssign.login.in_(flask.g.groups)) ) )
 
     for z in zoneCursor:
         headerDataL.append(
@@ -76,16 +72,13 @@ def users():
 @bp.route("/zone/<zid>")
 def zone(zid):
 
-    if flask.g.isAdmin:
-        zoneRole = ZONE_ROLE_ADMIN
-    else:
-        zoneRole = ZoneAssign.select(peewee.fn.MIN(ZoneAssign.zone_role) ) \
-                                    .where(ZoneAssign.zid == zid) \
-                                    .where(ZoneAssign.login.in_(flask.g.groups)) \
-                                    .group_by(ZoneAssign.zid).scalar()
+    zoneRole = ZoneAssign.select(peewee.fn.MIN(ZoneAssign.zone_role) ) \
+                                .where(ZoneAssign.zid == zid) \
+                                .where(ZoneAssign.login.in_(flask.g.groups)) \
+                                .group_by(ZoneAssign.zid).scalar()
 
-        if zoneRole is None:
-            flask.abort(403)
+    if zoneRole is None:
+        flask.abort(403)
 
     zoneMapImage = Zone.select(Zone.image) \
                          .where(Zone.id == zid).scalar()
@@ -103,7 +96,7 @@ def zone(zid):
             defaultSelectedDates['cb'] = [d['timestamp']]
             break
 
-    if flask.g.isAdmin or zoneRole <= ZONE_ROLE_ADMIN:
+    if zoneRole <= ZONE_ROLE_ADMIN:
         zoneRole = {'isZoneAdmin': True}
     elif zoneRole <= ZONE_ROLE_USER:
         zoneRole = {}

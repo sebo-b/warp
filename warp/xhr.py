@@ -43,12 +43,9 @@ def zoneGetSeats(zid):
         "seats": {}
     }
 
-    if flask.g.isAdmin:
-        zoneRole = ZONE_ROLE_ADMIN
-    else:
-        zoneRole = ZoneAssign.select(peewee.fn.MIN(ZoneAssign.zone_role)) \
-                       .where((ZoneAssign.zid == zid) & (ZoneAssign.login.in_(flask.g.groups))) \
-                       .group_by(ZoneAssign.zid).scalar()
+    zoneRole = ZoneAssign.select(peewee.fn.MIN(ZoneAssign.zone_role)) \
+                    .where((ZoneAssign.zid == zid) & (ZoneAssign.login.in_(flask.g.groups))) \
+                    .group_by(ZoneAssign.zid).scalar()
 
     if ('login' in flask.request.args or 'onlyOtherZone' in flask.request.args) and zoneRole > ZONE_ROLE_ADMIN:
         return {"msg": "not allowed"}, 403
@@ -281,31 +278,6 @@ def zoneApply():
     # -------------------------------------
     # PERMISSIONS CHECK
     # -------------------------------------
-    if 'remove' in apply_data:
-
-        # list non-owned bookings
-        removeQ = Book.select(Book.id, Book.login, Seat.zid) \
-                        .join(Seat, on=(Book.sid == Seat.id)) \
-                        .where(Book.id.in_(apply_data['remove'])) \
-                        .where(Book.login != flask.g.login)
-
-        remove = [ i for i in removeQ.iterator() ]
-
-        # check if current user is admin in the zones where bookings are made
-        if len(remove):
-
-            removeZones = [ i['zid'] for i in remove ]
-            rolesQuery = ZoneAssign.select(ZoneAssign.zid, peewee.fn.MIN(ZoneAssign.zone_role).alias('zone_role') ) \
-                                    .where(ZoneAssign.zid.in_(removeZones) ) \
-                                    .where(ZoneAssign.login.in_(flask.g.groups)) \
-                                    .group_by(ZoneAssign.zid)
-
-            for rqI in rolesQuery.iterator():
-                if rqI['zone_role'] <= ZONE_ROLE_ADMIN:
-                    remove = [ i for i in remove if i['zid'] != rqI['zid']]
-
-        if len(remove):
-            return {"msg": "Forbidden", "code": 101 }, 403
 
     # zone access
     seatsReqZoneAdmin = []
@@ -313,11 +285,24 @@ def zoneApply():
     if 'enable' in apply_data: seatsReqZoneAdmin.extend(apply_data['enable'])
     if 'disable' in apply_data: seatsReqZoneAdmin.extend(apply_data['disable'])
     if 'assign' in apply_data: seatsReqZoneAdmin.append(apply_data['assign']['sid'])
+
     if 'book' in apply_data:
         if 'login' in apply_data['book']:
             seatsReqZoneAdmin.append(apply_data['book']['sid'])
         else:
             seatsReqZoneUser.append(apply_data['book']['sid'])
+
+    if 'remove' in apply_data:
+
+        # list non-owned bookings
+        # user is always allowed to remove own bookings, even if is not assigned to the zone (or is just a viewer)
+        # this hole allows user to update booking into allowed zone in case there is some left-over booking in another zone
+        removeQ = Book.select(Book.sid) \
+                      .where(Book.id.in_(apply_data['remove'])) \
+                      .where(Book.login != flask.g.login).tuples()
+
+        seatsReqZoneAdmin.extend( [ i[0] for i in removeQ.iterator() ] )
+
 
     if seatsReqZoneAdmin or seatsReqZoneUser:
 
