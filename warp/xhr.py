@@ -689,53 +689,17 @@ def editUser():
             }])
 
 
-# Format
-@bp.route("/bookings/get")
-def bookingsGet():
-
-    uid = flask.session.get('uid')
-    role = flask.session.get('role')
-
-    tr = utils.getTimeRange()
-
-    cursor = Book.select(Book.id, Book.uid, Users.name.alias('user_name'), Users.login, Zone.name.alias('zone_name'), Seat.name.alias('seat_name'), Book.fromts, Book.tots) \
-                 .join(Seat, on=(Book.sid == Seat.id)) \
-                 .join(Zone, on=(Seat.zid == Zone.id)) \
-                 .join(Users, on=(Book.uid == Users.id)) \
-                 .where((Book.fromts < tr["toTS"]) & (Book.tots > tr["fromTS"]))
-
-    res = []
-
-    for row in cursor:
-
-        if role >= auth.ROLE_VIEVER:
-            can_edit = False
-        elif role <= auth.ROLE_MANAGER:
-            can_edit = True
-        else:
-            can_edit = row['uid'] == uid
-
-        res.append({
-            "bid": row["id"],
-            "user_name": row["user_name"]+" ["+row["login"]+"]" if role <= auth.ROLE_MANAGER else row["user_name"],
-            "zone_name": row["zone_name"],
-            "seat_name": row["seat_name"],
-            "fromTS": row["fromts"],
-            "toTS": row["tots"],
-            "can_edit": can_edit
-        })
-
-    return flask.jsonify(res)
-
-
-
 @bp.route("/bookings/report", methods=["POST"])
 def bookingsReport():
+    return bookingsGet(True)
+
+@bp.route("/bookings/get", methods=["POST"])
+def bookingsGet(report = False):
 
     if not flask.request.is_json:
         flask.abort(404)
 
-    if not flask.g.isAdmin:
+    if not flask.g.isAdmin and report:
         flask.abort(403)
 
     requestData = flask.request.get_json()
@@ -764,18 +728,43 @@ def bookingsReport():
                     "type": "object",
                     "properties": {
                         "field" : {"type" : "string"},
-                        "type" : {"enum" : ["starts", ">=","<="] }
+                        "type" : {"enum" : ["starts", ">=","<=", "function"] }
                     },
                     "required": [ "field", "type", "value"],
-                    "if": {
-                        "properties": { "type" : {"enum" : ["starts"] } }
-                    },
-                    "then": {
-                        "properties": { "value" : {"type" : "string" } }
-                    },
-                    "else": {
-                        "properties": { "page" : {"type" : "integer" } }
-                    },
+                    "allOf": [
+                        {
+                            "if": {
+                                "properties": { "type" : {"enum" : ["starts"] } }
+                            },
+                            "then": {
+                                "properties": { "value" : {"type" : "string" } }
+                            }
+                        },
+                        {
+                            "if": {
+                                "properties": { "type" : {"enum" : [">=","<="] } }
+                            },
+                            "then": {
+                                "properties": { "value" : {"type" : "integer" } }
+                            }
+                        },
+                        {
+                            "if": {
+                                "properties": { "type" : {"enum" : ["function"] } }
+                            },
+                            "then": {
+                                "properties": {
+                                    "value" : {
+                                        "type" : "object",
+                                        "properties": {
+                                            "fromTS" : {"type" : ["integer","null"]},
+                                            "toTS" : {"type" : ["integer","null"]}
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                    ]
                 },
             },
         },
@@ -788,6 +777,9 @@ def bookingsReport():
         validate(requestData,schema)
     except ValidationError as err:
         return {"msg": "Data error" }, 400
+
+    if not report and 'export' in requestData:
+        flask.abort(403)
 
     columnsMap = {
         "id": Book.id,
@@ -814,6 +806,23 @@ def bookingsReport():
                     query = query.where( field >= i["value"])
                 elif i['type'] == 'starts':
                     query = query.where( field.startswith(i["value"]))
+                elif i['type'] == 'function' and i['field'] == "fromTS":
+                    if 'fromTS' in i['value'] and i['value']['fromTS'] != None:
+                        query = query.where( Book.fromts >= i["value"]['fromTS'])
+                    if 'toTS' in i['value'] and i['value']['toTS'] != None:
+                        query = query.where( Book.tots <= i["value"]['toTS'])
+
+    # user restrictions (in non-report mode)
+    # visibility only on assigned zones and not in the past
+    if not report:
+
+        zoneAssignQuery = ZoneAssign.select(ZoneAssign.zid.alias('zid'), peewee.fn.MIN(ZoneAssign.zone_role).alias('zone_role') ) \
+                                    .where(ZoneAssign.login.in_(flask.g.groups)) \
+                                    .group_by(ZoneAssign.zid)
+
+        query = query.select_extend(zoneAssignQuery.c.zone_role) \
+                     .join(zoneAssignQuery, on=(Seat.zid == zoneAssignQuery.c.zid)) \
+                     .where( Book.fromts >= utils.today())
 
     lastPage = None
     if "size" in requestData:
@@ -822,8 +831,7 @@ def bookingsReport():
 
         if "page" in requestData:
 
-            countCursor = query.columns(COUNT_STAR.alias('count'))
-            count = countCursor[0]['count']
+            count = query.columns(COUNT_STAR).scalar()
 
             lastPage = -(-count // limit)   # round up
 
@@ -839,8 +847,12 @@ def bookingsReport():
 
 
     if "export" in requestData:
-        # only xlsx for now
 
+        # this is already checked, but ...
+        if not flask.g.isAdmin:
+            flask.abort(403)
+
+        # only xlsx for now
         memoryBuffer = io.BytesIO()
 
         workbook = xlsxwriter.Workbook(memoryBuffer, {'in_memory': True})
@@ -888,14 +900,24 @@ def bookingsReport():
 
         for row in query:
 
-            res['data'].append({
+            d = {
                 "id": row["id"],
                 "user_name": row["user_name"],
-                "login": row["login"],
                 "zone_name": row["zone_name"],
                 "seat_name": row["seat_name"],
                 "fromTS": row["fromts"],
                 "toTS": row["tots"]
-            })
+            }
+
+            if not report:
+
+                d['rw'] = \
+                    (row["login"] == flask.g.login and row["zone_role"] <= ZONE_ROLE_USER) \
+                    or row["zone_role"] <= ZONE_ROLE_ADMIN
+
+            else:
+                d["login"] = row["login"]
+
+            res['data'].append(d)
 
         return flask.jsonify(res)

@@ -54,7 +54,7 @@ def index():
 @bp.route("/bookings")
 def bookings():
 
-    return flask.render_template('bookings.html')
+    return flask.render_template('report.html',report=False) # TODO_X change to bookings.html
 
 @bp.route("/report")
 def report():
@@ -62,7 +62,7 @@ def report():
     if not flask.g.isAdmin:
         flask.abort(403)
 
-    return flask.render_template('report.html')
+    return flask.render_template('report.html',report=True) # TODO_X change to bookings.html
 
 
 @bp.route("/users")

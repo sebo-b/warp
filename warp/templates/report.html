@@ -7,10 +7,23 @@
 <link type="text/css" rel="stylesheet" href="{{ url_for('static', filename='tabulator/tabulator_materialize.min.css') }}"/>
 <style>
     .tabulator-footer { text-align: left !important; }
+
+    .delete_icon {
+        height: 24px;
+        width: 24px;
+        background-image: url('{{ url_for('static', filename='delete_icon.png') }}');
+    }
 </style>
 
 <script>
+    {% if report %}
     window.warpGlobals.URLs['bookingsReport'] = "{{ url_for('xhr.bookingsReport') }}";
+    window.warpGlobals['report'] = true;
+    {% else %}
+    window.warpGlobals.URLs['bookingsReport'] = "{{ url_for('xhr.bookingsGet') }}";
+    window.warpGlobals.URLs['zoneApply'] = "{{ url_for('xhr.zoneApply') }}";
+    window.warpGlobals['report'] = false;
+    {% endif %}
 </script>
 
 <script src="{{ url_for('static', filename='report.js') }}"></script>
@@ -20,11 +33,13 @@
 {% block overlays %}
     {{ super() }}
 
+    {% if report %}
     <div class="fixed-action-btn">
         <a class="btn-floating btn-large waves-effect waves-light orange accent-4" id="export_btn">
             <img src="{{ url_for('static', filename='excel_icon.png') }}">
         </a>
     </div>
+    {% endif %}
 
 {% endblock %}
 
