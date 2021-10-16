@@ -1,3 +1,4 @@
+DROP MATERIALIZED VIEW IF EXISTS user_to_zone_roles;
 DROP TABLE IF EXISTS seat_assign;
 DROP TABLE IF EXISTS book;
 DROP TABLE IF EXISTS seat;
@@ -82,6 +83,60 @@ ON book(fromts);
 
 CREATE INDEX book_toTS
 ON book(tots);
+
+CREATE MATERIALIZED VIEW user_to_zone_roles (login,zid,zone_role) AS
+with recursive user_group(login,"group") as (
+  select login,login from users
+  where account_type < 100
+  union
+  select u.login,g."group" from user_group u
+  join "groups" g on g.login = u."group"
+)
+select ug."login", za.zid, MIN(za.zone_role) from user_group ug
+join zone_assign za on za.login = ug."group"
+group by ug."login", za.zid;
+
+CREATE INDEX user_to_zone_roles_idx
+ON user_to_zone_roles("login",zid);
+
+CREATE OR REPLACE FUNCTION update_user_to_zone_roles()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $$
+BEGIN
+    REFRESH MATERIALIZED VIEW user_to_zone_roles;
+    RETURN NEW;
+END
+$$;
+
+CREATE OR REPLACE TRIGGER zone_assign_update
+AFTER INSERT OR UPDATE OR DELETE ON zone_assign
+FOR STATEMENT
+EXECUTE PROCEDURE update_user_to_zone_roles();
+
+CREATE OR REPLACE TRIGGER groups_update
+AFTER INSERT OR UPDATE OR DELETE ON groups
+FOR STATEMENT
+EXECUTE PROCEDURE update_user_to_zone_roles();
+
+
+-- with recursive user_group(login,"group") as (
+--   select login,login from users
+--   where account_type < 100
+--   union
+--   select u.login,g."group" from user_group u
+--   join "groups" g on g.login = u."group"
+--
+-- )
+-- select * from user_group;
+
+-- CREATE VIEW user_to_zone_roles (login,zid,zone_role) AS
+-- SELECT u.login,za.zid,MIN(za.zone_role) FROM users u
+-- LEFT JOIN "groups" g ON g.login = u.login
+-- JOIN zone_assign za ON za.login = g."group" OR za.login = u.login
+-- WHERE u.account_type < 100
+-- GROUP BY u.login, za.zid
+
 
 CREATE OR REPLACE FUNCTION public.book_overlap_insert()
  RETURNS trigger

@@ -17,11 +17,11 @@
 
 <script>
     {% if report %}
-    window.warpGlobals.URLs['bookingsReport'] = "{{ url_for('xhr.bookingsReport') }}";
+    window.warpGlobals.URLs['bookingsReport'] = "{{ url_for('xhr.bookings.report') }}";
     window.warpGlobals['report'] = true;
     {% else %}
-    window.warpGlobals.URLs['bookingsReport'] = "{{ url_for('xhr.bookingsGet') }}";
-    window.warpGlobals.URLs['zoneApply'] = "{{ url_for('xhr.zoneApply') }}";
+    window.warpGlobals.URLs['bookingsReport'] = "{{ url_for('xhr.bookings.list') }}";
+    window.warpGlobals.URLs['zoneApply'] = "{{ url_for('xhr.zone.apply') }}";
     window.warpGlobals['report'] = false;
     {% endif %}
 </script>

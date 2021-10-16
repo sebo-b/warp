@@ -1,10 +1,9 @@
 
+DROP VIEW IF EXISTS user_to_zone_roles;
 DROP TABLE IF EXISTS seat_assign;
 DROP TABLE IF EXISTS book;
 DROP TABLE IF EXISTS seat;
-DROP TABLE IF EXISTS zone_assign;
 DROP TABLE IF EXISTS zone;
-DROP TABLE IF EXISTS groups;
 DROP TABLE IF EXISTS users;
 
 CREATE TABLE users (
@@ -14,30 +13,12 @@ CREATE TABLE users (
     account_type integer NOT NULL
     ) WITHOUT ROWID;
 
-CREATE TABLE groups (
-    "group" text NOT NULL,
-    login text NOT NULL,
-    PRIMARY KEY ("group",login),
-    FOREIGN KEY ("group") REFERENCES users(login),
-    FOREIGN KEY (login) REFERENCES users(login)
-    ) WITHOUT ROWID;
-
-
 CREATE TABLE zone (
     id integer PRIMARY KEY ASC,
     zone_group integer NOT NULL,
     name text NOT NULL,
     image text
     );
-
-CREATE TABLE zone_assign (
-    zid integer NOT NULL,
-    login text NOT NULL,
-    zone_role integer NOT NULL,
-    PRIMARY KEY (zid,login),
-    FOREIGN KEY (zid) REFERENCES zone(id),
-    FOREIGN KEY (login) REFERENCES users(login)
-    ) WITHOUT ROWID;
 
 CREATE TABLE seat (
     id integer PRIMARY KEY ASC,
@@ -57,9 +38,6 @@ CREATE TABLE seat_assign (
     FOREIGN KEY (login) REFERENCES users(login)
     );
 
-CREATE INDEX seat_zid
-ON seat(zid);
-
 CREATE TABLE book (
     id integer PRIMARY KEY ASC,
     login text NOT NULL,
@@ -70,17 +48,9 @@ CREATE TABLE book (
     FOREIGN KEY (sid) REFERENCES seat(id)
     );
 
-CREATE INDEX book_login
-ON book(login);
-
-CREATE INDEX book_sid
-ON book(sid);
-
-CREATE INDEX book_fromTS
-ON book(fromts);
-
-CREATE INDEX book_toTS
-ON book(tots);
+CREATE VIEW user_to_zone_roles (login,zid,zone_role) AS
+SELECT u.login,z.id, u.account_type FROM users u, zone z
+WHERE u.account_type in (10,20);
 
 CREATE TRIGGER book_overlap_insert
 BEFORE INSERT ON book

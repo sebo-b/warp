@@ -12,7 +12,7 @@ def create_app():
     app.register_blueprint(view.bp)
 
     from . import xhr
-    app.register_blueprint(xhr.bp)
+    app.register_blueprint(xhr.bp, url_prefix='/xhr')
 
     from . import auth
     from . import auth_mellon

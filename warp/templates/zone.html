@@ -7,8 +7,8 @@
     <script type="text/javascript" src="{{ url_for('static', filename='nouislider/nouislider.min.js') }}"></script>
 
     <script>
-        window.warpGlobals.URLs['zoneApply'] = "{{ url_for('xhr.zoneApply') }}";
-        window.warpGlobals.URLs['getSeat'] = "{{ url_for('xhr.zoneGetSeats',zid=zoneId) }}";
+        window.warpGlobals.URLs['zoneApply'] = "{{ url_for('xhr.zone.apply') }}";
+        window.warpGlobals.URLs['getSeat'] = "{{ url_for('xhr.zone.getSeats',zid=zoneId) }}";
         window.warpGlobals.URLs['seatSprite'] = "{{ url_for('static',filename='seat_icons.png') }}";
 
         window.warpGlobals['defaultSelectedDates'] = {{ defaultSelectedDates | tojson }};
@@ -16,7 +16,7 @@
         {% if isZoneAdmin %}
         window.warpGlobals.isZoneAdmin = true;
 
-        window.warpGlobals.URLs['zoneGetUsers'] = "{{ url_for('xhr.zoneGetUsers',zid=zoneId)}}";
+        window.warpGlobals.URLs['zoneGetUsers'] = "{{ url_for('xhr.zone.getUsers',zid=zoneId)}}";
         {% elif isZoneViewer %}
         window.warpGlobals.isZoneViewer = true;
         {% endif %}

@@ -1,5 +1,7 @@
 import flask
 import peewee
+
+from warp.db import UserToZoneRoles
 from . import auth
 from . import utils
 
@@ -12,15 +14,17 @@ def headerDataInit():
 
     headerDataL = []
 
-    headerDataL.append(
-        {"text": "Bookings", "endpoint": "view.bookings", "view_args": {} })
-
     zoneCursor = Zone.select(Zone.id, Zone.name) \
-                     .where( Zone.id.in_( ZoneAssign.select(ZoneAssign.zid).where(ZoneAssign.login.in_(flask.g.groups)) ) )
+                     .join(UserToZoneRoles, on=(Zone.id == UserToZoneRoles.zid)) \
+                     .where(UserToZoneRoles.login == flask.g.login) \
+                     .order_by(Zone.name)
 
     for z in zoneCursor:
         headerDataL.append(
             {"text": z['name'], "endpoint": "view.zone", "view_args": {"zid":str(z['id'])} })
+
+    if headerDataL:
+        headerDataL.insert(0,{"text": "Bookings", "endpoint": "view.bookings", "view_args": {} })
 
     headerDataR = [
         {"text": "Report", "endpoint": "view.report", "view_args": {} },
@@ -72,10 +76,9 @@ def users():
 @bp.route("/zone/<zid>")
 def zone(zid):
 
-    zoneRole = ZoneAssign.select(peewee.fn.MIN(ZoneAssign.zone_role) ) \
-                                .where(ZoneAssign.zid == zid) \
-                                .where(ZoneAssign.login.in_(flask.g.groups)) \
-                                .group_by(ZoneAssign.zid).scalar()
+    zoneRole = UserToZoneRoles.select(UserToZoneRoles.zone_role) \
+                              .where( (UserToZoneRoles.zid == zid) & (UserToZoneRoles.login == flask.g.login) ) \
+                              .scalar()
 
     if zoneRole is None:
         flask.abort(403)

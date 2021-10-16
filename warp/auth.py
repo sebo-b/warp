@@ -87,9 +87,7 @@ def session():
             flask.url_for('auth.login'))
 
     flask.g.isAdmin = c[0]['account_type'] == ACCOUNT_TYPE_ADMIN
-
-    groups = Groups.select(Groups.group).where(Groups.login == login).tuples()
     flask.g.login = login
-    flask.g.groups = [login] + [ g[0] for g in groups ]
+
 
 bp.before_app_request(session)
