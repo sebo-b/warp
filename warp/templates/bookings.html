@@ -11,7 +11,7 @@
     .delete_icon {
         height: 24px;
         width: 24px;
-        background-image: url('{{ url_for('static', filename='delete_icon.png') }}');
+        background-image: url('{{ url_for('static', filename='images/delete_icon.png') }}');
     }
 </style>
 
@@ -36,7 +36,7 @@
     {% if report %}
     <div class="fixed-action-btn">
         <a class="btn-floating btn-large waves-effect waves-light orange accent-4" id="export_btn">
-            <img src="{{ url_for('static', filename='excel_icon.png') }}">
+            <img src="{{ url_for('static', filename='images/excel_icon.png') }}">
         </a>
     </div>
     {% endif %}
