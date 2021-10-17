@@ -6,8 +6,8 @@ from warp.db import *
 
 bp = flask.Blueprint('users', __name__, url_prefix='users')
 
-@bp.route("list", methods=["POST"])
-def list(report = False):
+@bp.route("list", endpoint='list', methods=["POST"])
+def listW(report = False):              #list is a built-in type
 
     if not flask.request.is_json:
         flask.abort(404)
@@ -40,7 +40,7 @@ def list(report = False):
                     "type": "object",
                     "properties": {
                         "field" : {"type" : "string"},
-                        "type" : {"enum" : ["starts", ">=","<="] }
+                        "type" : {"enum" : ["starts", "="] }
                     },
                     "required": [ "field", "type", "value"],
                     "allOf": [
@@ -54,10 +54,10 @@ def list(report = False):
                         },
                         {
                             "if": {
-                                "properties": { "type" : {"enum" : [">=","<="] } }
+                                "properties": { "type" : {"enum" : ["="] } }
                             },
                             "then": {
-                                "properties": { "value" : {"type" : "integer" } }
+                                "properties": { "value" : {"type" : ["integer","array"] } }
                             }
                         }
                     ]
@@ -75,28 +75,27 @@ def list(report = False):
         return {"msg": "Data error" }, 400
 
     columnsMap = {
-        "id": Book.id,
-        "user_name": Users.name,
         "login": Users.login,
-        "zone_name": Zone.name,
-        "seat_name": Seat.name,
-        "fromTS": Book.fromts,
-        "toTS": Book.tots
+        "name": Users.name,
+        "account_type": Users.account_type,
     }
 
-    query = Book.select(Book.id, Users.name.alias('user_name'), Users.login, Zone.name.alias('zone_name'), Seat.name.alias('seat_name'), Book.fromts, Book.tots) \
-                      .join(Seat, on=(Book.sid == Seat.id)) \
-                      .join(Zone, on=(Seat.zid == Zone.id)) \
-                      .join(Users, on=(Book.login == Users.login))
+    query = Users.select(Users.login, Users.name, Users.account_type) \
+                 .where(Users.account_type < ACCOUNT_TYPE_GROUP) \
+                 .tuples()
 
     if "filters" in requestData:
         for i in requestData['filters']:
             if i["field"] in columnsMap:
                 field = columnsMap[i["field"]]
-                if i['type'] == '<=':
-                    query = query.where( field <= i["value"])
-                elif i['type'] == '>=':
-                    query = query.where( field >= i["value"])
+                if i['type'] == '=':
+
+                    # for some reason sometimes (when dropdown is shown) tabulator ssends it as array
+                    if isinstance(i['value'],list):
+                        query = query.where( field == i["value"][0])
+                    else:
+                        query = query.where( field == i["value"])
+
                 elif i['type'] == 'starts':
                     query = query.where( field.startswith(i["value"]))
 
@@ -107,7 +106,7 @@ def list(report = False):
 
         if "page" in requestData:
 
-            count = query.columns(COUNT_STAR).scalar()
+            count = query.columns(COUNT_STAR).scalar() #TODO_X
 
             lastPage = -(-count // limit)   # round up
 
@@ -123,59 +122,32 @@ def list(report = False):
 
 
     res = {
-        "data":[]
+        "data": [
+            {
+                "login": d[0],
+                "name": d[1],
+                "account_type": d[2]
+            } for d in query.iterator()
+         ]
     }
 
     if lastPage is not None:
         res["last_page"] = lastPage
 
-    for row in query:
-
-        d = {
-            "id": row["id"],
-            "user_name": row["user_name"],
-            "zone_name": row["zone_name"],
-            "seat_name": row["seat_name"],
-            "fromTS": row["fromts"],
-            "toTS": row["tots"]
-        }
-
-        if not report:
-
-            d['rw'] = \
-                (row["login"] == flask.g.login and row["zone_role"] <= ZONE_ROLE_USER) \
-                or row["zone_role"] <= ZONE_ROLE_ADMIN
-
-        else:
-            d["login"] = row["login"]
-
-        res['data'].append(d)
-
     return flask.jsonify(res)
 
-
-@bp.route("edit", methods=["POST"])
-def edit():
-
-    return flask.abort(404)
-
-
-##
 # Format:
 # { login: login, name: name, role: role, password: plain_text, action: "add|update|delete" }
-# return array (now of length 1) of updated/created row
-@bp.route("/api/editUser", methods=["POST"])
-def TODO_XeditUser():
+@bp.route("edit", methods=["POST"])
+def edit():
 
     from werkzeug.security import generate_password_hash
 
     if not flask.request.is_json:
         flask.abort(404)
 
-    role = flask.session.get('role')
-
-    if role > auth.ROLE_MANAGER:
-        flask.abort(403)
+    if not flask.g.isAdmin:
+        return {"msg": "Forbidden", "code": 150 }, 403
 
     action_data = flask.request.get_json()
 
@@ -185,7 +157,7 @@ def TODO_XeditUser():
         "properties": {
             "login" : {"type" : "string"},
             "name" : {"type" : "string"},
-            "role" : {"type" : "integer", "minimum": role },
+            "account_type" : {"enum" : [ACCOUNT_TYPE_ADMIN,ACCOUNT_TYPE_USER,ACCOUNT_TYPE_BLOCKED]},
             "password" : {"type" : "string"},
             "action": {"enum": ["add", "delete","update"]}
         },
@@ -202,7 +174,7 @@ def TODO_XeditUser():
                     }
                 },
                 "then": {
-                    "required": [ "name", "role" ]
+                    "required": [ "name", "account_type" ]
                 }
             },
             {
@@ -223,13 +195,12 @@ def TODO_XeditUser():
     try:
         validate(action_data,schema)
     except ValidationError as err:
-        return {"msg": "Data error" }, 400
+        return {"msg": "Data error", "code": 151 }, 400
 
-    class WarpErr(Exception):
+    class ApplyError(Exception):
         pass
 
     try:
-
         with DB.atomic():
 
             passHash = None
@@ -238,62 +209,60 @@ def TODO_XeditUser():
 
             if action_data['action'] == "update":
 
-                if action_data['role'] < role:
-                    raise WarpErr('Cannot set higher role than yours')
-
                 updColumns = {
                     Users.name: action_data['name'],
-                    Users.role: action_data['role'],
+                    Users.account_type: action_data['account_type'],
                 }
 
                 if passHash:
                     updColumns[Users.password] = passHash
 
                 rowCount = Users.update(updColumns) \
-                                .where((Users.login == action_data['login']) & (Users.role >= role)) \
+                                .where(Users.login == action_data['login']) \
+                                .where(Users.account_type <= ACCOUNT_TYPE_GROUP) \
                                 .execute()
 
                 if rowCount != 1:
-                    raise WarpErr("Wrong number of affected rows")
+                    raise ApplyError("Wrong number of affected rows", 152)
 
             elif action_data['action'] == "add":
 
-                if action_data['role'] < role:
-                    raise WarpErr('Cannot add user with higher role than yours')
+                if passHash is None:
+                    raise ApplyError("Password cannot be empty", 153)
 
                 Users.insert({
                     Users.login: action_data['login'],
                     Users.name: action_data['name'],
-                    Users.role: action_data['role'],
+                    Users.account_type: action_data['account_type'],
                     Users.password: passHash
                 }).execute()
 
             elif action_data['action'] == "delete":
 
+                login = action_data['login']
+
+                if login == flask.g.login:
+                    raise ApplyError("You cannot delete yourself", 154)
+
+                Groups.delete().where(Groups.login == login).execute()
+                ZoneAssign.delete().where(ZoneAssign.login == login).execute()
+                SeatAssign.delete().where(SeatAssign.login == login).execute()
                 rowCount = Users.delete() \
-                                .where((Users.login == action_data['login']) & (Users.role >= role)) \
+                                .where(Users.login == login) \
+                                .where(Users.account_type <= ACCOUNT_TYPE_GROUP) \
                                 .execute()
 
                 if rowCount != 1:
-                    raise WarpErr("Wrong number of affected rows")
+                    raise ApplyError("Wrong number of affected rows", 155)
 
     except IntegrityError as err:
         if action_data['action'] == "delete":
-            return {"msg": "User cannot be deleted" }, 400
+            return {"msg": "User cannot be deleted", "code": 156 }, 400
         elif action_data['action'] == "add":
-            return {"msg": "Login exits" }, 400
+            return {"msg": "Login exits", "code": 157 }, 400
         else:
-            return {"msg": "Error" }, 400
-    except WarpErr as err:
-        return {"msg": "Error" }, 400
+            return {"msg": "Error", "code": 158 }, 400
+    except ApplyError as err:
+        return {"msg": "Error", "code": err.args[1] }, 400
 
-    query = Users.select(Users.login, Users.name, Users.role).where(Users.login == action_data['login'])
-
-    if len(query) == 0:
-        return flask.jsonify([{"login": action_data['login']}])
-    else:
-        return flask.jsonify([{
-            "login": query[0]['login'],
-            "name": query[0]['name'],
-            "role": query[0]['role']
-            }])
+    return {"msg": "ok", "code": 159 }, 200

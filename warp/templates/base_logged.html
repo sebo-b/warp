@@ -3,6 +3,20 @@
 {% block header %}
     {{ super() }}
 
+    <style>
+
+    .delete_icon, .edit_icon {
+        height: 24px;
+        width: 24px;
+    }
+    .delete_icon {
+        background-image: url('{{ url_for('static', filename='images/delete_icon.png') }}');
+    }
+    .edit_icon {
+        background-image: url('{{ url_for('static', filename='images/edit_icon.png') }}');
+    }
+    </style>
+
     <script>
         window.warpGlobals.login = "{{ g.login }}";
     </script>

@@ -272,3 +272,5 @@ INPUT[type="password"] ~ .show_password_btn::after {
 INPUT[type="text"] ~ .show_password_btn::after {
     content: "visibility_off";
 }
+
+.tabulator-footer { text-align: left !important; }

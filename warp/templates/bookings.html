@@ -5,15 +5,6 @@
 
 <script src="{{ url_for('static', filename='tabulator/tabulator.min.js') }}"></script>
 <link type="text/css" rel="stylesheet" href="{{ url_for('static', filename='tabulator/tabulator_materialize.min.css') }}"/>
-<style>
-    .tabulator-footer { text-align: left !important; }
-
-    .delete_icon {
-        height: 24px;
-        width: 24px;
-        background-image: url('{{ url_for('static', filename='images/delete_icon.png') }}');
-    }
-</style>
 
 <script>
     {% if report %}

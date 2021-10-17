@@ -7,7 +7,8 @@
 <link type="text/css" rel="stylesheet" href="{{ url_for('static', filename='tabulator/tabulator_materialize.min.css') }}"/>
 
 <script>
-    window.warpGlobals.URLs['editUser'] = "{{ url_for('xhr.user.edit') }}";
+    window.warpGlobals.URLs['usersList'] = "{{ url_for('xhr.users.list') }}";
+    window.warpGlobals.URLs['usersEdit'] = "{{ url_for('xhr.users.edit') }}";
 </script>
 <script src="{{ url_for('static', filename='users.js') }}"></script>
 
@@ -24,9 +25,9 @@
                 <label for="login">Login</label>
             </div>
             <div class="input-field col s12 m8">
-                <select id="role_select">
+                <select id="account_type_select">
                 </select>
-                <label>Role</label>
+                <label>Account Type</label>
             </div>
 
             <div class="input-field col s12">

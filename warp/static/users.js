@@ -1,73 +1,239 @@
 "use strict";
 
-if (typeof(UserData) === 'undefined')
-    throw Error('users.js requires userdata module');
+document.addEventListener("DOMContentLoaded", function(e) {
 
-function initUsers(userData) {
+    let accountTypes = [
+        {label: "---" },
+        {label: "Admin", value: 10 },
+        {label: "User", value: 20 },
+        {label: "BLOCKED", value: 90 }
+    ];
+    let defaultAccountType = 20;
 
-    var roleSelectEl = document.getElementById('role_select');
+    var showEditDialog;
 
-    var editModalEl = document.getElementById('edit_modal');
-    var editModal = M.Modal.init(editModalEl, { 
-        onCloseEnd: function() {
-            // we need to tear down materialize select and recreate it
-            // as there is no (exposed) API to select option
-            let roleSelect = M.FormSelect.getInstance(roleSelectEl);
-            if (roleSelect) {
-                roleSelect.destroy();
-                roleSelectEl.innerHTML = "";
-            }
+    var accountTypeFormatter = function(cell, formatterParams) {
+        let value = cell.getValue();
+        for (let i of accountTypes) {
+            if (i['value'] == value)
+                return i['label'];
         }
+        return accountTypes[0]['label'];
+    }
+
+    var editFormater = function(cell) {
+        return '<div class="edit_icon"></div>';
+    }
+
+    var editClicked = function(e,cell) {
+        let data = cell.getRow().getData();
+        showEditDialog(data.login, data.account_type, data.name);
+    }
+
+    var table = new Tabulator("#usersTable", {
+        height: "3000px",   //this will be limited by maxHeight, we need to provide height
+        maxHeight:"100%",   //to make paginationSize work correctly
+        ajaxURL: window.warpGlobals.URLs['usersList'],
+        index:"login",
+        layout:"fitDataFill",
+        resizableColumns:true,
+        pagination: 'remote',
+        ajaxSorting:true,
+        ajaxFiltering:true,
+        ajaxConfig: "POST",
+        ajaxContentType: "json",
+        columns: [
+            {formatter:editFormater, width:40, hozAlign:"center", cellClick:editClicked, headerSort:false},
+            {title:"Login", field: "login", headerFilter:"input", headerFilterFunc:"starts"},
+            {title:"Name", field: "name", headerFilter:"input", headerFilterFunc:"starts"},
+            {title:"Type", field: "account_type", headerFilter:"select", headerFilterFunc:"=", headerFilterParams:{ values: accountTypes }, formatter:accountTypeFormatter  }
+        ],
+        initialSort: [
+            {column:"login", dir:"asc"},
+            {column:"Name", dir:"asc"}
+        ]
     });
 
-    var loginEl = document.getElementById("login");
-    var nameEl = document.getElementById("name");
-    var errorDiv = document.getElementById("error_div");
-    var errorMsg = document.getElementById("error_message");
+    showEditDialog = function(login,account_type,name) {
 
-    var deleteBtn = document.getElementById('edit_modal_delete_btn');
+        var editModalEl = document.getElementById('edit_modal');
+        var editModal = M.Modal.getInstance(editModalEl);
 
-    var myRole = userData.getRole();
+        var loginEl = document.getElementById("login");
+        var nameEl = document.getElementById("name");
+        var accountTypeSelectEl = document.getElementById('account_type_select');
+        var password1El = document.getElementById('password');
+        var password2El = document.getElementById('password2');
 
-    var roles = Object.keys(UserData.Roles).sort((a,b) => parseInt(a) - parseInt(b));
+        var saveBtn = document.getElementById('edit_modal_save_btn');
+        var deleteBtn = document.getElementById('edit_modal_delete_btn');
 
-    var showEditModal = function(login,role,name) {
+        var errorDiv = document.getElementById("error_div");
+        var errorMsg = document.getElementById("error_message");
+
+        if (typeof(editModal) === 'undefined') {
+
+            editModal = M.Modal.init(editModalEl, {
+                onCloseEnd: function() {
+                    // we need to tear down materialize select and recreate it
+                    // as there is no (exposed) API to select the option
+                    let accountTypeSelect = M.FormSelect.getInstance(accountTypeSelectEl);
+                    if (accountTypeSelect) {
+                        accountTypeSelect.destroy();
+                        accountTypeSelectEl.innerHTML = "";
+                    }
+                }
+            });
+
+            var showPassBtns = document.getElementsByClassName('show_password_btn');
+            for (let b of showPassBtns) {
+                let input = b.parentNode.getElementsByTagName('INPUT')[0];
+                b.addEventListener('click', function(e){
+                    input.type = input.type == "text"? "password": "text";
+                })
+            }
+
+            document.getElementById('generate_password_btn').addEventListener('click', function(e) {
+                let array = new Uint8Array(10);
+                window.crypto.getRandomValues(array);
+
+                let res = new String();
+                let validChars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&*+-:;<=>?@^|";
+                for (let i of array) {
+                    res = res + validChars[ i % validChars.length ];
+                }
+
+                password1El.value = res;
+                password1El.type = "text";
+
+                password2El.value = res;
+                password2El.type = "text";
+
+                M.updateTextFields();
+            });
+
+            var saveDeleteClicked = function(e) {
+
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", window.warpGlobals.URLs['usersEdit']);
+                xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+                xhr.addEventListener("load", function(e) {
+                    var resp = JSON.parse(this.responseText);
+                    if (this.status == 200) {
+                        table.replaceData();
+                        M.toast({html: 'Action successfull.'});
+                        editModal.close();
+                    }
+                    else {
+                        if (editModal.isOpen) {
+                            errorMsg.innerText = resp.msg;
+                            errorDiv.style.display = "block";
+                        }
+                        else {
+                            WarpModal.getInstance().open("Error",resp.msg);
+                        }
+                    }
+                });
+
+                if (e.target == saveBtn) {
+
+                    let err = "";
+                    if (password1El.value !== password2El.value) {
+                        err = "Passwords doesn't match";
+                    }
+
+                    if (loginEl.disabled) {
+                        if (nameEl.value === "")
+                            err = "Name cannot be empty.";
+                    }
+                    else if (loginEl.value === "" || nameEl.value === "" || password1El.value === "") {
+                        err = "All fields are mandatory";
+                    }
+
+                    if (err) {
+                        errorMsg.innerText = err;
+                        errorDiv.style.display = "block";
+                        return;
+                    }
+
+                    errorDiv.style.display = "none";
+
+                    let accountTypeSelect = M.FormSelect.getInstance(accountTypeSelectEl);
+                    let action = loginEl.disabled? "update": "add";
+
+                    let actionData = {
+                        login: loginEl.value,
+                        name: nameEl.value,
+                        account_type: parseInt(accountTypeSelect.getSelectedValues()[0]),
+                        action: action
+                    };
+
+                    if (password1El.value !== "")
+                        actionData['password'] = password1El.value;
+
+                    xhr.send( JSON.stringify(actionData));
+                }
+                else if (e.target == deleteBtn) {
+
+                    let modalBtnClicked = function(buttonId) {
+
+                        if (buttonId != 1)
+                            return;
+
+                        let actionData = {
+                            login: loginEl.value,
+                            action: "delete"
+                        };
+
+                        xhr.send( JSON.stringify(actionData));
+                    }
+
+                    var modalOptions = {
+                        buttons: [ {id: 1, text: "YES"}, {id: 0, text: "NO"} ],
+                        onButtonHook: modalBtnClicked
+                    }
+
+                    var msg = "This will fail if user had any bookings in the past, so it is usually a better idea to BLOCK user.";
+                    WarpModal.getInstance().open("Are you sure to delete user: "+loginEl.value,msg,modalOptions);
+                }
+            };
+
+            saveBtn.addEventListener('click', saveDeleteClicked);
+            deleteBtn.addEventListener('click', saveDeleteClicked);
+
+        }
 
         login = login || "";
-        role = typeof(role) === 'undefined'? 2: role;   // default User
+        if (typeof(account_type) === 'undefined')
+        account_type = defaultAccountType;
         name = name || "";
 
         loginEl.value = login;
         loginEl.disabled = login !== "";
 
-        deleteBtn.style.display = 
-            login !== ""? "inline-block": "none";
-
-        // it is not a good idea to delete itself
-        if (userData.getRealLogin() == login)
-            deleteBtn.style.display = "none";
+        deleteBtn.style.display =
+            login !== "" && login !== window.warpGlobals['login'] ? "inline-block": "none";
 
         nameEl.value = name;
 
-        for (let r of roles) {
-
-            if (r < myRole)
+        for (let r of accountTypes) {
+            if (!('value' in r))
                 continue;
 
             let optEl = document.createElement('option');
-            optEl.value = r;
-            optEl.appendChild( document.createTextNode(UserData.Roles[r]));
-            if (r == role)
+            optEl.value = r['value'];
+            optEl.appendChild( document.createTextNode(r['label']));
+            if (r['value'] == account_type)
                 optEl.selected = "true";
-            roleSelectEl.appendChild(optEl);
+                accountTypeSelectEl.appendChild(optEl);
         }
 
-        M.FormSelect.init(roleSelectEl);
+        M.FormSelect.init(accountTypeSelectEl);
 
-        p1.value = "";
-        p1.type = "password";
-        p2.value = "";
-        p2.type = "password";
+        password1El.value = "";
+        password1El.type = "password";
+        password2El.value = "";
+        password2El.type = "password";
 
         errorDiv.style.display = "none";
         errorMsg.innerText = "";
@@ -78,210 +244,8 @@ function initUsers(userData) {
 
     var addUserBtn = document.getElementById('add_user_btn');
     addUserBtn.addEventListener('click', function(e) {
-        //var ed = document.querySelector("");
-        showEditModal();
+        showEditDialog();
     });
 
-    var showPassBtns = document.getElementsByClassName('show_password_btn');
-    for (let b of showPassBtns) {
-        let input = b.parentNode.getElementsByTagName('INPUT')[0];
-        b.addEventListener('click', function(e){
-            input.type = input.type == "text"? "password": "text";
-        })
-    }
+});
 
-    var p1 = document.getElementById('password');
-    var p2 = document.getElementById('password2');
-    document.getElementById('generate_password_btn').addEventListener('click', function(e) {
-        let array = new Uint8Array(10);
-        window.crypto.getRandomValues(array);
-
-        let res = new String();
-        let validChars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&*+-:;<=>?@^|";
-        for (let i of array) {
-            res = res + validChars[ i % validChars.length ];
-        }
-
-        p1.value = res;
-        p1.type = "text";
-
-        p2.value = res;
-        p2.type = "text";
-
-        M.updateTextFields();
-    });
-
-    var editFormatter = function(cell, formatterParams) {
-        if (cell.getRow().getData().role >= myRole)
-            return '<i class="material-icons-outlined">edit</i>';
-        else
-            return "";
-    }
-
-    var roleFormatter = function(cell, formatterParams) {
-        return UserData.formatRole(cell.getValue());
-    }
-
-    var editClicked = function(e,cell) {
-        
-        let data = cell.getRow().getData();
-
-        if (data.role < myRole)
-            return;
-
-        showEditModal(data.login, data.role, data.name);
-    }
-
-    var data = userData.getData();
-    var tableData = [];
-    for (let i in data)
-        tableData.push(  Object.assign({login: i},data[i]));
-
-    var rolesFilter = [ { label: "---"} ];
-    for (let i of roles) {
-        rolesFilter.push({
-            label: UserData.Roles[i],
-            value: i
-        });
-    }
-
-    var table = new Tabulator("#usersTable", {
-        height:"100%",
-        data:tableData,
-        index:"login",
-        layout:"fitColumns",
-        resizableColumns:true,
-        columns:[
-            {formatter:editFormatter, width:40, hozAlign:"center", cellClick:editClicked, headerSort:false},
-            {title:"Login", field: "login", headerFilter:"input"},
-            {title:"Name", field: "name", headerFilter:"input"},
-            {title:"Role", field: "role", headerFilter:"input", formatter:roleFormatter, 
-                headerFilter:"select", headerFilterParams:{ values: rolesFilter } },
-        ],
-        initialSort:[
-            {column:"Name", dir:"asc"}
-        ]
-    });
-
-    document.getElementById('edit_modal_save_btn').addEventListener('click', function(e){
-
-        let err = "";
-        if (p1.value !== p2.value) {
-            err = "Passwords doesn't match";
-        }
-
-        if (loginEl.disabled) {
-            if (nameEl.value === "")
-                err = "Name cannot be empty.";
-        }
-        else if (loginEl.value === "" || nameEl.value === "" || p1.value === "") {
-            err = "All fields are mandatory";
-        }
-
-        if (err) {
-            errorMsg.innerText = err;
-            errorDiv.style.display = "block";
-            return;
-        }
-
-        errorDiv.style.display = "none";
-
-        let roleSelect = M.FormSelect.getInstance(roleSelectEl);
-        let action = loginEl.disabled? "update": "add";
-
-        let actionData = {
-            login: loginEl.value,
-            name: nameEl.value,
-            role: parseInt(roleSelect.getSelectedValues()[0]),
-            action: action
-        };
-
-        if (p1.value !== "")
-            actionData['password'] = p1.value;
-
-        var xhr = new XMLHttpRequest();    
-        xhr.open("POST", window.warpGlobals.URLs['editUser']);
-        xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-        xhr.addEventListener("load", function(e) {
-            var resp = JSON.parse(this.responseText);
-            if (this.status == 200) {
-                // let's update table
-                table.updateOrAddData(resp);
-
-                // and userData, but for that we need to transform the data
-                userData.updateOrAddData( 
-                    Object.fromEntries( 
-                        resp.map((e) => [ e.login, {name: e.name, role: e.role} ]
-                    )));
-
-                // as the last step we reinitialize actAs field
-                initActAs(userData);
-
-                M.toast({html: 'Action successfull.'});
-                editModal.close();    
-            }
-            else {
-                errorMsg.innerText = resp.msg;
-                errorDiv.style.display = "block";    
-            }
-        });
-        xhr.send( JSON.stringify(actionData));
-
-    });
-
-    deleteBtn.addEventListener('click', function(e) {
-
-        let modalBtnClicked = function(buttonId) {
-
-            if (buttonId != 1)
-                return;
-
-            let actionData = {
-                login: loginEl.value,
-                action: "delete"
-            };
-
-            var xhr = new XMLHttpRequest();    
-            xhr.open("POST", window.warpGlobals.URLs['editUser']);
-            xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-            xhr.addEventListener("load", function(e) {
-                var resp = JSON.parse(this.responseText);
-                if (this.status == 200) {
-
-                    var logins = Object.values(resp).map((e) => e.login);
-
-                    // let's update table and userdata
-                    table.deleteRow(logins);
-                    userData.delete(logins);
-
-                    // as the last step we reinitialize actAs field
-                    initActAs(userData);
-    
-                    M.toast({html: 'Action successfull.'});
-                    editModal.close();    
-                }
-                else {
-                    WarpModal.getInstance().open("Error",resp.msg);
-                }
-            });
-            xhr.send( JSON.stringify(actionData));
-
-        }
-
-        var modalOptions = {
-            buttons: [
-                {id: 1, text: "YES"},
-                {id: 0, text: "NO"}
-            ],
-            onButtonHook: modalBtnClicked
-        }
-    
-        var msg = "This will fail if user had any bookings in the past, so it is usually a better idea to BLOCK user.";
-    
-
-        WarpModal.getInstance().open("Are you sure to delete user: "+loginEl.value,msg,modalOptions);
-
-    });
-}
-
-UserData.getInstance().on('load',initUsers);

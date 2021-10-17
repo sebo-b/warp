@@ -11,10 +11,10 @@ bp = flask.Blueprint('bookings', __name__, url_prefix='bookings')
 
 @bp.route("report", methods=["POST"])
 def report():
-    return list(True)
+    return listW(True)
 
-@bp.route("list", methods=["POST"])
-def list(report = False):
+@bp.route("list", endpoint='list', methods=["POST"])
+def listW(report = False):      # list is a built-in type
 
     if not flask.request.is_json:
         flask.abort(404)
