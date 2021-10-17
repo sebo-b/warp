@@ -1,8 +1,8 @@
 import flask
 from jsonschema import validate, ValidationError
 
-from warp import auth
 from warp.db import *
+from warp import utils
 
 bp = flask.Blueprint('users', __name__, url_prefix='users')
 
@@ -137,7 +137,7 @@ def listW(report = False):              #list is a built-in type
     return flask.jsonify(res)
 
 # Format:
-# { login: login, name: name, role: role, password: plain_text, action: "add|update|delete" }
+# { login: login, name: name, role: role, password: plain_text, action: "add|update" }
 @bp.route("edit", methods=["POST"])
 def edit():
 
@@ -159,23 +159,11 @@ def edit():
             "name" : {"type" : "string"},
             "account_type" : {"enum" : [ACCOUNT_TYPE_ADMIN,ACCOUNT_TYPE_USER,ACCOUNT_TYPE_BLOCKED]},
             "password" : {"type" : "string"},
-            "action": {"enum": ["add", "delete","update"]}
+            "action": {"enum": ["add","update"]}
         },
         "allOf": [
             {
-                "required": [ "login", "action"]
-            },
-            {
-                "if": {
-                    "properties": {
-                        "action": {
-                            "enum": ["add","update"]
-                        }
-                    }
-                },
-                "then": {
-                    "required": [ "name", "account_type" ]
-                }
+                "required": [ "login", "action", "name", "account_type"]
             },
             {
                 "if": {
@@ -237,28 +225,10 @@ def edit():
                     Users.password: passHash
                 }).execute()
 
-            elif action_data['action'] == "delete":
 
-                login = action_data['login']
-
-                if login == flask.g.login:
-                    raise ApplyError("You cannot delete yourself", 154)
-
-                Groups.delete().where(Groups.login == login).execute()
-                ZoneAssign.delete().where(ZoneAssign.login == login).execute()
-                SeatAssign.delete().where(SeatAssign.login == login).execute()
-                rowCount = Users.delete() \
-                                .where(Users.login == login) \
-                                .where(Users.account_type <= ACCOUNT_TYPE_GROUP) \
-                                .execute()
-
-                if rowCount != 1:
-                    raise ApplyError("Wrong number of affected rows", 155)
 
     except IntegrityError as err:
-        if action_data['action'] == "delete":
-            return {"msg": "User cannot be deleted", "code": 156 }, 400
-        elif action_data['action'] == "add":
+        if action_data['action'] == "add":
             return {"msg": "Login exits", "code": 157 }, 400
         else:
             return {"msg": "Error", "code": 158 }, 400
@@ -266,3 +236,60 @@ def edit():
         return {"msg": "Error", "code": err.args[1] }, 400
 
     return {"msg": "ok", "code": 159 }, 200
+
+
+# Format:
+# { login: login, force: true|false }
+@bp.route("delete", methods=["POST"])
+def delete():
+
+    if not flask.request.is_json:
+        flask.abort(404)
+
+    if not flask.g.isAdmin:
+        return {"msg": "Forbidden", "code": 160 }, 403
+
+    action_data = flask.request.get_json()
+
+    schema = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+            "login" : {"type" : "string"},
+            "force": {"type": "boolean"}
+        },
+        "required": [ "login" ]
+    }
+
+    try:
+        validate(action_data,schema)
+    except ValidationError as err:
+        return {"msg": "Data error", "code": 170 }, 400
+
+    login = action_data['login']
+    force = action_data.get('force', False)
+
+    if not force:
+        today = utils.today()
+
+        rowCount = Book.select(COUNT_STAR) \
+                       .where(Book.login == login) \
+                       .where(Book.fromts < today) \
+                       .scalar()
+
+        if rowCount:
+            return {"msg": "User has past bookings", "bookCount": rowCount, "code": 171}, 406
+
+    try:
+        with DB.atomic():
+
+            # rowCount ?
+            Users.delete().where(Users.login == login) \
+                 .execute()
+
+    except IntegrityError:
+        return {"msg": "Error", "code":  172}, 400
+
+
+    return {"msg": "ok", "code": 173 }, 200
+

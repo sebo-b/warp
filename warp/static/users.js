@@ -112,11 +112,43 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 M.updateTextFields();
             });
 
-            var saveDeleteClicked = function(e) {
+            var saveBtnClicked = function(e) {
+
+                let err = "";
+                if (password1El.value !== password2El.value) {
+                    err = "Passwords doesn't match";
+                }
+
+                if (loginEl.disabled) {
+                    if (nameEl.value === "")
+                        err = "Name cannot be empty.";
+                }
+                else if (loginEl.value === "" || nameEl.value === "" || password1El.value === "") {
+                    err = "All fields are mandatory";
+                }
+
+                if (err) {
+                    errorMsg.innerText = err;
+                    errorDiv.style.display = "block";
+                    return;
+                }
+
+                errorDiv.style.display = "none";
+
+                let accountTypeSelect = M.FormSelect.getInstance(accountTypeSelectEl);
+                let action = loginEl.disabled? "update": "add";
+
+                let actionData = {
+                    login: loginEl.value,
+                    name: nameEl.value,
+                    account_type: parseInt(accountTypeSelect.getSelectedValues()[0]),
+                    action: action
+                };
+
+                if (password1El.value !== "")
+                    actionData['password'] = password1El.value;
 
                 var xhr = new XMLHttpRequest();
-                xhr.open("POST", window.warpGlobals.URLs['usersEdit']);
-                xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
                 xhr.addEventListener("load", function(e) {
                     var resp = JSON.parse(this.responseText);
                     if (this.status == 200) {
@@ -125,81 +157,71 @@ document.addEventListener("DOMContentLoaded", function(e) {
                         editModal.close();
                     }
                     else {
-                        if (editModal.isOpen) {
-                            errorMsg.innerText = resp.msg;
-                            errorDiv.style.display = "block";
+                        errorMsg.innerText = resp.msg;
+                        errorDiv.style.display = "block";
+                    }
+                });
+
+                xhr.open("POST", window.warpGlobals.URLs['usersEdit']);
+                xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+                xhr.send( JSON.stringify(actionData));
+            }
+
+            var deleteBtnClicked = function(e) {
+
+                let modalBtnClicked = function(buttonId) {
+
+                    if (buttonId != 1 && buttonId != 3)
+                        return;
+
+                    let actionData = { login: loginEl.value };
+
+                    if (buttonId == 3)
+                        actionData['force'] = true;
+
+                    var xhr = new XMLHttpRequest();
+
+                    xhr.addEventListener("load", function(e) {
+                        var resp = JSON.parse(this.responseText);
+
+                        if (this.status == 200) {
+                            table.replaceData();
+                            M.toast({html: 'Action successfull.'});
+                            editModal.close();
+                        }
+                        else if (this.status == 406) { // past bookings
+                            var modalOptions = {
+                                buttons: [ {id: 3, text: "YES, I'M SURE"}, {id: 2, text: "NO"} ],
+                                onButtonHook: modalBtnClicked
+                            }
+
+                            let bookCount = resp['bookCount'] || 0;
+                            let msg = "User has "+bookCount+" bookin(s) in the past. Deleting the user will delete past bookings (including future reports). ARE YOU SURE TO DELETE THIS USER?";
+                            WarpModal.getInstance().open("ARE YOU SURE TO DELETE USER: "+loginEl.value,msg,modalOptions);
                         }
                         else {
                             WarpModal.getInstance().open("Error",resp.msg);
                         }
-                    }
-                });
+                    });
 
-                if (e.target == saveBtn) {
-
-                    let err = "";
-                    if (password1El.value !== password2El.value) {
-                        err = "Passwords doesn't match";
-                    }
-
-                    if (loginEl.disabled) {
-                        if (nameEl.value === "")
-                            err = "Name cannot be empty.";
-                    }
-                    else if (loginEl.value === "" || nameEl.value === "" || password1El.value === "") {
-                        err = "All fields are mandatory";
-                    }
-
-                    if (err) {
-                        errorMsg.innerText = err;
-                        errorDiv.style.display = "block";
-                        return;
-                    }
-
-                    errorDiv.style.display = "none";
-
-                    let accountTypeSelect = M.FormSelect.getInstance(accountTypeSelectEl);
-                    let action = loginEl.disabled? "update": "add";
-
-                    let actionData = {
-                        login: loginEl.value,
-                        name: nameEl.value,
-                        account_type: parseInt(accountTypeSelect.getSelectedValues()[0]),
-                        action: action
-                    };
-
-                    if (password1El.value !== "")
-                        actionData['password'] = password1El.value;
-
+                    xhr.open("POST", window.warpGlobals.URLs['usersDelete']);
+                    xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
                     xhr.send( JSON.stringify(actionData));
+
                 }
-                else if (e.target == deleteBtn) {
 
-                    let modalBtnClicked = function(buttonId) {
-
-                        if (buttonId != 1)
-                            return;
-
-                        let actionData = {
-                            login: loginEl.value,
-                            action: "delete"
-                        };
-
-                        xhr.send( JSON.stringify(actionData));
-                    }
-
-                    var modalOptions = {
-                        buttons: [ {id: 1, text: "YES"}, {id: 0, text: "NO"} ],
-                        onButtonHook: modalBtnClicked
-                    }
-
-                    var msg = "This will fail if user had any bookings in the past, so it is usually a better idea to BLOCK user.";
-                    WarpModal.getInstance().open("Are you sure to delete user: "+loginEl.value,msg,modalOptions);
+                var modalOptions = {
+                    buttons: [ {id: 1, text: "YES"}, {id: 0, text: "NO"} ],
+                    onButtonHook: modalBtnClicked
                 }
+
+                var msg = "You will delete the log of user's past bookings. It is usually a better idea to BLOCK the user.";
+                WarpModal.getInstance().open("Are you sure to delete user: "+loginEl.value,msg,modalOptions);
+
             };
 
-            saveBtn.addEventListener('click', saveDeleteClicked);
-            deleteBtn.addEventListener('click', saveDeleteClicked);
+            saveBtn.addEventListener('click', saveBtnClicked);
+            deleteBtn.addEventListener('click', deleteBtnClicked);
 
         }
 

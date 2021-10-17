@@ -19,8 +19,8 @@ CREATE TABLE groups (
     "group" text NOT NULL,
     login text NOT NULL,
     PRIMARY KEY ("group",login),
-    FOREIGN KEY ("group") REFERENCES users(login),
-    FOREIGN KEY (login) REFERENCES users(login)
+    FOREIGN KEY ("group") REFERENCES users(login) ON DELETE CASCADE,
+    FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE
     );
 
 
@@ -38,7 +38,7 @@ CREATE TABLE zone_assign (
     zone_role integer NOT NULL,
     PRIMARY KEY (zid,login),
     FOREIGN KEY (zid) REFERENCES zone(id),
-    FOREIGN KEY (login) REFERENCES users(login)
+    FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE
     );
 
 CREATE TABLE seat (
@@ -56,7 +56,7 @@ CREATE TABLE seat_assign (
     login text NOT NULL,
     PRIMARY KEY (sid,login),
     FOREIGN KEY (sid) REFERENCES seat(id),
-    FOREIGN KEY (login) REFERENCES users(login)
+    FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE
     );
 
 CREATE INDEX seat_zid
@@ -68,7 +68,7 @@ CREATE TABLE book (
     sid integer NOT NULL,
     fromts integer NOT NULL,
     tots integer NOT NULL,
-    FOREIGN KEY (login) REFERENCES users(login),
+    FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE,
     FOREIGN KEY (sid) REFERENCES seat(id)
     );
 

@@ -9,6 +9,7 @@
 <script>
     window.warpGlobals.URLs['usersList'] = "{{ url_for('xhr.users.list') }}";
     window.warpGlobals.URLs['usersEdit'] = "{{ url_for('xhr.users.edit') }}";
+    window.warpGlobals.URLs['usersDelete'] = "{{ url_for('xhr.users.delete') }}";
 </script>
 <script src="{{ url_for('static', filename='users.js') }}"></script>
 
