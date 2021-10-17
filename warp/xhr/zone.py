@@ -439,7 +439,7 @@ def apply():
                     .where((Book.fromts < ts['toTS']) & (Book.tots > ts['fromTS'])) \
                     .where(Book.sid.in_(apply_data['disable']))
 
-        ret["conflicts_in_disable"] = [
+        conflicts_in_disable = [
             {
                 "sid": row['sid'],
                 "fromTS": row['fromts'],
@@ -449,6 +449,9 @@ def apply():
             } for row in query
         ]
 
+        if conflicts_in_disable:
+            ret["conflicts_in_disable"] = conflicts_in_disable
+
     if 'assign' in apply_data:
 
         query = Book.select(Book.sid, Book.fromts, Book.tots, Users.login, Users.name) \
@@ -457,12 +460,15 @@ def apply():
                     .where(Book.sid == apply_data['assign']['sid']) \
                     .where(Users.login.not_in(apply_data['assign']['logins']))
 
-        ret["conflicts_in_assign"] = [
+        conflicts_in_assign = [
             {"sid": row['sid'],
                 "fromTS": row['fromts'],
                 "toTS": row['tots'],
                 "login": row['login'],
                 "username": row['name']} for row in query]
+
+        if conflicts_in_assign:
+            ret["conflicts_in_assign"] = conflicts_in_assign
 
     return ret, 200
 
