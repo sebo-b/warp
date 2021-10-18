@@ -1,5 +1,6 @@
 import flask
 from jsonschema import validate, ValidationError
+import orjson
 
 from warp.db import *
 from warp import utils
@@ -10,10 +11,10 @@ bp = flask.Blueprint('users', __name__, url_prefix='users')
 def listW(report = False):              #list is a built-in type
 
     if not flask.request.is_json:
-        flask.abort(404)
+        return {"msg": "Non-JSON request", "code": 160 }, 404
 
     if not flask.g.isAdmin:
-        flask.abort(403)
+        return {"msg": "Forbidden", "code": 161 }, 403
 
     requestData = flask.request.get_json()
 
@@ -40,7 +41,7 @@ def listW(report = False):              #list is a built-in type
                     "type": "object",
                     "properties": {
                         "field" : {"type" : "string"},
-                        "type" : {"enum" : ["starts", "="] }
+                        "type" : {"enum" : ["starts", "=", "!=", "<", ">="] }
                     },
                     "required": [ "field", "type", "value"],
                     "allOf": [
@@ -54,7 +55,7 @@ def listW(report = False):              #list is a built-in type
                         },
                         {
                             "if": {
-                                "properties": { "type" : {"enum" : ["="] } }
+                                "properties": { "type" : {"enum" : ["=","!=","<"] } }
                             },
                             "then": {
                                 "properties": { "value" : {"type" : ["integer","array"] } }
@@ -72,7 +73,7 @@ def listW(report = False):              #list is a built-in type
     try:
         validate(requestData,schema)
     except ValidationError as err:
-        return {"msg": "Data error" }, 400
+        return {"msg": "Data error", "code": 162 }, 400
 
     columnsMap = {
         "login": Users.login,
@@ -80,24 +81,31 @@ def listW(report = False):              #list is a built-in type
         "account_type": Users.account_type,
     }
 
-    query = Users.select(Users.login, Users.name, Users.account_type) \
-                 .where(Users.account_type < ACCOUNT_TYPE_GROUP) \
-                 .tuples()
+    import operator
+    operatorsMap = {
+        "=": operator.__eq__,
+        "!=": operator.__ne__,
+        "<": operator.__lt__,
+        ">=": operator.__ge__,
+        'starts': lambda field,value: field.startswith(value)
+    }
+
+    query = Users.select(Users.login, Users.name, Users.account_type).tuples()
 
     if "filters" in requestData:
         for i in requestData['filters']:
             if i["field"] in columnsMap:
                 field = columnsMap[i["field"]]
-                if i['type'] == '=':
+                if i['type'] in operatorsMap:
+
+                    value = i["value"]
+                    op = operatorsMap[i['type']]
 
                     # for some reason sometimes (when dropdown is shown) tabulator ssends it as array
-                    if isinstance(i['value'],list):
-                        query = query.where( field == i["value"][0])
-                    else:
-                        query = query.where( field == i["value"])
+                    if isinstance(value,list):
+                        value = value[0]
 
-                elif i['type'] == 'starts':
-                    query = query.where( field.startswith(i["value"]))
+                    query = query.where( op(field,i["value"]) )
 
     lastPage = None
     if "size" in requestData:
@@ -120,7 +128,6 @@ def listW(report = False):              #list is a built-in type
             if i["field"] in columnsMap:
                 query = query.order_by_extend( columnsMap[i["field"]].asc() if i["dir"] == "asc" else columnsMap[i["field"]].desc() )
 
-
     res = {
         "data": [
             {
@@ -134,20 +141,23 @@ def listW(report = False):              #list is a built-in type
     if lastPage is not None:
         res["last_page"] = lastPage
 
-    return flask.jsonify(res)
+    return flask.current_app.response_class(
+        response=orjson.dumps(res),
+        status=200,
+        mimetype='application/json')
 
 # Format:
-# { login: login, name: name, role: role, password: plain_text, action: "add|update" }
+# { login: login, name: name, account_type: account_type, password: plain_text, action: "add|update" }
 @bp.route("edit", methods=["POST"])
 def edit():
 
     from werkzeug.security import generate_password_hash
 
     if not flask.request.is_json:
-        flask.abort(404)
+        return {"msg": "Non-JSON request", "code": 150 }, 404
 
     if not flask.g.isAdmin:
-        return {"msg": "Forbidden", "code": 150 }, 403
+        return {"msg": "Forbidden", "code": 151 }, 403
 
     action_data = flask.request.get_json()
 
@@ -157,33 +167,17 @@ def edit():
         "properties": {
             "login" : {"type" : "string"},
             "name" : {"type" : "string"},
-            "account_type" : {"enum" : [ACCOUNT_TYPE_ADMIN,ACCOUNT_TYPE_USER,ACCOUNT_TYPE_BLOCKED]},
+            "account_type" : {"enum" : [ACCOUNT_TYPE_ADMIN,ACCOUNT_TYPE_USER,ACCOUNT_TYPE_BLOCKED,ACCOUNT_TYPE_GROUP]},
             "password" : {"type" : "string"},
             "action": {"enum": ["add","update"]}
         },
-        "allOf": [
-            {
-                "required": [ "login", "action", "name", "account_type"]
-            },
-            {
-                "if": {
-                    "properties": {
-                        "action": {
-                            "const": "add"
-                        }
-                    }
-                },
-                "then": {
-                    "required": [ "password" ]
-                }
-            }
-        ]
+        "required": [ "login", "action", "name", "account_type"]
     }
 
     try:
         validate(action_data,schema)
     except ValidationError as err:
-        return {"msg": "Data error", "code": 151 }, 400
+        return {"msg": "Data error", "code": 152 }, 400
 
     class ApplyError(Exception):
         pass
@@ -191,51 +185,48 @@ def edit():
     try:
         with DB.atomic():
 
-            passHash = None
-            if 'password' in action_data and len(action_data['password']) > 0:
-                passHash = generate_password_hash(action_data['password'])
+            updColumns = {
+                Users.name: action_data['name'],
+                Users.account_type: action_data['account_type'],
+            }
+
+            if len(action_data.get('password','')) > 0 and action_data['account_type'] < ACCOUNT_TYPE_GROUP:
+                updColumns[Users.password] = generate_password_hash(action_data['password'])
 
             if action_data['action'] == "update":
 
-                updColumns = {
-                    Users.name: action_data['name'],
-                    Users.account_type: action_data['account_type'],
-                }
+                updateQ = Users.update(updColumns) \
+                                .where(Users.login == action_data['login'])
 
-                if passHash:
-                    updColumns[Users.password] = passHash
+                # prevent conversion from User <=> Group
+                if updColumns[ Users.account_type ] < ACCOUNT_TYPE_GROUP:
+                    updateQ = updateQ.where( Users.account_type < ACCOUNT_TYPE_GROUP)
+                else:
+                    updateQ = updateQ.where( Users.account_type >= ACCOUNT_TYPE_GROUP)
 
-                rowCount = Users.update(updColumns) \
-                                .where(Users.login == action_data['login']) \
-                                .where(Users.account_type <= ACCOUNT_TYPE_GROUP) \
-                                .execute()
+                rowCount = updateQ.execute()
 
                 if rowCount != 1:
-                    raise ApplyError("Wrong number of affected rows", 152)
+                    raise ApplyError("Wrong number of affected rows", 153)
 
             elif action_data['action'] == "add":
 
-                if passHash is None:
-                    raise ApplyError("Password cannot be empty", 153)
-
-                Users.insert({
-                    Users.login: action_data['login'],
-                    Users.name: action_data['name'],
-                    Users.account_type: action_data['account_type'],
-                    Users.password: passHash
-                }).execute()
-
-
+                updColumns[Users.login] = action_data['login'],
+                from time import perf_counter_ns
+                t1 = perf_counter_ns()
+                Users.insert(updColumns).execute()
+                t2 = perf_counter_ns()
+                print(f'>>>> Users.insert {(t2-t1)/1e6}')
 
     except IntegrityError as err:
         if action_data['action'] == "add":
-            return {"msg": "Login exits", "code": 157 }, 400
+            return {"msg": "Login exits", "code": 155 }, 400
         else:
-            return {"msg": "Error", "code": 158 }, 400
+            return {"msg": "Error", "code": 156 }, 400
     except ApplyError as err:
         return {"msg": "Error", "code": err.args[1] }, 400
 
-    return {"msg": "ok", "code": 159 }, 200
+    return {"msg": "ok", "code": 157 }, 200
 
 
 # Format:
@@ -244,10 +235,10 @@ def edit():
 def delete():
 
     if not flask.request.is_json:
-        flask.abort(404)
+        return {"msg": "Non-JSON request", "code": 170 }, 404
 
     if not flask.g.isAdmin:
-        return {"msg": "Forbidden", "code": 160 }, 403
+        return {"msg": "Forbidden", "code": 171 }, 403
 
     action_data = flask.request.get_json()
 
@@ -264,7 +255,7 @@ def delete():
     try:
         validate(action_data,schema)
     except ValidationError as err:
-        return {"msg": "Data error", "code": 170 }, 400
+        return {"msg": "Data error", "code": 172 }, 400
 
     login = action_data['login']
     force = action_data.get('force', False)
@@ -278,7 +269,7 @@ def delete():
                        .scalar()
 
         if rowCount:
-            return {"msg": "User has past bookings", "bookCount": rowCount, "code": 171}, 406
+            return {"msg": "User has past bookings", "bookCount": rowCount, "code": 173}, 406
 
     try:
         with DB.atomic():
@@ -288,8 +279,8 @@ def delete():
                  .execute()
 
     except IntegrityError:
-        return {"msg": "Error", "code":  172}, 400
+        return {"msg": "Error", "code":  174}, 400
 
 
-    return {"msg": "ok", "code": 173 }, 200
+    return {"msg": "ok", "code": 175 }, 200
 

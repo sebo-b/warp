@@ -15,6 +15,8 @@ CREATE TABLE users (
     account_type integer NOT NULL
     );
 
+CREATE INDEX users_account_type_idx ON users(account_type);
+
 CREATE TABLE groups (
     "group" text NOT NULL,
     login text NOT NULL,
@@ -84,27 +86,43 @@ ON book(fromts);
 CREATE INDEX book_toTS
 ON book(tots);
 
-CREATE MATERIALIZED VIEW user_to_zone_roles (login,zid,zone_role) AS
-with recursive user_group(login,"group") as (
-  select login,login from users
-  where account_type < 100
-  union
-  select u.login,g."group" from user_group u
-  join "groups" g on g.login = u."group"
-)
-select ug."login", za.zid, MIN(za.zone_role) from user_group ug
-join zone_assign za on za.login = ug."group"
-group by ug."login", za.zid;
+CREATE MATERIALIZED VIEW user_to_zone_roles ("login",zid,zone_role) AS
+    with recursive zone_assign_expanded("login",zid,zone_role,account_type) as (
+        select za."login",za.zid,za.zone_role,u.account_type from zone_assign za
+        join users u on za."login" = u."login"
+    union
+        select g."login",za.zid, za.zone_role,u.account_type from zone_assign_expanded za
+        join groups g on g."group" = za."login"
+        join users u on g."login" = u."login"
+    )
+    select login,zid,MIN(zone_role) from zone_assign_expanded
+    where account_type < 100
+    group by zid,login;
 
-CREATE INDEX user_to_zone_roles_idx
-ON user_to_zone_roles("login",zid);
+-- CREATE MATERIALIZED VIEW user_to_zone_roles (login,zid,zone_role) AS
+-- with recursive user_group(login,"group") as (
+--   select login,login from users
+--   where account_type < 100
+--   union
+--   select u.login,g."group" from user_group u
+--   join "groups" g on g.login = u."group"
+-- )
+-- select ug."login", za.zid, MIN(za.zone_role) from user_group ug
+-- join zone_assign za on za.login = ug."group"
+-- group by ug."login", za.zid;
+
+CREATE UNIQUE INDEX user_to_zone_roles_idx
+ON user_to_zone_roles("login",zid,zone_role);
+
+CREATE INDEX user_to_zone_roles_zid_idx
+ON user_to_zone_roles(zid);
 
 CREATE OR REPLACE FUNCTION update_user_to_zone_roles()
  RETURNS trigger
  LANGUAGE plpgsql
 AS $$
 BEGIN
-    REFRESH MATERIALIZED VIEW user_to_zone_roles;
+    REFRESH MATERIALIZED VIEW CONCURRENTLY user_to_zone_roles;
     RETURN NEW;
 END
 $$;

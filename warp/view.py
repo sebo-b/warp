@@ -28,7 +28,8 @@ def headerDataInit():
 
     headerDataR = [
         {"text": "Report", "endpoint": "view.report", "view_args": {} },
-        {"text": "Users", "endpoint": "view.users", "view_args": {} }
+        {"text": "Users", "endpoint": "view.users", "view_args": {} },
+        {"text": "Groups", "endpoint": "view.groups", "view_args": {} }
     ]
 
     #generate urls and selected
@@ -63,15 +64,6 @@ def report():
         flask.abort(403)
 
     return flask.render_template('bookings.html',report=True)
-
-
-@bp.route("/users")
-def users():
-
-    if not flask.g.isAdmin:
-        flask.abort(403)
-
-    return flask.render_template('users.html')
 
 @bp.route("/zone/<zid>")
 def zone(zid):
@@ -115,3 +107,37 @@ def zone(zid):
         zoneId = zid,
         nextWeek=nextWeek,
         defaultSelectedDates=defaultSelectedDates)
+
+@bp.route("/users")
+def users():
+
+    if not flask.g.isAdmin:
+        flask.abort(403)
+
+    return flask.render_template('users.html')
+
+@bp.route("/groups")
+def groups():
+
+    if not flask.g.isAdmin:
+        flask.abort(403)
+
+    return flask.render_template('groups.html')
+
+@bp.route("/groups/manage/<group_login>")
+def groupManage(group_login):
+
+    if not flask.g.isAdmin:
+        flask.abort(403)
+
+    groupName = Users.select(Users.name) \
+                     .where( (Users.login == group_login) & (Users.account_type >= ACCOUNT_TYPE_GROUP) ) \
+                     .scalar()
+
+    if groupName is None:
+        flask.abort(404)
+
+    return flask.render_template('group_manage.html',
+                    groupLogin = group_login,
+                    groupName = groupName)
+

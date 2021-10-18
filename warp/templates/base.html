@@ -6,8 +6,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
     <link rel="icon" href="{{ url_for('static', filename='images/favicon.png') }}" type="image/png" />
+
+    <style>
+        @font-face {
+            font-family: 'Material Icons';
+            font-style: normal;
+            font-weight: 400;
+            src: url('{{ url_for('static', filename='material_icons/MaterialIcons-Regular_v109.woff') }}') format('woff'),
+                url('{{ url_for('static', filename='material_icons/MaterialIcons-Regular_v109.woff2') }}') format('woff2');
+            }
+
+        @font-face {
+            font-family: 'Material Icons Outlined';
+            font-style: normal;
+            font-weight: 400;
+            src: url('{{ url_for('static', filename='material_icons/MaterialIcons-Outlined_v81.woff') }}') format('woff'),
+                url('{{ url_for('static', filename='material_icons/MaterialIcons-Outlined_v81.woff2') }}') format('woff2');
+            }
+    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='material_icons/material_icons.css') }}" />
+
     <link rel="stylesheet" href="{{ url_for('static', filename='styles/style.css') }}" />
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons|Material+Icons+Outlined" rel="stylesheet" />
     <link type="text/css" rel="stylesheet" href="{{ url_for('static', filename='materialize/materialize.min.css') }}"  media="screen,projection"/>
 
     <script>

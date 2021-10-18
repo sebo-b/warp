@@ -22,7 +22,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
     }
 
     var editFormater = function(cell) {
-        return '<div class="edit_icon"></div>';
+        return '<i class="material-icons-outlined green-text text-darken-3">edit</i>';
     }
 
     var editClicked = function(e,cell) {
@@ -51,6 +51,9 @@ document.addEventListener("DOMContentLoaded", function(e) {
         initialSort: [
             {column:"login", dir:"asc"},
             {column:"Name", dir:"asc"}
+        ],
+        initialFilter: [
+            {field:"account_type", type:"<", value:100}     // don't show groups
         ]
     });
 

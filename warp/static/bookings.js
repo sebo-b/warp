@@ -86,7 +86,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     var removeFormatter = function(cell, formatterParams) {
         if (cell.getRow().getData().rw)
-            return '<div class="delete_icon"></div>'
+            return '<i class="material-icons red-text text-darken-3">delete_forever</i>';
         else
             return "";
     }
