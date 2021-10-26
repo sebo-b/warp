@@ -19,9 +19,9 @@ function WarpModal() {
     this.options = WarpModal.default_options;
     this.clickedBtnId = null;
 
-    this.modal = M.Modal.init(modalElement, 
+    this.modal = M.Modal.init(modalElement,
         { onCloseEnd: function() {
-                
+
                 //local copy
                 var cancelHook = this.options.onCancelHook;
                 var clickedBtnId = this.clickedBtnId;
@@ -40,15 +40,15 @@ function WarpModal() {
 
             }.bind(this)
         });
-    
-    /** 
+
+    /**
      * options = {
      *  buttons: [
      *    { id: btn_id1, text: "Button Text" },
      *    { id: btn_id2, text: "Button Text" },
      *  ],
      *  onButtonHook: function(button_id),
-     *  onCancelHook:  function()   
+     *  onCancelHook:  function()
      * }
      **/
     this.open = function(header,content,options) {
@@ -68,21 +68,21 @@ function WarpModal() {
                 this.clickedBtnId = bid;
                 }.bind(this,b.id));
             }
-        
+
         this.modal.open();
     };
 };
 
 WarpModal.default_options = {
     buttons: [
-        { id: true, text: "Ok" }
+        { id: true, text: TR("btn.Ok") }
     ]
 };
 
 WarpModal.Instance = null;
-WarpModal.getInstance = function() { 
+WarpModal.getInstance = function() {
     if (!WarpModal.Instance)
         WarpModal.Instance = new WarpModal();
-    
+
     return WarpModal.Instance;
 };

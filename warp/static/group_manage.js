@@ -33,10 +33,10 @@ document.addEventListener("DOMContentLoaded", function(e) {
         xhr.addEventListener("load", function() {
             if (this.status == 200) {
                 table.replaceData();
-                M.toast({html: 'Action successfull.'});
+                M.toast({html: TR('Action successfull.')});
             }
             else
-                WarpModal.getInstance().open("Error","Something went wrong (status="+this.status+").");
+                WarpModal.getInstance().open(TR("Error"),TR('Something went wrong (status=%{status}).',{status:this.status}));
             });
 
         xhr.send( JSON.stringify( actionData));
@@ -55,17 +55,18 @@ document.addEventListener("DOMContentLoaded", function(e) {
         };
 
         var modalOptions = {
-            buttons: [ {id: 1, text: "YES"}, {id: 0, text: "NO"} ],
+            buttons: [ {id: 1, text: TR("btn.Yes")}, {id: 0, text: TR("btn.No")} ],
             onButtonHook: modalBtnClicked
         }
 
-        var msg = "Are you sure to remove "+cellData['name']+" from group "+window.warpGlobals.groupName;+"?";
-        WarpModal.getInstance().open("Are you sure?",msg,modalOptions);
+        var msg = TR("Are you sure to remove %{user} from group %{group}?",{user:cellData['name'], group:window.warpGlobals.groupName});
+        WarpModal.getInstance().open(TR("Are you sure?"),msg,modalOptions);
     }
 
     var table = new Tabulator("#groupMembersTable", {
         height: "2000px",   //this will be limited by maxHeight, we need to provide height
         maxHeight:"100%",   //to make paginationSize work correctly
+        langs: warpGlobals.i18n.tabulatorLangs,
         ajaxURL: window.warpGlobals.URLs['groupMemberList'],
         ajaxParams:{groupLogin:window.warpGlobals.groupLogin},
         index:"login",
@@ -78,8 +79,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
         ajaxContentType: "json",
         columns: [
             {formatter:iconFormater, formatterParams:{icon:"person_remove",colorClass:"red-text text-darken-3"}, width:40, hozAlign:"center", cellClick:deleteClicked, headerSort:false},
-            {title:"Login", field: "login", headerFilter:"input", headerFilterFunc:"starts"},
-            {title:"Name", field: "name", headerFilter:"input", headerFilterFunc:"starts"},
+            {title:TR("Login"), field: "login", headerFilter:"input", headerFilterFunc:"starts"},
+            {title:TR("User name"), field: "name", headerFilter:"input", headerFilterFunc:"starts"},
             {formatter:userTypeFormater, width:40, hozAlign:"center", headerSort:false},
         ],
         initialSort: [
@@ -100,7 +101,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         let addToGroupModal = M.Modal.getInstance(addToGroupModalEl);
 
         let showModal = function() {
-            addToGroupModalHeader.innerHTML = "Add to group "+ window.warpGlobals.groupName;
+            addToGroupModalHeader.innerHTML = TR("Add to group %{group}",{group: window.warpGlobals.groupName});
             addToGroupTable.clearData();
             addToGroupModal.open();
         }
@@ -131,10 +132,10 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 headerVisible: false,
                 columns: [
                     {formatter:iconFormater, formatterParams:{icon:"disabled_by_default",colorClass:"red-text text-darken-3"}, width:40, hozAlign:"center", cellClick:addToGroupTableRemoveClicked},
-                    {title:"Name", field: "name", headerFilter:"input", headerFilterFunc:"starts"},
+                    {title:TR("User name"), field: "name", headerFilter:"input", headerFilterFunc:"starts"},
                 ],
                 initialSort: [
-                    {column:"Name", dir:"asc"}
+                    {column:"name", dir:"asc"}
                 ]
             });
 
@@ -175,7 +176,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
                     showModal();
                 }
                 else
-                    WarpModal.getInstance().open("Error","Something went wrong (status="+this.status+").");
+                    WarpModal.getInstance().open(TR("Error"),TR('Something went wrong (status=%{status}).',{status:this.status}));
                 });
 
             xhr.send("{}");

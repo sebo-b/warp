@@ -29,6 +29,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
     var table = new Tabulator("#groupsTable", {
         height: "3000px",   //this will be limited by maxHeight, we need to provide height
         maxHeight:"100%",   //to make paginationSize work correctly
+        langs: warpGlobals.i18n.tabulatorLangs,
         ajaxURL: window.warpGlobals.URLs['usersList'],
         index:"login",
         layout:"fitDataFill",
@@ -41,8 +42,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
         columns: [
             {formatter:iconFormater, formatterParams:{icon:"manage_accounts",colorClass:"green-text text-darken-4"}, width:40, hozAlign:"center", cellClick:manageClicked, headerSort:false},
             {formatter:iconFormater, formatterParams:{icon:"edit",colorClass:"green-text text-darken-4"}, width:40, hozAlign:"center", cellClick:editClicked, headerSort:false},
-            {title:"Group id", field: "login", headerFilter:"input", headerFilterFunc:"starts"},
-            {title:"Name", field: "name", headerFilter:"input", headerFilterFunc:"starts"},
+            {title:TR("Group id"), field: "login", headerFilter:"input", headerFilterFunc:"starts"},
+            {title:TR("Group name"), field: "name", headerFilter:"input", headerFilterFunc:"starts"},
         ],
         initialSort: [
             {column:"login", dir:"asc"},
@@ -76,7 +77,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 let err = "";
 
                 if (nameEl.value === "")
-                    err = "Name cannot be empty.";
+                    err = TR("Group name cannot be empty.");
 
                 if (err) {
                     errorMsg.innerText = err;
@@ -99,12 +100,12 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 xhr.addEventListener("load", function(e) {
                     if (this.status == 200) {
                         table.replaceData();
-                        M.toast({html: 'Action successfull.'});
+                        M.toast({html: TR('Action successfull.')});
                         editModal.close();
                     }
                     else {
                         var resp = JSON.parse(this.responseText);
-                        errorMsg.innerText = resp.msg;
+                        errorMsg.innerText = resp.msg;  //TODO_TR
                         errorDiv.style.display = "block";
                     }
                 });
@@ -132,11 +133,11 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
                         if (this.status == 200) {
                             table.replaceData();
-                            M.toast({html: 'Action successfull.'});
+                            M.toast({html: TR('Action successfull.')});
                             editModal.close();
                         }
                         else {
-                            WarpModal.getInstance().open("Error",resp.msg);
+                            WarpModal.getInstance().open(TR("Error"),resp.msg); //TODO_TR
                         }
                     });
 
@@ -147,12 +148,12 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 }
 
                 var modalOptions = {
-                    buttons: [ {id: 1, text: "YES"}, {id: 0, text: "NO"} ],
+                    buttons: [ {id: 1, text: TR("btn.Yes")}, {id: 0, text: TR("btn.No")} ],
                     onButtonHook: modalBtnClicked
                 }
 
                 var msg = "";
-                WarpModal.getInstance().open("Are you sure to delete group: "+loginEl.value,msg,modalOptions);
+                WarpModal.getInstance().open(TR("Are you sure to delete group: %{group}", {group:loginEl.value}),msg,modalOptions);
 
             };
 

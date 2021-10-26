@@ -100,7 +100,7 @@ function initSeatPreview(seatFactory) {
         previewDiv.className = 'seat_preview';
 
         var previewTitle = previewDiv.appendChild(document.createElement("div"));
-        previewTitle.innerText = "Seat "+this.getName();
+        previewTitle.innerText = TR("Seat %{seat_name}",{seat_name: this.getName()});
         previewTitle.className = "seat_preview_title";
 
         // position of the frame
@@ -135,7 +135,7 @@ function initSeatPreview(seatFactory) {
         if (assignments.length) {
 
             var header = previewDiv.appendChild(document.createElement("span"));
-            header.appendChild(document.createTextNode("Assigned to:"));
+            header.appendChild(document.createTextNode(TR("Assigned to:")));
             header.className = "seat_preview_header";
 
             var table =  previewDiv.appendChild(document.createElement("table"));
@@ -149,7 +149,7 @@ function initSeatPreview(seatFactory) {
         if (bookings.length) {
 
             var header = previewDiv.appendChild(document.createElement("span"))
-            header.appendChild(document.createTextNode("Bookings:"));
+            header.appendChild(document.createTextNode(TR("Bookings:")));
             header.className = "seat_preview_header";
 
             var table =  previewDiv.appendChild(document.createElement("table"));
@@ -321,7 +321,7 @@ function initActionMenu(seatFactory) {
             }
 
             let p = document.createElement('P');
-            p.innerText = "Seat "+this.getName()+" to be booked:";
+            p.innerText = TR("Seat %{seat_name} to be booked:",{seat_name:this.getName()});
 
             msg1El.appendChild(p);
             msg1El.appendChild(bookDatesTable);
@@ -342,7 +342,7 @@ function initActionMenu(seatFactory) {
             }
 
             let p = document.createElement('P');
-            p.innerText = "To be removed:";
+            p.innerText = TR("To be removed:");
 
             msg2El.appendChild(p);
             msg2El.appendChild(myConflictsTable);
@@ -382,8 +382,8 @@ function initActionMenu(seatFactory) {
                 var msg = "";
 
                 if (resp.conflicts_in_disable) {
-                    msg += "Seat is successfully disabled.<br>However there are existing reservations in the the next few weeks.<br>" +
-                          "Existing reservations are not automatically removed, it has to be done manually.<br><br>";
+                    msg += TR("Seat is successfully disabled.<br>However there are existing reservations in the the next few weeks. " +
+                          "Existing reservations are not automatically removed, it has to be done manually.<br><br>");
                     let rList = [];
                     for (let r of resp.conflicts_in_disable) {
                         let dateStr = WarpSeatFactory._formatDatePair(r);
@@ -393,8 +393,8 @@ function initActionMenu(seatFactory) {
                 }
 
                 if (resp.conflicts_in_assign) {
-                    msg += "Seat is successfully assigned.<br>However there are non-assignees' existing reservations in the the next few weeks.<br>" +
-                          "Existing reservations are not automatically removed, it has to be done manually.<br><br>";
+                    msg += TR("Seat is successfully assigned.<br>However there are non-assignees' existing reservations in the the next few weeks. " +
+                          "Existing reservations are not automatically removed, it has to be done manually.<br><br>");
                     let rList = [];
                     for (let r of resp.conflicts_in_assign) {
                         let dateStr = WarpSeatFactory._formatDatePair(r);
@@ -404,12 +404,14 @@ function initActionMenu(seatFactory) {
                 }
 
                 if (msg == "")
-                    M.toast({html: 'Action successfull.'});
+                    M.toast({html: TR('Action successfull.')});
                 else
-                    WarpModal.getInstance().open("Warning",msg);
+                    WarpModal.getInstance().open(TR("Warning"),msg);
             }
             else {
-                WarpModal.getInstance().open("Change unsuccessfull","Unable to apply the change. Probably the seat was already booked by someone else.<br>Status: "+this.status);
+                WarpModal.getInstance().open(
+                    TR("Change unsuccessfull"),
+                    TR("Unable to apply the change. Probably the seat was already booked by someone else.<br>Status: %{status}",{status:this.status}));
             }
 
             downloadSeatData(seatFactory);

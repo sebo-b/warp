@@ -21,6 +21,11 @@ document.addEventListener("DOMContentLoaded", function(e) {
             }
         };
 
+        if (warpGlobals.i18n.datePicker) {
+            pickerOptions.firstDay = warpGlobals.i18n.datePicker.firstDay;
+            pickerOptions.i18n = warpGlobals.i18n.datePicker.i18n_object;
+        }
+
         M.Datepicker.init(picker, pickerOptions);
 
         return picker;
@@ -48,8 +53,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
             return picker;
         }
 
-        var fromDatePicker = container.appendChild( createPicker('From'));
-        var toDatePicker = container.appendChild( createPicker('To'));
+        var fromDatePicker = container.appendChild( createPicker(TR('From')));
+        var toDatePicker = container.appendChild( createPicker(TR('To')));
 
         var pickerOptions = {
             container: document.body,
@@ -64,6 +69,11 @@ document.addEventListener("DOMContentLoaded", function(e) {
              }
         };
 
+        if (warpGlobals.i18n.datePicker) {
+            pickerOptions.firstDay = warpGlobals.i18n.datePicker.firstDay;
+            pickerOptions.i18n = warpGlobals.i18n.datePicker.i18n_object;
+        }
+
         M.Datepicker.init(fromDatePicker, pickerOptions);
         M.Datepicker.init(toDatePicker, pickerOptions);
 
@@ -75,6 +85,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         var fromTS = new Date(parseInt(data.fromTS)*1000);
         var toTS = new Date(parseInt(data.toTS)*1000);
 
+        //TODO_TR
         var res =
             fromTS.toUTCString().substring(0,5)+
             fromTS.toISOString().substring(0,16).replace('T',' ')+
@@ -112,10 +123,10 @@ document.addEventListener("DOMContentLoaded", function(e) {
             xhr.addEventListener("load", function() {
                 if (this.status == 200) {
                     cell.getTable().replaceData();
-                    M.toast({html: 'Action successfull.'});
+                    M.toast({html: TR('Action successfull.')});
                 }
                 else
-                    WarpModal.getInstance().open("Error","Something went wrong (status="+this.status+").");
+                    WarpModal.getInstance().open(TR("Error"),TR("Something went wrong (status=%{status}).",{status:this.status}));
                 });
 
             xhr.send( JSON.stringify( action_data));
@@ -123,25 +134,25 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
         var modalOptions = {
             buttons: [
-                {id: 1, text: "YES"},
-                {id: 0, text: "NO"}
+                {id: 1, text: TR("btn.Yes")},
+                {id: 0, text: TR("btn.No")}
             ],
             onButtonHook: modalBtnClicked
         }
 
-        var msg = "User: "+data['user_name']+"<br>"+
-              "Zone: "+data['zone_name']+"<br>"+
-              "Seat: "+data['seat_name']+"<br>"+
-              "Time: "+mergedTsFormatter(cell);
+        var msg = TR('User name')+": "+data['user_name']+"<br>"+
+              TR("Zone")+": "+data['zone_name']+"<br>"+
+              TR("Seat")+": "+data['seat_name']+"<br>"+
+              TR("Time")+": "+mergedTsFormatter(cell);
 
-        WarpModal.getInstance().open("Are you sure to delete this booking?",msg,modalOptions);
+        WarpModal.getInstance().open(TR("Are you sure to delete this booking?"),msg,modalOptions);
     }
 
 
     var columns = [
-        {title:"Name", field: "user_name", headerFilter:"input", headerFilterFunc:"starts"},
-        {title:"Zone", field: "zone_name", headerFilter:"input", headerFilterFunc:"starts"},
-        {title:"Seat", field: "seat_name", headerFilter:"input", headerFilterFunc:"starts"}
+        {title:TR("User name"), field: "user_name", headerFilter:"input", headerFilterFunc:"starts"},
+        {title:TR("Zone"), field: "zone_name", headerFilter:"input", headerFilterFunc:"starts"},
+        {title:TR("Seat"), field: "seat_name", headerFilter:"input", headerFilterFunc:"starts"}
     ];
 
     var initialSort = [];
@@ -149,12 +160,12 @@ document.addEventListener("DOMContentLoaded", function(e) {
     if (window.warpGlobals['report']) {
 
         columns.splice(1,0,
-            {title:"Login", field: "login", headerFilter:"input", headerFilterFunc:"starts"}
+            {title:TR("Login"), field: "login", headerFilter:"input", headerFilterFunc:"starts"}
         );
 
         columns.push(
-            {title:"From", field: "fromTS", formatter:tsFormatter, headerFilter:dateFilterEditor, headerFilterFunc:">="},
-            {title:"To", field: "toTS", formatter:tsFormatter, headerFilter:dateFilterEditor, headerFilterParams: { offset: 24*3600-1 }, headerFilterFunc:"<="}
+            {title:TR("From"), field: "fromTS", formatter:tsFormatter, headerFilter:dateFilterEditor, headerFilterFunc:">="},
+            {title:TR("To"), field: "toTS", formatter:tsFormatter, headerFilter:dateFilterEditor, headerFilterParams: { offset: 24*3600-1 }, headerFilterFunc:"<="}
         );
 
         initialSort.push(
@@ -165,7 +176,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
     }
     else {
         columns.push(
-            {title:"Time", field: "fromTS", width: 275,
+            {title:TR("Time"), field: "fromTS", width: 275,
                 formatter:mergedTsFormatter,
                 headerFilter:mergedDateFilterEditor,
                 headerFilterFunc:function(){} },
@@ -176,8 +187,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
         );
 
         initialSort.push(
-            {column:"login", dir:"asc"},
-            {column:"fromTS", dir:"asc"}
+            {column:"fromTS", dir:"asc"},
+            {column:"user_name", dir:"asc"}
         );
     }
 
@@ -187,6 +198,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         ajaxURL: window.warpGlobals.URLs['bookingsReport'],
         index:"id",
         layout:"fitDataFill",
+        langs: warpGlobals.i18n.tabulatorLangs,
         resizableColumns:true,
         pagination: 'remote',
         ajaxSorting:true,

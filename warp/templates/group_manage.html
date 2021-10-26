@@ -26,15 +26,15 @@
             <h4 id="add_to_group_modal_header"></h4>
             <div class="input-field">
                 <input type="text" id="add_to_group_autocomplete" class="autocomplete" autocomplete="off">
-                <label for="add_to_group_autocomplete">Select user</label>
+                <label for="add_to_group_autocomplete" class="TR">Select user</label>
             </div>
             <div id="addToGroupTable">
 
             </div>
           </div>
           <div class="modal-footer">
-            <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" id="add_to_group_modal_addbtn">ADD</a>
-            <a href="#!" class="modal-close waves-effect waves-light btn-flat">Cancel</a>
+            <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn TR" id="add_to_group_modal_addbtn">btn.Add</a>
+            <a href="#!" class="modal-close waves-effect waves-light btn-flat TR">btn.Cancel</a>
           </div>
     </div>
 
@@ -54,7 +54,12 @@
     <div class="container group_manage_container">
         <div class="group_manage_title">
             <a href="{{ url_for('view.groups') }}"><i class="medium material-icons">chevron_left</i></a>
-            <span>Members of: {{ groupName }}</span>
+            <span>
+                <script>
+                    //TODO_TR make it nicer
+                    document.write(TR('Members of: %{group}',{group:"{{ groupName }}"}));
+                </script>
+            </span>
         </div>
         <div id="groupMembersTable"></div>
     </div>

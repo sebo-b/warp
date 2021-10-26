@@ -49,14 +49,14 @@
                 </div>
 
                 <div class="col s12 m12 l4 center-align" style="margin-top: 20px">
-                    <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="book">Book</a>
-                    <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="update">Update</a>
-                    <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="delete">Remove</a>
+                    <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn TR" data-action="book">btn.Book</a>
+                    <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn TR" data-action="update">btn.Update</a>
+                    <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn TR" data-action="delete">btn.Remove</a>
                     {% if isZoneAdmin %}
                     <br>
-                    <a href="#!" class="modal-close waves-effect waves-light btn red darken-2 zone_action_btn" data-action="assign-modal">Assign</a>
-                    <a href="#!" class="modal-close waves-effect waves-light btn red darken-2 zone_action_btn" data-action="enable">Enable</a>
-                    <a href="#!" class="modal-close waves-effect waves-light btn red darken-2 zone_action_btn" data-action="disable">Disable</a>
+                    <a href="#!" class="modal-close waves-effect waves-light btn red darken-2 zone_action_btn TR" data-action="assign-modal">btn.Assign</a>
+                    <a href="#!" class="modal-close waves-effect waves-light btn red darken-2 zone_action_btn TR" data-action="enable">btn.Enable</a>
+                    <a href="#!" class="modal-close waves-effect waves-light btn red darken-2 zone_action_btn TR" data-action="disable">btn.Disable</a>
                     {% endif %}
                 </div>
             </div>
@@ -68,12 +68,12 @@
     <div id="assigned_seat_modal" class="modal">
         <div class="modal-content">
             <h4 id="assigned_seat_header"></h4>
-            <p>Select users to which the seat will be assigned:</p>
+            <p class="TR">Select users to which the seat will be assigned:</p>
             <div class="chips chips-autocomplete" id="assigned_seat_chips"></div>
           </div>
           <div class="modal-footer">
-            <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn" data-action="assign">Set</a>
-            <a href="#!" class="modal-close waves-effect waves-light btn-flat">Cancel</a>
+            <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn TR" data-action="assign">btn.Set</a>
+            <a href="#!" class="modal-close waves-effect waves-light btn-flat TR">btn.Cancel</a>
           </div>
     </div>
     {% endif %}
@@ -83,55 +83,54 @@
             <table>
                 <tr>
                     <td><div class="help_modal_sprite" data-sprite="book"></div></td>
-                    <td>The seat is available to be booked on the selected dates and time.</td>
+                    <td class="TR">The seat is available to be booked on the selected dates and time.</td>
                 </tr>
                 <tr>
                     <td><div class="help_modal_sprite" data-sprite="rebook"></div></td>
-                    <td>
-                        The seat is available to be booked on the selected dates and time.
-                        However, you have other bookings at that time which will be automatically updated.
+                    <td class="TR">
+                        The seat is available to be booked on the selected dates and time. However, you have other bookings at that time which will be automatically updated.
                     </td>
                 </tr>
                 <tr>
                     <td><div class="help_modal_sprite" data-sprite="conflict"></div></td>
-                    <td>The seat is booked by another person or not available.</td>
+                    <td class="TR">The seat is booked by another person or not available.</td>
                 </tr>
                 <tr>
                     <td><div class="help_modal_sprite" data-sprite="userExact"></div></td>
-                    <td>The seat is booked by you on the selected date and time.</td>
+                    <td class="TR">The seat is booked by you on the selected date and time.</td>
                 </tr>
                 <tr>
                     <td><div class="help_modal_sprite" data-sprite="userRebook"></div></td>
-                    <td>The seat is booked by you, but not exactly on the selected date or time.
+                    <td class="TR">The seat is booked by you, but not exactly on the selected date or time.
                         You can update booking, all your other reservations at that time will be automatically updated.
                     </td>
                 </tr>
                 <tr>
                     <td><div class="help_modal_sprite" data-sprite="userConflict"></div></td>
-                    <td>The seat is booked by you, but not exactly on the selected date or time.
+                    <td class="TR">The seat is booked by you, but not exactly on the selected date or time.
                         You CANNOT update the booking as it is conflicting with another user booking.
                     </td>
                 </tr>
                 <tr>
                     <td><div class="help_modal_sprite" data-sprite="bookAssigned"></div></td>
-                    <td>The same meaning as the green type icon, but the seat is assigned to you, not assigned people cannot book it.
+                    <td class="TR">The same meaning as the green type icon, but the seat is assigned to you, not assigned people cannot book it.
                         Note that assignment isn't necessarily exclusive, the seat can be assigned to more than one person.
                     </td>
                 </tr>
                 <tr>
                     <td><div class="help_modal_sprite" data-sprite="rebookAssigned"></div></td>
-                    <td>The same meaning as the green type icon, but the seat is assigned to you, not assigned people cannot book it.
+                    <td class="TR">The same meaning as the green type icon, but the seat is assigned to you, not assigned people cannot book it.
                         Note that assignment isn't necessarily exclusive, the seat can be assigned to more than one person.
                     </td>
                 </tr>
                 {% if isZoneAdmin %}
                 <tr>
                     <td><div class="help_modal_sprite" data-sprite="disabled"></div></td>
-                    <td>The seat is disabled, cannot be booked, and is not visible to non-admins.</td>
+                    <td class="TR">The seat is disabled, cannot be booked, and is not visible to non-admins.</td>
                 </tr>
                 <tr>
                     <td><div class="help_modal_sprite" data-sprite="assigned"></div></td>
-                    <td>The seat is assigned to some people. This status is visible only to admins.<br>
+                    <td class="TR">The seat is assigned to some people. This status is visible only to admins.<br>
                         Note that you won't see this icon if the seat is assigned to you.
                     </td>
                 </tr>
@@ -140,7 +139,7 @@
         </div>
         <div class="modal-footer">
             <div class="center-align">
-                <a href="#!" class="modal-close waves-effect waves-light btn">Ok</a>
+                <a href="#!" class="modal-close waves-effect waves-light btn TR">btn.Ok</a>
             </div>
         </div>
     </div>
@@ -158,7 +157,7 @@
 
                 <div class="input-field book-as_container">
                     <input type="text" id="book-as" class="autocomplete book-as_input" autocomplete="off">
-                    <label for="book-as" class="active">Book as</label>
+                    <label for="book-as" class="active TR">Book as</label>
                 </div>
 
                 <div class="zone_sidepanel_close sidenav-close" data-target="zone_sidepanel">
@@ -173,7 +172,10 @@
                     <p>
                         <label>
                             <input class="filled-in date_checkbox" type="checkbox" value="{{w['timestamp']}}" />
-                            <span>{{ w['weekday'] }}, {{ w['date'] }}</span>
+                            <span>
+                                {# TODO_TR quite ugly #}
+                                <script>document.write(warpGlobals.i18n.weekdaysShort[{{ w['weekdayN'] }}]); </script>, {{ w['date'] }}
+                            </span>
                         </label>
                     </p>
                     {% endfor %}

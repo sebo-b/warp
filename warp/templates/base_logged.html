@@ -14,17 +14,17 @@
 
     <ul class="sidenav" id="mobile-nav">
         {% for i in headerDataL %}
-        <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}">{{i['text']}}</a></li>
+        <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}" class="TR">{{i['text']}}</a></li>
         {% endfor %}
         {% if g.isAdmin %}
         <li class="divider"></li>
         {% for i in headerDataR %}
-        <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}">{{i['text']}}</a></li>
+        <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}" class="TR">{{i['text']}}</a></li>
         {% endfor %}
         {% endif %}
         {% if hasLogout %}
         <li class="divider"></li>
-        <li><a href="{{ url_for('auth.logout') }}">Logout</a></li>
+        <li><a href="{{ url_for('auth.logout') }}" class="TR">Logout</a></li>
         {% endif %}
     </ul>
 
@@ -49,7 +49,7 @@
             {% if g.isAdmin %}
             <ul class="right hide-on-med-and-down">
                 {% for i in headerDataR %}
-                <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}">{{i['text']}}</a></li>
+                <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}" class="TR">{{i['text']}}</a></li>
                 {% endfor %}
             </ul>
             {% endif %}
@@ -57,7 +57,7 @@
             <a href="#" data-target="mobile-nav" class="sidenav-trigger"><i class="material-icons">menu</i></a>
             <ul class="left hide-on-med-and-down">
                 {% for i in headerDataL %}
-                <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}">{{i['text']}}</a></li>
+                <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}" class="TR">{{i['text']}}</a></li>
                 {% endfor %}
                 {% if hasLogout %}
                 <li><a href="{{ url_for('auth.logout') }}"><i class="material-icons">logout</i></a></li>

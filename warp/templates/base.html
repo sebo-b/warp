@@ -32,6 +32,8 @@
     <script>
         window.warpGlobals = { URLs: {} };
     </script>
+    <script src="{{ url_for('static', filename=config['LANGUAGE_FILE'] ) }}"></script>
+    <script src="{{ url_for('static', filename='i18n/warp_i18n.min.js') }}"></script>
 
     {% block header %}{% endblock %}
 </head>

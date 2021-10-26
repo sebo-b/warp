@@ -35,7 +35,7 @@ def getTimeRange(extended = False):
 # [
 #   { "timestamp": ts,
 #     "date": "yyyy-mm-dd",
-#     "weekday": "Mon|Tue..."
+#     "weekdayN": 0-6 where 0 is Sunday
 #     "isWeekend": true|false
 #   },...
 # ]
@@ -56,7 +56,7 @@ def getNextWeek():
         res.append( {
             "timestamp": ts,
             "date": strftime("%Y-%m-%d",t),
-            "weekday": strftime("%a",t),
+            "weekdayN": strftime("%w",t),
             "isWeekend": t.tm_wday>=5
         })
 

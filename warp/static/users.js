@@ -4,9 +4,9 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     let accountTypes = [
         {label: "---" },
-        {label: "Admin", value: 10 },
-        {label: "User", value: 20 },
-        {label: "BLOCKED", value: 90 }
+        {label: TR("accountTypes.Admin"), value: 10 },
+        {label: TR("accountTypes.User"), value: 20 },
+        {label: TR("accountTypes.BLOCKED"), value: 90 }
     ];
     let defaultAccountType = 20;
 
@@ -34,6 +34,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         height: "3000px",   //this will be limited by maxHeight, we need to provide height
         maxHeight:"100%",   //to make paginationSize work correctly
         ajaxURL: window.warpGlobals.URLs['usersList'],
+        langs: warpGlobals.i18n.tabulatorLangs,
         index:"login",
         layout:"fitDataFill",
         resizableColumns:true,
@@ -44,13 +45,13 @@ document.addEventListener("DOMContentLoaded", function(e) {
         ajaxContentType: "json",
         columns: [
             {formatter:editFormater, width:40, hozAlign:"center", cellClick:editClicked, headerSort:false},
-            {title:"Login", field: "login", headerFilter:"input", headerFilterFunc:"starts"},
-            {title:"Name", field: "name", headerFilter:"input", headerFilterFunc:"starts"},
-            {title:"Type", field: "account_type", headerFilter:"select", headerFilterFunc:"=", headerFilterParams:{ values: accountTypes }, formatter:accountTypeFormatter  }
+            {title:TR("Login"), field: "login", headerFilter:"input", headerFilterFunc:"starts"},
+            {title:TR("User name"), field: "name", headerFilter:"input", headerFilterFunc:"starts"},
+            {title:TR("Account type"), field: "account_type", headerFilter:"select", headerFilterFunc:"=", headerFilterParams:{ values: accountTypes }, formatter:accountTypeFormatter  }
         ],
         initialSort: [
             {column:"login", dir:"asc"},
-            {column:"Name", dir:"asc"}
+            {column:"name", dir:"asc"}
         ],
         initialFilter: [
             {field:"account_type", type:"<", value:100}     // don't show groups
@@ -119,7 +120,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
                 let err = "";
                 if (password1El.value !== password2El.value) {
-                    err = "Passwords doesn't match";
+                    err = TR("Passwords don't match");
                 }
 
                 if (loginEl.disabled) {
@@ -156,11 +157,11 @@ document.addEventListener("DOMContentLoaded", function(e) {
                     var resp = JSON.parse(this.responseText);
                     if (this.status == 200) {
                         table.replaceData();
-                        M.toast({html: 'Action successfull.'});
+                        M.toast({html: TR('Action successfull.')});
                         editModal.close();
                     }
                     else {
-                        errorMsg.innerText = resp.msg;
+                        errorMsg.innerText = resp.msg;  //TODO_TR
                         errorDiv.style.display = "block";
                     }
                 });
@@ -189,21 +190,23 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
                         if (this.status == 200) {
                             table.replaceData();
-                            M.toast({html: 'Action successfull.'});
+                            M.toast({html: TR('Action successfull.')});
                             editModal.close();
                         }
                         else if (this.status == 406) { // past bookings
                             var modalOptions = {
-                                buttons: [ {id: 3, text: "YES, I'M SURE"}, {id: 2, text: "NO"} ],
+                                buttons: [ {id: 3, text: TR("btn.YES, I'M SURE")}, {id: 2, text: TR("btn.No")} ],
                                 onButtonHook: modalBtnClicked
                             }
 
                             let bookCount = resp['bookCount'] || 0;
-                            let msg = "User has "+bookCount+" bookin(s) in the past. Deleting the user will delete past bookings (including future reports). ARE YOU SURE TO DELETE THIS USER?";
-                            WarpModal.getInstance().open("ARE YOU SURE TO DELETE USER: "+loginEl.value,msg,modalOptions);
+                            let msg = TR("User has XXX bookin(s) ... ",{smart_count:bookCount});
+                            WarpModal.getInstance().open(
+                                TR("ARE YOU SURE TO DELETE USER: %{user}?",{user:loginEl.value}),
+                                msg,modalOptions);
                         }
                         else {
-                            WarpModal.getInstance().open("Error",resp.msg);
+                            WarpModal.getInstance().open(TR("Error"),resp.msg); //TODO_TR
                         }
                     });
 
@@ -214,12 +217,12 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 }
 
                 var modalOptions = {
-                    buttons: [ {id: 1, text: "YES"}, {id: 0, text: "NO"} ],
+                    buttons: [ {id: 1, text: TR("btn.Yes")}, {id: 0, text: TR("btn.No")} ],
                     onButtonHook: modalBtnClicked
                 }
 
-                var msg = "You will delete the log of user's past bookings. It is usually a better idea to BLOCK the user.";
-                WarpModal.getInstance().open("Are you sure to delete user: "+loginEl.value,msg,modalOptions);
+                var msg = TR("You will delete the log of user's past bookings. It is usually a better idea to BLOCK the user.");
+                WarpModal.getInstance().open(TR("Are you sure to delete user: %{user}",{user:loginEl.value}),msg,modalOptions);
 
             };
 

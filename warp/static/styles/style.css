@@ -203,7 +203,7 @@ NAV {
 }
 
 .zone_action_btn {
-    width: 100px;
+    /*width: 100px;*/
     margin: 5px;
 }
 
@@ -273,7 +273,9 @@ INPUT[type="text"] ~ .show_password_btn::after {
     content: "visibility_off";
 }
 
-.tabulator-footer { text-align: left !important; }
+.tabulator-footer {
+    text-align: left !important;
+}
 
 .group_manage_title {
     font-size: 2.28rem;
@@ -299,4 +301,8 @@ INPUT[type="text"] ~ .show_password_btn::after {
 .group_manage_container {
     display: flex;
     flex-direction: column;
+}
+
+.TR {
+    visibility: hidden;
 }

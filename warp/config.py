@@ -10,6 +10,8 @@ DATABASE_SAMPLEDATA_SCRIPT = "sql/sample_data.sql"
 
 SECRET_KEY = b'change_me'
 
+LANGUAGE_FILE="i18n/pl.js"
+
 # use mellon (Apache SAML module) for authentication
 #AUTH_MELLON = False
 #MELLON_ENDPOINT = "/sp"

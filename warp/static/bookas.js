@@ -67,8 +67,6 @@ BookAs.prototype._setSelectedLogin = function(login) {
 
 BookAs.prototype._callChangeListeners = function() {
 
-    console.log("_callChangeListeners changed = " + this.changed);
-
     if (this.changed) {
         for (let l of this.listeners['change'])
             l.call(this,this.selectedLogin,this);
