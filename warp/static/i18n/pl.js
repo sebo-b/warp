@@ -116,8 +116,6 @@ warpGlobals.i18n.phrases = {
         "Usuniesz również historię rezerwacji tego użytkownika. Z tego powodu zaleca się zablokowanie konta zamiast usuwania.",
     "Are you sure to delete user: %{user}": "Czy jesteś pewien, że chcesz usunąć użytkownika: %{user}",
     "Select users to which the seat will be assigned:": "Wybierz użytkowników, do których zostanie przypisane miejce:",
-
-
     "The seat is available to be booked on the selected dates and time.":
         "Miejce jest dostępne do zarezerwowania w wybranym czasie",
     "The seat is available to be booked on the selected dates and time. However, you have other bookings at that time which will be automatically updated.":
