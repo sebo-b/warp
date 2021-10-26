@@ -452,7 +452,7 @@ def apply():
         if conflicts_in_disable:
             ret["conflicts_in_disable"] = conflicts_in_disable
 
-    if 'assign' in apply_data:
+    if 'assign' in apply_data and len(apply_data['assign']['logins']) > 0:
 
         query = Book.select(Book.sid, Book.fromts, Book.tots, Users.login, Users.name) \
                     .join(Users, on=(Book.login == Users.login)) \
