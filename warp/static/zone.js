@@ -592,9 +592,9 @@ function initZoneHelp() {
 
 }
 
-function initDatetimeSidenav() {
+function initZoneSidepanel() {
 
-    var el = document.getElementById('zone_datetime_container');
+    var el = document.getElementById('zone_sidepanel');
     M.Sidenav.init(el, {
         onCloseEnd: function(e) {
             e.style.transform = "";
@@ -632,7 +632,7 @@ function initZone() {
     initSeatPreview(seatFactory);
     initActionMenu(seatFactory);
     initZoneHelp();
-    initDatetimeSidenav();
+    initZoneSidepanel();
 
     downloadSeatData(seatFactory);
 
