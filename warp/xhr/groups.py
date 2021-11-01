@@ -170,11 +170,7 @@ def manage():
             if 'add' in action_data:
 
                 insData = [ {"group": action_data['groupLogin'], "login": x } for x in action_data['add'] ]
-                from time import perf_counter_ns
-                t1 = perf_counter_ns()
                 Groups.insert(insData).on_conflict_ignore().execute()
-                t2 = perf_counter_ns()
-                print(f'>>>> Groups.insert {(t2-t1)/1e6}')
 
     except IntegrityError as err:
         return {"msg": "Error", "code": 213 }, 400

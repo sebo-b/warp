@@ -95,6 +95,7 @@ warpGlobals.i18n.phrases = {
     'Action successfull.': 'Zmiany wprowadzono.',
     'Error': 'Błąd',
     'Something went wrong (status=%{status}).': 'Inny błąd (status=%{status}).',
+    'Other error.': 'Inny błąd',
     'Are you sure to delete this booking?': 'Czy na pewno usunąć tę rezerwację?',
     "Are you sure?": "Czy jesteś pewien?",
     "Account type": "Rodzaj konta",
@@ -150,4 +151,27 @@ warpGlobals.i18n.phrases = {
     "Change unsuccessfull": "Zmian nie wprowadzono",
     "Unable to apply the change. Probably the seat was already booked by someone else.<br>Status: %{status}":
         "Nie można zarezerwować. Prawdopodobnie inna osoba już zarezerwowała miejsce<br>Status: %{status}",
+    "Zones": "Strefy",
+    "Zone name": "Nazwa",
+    "Zone group": "Grupa",
+    "Num of admins": "Adm.",
+    "Num of users": "Użytkownicy",
+    "Num of viewers": "Użytk. z ogr.",
+    "Manage users": "Zarządzaj użytkownikami",
+    'Edit zone': "Edytuj",
+    'Edit map': "Edytuj mapę",
+    "You will delete the log of all past bookings in this zone. It is usually a better idea to unassign all users from the zone to make it inaccessible.":
+        "Usuniesz również historię rezerwacji w tej strefie. Z tego powodu zamiast usuwania strefy zaleca się usunięcie z niej wszystkich użytkowników, co spowoduje, że nie będzie ona dostępna.",
+    "Are you sure to delete zone: %{zone_name}": "Czy jesteś pewien, że chesz usunąć strefę: %{zone_name}",
+    "Zone name and zone group cannot be empty.":
+        "Nazwa strefy oraz grupa nie mogą być puste",
+    'Users assigned to: %{zone_name}': 'Użytkownicy przypisani do: %{zone_name}',
+    "Zone role": "Rola",
+    zoneRoles: {
+        "ZoneAdmin": "Administrator",
+        "User": "Użytkownik",
+        "Viewer": "Użytk. z ogr.",
+    },
+    "Assign to zone: %{zone_name}": "Przypisz do strefy: %{zone_name}",
+    "Are you sure to unassign %{user} from the zone?": "Czy na pewno chcesz usunąc użytkownika %{user} z tej strefy?",
 };

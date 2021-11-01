@@ -1,0 +1,66 @@
+{% extends 'base_logged.html' %}
+
+{% block header %}
+    {{ super() }}
+
+<script src="{{ url_for('static', filename='tabulator/tabulator.min.js') }}"></script>
+<link type="text/css" rel="stylesheet" href="{{ url_for('static', filename='tabulator/tabulator_materialize.min.css') }}"/>
+
+
+<script>
+    window.warpGlobals.zid = {{ zid }};
+
+    window.warpGlobals.URLs['zoneMembers'] = "{{ url_for('xhr.zones.members') }}";
+    window.warpGlobals.URLs['zoneAssign'] = "{{ url_for('xhr.zones.assign') }}";
+    window.warpGlobals.URLs['usersList'] = "{{ url_for('xhr.users.list') }}";
+</script>
+<script src="{{ url_for('static', filename='zone_assign.js') }}"></script>
+
+{% endblock %}
+
+{% block overlays %}
+    {{ super() }}
+
+    <div id="assign_to_zone_modal" class="modal">
+        <div class="modal-content">
+            <h4>
+                <script>TR.inline("Assign to zone: %{zone_name}",{zone_name: "{{zoneName}}" })</script>
+            </h4>
+            <div class="input-field">
+                <input type="text" id="assign_to_zone_autocomplete" class="autocomplete" autocomplete="off">
+                <label for="assign_to_zone_autocomplete" class="TR">Select user</label>
+            </div>
+            <div id="assign_to_zone_table">
+
+            </div>
+          </div>
+          <div class="modal-footer">
+            <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn TR" id="assign_to_zone_modal_addbtn">btn.Add</a>
+            <a href="#!" class="modal-close waves-effect waves-light btn-flat TR">btn.Cancel</a>
+          </div>
+    </div>
+
+
+    <div class="fixed-action-btn">
+        <a class="btn-floating btn-large waves-effect waves-light orange accent-4" id="assign_to_zone_btn">
+            <i class="material-icons-outlined">person_add_alt</i>
+        </a>
+    </div>
+
+
+{% endblock %}
+
+{% block content %}
+    {{ super() }}
+
+    <div class="container zone_assign_container">
+        <div class="zone_assign_title">
+            <a href="{{ url_for('view.zones') }}"><i class="medium material-icons">chevron_left</i></a>
+            <span>
+                <script>TR.inline('Users assigned to: %{zone_name}',{zone_name:"{{ zoneName }}"});</script>
+            </span>
+        </div>
+        <div id="zone_assignees_table"></div>
+    </div>
+
+{% endblock %}

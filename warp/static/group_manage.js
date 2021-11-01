@@ -1,9 +1,5 @@
 "use strict";
 
-if (typeof(Utils) === 'undefined')
-    throw Error('bookas requires Utils module');
-
-
 document.addEventListener("DOMContentLoaded", function(e) {
 
     var table;

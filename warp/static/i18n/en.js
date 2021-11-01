@@ -95,6 +95,7 @@ warpGlobals.i18n.phrases = {
     'Action successfull.': 'Action successfull.',
     'Error': 'Error',
     'Something went wrong (status=%{status}).': 'Something went wrong (status=%{status}).',
+    'Other error.': 'Inny błąd',
     'Are you sure to delete this booking?': 'Are you sure to delete this booking?',
     "Are you sure?": "Are you sure?",
     "Account type": "Account type",
@@ -115,8 +116,6 @@ warpGlobals.i18n.phrases = {
         "You will delete the log of user's past bookings. It is usually a better idea to BLOCK the user.",
     "Are you sure to delete user: %{user}": "Are you sure to delete user: %{user}",
     "Select users to which the seat will be assigned:": "Select users to which the seat will be assigned:",
-
-
     "The seat is available to be booked on the selected dates and time.":
         "The seat is available to be booked on the selected dates and time.",
     "The seat is available to be booked on the selected dates and time. However, you have other bookings at that time which will be automatically updated.":
@@ -151,4 +150,27 @@ warpGlobals.i18n.phrases = {
     "Change unsuccessfull": "Change unsuccessfull",
     "Unable to apply the change. Probably the seat was already booked by someone else.<br>Status: %{status}":
         "Unable to apply the change. Probably the seat was already booked by someone else.<br>Status: %{status}",
+    "Zones": "Zones",
+    "Zone name": "Name",
+    "Zone group": "Group",
+    "Num of admins": "Admins",
+    "Num of users": "Users",
+    "Num of viewers": "Viewers",
+    "Manage users": "Manage users",
+    'Edit zone': "Edit",
+    'Edit map': "Edit map",
+    "You will delete the log of all past bookings in this zone. It is usually a better idea to unassign all users from the zone to make it inaccessible.":
+        "You will delete the log of all past bookings in this zone. It is usually a better idea to unassign all users from the zone to make it inaccessible.",
+    "Are you sure to delete zone: %{zone_name}": "Are you sure to delete zone: %{zone_name}",
+    "Zone name and zone group cannot be empty.":
+        "Zone name and zone group cannot be empty.",
+    'Users assigned to: %{zone_name}': 'Users assigned to: %{zone_name}',
+    "Zone role": "Role",
+    zoneRoles: {
+        "ZoneAdmin": "Admin",
+        "User": "User",
+        "Viewer": "Viewer",
+    },
+    "Assign to zone: %{zone_name}": "Assign to zone: %{zone_name}",
+    "Are you sure to unassign %{user} from the zone?": "Are you sure to unassign %{user} from the zone?",
 };

@@ -29,6 +29,13 @@ window.TR.updateDOM = function() {
   }
 }
 
+window.TR.inline = function() {
+  document.write(
+    window.warpGlobals.i18n.polyglot.t.apply(
+      window.warpGlobals.i18n.polyglot,
+      arguments));
+}
+
 document.addEventListener("DOMContentLoaded", function(e) {
   window.TR.updateDOM();
 });

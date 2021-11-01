@@ -306,3 +306,29 @@ INPUT[type="text"] ~ .show_password_btn::after {
 .TR {
     visibility: hidden;
 }
+
+.zone_assign_title {
+    font-size: 2.28rem;
+    line-height: 110%;
+    padding: 10px 0px;
+}
+
+@media only screen and (min-width : 993px) {
+    .zone_assign_title {
+        margin-left: -60px;
+    }
+}
+
+.zone_assign_title A {
+    text-decoration: none;
+    color: inherit;
+}
+
+.zone_assign_title SPAN, .zone_assign_title I {
+    vertical-align: middle;
+}
+
+.zone_assign_container {
+    display: flex;
+    flex-direction: column;
+}

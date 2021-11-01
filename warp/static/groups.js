@@ -47,7 +47,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         ],
         initialSort: [
             {column:"login", dir:"asc"},
-            {column:"Name", dir:"asc"}
+            {column:"name", dir:"asc"}
         ],
         initialFilter: [
             {field:"account_type", type:">=", value:100}     // show groups only

@@ -1,6 +1,9 @@
+import flask
+
 from calendar import timegm
 from time import localtime,strftime,gmtime
-from flask import current_app
+from jsonschema import validate, ValidationError
+import functools
 
 def now():
     """ Returns number of seconds since midnight 1970-1-1 in the current timezone until now"""
@@ -21,7 +24,7 @@ def getTimeRange(extended = False):
 
     fromTS = today()
 
-    weeksInAdvance = current_app.config['WEEKS_IN_ADVANCE']
+    weeksInAdvance = flask.current_app.config['WEEKS_IN_ADVANCE']
     if extended:
         weeksInAdvance += 2
 
@@ -48,7 +51,7 @@ def getNextWeek():
     res = []
     noOfSundays = 0
 
-    weeksInAdvance = current_app.config['WEEKS_IN_ADVANCE']
+    weeksInAdvance = flask.current_app.config['WEEKS_IN_ADVANCE']
 
     while noOfSundays <= weeksInAdvance:
 
@@ -80,3 +83,31 @@ def formatTimespan(fromTS, toTS):
         return strftime("%a, %Y-%m-%d %H:%M",fromT)+strftime("-%H:%M",toT)
     else:
         return strftime("%Y-%m-%d %H:%M",fromT)+strftime(" - %Y-%m-%d %H:%M",toT)
+
+def validateJSONInput(jsonSchema, isAdmin = False):
+
+    def inner(func):
+
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+                if not flask.request.is_json:
+                    return {"msg": "Non-JSON request", "code": 10 }, 404
+
+                if isAdmin and not flask.g.isAdmin:
+                    return {"msg": "Forbidden", "code": 11 }, 403
+
+                from werkzeug.exceptions import BadRequest
+
+                try:
+                    jsonData = flask.request.get_json()
+                    validate(jsonData,jsonSchema)
+                except BadRequest:
+                    return {"msg": "Error in paring JSON", "code": 11 }, 404
+                except ValidationError as err:
+                    return {"msg": "Data error", "code": 12 }, 400
+
+                return func(*args, **kwargs)
+
+        return wrapper
+
+    return inner

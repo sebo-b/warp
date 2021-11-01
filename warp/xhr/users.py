@@ -212,11 +212,7 @@ def edit():
             elif action_data['action'] == "add":
 
                 updColumns[Users.login] = action_data['login'],
-                from time import perf_counter_ns
-                t1 = perf_counter_ns()
                 Users.insert(updColumns).execute()
-                t2 = perf_counter_ns()
-                print(f'>>>> Users.insert {(t2-t1)/1e6}')
 
     except IntegrityError as err:
         if action_data['action'] == "add":

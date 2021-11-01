@@ -1,0 +1,62 @@
+{% extends 'base_logged.html' %}
+
+{% block header %}
+    {{ super() }}
+
+<script src="{{ url_for('static', filename='tabulator/tabulator.min.js') }}"></script>
+<link type="text/css" rel="stylesheet" href="{{ url_for('static', filename='tabulator/tabulator_materialize.min.css') }}"/>
+
+<script>
+    window.warpGlobals.URLs['zonesList'] = "{{ url_for('xhr.zones.list') }}";
+    window.warpGlobals.URLs['zonesDelete'] = "{{ url_for('xhr.zones.delete') }}";
+    window.warpGlobals.URLs['zonesAddOrEdit'] = "{{ url_for('xhr.zones.addOrEdit') }}";
+    window.warpGlobals.URLs['zoneAssign'] = "{{ url_for('view.zoneAssign', zid='__ZID__') }}";
+</script>
+<script src="{{ url_for('static', filename='zones.js') }}"></script>
+
+{% endblock %}
+
+{% block overlays %}
+    {{ super() }}
+
+<div id="edit_modal" class="modal">
+    <div class="modal-content">
+        <div class="row">
+            <div class="input-field col s12 m8">
+                <input id="zone_name" type="text" required>
+                <label for="zone_name" class="TR">Zone name</label>
+            </div>
+            <div class="input-field col s12 m4">
+                <input id="zone_group" type="number" required>
+                <label for="zone_group" class="TR">Zone group</label>
+            </div>
+        </div>
+        <div class="row" style="display: none" id="error_div">
+            <div class="col s12" style="color: red" id="error_message">
+            </div>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="waves-effect waves-light btn red darken-2 TR" id="edit_modal_delete_btn">btn.Delete</a>
+        <a href="#!" class="waves-effect waves-light btn TR" id="edit_modal_save_btn">btn.Save</a>
+        <a href="#!" class="modal-close waves-effect waves-light btn-flat TR" id="edit_modal_cancel_btn">btn.Cancel</a>
+    </div>
+</div>
+
+<div class="fixed-action-btn">
+    <a class="btn-floating btn-large waves-effect waves-light orange accent-4" id="add_zone_btn">
+        <i class="material-icons-outlined">add_photo_alternate</i>
+    </a>
+</div>
+
+
+{% endblock %}
+
+{% block content %}
+    {{ super() }}
+
+    <div class="container">
+        <div id="zonesTable"></div>
+    </div>
+
+{% endblock %}

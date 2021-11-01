@@ -29,7 +29,8 @@ def headerDataInit():
     headerDataR = [
         {"text": "Report", "endpoint": "view.report", "view_args": {} },
         {"text": "Users", "endpoint": "view.users", "view_args": {} },
-        {"text": "Groups", "endpoint": "view.groups", "view_args": {} }
+        {"text": "Groups", "endpoint": "view.groups", "view_args": {} },
+        {"text": "Zones", "endpoint": "view.zones", "view_args": {} }
     ]
 
     #generate urls and selected
@@ -124,6 +125,15 @@ def groups():
 
     return flask.render_template('groups.html')
 
+@bp.route("/zones")
+def zones():
+
+    if not flask.g.isAdmin:
+        flask.abort(403)
+
+    return flask.render_template('zones.html')
+
+
 @bp.route("/groups/manage/<group_login>")
 def groupManage(group_login):
 
@@ -141,3 +151,20 @@ def groupManage(group_login):
                     groupLogin = group_login,
                     groupName = groupName)
 
+
+@bp.route("/zones/assign/<zid>")
+def zoneAssign(zid):
+
+    if not flask.g.isAdmin:
+        flask.abort(403)
+
+    zoneName = Zone.select(Zone.name) \
+                     .where( Zone.id == zid ) \
+                     .scalar()
+
+    if zoneName is None:
+        flask.abort(404)
+
+    return flask.render_template('zone_assign.html',
+                    zoneName = zoneName,
+                    zid = zid)
