@@ -10,7 +10,8 @@
     window.warpGlobals.groupLogin = "{{ groupLogin }}";
     window.warpGlobals.groupName = "{{ groupName }}";
     window.warpGlobals.URLs['groupMemberList'] = "{{ url_for('xhr.groups.members') }}";
-    window.warpGlobals.URLs['groupsManage'] = "{{ url_for('xhr.groups.manage') }}";
+    window.warpGlobals.URLs['groupsManageXHR'] = "{{ url_for('xhr.groups.manage') }}";
+    window.warpGlobals.URLs['groupManageView'] = "{{ url_for('view.groupManage', group_login='__LOGIN__', return=request.url) }}";
     window.warpGlobals.URLs['usersList'] = "{{ url_for('xhr.users.list') }}";
 </script>
 <script src="{{ url_for('static', filename='group_manage.js') }}"></script>
@@ -52,7 +53,7 @@
 
     <div class="container group_manage_container">
         <div class="group_manage_title">
-            <a href="{{ url_for('view.groups') }}"><i class="medium material-icons">chevron_left</i></a>
+            <a href="{{ returnURL }}"><i class="medium material-icons">chevron_left</i></a>
             <span>
                 <script>
                     //TODO_TR make it nicer

@@ -19,12 +19,22 @@ document.addEventListener("DOMContentLoaded", function(e) {
             return '<i class="material-icons">person</i>';
     }
 
+    var userGroupFormatter = function(cell, formatterParams, onRendered) {
+        let data = cell.getData();
+        let isGroup = data['isGroup'];
+        if (!isGroup)
+            return cell.getValue();
+
+        let url = window.warpGlobals.URLs['groupManageView'].replace('__LOGIN__',data['login']);
+        return '<a href="'+url+'" class="userGroupCell">'+cell.getValue()+"</a>";
+    }
+
     var sendManageRequest = function(actionData) {
 
         actionData.groupLogin = window.warpGlobals.groupLogin;
 
         var xhr = new XMLHttpRequest();
-        xhr.open("POST", window.warpGlobals.URLs['groupsManage'],true);
+        xhr.open("POST", window.warpGlobals.URLs['groupsManageXHR'],true);
         xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
         xhr.addEventListener("load", function() {
             if (this.status == 200) {
@@ -75,8 +85,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
         ajaxContentType: "json",
         columns: [
             {formatter:iconFormater, formatterParams:{icon:"person_remove",colorClass:"red-text text-darken-3"}, width:40, hozAlign:"center", cellClick:deleteClicked, headerSort:false},
-            {title:TR("Login"), field: "login", headerFilter:"input", headerFilterFunc:"starts"},
-            {title:TR("User name"), field: "name", headerFilter:"input", headerFilterFunc:"starts"},
+            {title:TR("Login"), field: "login", formatter:userGroupFormatter, headerFilter:"input", headerFilterFunc:"starts"},
+            {title:TR("User/group name"), field: "name", formatter:userGroupFormatter, headerFilter:"input", headerFilterFunc:"starts"},
             {formatter:userTypeFormater, width:40, hozAlign:"center", headerSort:false},
         ],
         initialSort: [
@@ -121,14 +131,14 @@ document.addEventListener("DOMContentLoaded", function(e) {
             });
 
             addToGroupTable = new Tabulator("#addToGroupTable", {
-                height: "200px",   //this will be limited by maxHeight, we need to provide height
-                maxHeight:"100%",   //to make paginationSize work correctly
+                height: "200px",
+                maxHeight:"100%",
                 index:"login",
                 layout:"fitDataFill",
                 headerVisible: false,
                 columns: [
                     {formatter:iconFormater, formatterParams:{icon:"disabled_by_default",colorClass:"red-text text-darken-3"}, width:40, hozAlign:"center", cellClick:addToGroupTableRemoveClicked},
-                    {title:TR("User name"), field: "name", headerFilter:"input", headerFilterFunc:"starts"},
+                    {field: "name"},
                 ],
                 initialSort: [
                     {column:"name", dir:"asc"}

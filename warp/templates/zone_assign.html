@@ -13,6 +13,8 @@
     window.warpGlobals.URLs['zoneMembers'] = "{{ url_for('xhr.zones.members') }}";
     window.warpGlobals.URLs['zoneAssign'] = "{{ url_for('xhr.zones.assign') }}";
     window.warpGlobals.URLs['usersList'] = "{{ url_for('xhr.users.list') }}";
+
+    window.warpGlobals.URLs['groupManage'] = "{{ url_for('view.groupManage', group_login='__LOGIN__', return=request.url) }}";
 </script>
 <script src="{{ url_for('static', filename='zone_assign.js') }}"></script>
 
@@ -55,7 +57,7 @@
 
     <div class="container zone_assign_container">
         <div class="zone_assign_title">
-            <a href="{{ url_for('view.zones') }}"><i class="medium material-icons">chevron_left</i></a>
+            <a href="{{ returnURL }}"><i class="medium material-icons">chevron_left</i></a>
             <span>
                 <script>TR.inline('Users assigned to: %{zone_name}',{zone_name:"{{ zoneName }}"});</script>
             </span>

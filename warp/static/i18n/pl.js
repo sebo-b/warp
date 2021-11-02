@@ -174,4 +174,5 @@ warpGlobals.i18n.phrases = {
     },
     "Assign to zone: %{zone_name}": "Przypisz do strefy: %{zone_name}",
     "Are you sure to unassign %{user} from the zone?": "Czy na pewno chcesz usunąc użytkownika %{user} z tej strefy?",
+    'User/group name': 'Nazwa',
 };

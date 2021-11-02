@@ -27,6 +27,16 @@ document.addEventListener("DOMContentLoaded", function(e) {
         return '<i class="material-icons '+colorClass+'">'+icon+'</i>';
     }
 
+    var userGroupFormatter = function(cell, formatterParams, onRendered) {
+        let data = cell.getData();
+        let isGroup = data['isGroup'];
+        if (!isGroup)
+            return cell.getValue();
+
+        let url = window.warpGlobals.URLs['groupManage'].replace('__LOGIN__',data['login']);
+        return '<a href="'+url+'" class="userGroupCell">'+cell.getValue()+"</a>";
+    }
+
     var userTypeFormater = function(cell, formatterParams, onRendered) {
         let isGroup = cell.getRow().getData()['isGroup'];
 
@@ -94,8 +104,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
         ajaxContentType: "json",
         columns: [
             {formatter:iconFormater, formatterParams:{icon:"person_remove",colorClass:"red-text text-darken-3"}, width:40, hozAlign:"center", cellClick:deleteClicked, headerSort:false},
-            {title:TR("Login"), field: "login", headerFilter:"input", headerFilterFunc:"starts"},
-            {title:TR("User name"), field: "name", headerFilter:"input", headerFilterFunc:"starts"},
+            {title:TR("Login"), field: "login", formatter:userGroupFormatter, headerFilter:"input", headerFilterFunc:"starts"},
+            {title:TR("User/group name"), field: "name", formatter:userGroupFormatter, headerFilter:"input", headerFilterFunc:"starts"},
             {
                 title:TR("Zone role"),
                 field: "zone_role",
@@ -156,8 +166,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 headerVisible: false,
                 columns: [
                     {formatter:iconFormater, formatterParams:{icon:"disabled_by_default",colorClass:"red-text text-darken-3"}, width:40, hozAlign:"center", cellClick:assignToZoneTableRemoveClicked},
-                    {title:TR("User name"), field: "name"},
-                    {title:TR("Zone role"),field: "zone_role", editor:"select", editorParams:{ values: zoneRoles.slice(1) }, formatter:zoneRoleFormatter},
+                    {field: "name"},
+                    {field: "zone_role", editor:"select", editorParams:{ values: zoneRoles.slice(1) }, formatter:zoneRoleFormatter},
                 ],
                 initialSort: [
                     {column:"name", dir:"asc"}

@@ -11,7 +11,7 @@
     window.warpGlobals.URLs['usersDelete'] = "{{ url_for('xhr.users.delete') }}";
     window.warpGlobals.URLs['usersEdit'] = "{{ url_for('xhr.users.edit') }}";
 
-    window.warpGlobals.URLs['groupManage'] = "{{ url_for('view.groupManage', group_login='__LOGIN__') }}";
+    window.warpGlobals.URLs['groupManage'] = "{{ url_for('view.groupManage', group_login='__LOGIN__', return=request.url) }}";
 </script>
 <script src="{{ url_for('static', filename='groups.js') }}"></script>
 

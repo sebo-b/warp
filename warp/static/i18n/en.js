@@ -173,4 +173,5 @@ warpGlobals.i18n.phrases = {
     },
     "Assign to zone: %{zone_name}": "Assign to zone: %{zone_name}",
     "Are you sure to unassign %{user} from the zone?": "Are you sure to unassign %{user} from the zone?",
+    'User/group name': 'Name',
 };

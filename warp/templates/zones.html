@@ -10,7 +10,7 @@
     window.warpGlobals.URLs['zonesList'] = "{{ url_for('xhr.zones.list') }}";
     window.warpGlobals.URLs['zonesDelete'] = "{{ url_for('xhr.zones.delete') }}";
     window.warpGlobals.URLs['zonesAddOrEdit'] = "{{ url_for('xhr.zones.addOrEdit') }}";
-    window.warpGlobals.URLs['zoneAssign'] = "{{ url_for('view.zoneAssign', zid='__ZID__') }}";
+    window.warpGlobals.URLs['zoneAssign'] = "{{ url_for('view.zoneAssign', zid='__ZID__', return=request.url) }}";
 </script>
 <script src="{{ url_for('static', filename='zones.js') }}"></script>
 
@@ -45,7 +45,7 @@
 
 <div class="fixed-action-btn">
     <a class="btn-floating btn-large waves-effect waves-light orange accent-4" id="add_zone_btn">
-        <i class="material-icons-outlined">add_photo_alternate</i>
+        <i class="material-icons-outlined">add</i>
     </a>
 </div>
 

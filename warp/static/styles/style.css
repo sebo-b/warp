@@ -332,3 +332,12 @@ INPUT[type="text"] ~ .show_password_btn::after {
     display: flex;
     flex-direction: column;
 }
+
+.userGroupCell {
+    color: black;
+    text-decoration: none;
+}
+
+.userGroupCell:hover {
+    text-decoration: underline;
+}

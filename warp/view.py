@@ -147,9 +147,12 @@ def groupManage(group_login):
     if groupName is None:
         flask.abort(404)
 
+    returnURL = flask.request.args.get('return',flask.url_for('view.groups'))
+
     return flask.render_template('group_manage.html',
                     groupLogin = group_login,
-                    groupName = groupName)
+                    groupName = groupName,
+                    returnURL = returnURL)
 
 
 @bp.route("/zones/assign/<zid>")
@@ -165,6 +168,9 @@ def zoneAssign(zid):
     if zoneName is None:
         flask.abort(404)
 
+    returnURL = flask.request.args.get('return',flask.url_for('view.zones'))
+
     return flask.render_template('zone_assign.html',
                     zoneName = zoneName,
-                    zid = zid)
+                    zid = zid,
+                    returnURL = returnURL)
