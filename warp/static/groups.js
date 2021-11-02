@@ -20,9 +20,9 @@ document.addEventListener("DOMContentLoaded", function(e) {
         showEditDialog();
     });
 
-    var manageClicked = function(e,cell) {
+    var assignClicked = function(e,cell) {
         let login = cell.getRow().getData()['login'];
-        let url = window.warpGlobals.URLs['groupManage'].replace('__LOGIN__',login);
+        let url = window.warpGlobals.URLs['groupAssign'].replace('__LOGIN__',login);
         window.location.href = url;
     }
 
@@ -40,7 +40,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         ajaxConfig: "POST",
         ajaxContentType: "json",
         columns: [
-            {formatter:iconFormater, formatterParams:{icon:"manage_accounts",colorClass:"green-text text-darken-4"}, width:40, hozAlign:"center", cellClick:manageClicked, headerSort:false},
+            {formatter:iconFormater, formatterParams:{icon:"manage_accounts",colorClass:"green-text text-darken-4"}, width:40, hozAlign:"center", cellClick:assignClicked, headerSort:false},
             {formatter:iconFormater, formatterParams:{icon:"edit",colorClass:"green-text text-darken-4"}, width:40, hozAlign:"center", cellClick:editClicked, headerSort:false},
             {title:TR("Group id"), field: "login", headerFilter:"input", headerFilterFunc:"starts"},
             {title:TR("Group name"), field: "name", headerFilter:"input", headerFilterFunc:"starts"},

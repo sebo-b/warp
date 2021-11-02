@@ -25,27 +25,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
         if (!isGroup)
             return cell.getValue();
 
-        let url = window.warpGlobals.URLs['groupManageView'].replace('__LOGIN__',data['login']);
+        let url = window.warpGlobals.URLs['groupAssignView'].replace('__LOGIN__',data['login']);
         return '<a href="'+url+'" class="userGroupCell">'+cell.getValue()+"</a>";
-    }
-
-    var sendManageRequest = function(actionData) {
-
-        actionData.groupLogin = window.warpGlobals.groupLogin;
-
-        var xhr = new XMLHttpRequest();
-        xhr.open("POST", window.warpGlobals.URLs['groupsManageXHR'],true);
-        xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-        xhr.addEventListener("load", function() {
-            if (this.status == 200) {
-                table.replaceData();
-                M.toast({html: TR('Action successfull.')});
-            }
-            else
-                WarpModal.getInstance().open(TR("Error"),TR('Something went wrong (status=%{status}).',{status:this.status}));
-            });
-
-        xhr.send( JSON.stringify( actionData));
     }
 
     var deleteClicked = function(e,cell) {
@@ -57,7 +38,12 @@ document.addEventListener("DOMContentLoaded", function(e) {
             if (buttonId != 1)
                 return;
 
-            sendManageRequest({ remove: [ cellData['login'] ] });
+            Utils.xhr(
+                window.warpGlobals.URLs['groupsAssignXHR'],
+                {
+                    groupLogin: window.warpGlobals.groupLogin,
+                    remove: [ cellData['login'] ]
+                }).then(() => {table.replaceData()})
         };
 
         var modalOptions = {
@@ -123,11 +109,16 @@ document.addEventListener("DOMContentLoaded", function(e) {
             var addToGroupModalAddBtn = document.getElementById('add_to_group_modal_addbtn');
             addToGroupModalAddBtn.addEventListener('click', function(e) {
 
-                let data = addToGroupTable.getData().map(a => a['login']);
-                if (data.length == 0)
+                let addData = addToGroupTable.getData().map(a => a['login']);
+                if (addData.length == 0)
                     return;
 
-                sendManageRequest({ add: data });
+                Utils.xhr(
+                    window.warpGlobals.URLs['groupsAssignXHR'],
+                    {
+                        groupLogin: window.warpGlobals.groupLogin,
+                        add: addData
+                    }).then(() => {table.replaceData()})
             });
 
             addToGroupTable = new Tabulator("#addToGroupTable", {
@@ -171,21 +162,11 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
         if (typeof(addToGroupModal) == 'undefined') {
 
-            var xhr = new XMLHttpRequest();
-            xhr.open("POST", window.warpGlobals.URLs['usersList'],true);
-            xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-            xhr.addEventListener("load", function() {
-
-                if (this.status == 200) {
-                    let resp = JSON.parse(this.responseText);
-                    initModal(resp['data']);
+            Utils.xhr(window.warpGlobals.URLs['usersList'],{},false)
+                .then( function(value) {
+                    initModal(value.response['data']);
                     showModal();
-                }
-                else
-                    WarpModal.getInstance().open(TR("Error"),TR('Something went wrong (status=%{status}).',{status:this.status}));
                 });
-
-            xhr.send("{}");
 
         }
         else {

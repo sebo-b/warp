@@ -33,7 +33,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         if (!isGroup)
             return cell.getValue();
 
-        let url = window.warpGlobals.URLs['groupManage'].replace('__LOGIN__',data['login']);
+        let url = window.warpGlobals.URLs['groupAssign'].replace('__LOGIN__',data['login']);
         return '<a href="'+url+'" class="userGroupCell">'+cell.getValue()+"</a>";
     }
 

@@ -277,28 +277,28 @@ INPUT[type="text"] ~ .show_password_btn::after {
     text-align: left !important;
 }
 
-.group_manage_title {
+.group_assign_title {
     font-size: 2.28rem;
     line-height: 110%;
     padding: 10px 0px;
 }
 
 @media only screen and (min-width : 993px) {
-    .group_manage_title {
+    .group_assign_title {
         margin-left: -60px;
     }
 }
 
-.group_manage_title A {
+.group_assign_title A {
     text-decoration: none;
     color: inherit;
 }
 
-.group_manage_title SPAN, .group_manage_title I {
+.group_assign_title SPAN, .group_assign_title I {
     vertical-align: middle;
 }
 
-.group_manage_container {
+.group_assign_container {
     display: flex;
     flex-direction: column;
 }

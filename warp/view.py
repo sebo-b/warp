@@ -134,8 +134,8 @@ def zones():
     return flask.render_template('zones.html')
 
 
-@bp.route("/groups/manage/<group_login>")
-def groupManage(group_login):
+@bp.route("/groups/assign/<group_login>")
+def groupAssign(group_login):
 
     if not flask.g.isAdmin:
         flask.abort(403)
@@ -149,7 +149,7 @@ def groupManage(group_login):
 
     returnURL = flask.request.args.get('return',flask.url_for('view.groups'))
 
-    return flask.render_template('group_manage.html',
+    return flask.render_template('group_assign.html',
                     groupLogin = group_login,
                     groupName = groupName,
                     returnURL = returnURL)

@@ -119,8 +119,8 @@ def members():
 #   add: [ login1, login2, ...]
 #   remove: [ login1, login2, ...]
 # }
-@bp.route("manage", methods=["POST"])
-def manage():
+@bp.route("assign", methods=["POST"])
+def assign():
 
     if not flask.request.is_json:
         return {"msg": "Non-JSON request", "code": 210 }, 404
