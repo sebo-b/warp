@@ -127,12 +127,14 @@ BEGIN
 END
 $$;
 
-CREATE OR REPLACE TRIGGER zone_assign_update
+DROP TRIGGER IF EXISTS zone_assign_update on zone_assign;
+CREATE TRIGGER zone_assign_update
 AFTER INSERT OR UPDATE OR DELETE ON zone_assign
 FOR STATEMENT
 EXECUTE PROCEDURE update_user_to_zone_roles();
 
-CREATE OR REPLACE TRIGGER groups_update
+DROP TRIGGER IF EXISTS groups_update on groups;
+CREATE TRIGGER groups_update
 AFTER INSERT OR UPDATE OR DELETE ON groups
 FOR STATEMENT
 EXECUTE PROCEDURE update_user_to_zone_roles();
