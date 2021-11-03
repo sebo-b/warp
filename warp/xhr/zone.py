@@ -171,6 +171,69 @@ def getSeats(zid):
     return resR
 
 
+applySchema = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+        "enable": {
+            "type": "array",
+            "items": {
+                "type": "integer"
+            },
+        },
+        "disable": {
+            "type": "array",
+            "items": {
+                "type": "integer"
+            },
+        },
+        "assign": {
+            "type": "object",
+            "properties": {
+                "sid" : {"type" : "integer"},
+                "logins": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                    },
+                },
+            },
+        },
+        "book": {
+            "type": "object",
+            "properties": {
+                "login": {"type": "string"},
+                "sid" : {"type" : "integer"},
+                "dates": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "fromTS": {"type" : "integer"},
+                            "toTS": {"type" : "integer"}
+                        },
+                        "required": [ "fromTS", "toTS"]
+                    }
+                }
+            },
+            "required": [ "sid", "dates"],
+        },
+        "remove": {
+            "type": "array",
+            "items": {
+                "type": "integer"
+            }
+        }
+    },
+    "anyOf": [
+        {"required": [ "enable" ]},
+        {"required": [ "disable" ]},
+        {"required": [ "assign" ]},
+        {"required": [ "book" ]},
+        {"required": [ "remove" ]}
+    ]
+}
+
 # format:
 # {
 #   enable: [ sid, sid, ...],
@@ -190,89 +253,11 @@ def getSeats(zid):
 #   remove: [ bid, bid, bid]
 # }
 @bp.route("apply", methods=["POST"])
+@utils.validateJSONInput(applySchema)
 def apply():
 
-    if not flask.request.is_json:
-        flask.abort(404)
-
     apply_data = flask.request.get_json()
-
-    schema = {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "properties": {
-            "enable": {
-                "type": "array",
-                "items": {
-                    "type": "integer"
-                },
-            },
-            "disable": {
-                "type": "array",
-                "items": {
-                    "type": "integer"
-                },
-            },
-            "assign": {
-                "type": "object",
-                "properties": {
-                    "sid" : {"type" : "integer"},
-                    "logins": {
-                        "type": "array",
-                        "items": {
-                            "type": "string",
-                        },
-                    },
-                },
-            },
-            "book": {
-                "type": "object",
-                "properties": {
-                    "login": {"type": "string"},
-                    "sid" : {"type" : "integer"},
-                    "dates": {
-                        "type": "array",
-                        "minItems": 1,
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "fromTS": {"type" : "integer"},
-                                "toTS": {"type" : "integer"}
-                            },
-                            "required": [ "fromTS", "toTS"]
-                        }
-                    }
-                },
-                "required": [ "sid", "dates"],
-            },
-            "remove": {
-                "type": "array",
-                "items": {
-                    "type": "integer"
-                }
-            }
-        },
-        "anyOf": [
-            {"required": [ "enable" ]},
-            {"required": [ "disable" ]},
-            {"required": [ "assign" ]},
-            {"required": [ "book" ]},
-            {"required": [ "remove" ]}
-        ]
-    }
-
     ts = utils.getTimeRange()
-
-    #Global admin doesn't have time restriction
-    if not flask.g.isAdmin:
-        schema["properties"]["book"]["properties"]['dates']['items']["properties"]["fromTS"]["minimum"] = ts["fromTS"]
-        schema["properties"]["book"]["properties"]['dates']['items']["properties"]["fromTS"]["maximum"] = ts["toTS"]
-        schema["properties"]["book"]["properties"]['dates']['items']["properties"]["toTS"]["minimum"] = ts["fromTS"]
-        schema["properties"]["book"]["properties"]['dates']['items']["properties"]["toTS"]["maximum"] = ts["toTS"]
-
-    try:
-        validate(apply_data,schema)
-    except ValidationError as err:
-        return {"msg": "invalid input" }, 400
 
     # -------------------------------------
     # PERMISSIONS CHECK
@@ -310,6 +295,12 @@ def apply():
 
     if 'book' in apply_data:
 
+        if not flask.g.isAdmin:     # TODO: should admin be allowed to do that?
+            for b in apply_data['book']['dates']:
+                if b['fromTS'] < ts["fromTS"] or b['fromTS'] > ts["toTS"] \
+                    or b['toTS'] < ts["fromTS"] or b['toTS'] > ts["toTS"]:
+                    return {"msg": "Forbidden", "code": 103}, 403
+
         sid = apply_data['book']['sid']
         login = apply_data['book'].get('login', flask.g.login)
 
@@ -320,18 +311,18 @@ def apply():
 
         # login not in the zone
         if seat is None:
-            return {"msg": "Forbidden", "code": 103}, 403
+            return {"msg": "Forbidden", "code": 104}, 403
 
         # seat is disabled
         if not seat['enabled']:
-            return {"msg": "Forbidden", "code": 104}, 403
+            return {"msg": "Forbidden", "code": 105}, 403
 
         # check if user is assigned to the seat
         assignedQ = SeatAssign.select(SQL_ONE).where(SeatAssign.sid == sid)
         assignedToMeQ = assignedQ.where(SeatAssign.login == login)
 
         if (assignedQ.scalar() is not None and assignedToMeQ.scalar() is None):
-            return {"msg": "Forbidden", "code": 105}, 403
+            return {"msg": "Forbidden", "code": 106}, 403
 
     # -------------------------------------
     # APPLY CHANGES
@@ -382,31 +373,6 @@ def apply():
 
                 sid = apply_data['book']['sid']
                 login = apply_data['book'].get('login', flask.g.login)
-
-#                THIS IS DONE IN A TRIGGER - so it is atomic without using higer isolation level
-#                # check if there is overlap in booking
-#                zoneGroupQ = Seat.select(Zone.zone_group) \
-#                                .join(Zone, on=(Seat.zid == Zone.id)) \
-#                                .where(Seat.id == sid)
-#
-#                minFromTS = reduce(lambda a,b: a if a['fromTS'] < b['fromTS'] else b, apply_data['book']['dates'])['fromTS']
-#                maxToTS = reduce(lambda a,b: a if a['toTS'] > b['toTS'] else b, apply_data['book']['dates'])['toTS']
-#                overlapsQ = Book.select(Book.sid, Book.fromts.alias('fromTS'), Book.tots.alias('toTS')) \
-#                               .join(Seat, on=(Book.sid == Seat.id)) \
-#                               .join(Zone, on=(Seat.zid == Zone.id)) \
-#                               .where( Zone.zone_group == zoneGroupQ) \
-#                               .where((Book.sid == sid) | (Book.login == login)) \
-#                               .where((Book.fromts < maxToTS) & (Book.tots > minFromTS)) \
-#                               .order_by(Book.fromts)
-#
-#                dates = apply_data['book']['dates']
-#                dates.sort(key=lambda a: a['fromTS'])
-#
-#                last = {'fromTS': 0, 'toTS':  0 }
-#                for i in heapq.merge(dates,overlapsQ.iterator(), key=lambda a: a['fromTS']):
-#                    if i['fromTS'] <= last['toTS'] and i['toTS'] > last['fromTS']:
-#                        raise ApplyError("Overlap.",109)
-#                    last = i
 
                 insertData = [ {
                         Book.login: login,

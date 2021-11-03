@@ -3,60 +3,15 @@ from peewee import JOIN, fn, EXCLUDED
 
 from warp.db import *
 from warp import utils
+from warp.utils_tabulator import *
 
 bp = flask.Blueprint('zones', __name__, url_prefix='zones')
 
-listSchema = {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "type": "object",
-    "properties": {
-        "page" : {"type" : "integer"},
-        "size" : {"type" : "integer"},
-        "sorters": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "field" : {"type" : "string"},
-                    "dir" : {"enum" : ["asc", "desc"] }
-                },
-                "required": [ "field", "dir"],
-            },
-        },
-        "filters": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "field" : {"type" : "string"},
-                    "type" : {"enum" : ["starts","="] },
-                    "value": {"type" : "string"},
-                },
-                "required": [ "field", "type", "value"],
-            },
-        },
-    },
-    "dependencies": {
-        "page": ["size"]
-    }
-}
-
 @bp.route("list", endpoint='list', methods=["POST"])
-@utils.validateJSONInput(listSchema,isAdmin=True)
-def listW(report = False):              #list is a built-in type
+@utils.validateJSONInput(tabulatorSchema,isAdmin=True)
+def listW():              #list is a built-in type
 
     requestData = flask.request.get_json()
-
-    columnsMap = {
-        "name": Zone.name,
-        "zone_group": Zone.zone_group,
-    }
-
-    import operator
-    operatorsMap = {
-        "=": lambda field,value:  field == int(value),    # tabulator pass it as string
-        'starts': lambda field,value: field.startswith(value)
-    }
 
     countQuery = UserToZoneRoles.select( \
             UserToZoneRoles.zid, \
@@ -70,37 +25,7 @@ def listW(report = False):              #list is a built-in type
                         fn.COALESCE(countQuery.c.viewers,0).alias('viewers')) \
                 .join(countQuery, join_type=JOIN.LEFT_OUTER, on=(Zone.id == countQuery.c.zid))
 
-    if "filters" in requestData:
-        for i in requestData['filters']:
-            if i["field"] in columnsMap:
-                field = columnsMap[i["field"]]
-                if i['type'] in operatorsMap:
-
-                    value = i["value"]
-                    op = operatorsMap[i['type']]
-
-                    query = query.where( op(field,i["value"]) )
-
-    lastPage = None
-    if "size" in requestData:
-
-        limit = requestData['size']
-
-        if "page" in requestData:
-
-            count = query.columns(COUNT_STAR).scalar() #TODO_X
-
-            lastPage = -(-count // limit)   # round up
-
-            offset = (requestData['page']-1)*requestData['size']
-            query = query.offset(offset)
-
-        query = query.limit(limit)
-
-    if "sorters" in requestData:
-        for i in requestData['sorters']:
-            if i["field"] in columnsMap:
-                query = query.order_by_extend( columnsMap[i["field"]].asc() if i["dir"] == "asc" else columnsMap[i["field"]].desc() )
+    (query, lastPage) = applyTabulatorToQuery(query,requestData)
 
     res = { "data": [ *query.iterator() ] }
 
@@ -189,122 +114,25 @@ def addOrEdit():
 
     return {"msg": "ok" }, 200
 
-membersSchema = {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "type": "object",
+membersSchema = addToTabulatorSchema({
     "properties": {
         "zid": {"type": "integer"},
-        "page" : {"type" : "integer"},
-        "size" : {"type" : "integer"},
-        "sorters": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "field" : {"type" : "string"},
-                    "dir" : {"enum" : ["asc", "desc"] }
-                },
-                "required": [ "field", "dir"],
-            },
-        },
-        "filters": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "field" : {"type" : "string"},
-                    "type" : {"enum" : ["starts", "=", "!=", "<", ">="] }
-                },
-                "required": [ "field", "type", "value"],
-                "allOf": [
-                    {
-                        "if": {
-                            "properties": { "type" : {"enum" : ["starts"] } }
-                        },
-                        "then": {
-                            "properties": { "value" : {"type" : "string" } }
-                        }
-                    },
-                    {
-                        "if": {
-                            "properties": { "type" : {"enum" : ["=","!=","<"] } }
-                        },
-                        "then": {
-                            "properties": { "value" : {"type" : ["integer","array"] } }
-                        }
-                    }
-                ]
-            },
-        },
     },
-    "required": ["zid"],
-    "dependencies": {
-        "page": ["size"]
-    },
-}
+    "required": ["zid"]
+})
 
 @bp.route("members", methods=["POST"])
 @utils.validateJSONInput(membersSchema,isAdmin=True)
 def members():
 
     requestData = flask.request.get_json()
-
     zid = requestData['zid']
-
-    columnsMap = {
-        "login": Users.login,
-        "name": Users.name,
-        "zone_role": ZoneAssign.zone_role,
-    }
 
     query = ZoneAssign.select(Users.login, Users.name, ZoneAssign.zone_role, (Users.account_type >= ACCOUNT_TYPE_GROUP).alias("isGroup") ) \
                   .join(Users, on=(ZoneAssign.login == Users.login)) \
                   .where(ZoneAssign.zid == zid)
 
-    import operator
-    operatorsMap = {
-        "=": operator.__eq__,
-        "!=": operator.__ne__,
-        "<": operator.__lt__,
-        ">=": operator.__ge__,
-        'starts': lambda field,value: field.startswith(value)
-    }
-
-    if "filters" in requestData:
-        for i in requestData['filters']:
-            if i["field"] in columnsMap:
-                field = columnsMap[i["field"]]
-                if i['type'] in operatorsMap:
-
-                    value = i["value"]
-                    op = operatorsMap[i['type']]
-
-                    # for some reason sometimes (when dropdown is shown) tabulator ssends it as array
-                    if isinstance(value,list):
-                        value = value[0]
-
-                    query = query.where( op(field,i["value"]) )
-
-    lastPage = None
-    if "size" in requestData:
-
-        limit = requestData['size']
-
-        if "page" in requestData:
-
-            count = query.columns(COUNT_STAR).scalar() #TODO_X
-
-            lastPage = -(-count // limit)   # round up
-
-            offset = (requestData['page']-1)*requestData['size']
-            query = query.offset(offset)
-
-        query = query.limit(limit)
-
-    if "sorters" in requestData:
-        for i in requestData['sorters']:
-            if i["field"] in columnsMap:
-                query = query.order_by_extend( columnsMap[i["field"]].asc() if i["dir"] == "asc" else columnsMap[i["field"]].desc() )
+    (query, lastPage) = applyTabulatorToQuery(query,requestData)
 
     res = { "data": [ *query.iterator() ] }
 
