@@ -2,4 +2,6 @@ flask
 jsonschema
 xlsxwriter
 peewee
+psycopg2-binary
 orjson
+gunicorn
