@@ -1,9 +1,10 @@
 import flask
+from warp.config import *
 
 def create_app():
 
     app = flask.Flask(__name__)
-    app.config.from_object('warp.config')
+    initConfig(app)
 
     from . import db
     db.init(app)
