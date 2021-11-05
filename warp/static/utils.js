@@ -18,31 +18,22 @@ Utils.makeUserStrRev = function (str) {
     throw Error("Unknown login");
 };
 
-Utils.xhr = function(url,jsonData,toastOnSuccess = true, errorOnFailure = true) {
+Utils.xhr = function(url,jsonData,toastOnSuccess = true, errorOnFailure = true, responseType = "json") {
     return new Promise(function(resolve, reject) {
 
         let xhr = new XMLHttpRequest();
         xhr.addEventListener("load", function(e) {
 
-            let resp;
-            try {
-                resp = JSON.parse(this.responseText);
-            }
-            catch (SyntaxError) {
-                reject(400,null);
-                return;
-            }
-
-            if (this.status == 200) {
-                resolve({status:this.status, response: resp});
+            if (this.status == 200 && this.response !== null) {
+                resolve({status:this.status, response: this.response, requestObject: this});
                 if (toastOnSuccess)
                     M.toast({text: TR('Action successfull.')});
             }
             else {
-                reject({status:this.status, response: resp});
+                reject({status:this.status, response: this.response, requestObject: this});
                 if (errorOnFailure) {
-                    if ('code' in resp)
-                        WarpModal.getInstance().open(TR("Error"),TR('Something went wrong (status=%{status}).',{status:resp.code}));
+                    if (this.response !== null && typeof(this.response) === 'object' && 'code' in this.response)
+                        WarpModal.getInstance().open(TR("Error"),TR('Something went wrong (status=%{status}).',{status:this.response.code}));
                     else
                         WarpModal.getInstance().open(TR("Error"),TR('Other error.'));
                 }
@@ -51,6 +42,7 @@ Utils.xhr = function(url,jsonData,toastOnSuccess = true, errorOnFailure = true) 
 
         xhr.open("POST", url);
         xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+        xhr.responseType = responseType;
         xhr.send( JSON.stringify(jsonData));
     });
 }

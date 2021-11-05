@@ -373,50 +373,6 @@ function initActionMenu(seatFactory) {
             return;
         }
 
-        var xhr = new XMLHttpRequest();
-        xhr.open("POST", window.warpGlobals.URLs['zoneApply']);
-        xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-        xhr.addEventListener("load", function(e) {
-            if (this.status == 200) {
-                var resp = JSON.parse(this.responseText);
-                var msg = "";
-
-                if (resp.conflicts_in_disable) {
-                    msg += TR("Seat is successfully disabled.<br>However there are existing reservations in the the next few weeks. " +
-                          "Existing reservations are not automatically removed, it has to be done manually.<br><br>");
-                    let rList = [];
-                    for (let r of resp.conflicts_in_disable) {
-                        let dateStr = WarpSeatFactory._formatDatePair(r);
-                        rList.push( r.username + "&nbsp;on&nbsp;" + dateStr.datetime1 + "&nbsp;" + dateStr.datetime2);
-                    }
-                    msg += rList.join('<br>');
-                }
-
-                if (resp.conflicts_in_assign) {
-                    msg += TR("Seat is successfully assigned.<br>However there are non-assignees' existing reservations in the the next few weeks. " +
-                          "Existing reservations are not automatically removed, it has to be done manually.<br><br>");
-                    let rList = [];
-                    for (let r of resp.conflicts_in_assign) {
-                        let dateStr = WarpSeatFactory._formatDatePair(r);
-                        rList.push( r.username + "&nbsp;on&nbsp;" + dateStr.datetime1 + "&nbsp;" + dateStr.datetime2);
-                    }
-                    msg += rList.join('<br>');
-                }
-
-                if (msg == "")
-                    M.toast({html: TR('Action successfull.')});
-                else
-                    WarpModal.getInstance().open(TR("Warning"),msg);
-            }
-            else {
-                WarpModal.getInstance().open(
-                    TR("Change unsuccessfull"),
-                    TR("Unable to apply the change. Probably the seat was already booked by someone else.<br>Status: %{status}",{status:this.status}));
-            }
-
-            downloadSeatData(seatFactory);
-        });
-
         var applyData = {};
 
         if (this.dataset.action == "assign" && typeof(ZoneUserData) !== 'undefined') {
@@ -456,7 +412,49 @@ function initActionMenu(seatFactory) {
             applyData['remove'] = seatFactory.getMyConflictingBookings(true);
         }
 
-        xhr.send( JSON.stringify(applyData));
+        Utils.xhr(
+            window.warpGlobals.URLs['zoneApply'],
+            applyData,
+            false, false
+        ).then( (value) => {
+
+            var msg = "";
+
+            if (value.response.conflicts_in_disable) {
+                msg += TR("Seat is successfully disabled.<br>However there are existing reservations in the the next few weeks. " +
+                      "Existing reservations are not automatically removed, it has to be done manually.<br><br>");
+                let rList = [];
+                for (let r of value.response.conflicts_in_disable) {
+                    let dateStr = WarpSeatFactory._formatDatePair(r);
+                    rList.push( r.username + "&nbsp;on&nbsp;" + dateStr.datetime1 + "&nbsp;" + dateStr.datetime2);
+                }
+                msg += rList.join('<br>');
+            }
+
+            if (value.response.conflicts_in_assign) {
+                msg += TR("Seat is successfully assigned.<br>However there are non-assignees' existing reservations in the the next few weeks. " +
+                      "Existing reservations are not automatically removed, it has to be done manually.<br><br>");
+                let rList = [];
+                for (let r of value.response.conflicts_in_assign) {
+                    let dateStr = WarpSeatFactory._formatDatePair(r);
+                    rList.push( r.username + "&nbsp;on&nbsp;" + dateStr.datetime1 + "&nbsp;" + dateStr.datetime2);
+                }
+                msg += rList.join('<br>');
+            }
+
+            if (msg == "")
+                M.toast({html: TR('Action successfull.')});
+            else
+                WarpModal.getInstance().open(TR("Warning"),msg);
+
+            downloadSeatData(seatFactory);
+        }).catch( (value) => {
+            //TODO_TR (remove at all when better error msg handling is implemented)
+            WarpModal.getInstance().open(
+                TR("Change unsuccessfull"),
+                TR("Unable to apply the change. Probably the seat was already booked by someone else.<br>Status: %{status}",{status:value.response.code}));
+            downloadSeatData(seatFactory);
+        });
 
     };
 

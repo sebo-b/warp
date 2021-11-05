@@ -152,23 +152,21 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 if (password1El.value !== "")
                     actionData['password'] = password1El.value;
 
-                var xhr = new XMLHttpRequest();
-                xhr.addEventListener("load", function(e) {
-                    var resp = JSON.parse(this.responseText);
-                    if (this.status == 200) {
-                        table.replaceData();
-                        M.toast({html: TR('Action successfull.')});
-                        editModal.close();
-                    }
-                    else {
-                        errorMsg.innerText = resp.msg;  //TODO_TR
-                        errorDiv.style.display = "block";
-                    }
+                Utils.xhr(
+                    window.warpGlobals.URLs['usersEdit'],
+                    actionData,
+                    true, false
+                ).then( () => {
+                    table.replaceData();
+                    editModal.close();
+                }).catch( (value) => {
+                    //TODO_TR
+                    if (value.response !== null && 'code' in value.response)
+                        errorMsg.innerText = TR('Something went wrong (status=%{status}).',{status:value.response.code}); //TODO_TR
+                    else
+                        errorMsg.innerText = TR('Other error.');
+                    errorDiv.style.display = "block";
                 });
-
-                xhr.open("POST", window.warpGlobals.URLs['usersEdit']);
-                xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-                xhr.send( JSON.stringify(actionData));
             }
 
             var deleteBtnClicked = function(e) {
@@ -183,37 +181,34 @@ document.addEventListener("DOMContentLoaded", function(e) {
                     if (buttonId == 3)
                         actionData['force'] = true;
 
-                    var xhr = new XMLHttpRequest();
-
-                    xhr.addEventListener("load", function(e) {
-                        var resp = JSON.parse(this.responseText);
-
-                        if (this.status == 200) {
-                            table.replaceData();
-                            M.toast({html: TR('Action successfull.')});
-                            editModal.close();
-                        }
-                        else if (this.status == 406) { // past bookings
+                    Utils.xhr(
+                        window.warpGlobals.URLs['usersDelete'],
+                        actionData,
+                        true, false
+                    ).then( () => {
+                        table.replaceData();
+                        editModal.close();
+                    }).catch( (value) => {
+                        if (value.status == 406) { // past bookings
                             var modalOptions = {
                                 buttons: [ {id: 3, text: TR("btn.YES, I'M SURE")}, {id: 2, text: TR("btn.No")} ],
                                 onButtonHook: modalBtnClicked
                             }
 
-                            let bookCount = resp['bookCount'] || 0;
+                            let bookCount = value.response['bookCount'] || 0;
                             let msg = TR("User has XXX bookin(s) ... ",{smart_count:bookCount});
                             WarpModal.getInstance().open(
                                 TR("ARE YOU SURE TO DELETE USER: %{user}?",{user:loginEl.value}),
                                 msg,modalOptions);
                         }
                         else {
-                            WarpModal.getInstance().open(TR("Error"),resp.msg); //TODO_TR
-                        }
+                            //TODO_TR
+                            if (value.response !== null && typeof(value.response) === 'object' && 'code' in value.response)
+                                WarpModal.getInstance().open(TR("Error"),TR('Something went wrong (status=%{status}).',{status:value.response.code}));
+                            else
+                                WarpModal.getInstance().open(TR("Error"),TR('Other error.'));
+                            }
                     });
-
-                    xhr.open("POST", window.warpGlobals.URLs['usersDelete']);
-                    xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-                    xhr.send( JSON.stringify(actionData));
-
                 }
 
                 var modalOptions = {

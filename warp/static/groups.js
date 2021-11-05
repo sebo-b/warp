@@ -96,23 +96,20 @@ document.addEventListener("DOMContentLoaded", function(e) {
                     action: action
                 };
 
-                var xhr = new XMLHttpRequest();
-                xhr.addEventListener("load", function(e) {
-                    if (this.status == 200) {
-                        table.replaceData();
-                        M.toast({html: TR('Action successfull.')});
-                        editModal.close();
-                    }
-                    else {
-                        var resp = JSON.parse(this.responseText);
-                        errorMsg.innerText = resp.msg;  //TODO_TR
-                        errorDiv.style.display = "block";
-                    }
+                Utils.xhr(
+                    window.warpGlobals.URLs['usersEdit'],
+                    actionData, true, false
+                ).then( () => {
+                    table.replaceData();
+                    editModal.close();
+                }).catch( (value) => {
+                    //TODO_TR
+                    if (value.response !== null && 'code' in value.response)
+                        errorMsg.innerText = TR('Something went wrong (status=%{status}).',{status:value.response.code}); //TODO_TR
+                    else
+                        errorMsg.innerText = TR('Other error.');
+                    errorDiv.style.display = "block";
                 });
-
-                xhr.open("POST", window.warpGlobals.URLs['usersEdit']);
-                xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-                xhr.send( JSON.stringify(actionData));
             }
 
             var deleteBtnClicked = function(e) {
@@ -122,29 +119,13 @@ document.addEventListener("DOMContentLoaded", function(e) {
                     if (buttonId != 1)
                         return;
 
-                    let actionData = {
-                        login: loginEl.value,
-                    };
-
-                    var xhr = new XMLHttpRequest();
-
-                    xhr.addEventListener("load", function(e) {
-                        var resp = JSON.parse(this.responseText);
-
-                        if (this.status == 200) {
-                            table.replaceData();
-                            M.toast({html: TR('Action successfull.')});
-                            editModal.close();
-                        }
-                        else {
-                            WarpModal.getInstance().open(TR("Error"),resp.msg); //TODO_TR
-                        }
+                    Utils.xhr(
+                        window.warpGlobals.URLs['usersDelete'],
+                        { login: loginEl.value }
+                    ).then( () => {
+                        table.replaceData();
+                        editModal.close();
                     });
-
-                    xhr.open("POST", window.warpGlobals.URLs['usersDelete']);
-                    xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-                    xhr.send( JSON.stringify(actionData));
-
                 }
 
                 var modalOptions = {

@@ -1,5 +1,4 @@
 
-
 document.addEventListener("DOMContentLoaded", function(e) {
 
     var dateFilterEditor = function(cell, onRendered, success, cancel, editorParams){
@@ -115,21 +114,13 @@ document.addEventListener("DOMContentLoaded", function(e) {
             if (buttonId != 1)
                 return;
 
-            var action_data = { remove: [ bid ]};
+            Utils.xhr(
+                window.warpGlobals.URLs['zoneApply'],
+                { remove: [ bid ]}
+            ).then( () => {
+                cell.getTable().replaceData();
+            })
 
-            var xhr = new XMLHttpRequest();
-            xhr.open("POST", window.warpGlobals.URLs['zoneApply'],true);
-            xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-            xhr.addEventListener("load", function() {
-                if (this.status == 200) {
-                    cell.getTable().replaceData();
-                    M.toast({html: TR('Action successfull.')});
-                }
-                else
-                    WarpModal.getInstance().open(TR("Error"),TR("Something went wrong (status=%{status}).",{status:this.status}));
-                });
-
-            xhr.send( JSON.stringify( action_data));
         };
 
         var modalOptions = {
@@ -226,28 +217,20 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 sorters: table.getSorters().map( (i) => { return { field: i.field, dir: i.dir} }  )
             }
 
-            let xhr = new XMLHttpRequest();
-            xhr.open("POST", window.warpGlobals.URLs['bookingsReport'],true);
-            xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-            xhr.responseType = 'blob';
-            xhr.addEventListener("load", function() {
-                if (this.status == 200) {
+            Utils.xhr(
+                window.warpGlobals.URLs['bookingsReport'],
+                data, false, true, 'blob'
+            ).then(function(value) {
+                let a = document.createElement("a");
+                a.href = window.URL.createObjectURL(value.response);
 
-                    let a = document.createElement("a");
-                    a.href = window.URL.createObjectURL(this.response);
+                let m = value.requestObject.getResponseHeader('Content-Disposition').match("filename=(.*)");
+                if (m != null)
+                    a.download = m[1];
 
-                    let m = this.getResponseHeader('Content-Disposition').match("filename=(.*)");
-                    if (m != null)
-                        a.download = m[1];
-
-                    a.click();
-                    window.URL.revokeObjectURL(a.href);
-                }
-                else
-                    WarpModal.getInstance().open("Error","Something went wrong (status="+this.status+").");
-                });
-
-            xhr.send( JSON.stringify( data));
+                a.click();
+                window.URL.revokeObjectURL(a.href);
+            });
         });
     }
 
