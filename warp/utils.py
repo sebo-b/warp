@@ -102,9 +102,9 @@ def validateJSONInput(jsonSchema, isAdmin = False):
                     jsonData = flask.request.get_json()
                     validate(jsonData,jsonSchema)
                 except BadRequest:
-                    return {"msg": "Error in paring JSON", "code": 11 }, 404
+                    return {"msg": "Error in paring JSON", "code": 12 }, 404
                 except ValidationError as err:
-                    return {"msg": "Data error", "code": 12 }, 400
+                    return {"msg": "Data error", "code": 13 }, 400
 
                 return func(*args, **kwargs)
 

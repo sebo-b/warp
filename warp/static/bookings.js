@@ -84,7 +84,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         var fromTS = new Date(parseInt(data.fromTS)*1000);
         var toTS = new Date(parseInt(data.toTS)*1000);
 
-        //TODO_TR
+        //TODO_TR ??
         var res =
             fromTS.toUTCString().substring(0,5)+
             fromTS.toISOString().substring(0,16).replace('T',' ')+

@@ -103,11 +103,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
                     table.replaceData();
                     editModal.close();
                 }).catch( (value) => {
-                    //TODO_TR
-                    if (value.response !== null && 'code' in value.response)
-                        errorMsg.innerText = TR('Something went wrong (status=%{status}).',{status:value.response.code}); //TODO_TR
-                    else
-                        errorMsg.innerText = TR('Other error.');
+                    errorMsg.innerText = value.errorMsg;
                     errorDiv.style.display = "block";
                 });
             }

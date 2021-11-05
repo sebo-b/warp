@@ -17,6 +17,7 @@ window.warpGlobals.i18n.polyglot = new Polyglot({
 })
 
 window.TR = window.warpGlobals.i18n.polyglot.t.bind(window.warpGlobals.i18n.polyglot);
+window.TR.has = window.warpGlobals.i18n.polyglot.has.bind(window.warpGlobals.i18n.polyglot);
 
 const trClass = 'TR';
 

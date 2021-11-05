@@ -55,10 +55,7 @@
         <div class="group_assign_title">
             <a href="{{ returnURL }}"><i class="medium material-icons">chevron_left</i></a>
             <span>
-                <script>
-                    //TODO_TR make it nicer
-                    document.write(TR('Members of: %{group}',{group:"{{ groupName }}"}));
-                </script>
+                <script>TR.inline('Members of: %{group}',{group:"{{ groupName }}"})</script>
             </span>
         </div>
         <div id="groupMembersTable"></div>

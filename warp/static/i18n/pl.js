@@ -149,8 +149,6 @@ warpGlobals.i18n.phrases = {
         "Miejsce zostało przypisane.<br>Jednak w kolejnych dniach istnieję rezerwacje zrobione przez osoby, które nie zostały do niego przypisane. Istniejące rezerwacje nie są usuwane automatycznie, należy usunąć je ręcznie.<br><br>",
     "Warning": "Uwaga",
     "Change unsuccessfull": "Zmian nie wprowadzono",
-    "Unable to apply the change. Probably the seat was already booked by someone else.<br>Status: %{status}":
-        "Nie można zarezerwować. Prawdopodobnie inna osoba już zarezerwowała miejsce<br>Status: %{status}",
     "Zones": "Strefy",
     "Zone name": "Nazwa",
     "Zone group": "Grupa",
@@ -175,4 +173,17 @@ warpGlobals.i18n.phrases = {
     "Assign to zone: %{zone_name}": "Przypisz do strefy: %{zone_name}",
     "Are you sure to unassign %{user} from the zone?": "Czy na pewno chcesz usunąc użytkownika %{user} z tej strefy?",
     'User/group name': 'Nazwa',
+    errorCode: {
+        "Forbidden (%{code})": "Brak uprawnień. (%{code})",
+        "Other error. (status=%{status} code=%{code})": "Inny błąd. (status=%{status} kod=%{code})",
+        "Other error. (status=%{status})": "Inny błąd. (status=%{status})",
+        "213": "Grupa o tym id już istnieje. (%{code})",
+        "155": 'Użytkownik o tym loginie już istnieje. (%{code})',
+        "102": "Brak wymaganych uprawnień w strefie. (%{code})",
+        "103": "Niepoprawna data. (%{code})",
+        "104": "Brak wymaganych uprawnień w strefie. (%{code})",
+        "105": "Brak wymaganych uprawnień w strefie. (%{code})",
+        "106": "Miejsce przypisane do innej osoby. (%{code})",
+        "109": "Nie można zarezerwować, miejsce zostało już zarezerwowane przez kogoś innego. (%{code})",
+    }
 };

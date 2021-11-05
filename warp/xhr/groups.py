@@ -74,24 +74,29 @@ def assign():
 
     action_data = flask.request.get_json()
 
-    try:
+    with DB.atomic():
 
-        with DB.atomic():
+        if 'remove' in action_data:
 
-            if 'remove' in action_data:
+            try:
 
                 Groups.delete() \
                       .where(Groups.group == action_data['groupLogin']) \
                       .where(Groups.login.in_(action_data['remove'])) \
                       .execute()
 
-            if 'add' in action_data:
+            except IntegrityError as err:
+                return {"msg": "Error", "code": 212 }, 400
 
+
+        if 'add' in action_data:
+
+            try:
                 insData = [ {"group": action_data['groupLogin'], "login": x } for x in action_data['add'] ]
                 Groups.insert(insData).on_conflict_ignore().execute()
 
-    except IntegrityError as err:
-        return {"msg": "Error", "code": 213 }, 400
+            except IntegrityError as err:
+                return {"msg": "Error", "code": 213 }, 400
 
-    return {"msg": "ok", "code": 214 }, 200
+    return {"msg": "ok" }, 200
 

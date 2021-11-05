@@ -415,7 +415,7 @@ function initActionMenu(seatFactory) {
         Utils.xhr(
             window.warpGlobals.URLs['zoneApply'],
             applyData,
-            false, false
+            false, true
         ).then( (value) => {
 
             var msg = "";
@@ -449,10 +449,6 @@ function initActionMenu(seatFactory) {
 
             downloadSeatData(seatFactory);
         }).catch( (value) => {
-            //TODO_TR (remove at all when better error msg handling is implemented)
-            WarpModal.getInstance().open(
-                TR("Change unsuccessfull"),
-                TR("Unable to apply the change. Probably the seat was already booked by someone else.<br>Status: %{status}",{status:value.response.code}));
             downloadSeatData(seatFactory);
         });
 

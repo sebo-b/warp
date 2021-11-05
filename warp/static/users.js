@@ -160,11 +160,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
                     table.replaceData();
                     editModal.close();
                 }).catch( (value) => {
-                    //TODO_TR
-                    if (value.response !== null && 'code' in value.response)
-                        errorMsg.innerText = TR('Something went wrong (status=%{status}).',{status:value.response.code}); //TODO_TR
-                    else
-                        errorMsg.innerText = TR('Other error.');
+                    errorMsg.innerText = value.errorMsg;
                     errorDiv.style.display = "block";
                 });
             }
@@ -202,12 +198,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
                                 msg,modalOptions);
                         }
                         else {
-                            //TODO_TR
-                            if (value.response !== null && typeof(value.response) === 'object' && 'code' in value.response)
-                                WarpModal.getInstance().open(TR("Error"),TR('Something went wrong (status=%{status}).',{status:value.response.code}));
-                            else
-                                WarpModal.getInstance().open(TR("Error"),TR('Other error.'));
-                            }
+                            WarpModal.getInstance().open(TR("Error"),value.errorMsg);
+                        }
                     });
                 }
 

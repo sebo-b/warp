@@ -148,8 +148,6 @@ warpGlobals.i18n.phrases = {
         "Seat is successfully assigned.<br>However there are non-assignees' existing reservations in the the next few weeks. Existing reservations are not automatically removed, it has to be done manually.<br><br>",
     "Warning": "Warning",
     "Change unsuccessfull": "Change unsuccessfull",
-    "Unable to apply the change. Probably the seat was already booked by someone else.<br>Status: %{status}":
-        "Unable to apply the change. Probably the seat was already booked by someone else.<br>Status: %{status}",
     "Zones": "Zones",
     "Zone name": "Name",
     "Zone group": "Group",
@@ -174,4 +172,17 @@ warpGlobals.i18n.phrases = {
     "Assign to zone: %{zone_name}": "Assign to zone: %{zone_name}",
     "Are you sure to unassign %{user} from the zone?": "Are you sure to unassign %{user} from the zone?",
     'User/group name': 'Name',
+    errorCode: {
+        "Forbidden (%{code})": "Forbidden (%{code})",
+        "Other error. (status=%{status} code=%{code})": "Other error. (status=%{status} code=%{code})",
+        "Other error. (status=%{status})": "Other error. (status=%{status})",
+        "213": "Group with this id already exists. (%{code})",
+        "155": 'User with this login already exists. (%{code})',
+        "102": "You don't have required permissions in the zone. (%{code})",
+        "103": "Wrong date. (%{code})",
+        "104": "You don't have required permissions in the zone. (%{code})",
+        "105": "You don't have required permissions in the zone. (%{code})",
+        "106": "Seat is not assigned to you. (%{code})",
+        "109": "Cannot book, the seat was already booked by someone else. (%{code})",
+    }
 };

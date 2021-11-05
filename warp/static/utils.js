@@ -18,6 +18,28 @@ Utils.makeUserStrRev = function (str) {
     throw Error("Unknown login");
 };
 
+Utils.formatError = function(status, response) {
+
+    if (status === 200)
+        throw Error("Status 200 is not an error");
+
+    if (response instanceof Object && 'code' in response) {
+        if (TR.has("errorCode."+response.code)) {
+            return TR("errorCode."+response.code,{code: response.code});
+        }
+        else if (status == 403) {
+            return TR("errorCode.Forbidden (%{code})",{code: response.code});
+        }
+        else {
+            return TR("errorCode.Other error. (status=%{status} code=%{code})",{status: status, code: response.code});
+        }
+    }
+    else {
+        return TR("errorCode.Other error. (status=%{status})",{status: status});
+    }
+
+}
+
 Utils.xhr = function(url,jsonData,toastOnSuccess = true, errorOnFailure = true, responseType = "json") {
     return new Promise(function(resolve, reject) {
 
@@ -30,12 +52,10 @@ Utils.xhr = function(url,jsonData,toastOnSuccess = true, errorOnFailure = true, 
                     M.toast({text: TR('Action successfull.')});
             }
             else {
-                reject({status:this.status, response: this.response, requestObject: this});
+                let errorMsg = Utils.formatError(this.status,this.response);
+                reject({status:this.status, response: this.response, requestObject: this, errorMsg: errorMsg});
                 if (errorOnFailure) {
-                    if (this.response !== null && typeof(this.response) === 'object' && 'code' in this.response)
-                        WarpModal.getInstance().open(TR("Error"),TR('Something went wrong (status=%{status}).',{status:this.response.code}));
-                    else
-                        WarpModal.getInstance().open(TR("Error"),TR('Other error.'));
+                    WarpModal.getInstance().open(TR("Error"),errorMsg);
                 }
             }
         });

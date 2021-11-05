@@ -96,7 +96,7 @@ def edit():
     except ApplyError as err:
         return {"msg": "Error", "code": err.args[1] }, 400
 
-    return {"msg": "ok", "code": 157 }, 200
+    return {"msg": "ok" }, 200
 
 
 deleteSchema = {
@@ -141,5 +141,5 @@ def delete():
     except IntegrityError:
         return {"msg": "Error", "code":  174}, 400
 
-    return {"msg": "ok", "code": 175 }, 200
+    return {"msg": "ok" }, 200
 

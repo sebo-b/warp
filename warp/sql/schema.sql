@@ -177,7 +177,7 @@ BEGIN
          AND b.fromTS < NEW.toTS
          AND b.toTS > NEW.fromTS) IS NOT NULL
     THEN
-        RAISE EXCEPTION 'Overlapping time for this seat or users';
+        RAISE 'Overlapping time for this seat or users' USING ERRCODE = 'exclusion_violation';
     END IF;
 
     RETURN NEW;
