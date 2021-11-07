@@ -70,6 +70,7 @@ warpGlobals.i18n.phrases = {
         "Assign": "Assign",
         "Enable": "Enable",
         "Disable": "Disable",
+        "Upload map": "Upload map",
     },
     'Password': 'Password',
     'Bookings': 'Bookings',

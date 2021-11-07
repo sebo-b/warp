@@ -34,14 +34,12 @@ document.addEventListener("DOMContentLoaded", function(e) {
             .then(() => table.replaceData() );
     }
 
-    var editMapClicked  = function(e,cell) {
-
-    }
-
-    var assignUsersClicked = function(e,cell) {
-        let zid = cell.getRow().getData()['id'];
-        let url = window.warpGlobals.URLs['zoneAssign'].replace('__ZID__',zid);
-        window.location.href = url;
+    var clickFuncFactory = function(targetURL) {
+        return function(e,cell) {
+            let zid = cell.getRow().getData()['id'];
+            let url = window.warpGlobals.URLs[targetURL].replace('__ZID__',zid);
+            window.location.href = url;
+        }
     }
 
     var addZoneBtn = document.getElementById('add_zone_btn');
@@ -61,9 +59,9 @@ document.addEventListener("DOMContentLoaded", function(e) {
         ajaxConfig: "POST",
         ajaxContentType: "json",
         columns: [
-            {formatter:iconFormater, formatterParams:{icon:"manage_accounts",colorClass:"green-text text-darken-4"}, width:40, hozAlign:"center", cellClick:assignUsersClicked, headerSort:false, tooltip: TR('Manage users')},
+            {formatter:iconFormater, formatterParams:{icon:"manage_accounts",colorClass:"green-text text-darken-4"}, width:40, hozAlign:"center", cellClick:clickFuncFactory('zoneAssign'), headerSort:false, tooltip: TR('Manage users')},
             {formatter:iconFormater, formatterParams:{icon:"edit",colorClass:"green-text text-darken-4"}, width:40, hozAlign:"center", cellClick:addEditClicked, headerSort:false, tooltip: TR('Edit zone')},
-            {formatter:iconFormater, formatterParams:{icon:"map",colorClass:"green-text text-darken-4",iconClass:"material-icons"}, width:40, hozAlign:"center", cellClick:editMapClicked, headerSort:false, tooltip: TR('Edit map')},
+            {formatter:iconFormater, formatterParams:{icon:"map",colorClass:"green-text text-darken-4",iconClass:"material-icons"}, width:40, hozAlign:"center", cellClick:clickFuncFactory('zoneModify'), headerSort:false, tooltip: TR('Edit map')},
             {title:TR("Zone name"), field: "name", headerFilter:"input", headerFilterFunc:"starts"},
             {title:TR("Zone group"), field: "zone_group", headerFilter:"number", headerFilterFunc:"="},
             {title:TR("Num of admins"), field: "admins" },

@@ -1,4 +1,3 @@
-import flask
 import json
 import os
 
@@ -14,6 +13,11 @@ class DefaultSettings(object):
     # for how many weeks in advance users can book a seat
     # (after the current week)
     WEEKS_IN_ADVANCE = 1
+
+    MAX_CONTENT_LENGTH = 5 * 1024 * 1024
+
+    # maximum size of uploaded map file
+    MAX_MAP_SIZE = 2 * 1024 * 1024
 
     # these settings are available, but should not have default value
     # set them up in DevelopmentSettings or via environment

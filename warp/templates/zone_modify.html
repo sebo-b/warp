@@ -1,0 +1,30 @@
+{% extends 'base_logged.html' %}
+
+{% block header %}
+    {{ super() }}
+
+<script>
+    window.warpGlobals.zid = {{ zid }};
+    window.warpGlobals.URLs['zonesModifyXHR'] = "{{ url_for('xhr.zones.modify') }}";
+</script>
+<script src="{{ url_for('static', filename='zone_modify.js') }}"></script>
+
+{% endblock %}
+
+{% block content %}
+    {{ super() }}
+
+  <div>
+    <a href="{{ returnURL }}"><i class="medium material-icons">chevron_left</i></a> Return
+  </div>
+    <div class="file-field">
+      <div class="btn">
+        <span><script>TR.inline('btn.Upload map')</script></span>
+        <input type="file" accept="image/jpeg,image/png" id="mapUploadBtn">
+      </div>
+    </div>
+    <div class="input-field">
+        <a class="waves-effect waves-light btn" id="saveBtn">Save</a>
+    </div>
+    <img id="tmpImg" style="width: 300px; height: auto;">
+{% endblock %}

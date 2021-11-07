@@ -70,6 +70,7 @@ warpGlobals.i18n.phrases = {
         "Assign": "Przypisz",
         "Enable": "Włącz",
         "Disable": "Wyłącz",
+        "Upload map": "Wczytaj mapę",
     },
     'Password': 'Hasło',
     'Bookings': 'Rezerwacje',
@@ -185,5 +186,5 @@ warpGlobals.i18n.phrases = {
         "105": "Brak wymaganych uprawnień w strefie. (%{code})",
         "106": "Miejsce przypisane do innej osoby. (%{code})",
         "109": "Nie można zarezerwować, miejsce zostało już zarezerwowane przez kogoś innego. (%{code})",
-    }
+    },
 };

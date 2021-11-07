@@ -40,7 +40,7 @@ Utils.formatError = function(status, response) {
 
 }
 
-Utils.xhr = function(url,jsonData,toastOnSuccess = true, errorOnFailure = true, responseType = "json") {
+Utils.xhr = function(url,data,toastOnSuccess = true, errorOnFailure = true, responseType = "json") {
     return new Promise(function(resolve, reject) {
 
         let xhr = new XMLHttpRequest();
@@ -61,8 +61,14 @@ Utils.xhr = function(url,jsonData,toastOnSuccess = true, errorOnFailure = true, 
         });
 
         xhr.open("POST", url);
-        xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
         xhr.responseType = responseType;
-        xhr.send( JSON.stringify(jsonData));
+
+        if (!(data instanceof FormData)) {
+            // we try to jsonify it
+            data = JSON.stringify(data);
+            xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+        }
+
+        xhr.send(data);
     });
 }

@@ -1,11 +1,8 @@
 import flask
-import peewee
-
-from warp.db import UserToZoneRoles
-from . import auth
-from . import utils
 
 from warp.db import *
+from . import utils
+from . import blob_storage
 
 bp = flask.Blueprint('view', __name__)
 
@@ -76,12 +73,6 @@ def zone(zid):
     if zoneRole is None:
         flask.abort(403)
 
-    zoneMapImage = Zone.select(Zone.image) \
-                         .where(Zone.id == zid).scalar()
-
-    if zoneMapImage is None:
-        flask.abort(404)
-
     nextWeek = utils.getNextWeek()
     defaultSelectedDates = {
         "slider": [9*3600, 17*3600]
@@ -103,11 +94,26 @@ def zone(zid):
 
 
     return flask.render_template('zone.html',
-        zoneMapImage=zoneMapImage,
         **zoneRole,
-        zoneId = zid,
+        zid = zid,
         nextWeek=nextWeek,
         defaultSelectedDates=defaultSelectedDates)
+
+@bp.route("/zone/image/<zid>")
+def zoneImage(zid):
+
+    if not flask.g.isAdmin:
+
+        zoneRole = UserToZoneRoles.select(UserToZoneRoles.zone_role) \
+                                .where( (UserToZoneRoles.zid == zid) & (UserToZoneRoles.login == flask.g.login) ) \
+                                .scalar()
+        if zoneRole is None:
+            flask.abort(403)
+
+    blobIdQuery = Zone.select(Zone.iid.alias('id')).where(Zone.id == zid)
+
+    return blob_storage.createBlobResponse(blobIdQuery=blobIdQuery)
+
 
 @bp.route("/users")
 def users():
@@ -172,5 +178,17 @@ def zoneAssign(zid):
 
     return flask.render_template('zone_assign.html',
                     zoneName = zoneName,
+                    zid = zid,
+                    returnURL = returnURL)
+
+@bp.route("/zones/modify/<zid>")
+def zoneModify(zid):
+
+    if not flask.g.isAdmin:
+        flask.abort(403)
+
+    returnURL = flask.request.args.get('return',flask.url_for('view.zones'))
+
+    return flask.render_template('zone_modify.html',
                     zid = zid,
                     returnURL = returnURL)

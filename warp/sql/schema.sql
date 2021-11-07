@@ -6,6 +6,14 @@ DROP TABLE IF EXISTS zone_assign;
 DROP TABLE IF EXISTS zone;
 DROP TABLE IF EXISTS groups;
 DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS blobs;
+
+CREATE TABLE blobs (
+    id SERIAL PRIMARY KEY,
+    mimetype text NOT NULL,
+    data bytea NOT NULL,
+    etag integer NOT NULL
+);
 
 -- TODO_X type limit
 CREATE TABLE users (
@@ -25,12 +33,14 @@ CREATE TABLE groups (
     FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE
     );
 
-
+-- TODO remove image
 CREATE TABLE zone (
     id SERIAL PRIMARY KEY,
     zone_group integer NOT NULL,
     name text NOT NULL,
-    image text
+    image text,
+    iid integer,
+    FOREIGN KEY (iid) REFERENCES blobs(id) ON DELETE SET NULL
     );
 
 -- TODO_X zone_role limit
@@ -39,7 +49,7 @@ CREATE TABLE zone_assign (
     login text NOT NULL,
     zone_role integer NOT NULL,
     PRIMARY KEY (zid,login),
-    FOREIGN KEY (zid) REFERENCES zone(id),
+    FOREIGN KEY (zid) REFERENCES zone(id) ON DELETE CASCADE,
     FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE
     );
 
@@ -50,14 +60,14 @@ CREATE TABLE seat (
     x integer NOT NULL,
     y integer NOT NULL,
     enabled boolean NOT NULL DEFAULT TRUE,
-    FOREIGN KEY (zid) REFERENCES zone(id)
+    FOREIGN KEY (zid) REFERENCES zone(id) ON DELETE CASCADE
     );
 
 CREATE TABLE seat_assign (
     sid integer NOT NULL,
     login text NOT NULL,
     PRIMARY KEY (sid,login),
-    FOREIGN KEY (sid) REFERENCES seat(id),
+    FOREIGN KEY (sid) REFERENCES seat(id) ON DELETE CASCADE,
     FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE
     );
 
@@ -71,7 +81,7 @@ CREATE TABLE book (
     fromts integer NOT NULL,
     tots integer NOT NULL,
     FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE,
-    FOREIGN KEY (sid) REFERENCES seat(id)
+    FOREIGN KEY (sid) REFERENCES seat(id) ON DELETE CASCADE
     );
 
 CREATE INDEX book_login

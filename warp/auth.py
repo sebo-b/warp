@@ -63,7 +63,7 @@ def session():
     if flask.request.blueprint == 'auth':
         return
 
-    if flask.request.endpoint == 'static' and 'zone_maps' not in flask.request.view_args['filename']:
+    if flask.request.endpoint == 'static':
         return
 
     login = flask.session.get('login')
