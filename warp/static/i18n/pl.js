@@ -71,6 +71,8 @@ warpGlobals.i18n.phrases = {
         "Enable": "Włącz",
         "Disable": "Wyłącz",
         "Upload map": "Wczytaj mapę",
+        "Add seats": "Dodaj miejsca",
+        "Done adding": "Zakończ",
     },
     'Password': 'Hasło',
     'Bookings': 'Rezerwacje',

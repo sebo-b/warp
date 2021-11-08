@@ -6,7 +6,9 @@
 <script>
     window.warpGlobals.zid = {{ zid }};
     window.warpGlobals.URLs['zonesModifyXHR'] = "{{ url_for('xhr.zones.modify') }}";
+    window.warpGlobals.URLs['zonesGetSeats'] = "{{ url_for('xhr.zones.getSeats', zid=zid) }}";
 </script>
+<script src="{{ url_for('static', filename='zone_modify_seat.js') }}"></script>
 <script src="{{ url_for('static', filename='zone_modify.js') }}"></script>
 
 {% endblock %}
@@ -14,17 +16,48 @@
 {% block content %}
     {{ super() }}
 
-  <div>
-    <a href="{{ returnURL }}"><i class="medium material-icons">chevron_left</i></a> Return
-  </div>
-    <div class="file-field">
-      <div class="btn">
-        <span><script>TR.inline('btn.Upload map')</script></span>
-        <input type="file" accept="image/jpeg,image/png" id="mapUploadBtn">
+  <div class="zone_modify_container">
+
+    <div class="zone_modify_map" id="zone_map_container">
+      <img id="zone_map" src="{{ url_for('view.zoneImage', zid=zid) }}" draggable="false">
+    </div>
+
+    <div class="zone_modify_sidepanel">
+      <input type="file" accept="image/jpeg,image/png" id="mapUploadInput" style="display:none">
+      <div class="zone_modify_sidepanel_top">
+          <a class="waves-effect waves-light btn TR" id="chooseImgBtn">btn.Upload map</a>
       </div>
+      <div class="zone_modify_sidepanel_top">
+          <a class="waves-effect waves-light btn" id="addSeatBtn"></a>
+      </div>
+
+      <div>
+        <div id="seat_edit_panel" style="visibility: hidden">
+          <div class="input-field">
+            <input id="seat_name" type="text">
+            <label for="seat_name">Seat name</label>
+          </div>
+          <div class="input-field">
+            <input id="seat_x" type="number" min="0">
+            <label for="seat_x">X</label>
+          </div>
+          <div class="input-field">
+            <input id="seat_y" type="number" min="0">
+            <label for="seat_y">Y</label>
+          </div>
+          <div class="input-field center-align">
+            <a class="waves-effect waves-light btn red darken-2 TR" id="seat_delete_btn">btn.Delete</a>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="zone_modify_sidepanel_bottom">
+            <a class="waves-effect waves-light btn TR" id="saveBtn">btn.Save</a>
+      </div>
+
     </div>
-    <div class="input-field">
-        <a class="waves-effect waves-light btn" id="saveBtn">Save</a>
-    </div>
-    <img id="tmpImg" style="width: 300px; height: auto;">
+
+  </div>
+
 {% endblock %}

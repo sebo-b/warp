@@ -40,7 +40,7 @@ Utils.formatError = function(status, response) {
 
 }
 
-Utils.xhr = function(url,data,toastOnSuccess = true, errorOnFailure = true, responseType = "json") {
+Utils.xhr = function(url,data,toastOnSuccess = true, errorOnFailure = true, responseType = "json", requestType = "POST") {
     return new Promise(function(resolve, reject) {
 
         let xhr = new XMLHttpRequest();
@@ -60,7 +60,7 @@ Utils.xhr = function(url,data,toastOnSuccess = true, errorOnFailure = true, resp
             }
         });
 
-        xhr.open("POST", url);
+        xhr.open(requestType, url);
         xhr.responseType = responseType;
 
         if (!(data instanceof FormData)) {

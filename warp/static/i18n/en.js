@@ -71,6 +71,8 @@ warpGlobals.i18n.phrases = {
         "Enable": "Enable",
         "Disable": "Disable",
         "Upload map": "Upload map",
+        "Add seats": "Add seats",
+        "Done adding": "Done adding",
     },
     'Password': 'Password',
     'Bookings': 'Bookings',
@@ -185,5 +187,5 @@ warpGlobals.i18n.phrases = {
         "105": "You don't have required permissions in the zone. (%{code})",
         "106": "Seat is not assigned to you. (%{code})",
         "109": "Cannot book, the seat was already booked by someone else. (%{code})",
-    }
+    },
 };

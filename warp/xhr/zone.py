@@ -35,7 +35,7 @@ bp = flask.Blueprint('zone', __name__, url_prefix='zone')
 # this route accepts the following optional arguments:
 #   login=string - sidM... will be for a given user (requires zoneAdmin)
 #   onlyOtherZone=0|1 - returns only zones, users for other zones (sidM...)
-@bp.route("getSeats/<zid>")
+@bp.route("getSeats/<int:zid>")
 def getSeats(zid):
 
     res = {

@@ -310,12 +310,11 @@ def modify():
         validate(jsonData,jsonSchema)
     except orjson.JSONDecodeError:
         return {"msg": "Error in paring JSON", "code": 233 }, 400
-    except ValidationError:
+    except ValidationError as err:
         return {"msg": "Data error", "code": 234 }, 400
 
     class ApplyError(Exception):
         pass
-
 
     zid = jsonData['zid']
 
@@ -346,7 +345,7 @@ def modify():
             if 'remove' in jsonData:
 
                 rowCount = Seat.delete() \
-                                .where( (Seat.id.in_(jsonData['remove'])) & Seat.zid == zid ) \
+                                .where( (Seat.id.in_(jsonData['remove'])) & (Seat.zid == zid) ) \
                                 .execute()
 
                 if rowCount != len(jsonData['remove']):
@@ -393,4 +392,24 @@ def modify():
     return {"msg": "ok"}, 200
 
 
+@bp.route("getSeats/<int:zid>")
+def getSeats(zid):
 
+    if not flask.g.isAdmin:
+        return {"msg": "Forbidden", "code": 250 }, 403
+
+    query = Seat.select(Seat.id, Seat.name, Seat.x, Seat.y) \
+                .where(Seat.zid == zid)
+
+    res = {
+        str(i['id']): {
+            "name": i['name'],
+            "x": i['x'],
+            "y": i['y']
+            } for i in query.iterator()
+    }
+
+    return flask.current_app.response_class(
+        response=orjson.dumps(res),
+        status=200,
+        mimetype='application/json')

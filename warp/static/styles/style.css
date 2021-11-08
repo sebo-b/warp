@@ -341,3 +341,42 @@ INPUT[type="text"] ~ .show_password_btn::after {
 .userGroupCell:hover {
     text-decoration: underline;
 }
+
+.zone_modify_container {
+    display: flex;
+    flex-direction: row;
+    flex: 0 1 auto;
+    min-height: 0px;
+    min-width: 0px;
+}
+
+.zone_modify_sidepanel {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+    padding: 10px;
+    width: 300px;
+    align-items: center;
+}
+
+.zone_modify_sidepanel DIV {
+    flex: auto;
+}
+
+.zone_modify_sidepanel_top {
+    flex: none !important;
+    margin-bottom: 10px;
+}
+
+.zone_modify_sidepanel_bottom {
+    flex: none !important;
+}
+
+.zone_modify_map {
+    flex: 0 1 auto;
+    min-width: 0px;
+    min-height: 0px;
+    overflow: auto;
+    position: relative;
+}
