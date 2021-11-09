@@ -358,6 +358,7 @@ INPUT[type="text"] ~ .show_password_btn::after {
     padding: 10px;
     width: 300px;
     align-items: center;
+    margin-left: auto;
 }
 
 .zone_modify_sidepanel DIV {

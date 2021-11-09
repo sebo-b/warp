@@ -1,8 +1,10 @@
+"use strict";
 
-function Seat(id, data, overlay, parentDiv) {
+function Seat(id, data, overlay, parentDiv, onChange = null) {
     this.id = id;
     this.data = data;
     this.overlay = overlay;
+    this.onChange = onChange;
 
     this._createDiv(parentDiv);
 }
@@ -12,6 +14,9 @@ Seat.CONFIG = {
     newNamePrefix: "NEW_",
     newSidPrefix: "DUMMY_",
     DELETED: "DELETED",
+    userExactOffset: "0px",
+    disabledOffset: "-288px",
+
 }
 
 Seat.prototype._destroy = function() {
@@ -32,20 +37,45 @@ Seat.prototype._createDiv = function(parentDiv) {
     this.seatDiv = document.createElement("div");
 
     this.seatDiv.style.position = "absolute";
-    this.seatDiv.style.left = this.x + "px";
-    this.seatDiv.style.top = this.y + "px";
     this.seatDiv.style.width = Seat.CONFIG.spriteSize + "px";
     this.seatDiv.style.height = Seat.CONFIG.spriteSize + "px";
-    this.seatDiv.style.backgroundImage = "url('/static/images/seat_icons.png')"; //TODO
+    this.seatDiv.style.backgroundImage = 'url('+window.warpGlobals.URLs['seatSprite']+')';
 
+    this._updateDiv();
     parentDiv.appendChild(this.seatDiv);
 }
 
 Seat.prototype._updateDiv = function() {
 
-    this.seatDiv.style.left = this.x + "px"; //TODO
-    this.seatDiv.style.top = this.y + "px"; //TODO
+    this.seatDiv.style.left = this.x + "px";
+    this.seatDiv.style.top = this.y + "px";
+
+    this.seatDiv.style.backgroundPositionX =
+        this.deleted? Seat.CONFIG.disabledOffset: Seat.CONFIG.userExactOffset;
 }
+
+Object.defineProperty(Seat.prototype, "deleted", {
+    get: function() {
+        return this.id in this.overlay && Seat.CONFIG.DELETED in this.overlay[this.id];
+    },
+    set: function(v) {
+        if (this.deleted == v)
+            return;
+
+        if (v) {
+            let d = {[Seat.CONFIG.DELETED]: true};
+            this.overlay[this.id] = Object.assign(d, this.overlay[this.id]);
+        }
+        else if (this.id in this.overlay) {
+            delete this.overlay[this.id][Seat.CONFIG.DELETED];
+        }
+
+        this._updateDiv();
+        if (this.onChange)
+            this.onChange(this);
+    }
+});
+
 
 Object.defineProperty(Seat.prototype, "select", {
     get: function() {
@@ -63,30 +93,30 @@ Seat._getterFactory = function(propName) {
     }
 }
 
-Seat._setterFactory = function(propName) {
+Seat._setterFactory = function(propName,mutator = a => a) {
     return function(value) {
         if (this.data
-            && this.data[propName] == value
+            && this.data[propName] == mutator(value)
             && this.id in this.overlay
             && propName in this.overlay[this.id]) {
 
                 delete this.overlay[this.id][propName];
-                if (Object.keys(this.overlay[this.id]) == 0)
-                    delete this.overlay[this.id];
-
         }
         else {
             let newValObj = {}
-            newValObj[propName] = value;
+            newValObj[propName] = mutator(value);
             this.overlay[this.id] = Object.assign({}, this.overlay[this.id], newValObj);
         }
+
         this._updateDiv();
+        if (this.onChange)
+            this.onChange(this);
     }
 }
 
 Object.defineProperty(Seat.prototype, "name", { get: Seat._getterFactory('name'), set: Seat._setterFactory('name') } );
-Object.defineProperty(Seat.prototype, "x", { get: Seat._getterFactory('x'), set: Seat._setterFactory('x') } );
-Object.defineProperty(Seat.prototype, "y", { get: Seat._getterFactory('y'), set: Seat._setterFactory('y') } );
+Object.defineProperty(Seat.prototype, "x", { get: Seat._getterFactory('x'), set: Seat._setterFactory('x',parseInt) } );
+Object.defineProperty(Seat.prototype, "y", { get: Seat._getterFactory('y'), set: Seat._setterFactory('y',parseInt) } );
 
 
 function SeatFactory(url,parentDiv,zoneMapImg) {
@@ -109,7 +139,8 @@ function SeatFactory(url,parentDiv,zoneMapImg) {
     this.listeners = {
         select: new Set(),
         unselect: new Set(),
-        drag: new Set()
+        drag: new Set(),
+        change: new Set(),
     };
 
 
@@ -156,11 +187,25 @@ SeatFactory.prototype.updateData = function() {
             this.instances[sid]._destroy();
             delete this.instances[sid];
         }
+
+        this._fireEvent('change',null);
     });
 }
 
+SeatFactory.prototype._seatOnChange = function(seat) {
+    this._fireEvent('change',seat);
+}
+
 SeatFactory.prototype.isChanged = function() {
-    return Object.keys(this.overlay).length > 0;
+
+    for (let i in this.overlay) {
+        if (Object.keys(this.overlay[i]).length > 0)
+            return true;
+        else
+            delete this.overlay[i];
+    }
+
+    return false;
 }
 
 SeatFactory.prototype.getChanges = function() {
@@ -172,6 +217,10 @@ SeatFactory.prototype.getChanges = function() {
 
     for (let sid in this.overlay) {
         let value = this.overlay[sid]
+
+        if (Object.keys(value).length == 0)
+            continue;
+
         if (sid.startsWith(Seat.CONFIG.newSidPrefix)) {
             if (Seat.CONFIG.DELETED in value) //this should not happen
                 continue;
@@ -216,29 +265,38 @@ SeatFactory.prototype.createNewSeat = function(name,x,y) {
     this.selectedSeat = seat;
     this.selectedSeat.select = true;
     this._fireEvent('select',seat);
+    this._fireEvent('change',seat);
 }
 
-SeatFactory.prototype.removeSeat = function(seat) {
+SeatFactory.prototype.deleteRestoreSeat = function(seat) {
 
     if (seat == null)
         return;
 
-    if (this.selectedSeat == seat)
-        this._resetState();
+    if (seat.deleted) {
+        seat.deleted = false;
+    }
+    else {
 
-    let sid = seat.id;
+        let sid = seat.id;
 
-    seat._destroy();
-    delete this.instances[sid];
+        if (sid.startsWith(Seat.CONFIG.newSidPrefix)) {
+            seat._destroy();
+            delete this.instances[sid];
 
-    if (!sid.startsWith(Seat.CONFIG.newSidPrefix)) {
-        this.overlay[sid] = {}
-        this.overlay[sid][Seat.CONFIG.DELETED] = true;
+            if (this.selectedSeat == seat)
+                this._resetState();
+
+            this._fireEvent('change',seat);
+        }
+        else {
+            seat.deleted = true;
+        }
     }
 }
 
-SeatFactory.prototype.removeSelectedSeat = function() {
-    this.removeSeat(this.selectedSeat);
+SeatFactory.prototype.getSelectedSeat = function() {
+    return this.selectedSeat;
 }
 
 SeatFactory.prototype.on = function(type,listener) {
@@ -317,7 +375,7 @@ SeatFactory.prototype._createSeat = function(sid,data) {
         delete this.instances[sid];
     }
 
-    let seat = new Seat(sid,data, this.overlay, this.parentDiv);
+    let seat = new Seat(sid,data, this.overlay, this.parentDiv, this._seatOnChange.bind(this));
     this.instances[sid] = seat;
 
     let seatDiv = seat.seatDiv;

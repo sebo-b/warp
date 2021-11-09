@@ -53,22 +53,34 @@ document.addEventListener("DOMContentLoaded", function(e) {
     let seatFactory = new SeatFactory(window.warpGlobals.URLs['zonesGetSeats'],zoneMapContainer,zoneMapImg);
 
     seatFactory.on('select', (seat) => {
+
+        seatDeleteBtnUpdate(seat);
         seatNameEl.value = seat.name;
         seatXEl.value = seat.x;
         seatYEl.value = seat.y;
         M.updateTextFields();
         seatEditPanel.style.visibility = "visible";
     });
+
     seatFactory.on('unselect', (seat) => {
         seatEditPanel.style.visibility = "hidden";
     });
+
     seatFactory.on('drag', (seat) => {
-        console.log('drag');
         seatXEl.value = seat.x;
         seatYEl.value = seat.y;
     });
 
+    seatFactory.on('change', (seat) => {
+        if (seatFactory.isChanged())
+            saveBtn.classList.remove('disabled');
+        else
+            saveBtn.classList.add('disabled');
+    });
+
+
     zoneMapImg.addEventListener('mousedown', function(e) {
+
         if (!addSeatState)
             return;
 
@@ -80,8 +92,23 @@ document.addEventListener("DOMContentLoaded", function(e) {
         e.stopPropagation();
     });
 
+    let seatDeleteBtnUpdate = function(seat) {
+        if (seat.deleted) {
+            seatDeleteBtn.innerText = TR('btn.Restore');
+            seatDeleteBtn.classList.add('green');
+            seatDeleteBtn.classList.remove('red','darken-2');
+        }
+        else {
+            seatDeleteBtn.innerText = TR('btn.Delete');
+            seatDeleteBtn.classList.remove('green');
+            seatDeleteBtn.classList.add('red','darken-2');
+        }
+    }
+
     seatDeleteBtn.addEventListener('click', function(e) {
-        seatFactory.removeSelectedSeat();
+        let seat = seatFactory.getSelectedSeat();
+        seatFactory.deleteRestoreSeat(seat);
+        seatDeleteBtnUpdate(seat);
     });
 
     saveBtn.addEventListener('click', function(e) {
@@ -108,16 +135,80 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
         data.append('json', JSON.stringify(json));
 
-        Utils.xhr(
-            window.warpGlobals.URLs['zonesModifyXHR'],
-            data)
-        .then( () => {
-            seatFactory.updateData();
-        })
-        .catch( () => {
-            seatFactory.updateData();
-        });
+        var msg = TR("The following changes will be applied:<br>");
+        if (data.has('image'))
+            msg += TR("- updated zone map<br>");
+        if ('remove' in json)
+            msg += TR("- deleted %{smart_count} seat(s)<br>", {smart_count: json.remove.length });
+
+        if ('addOrUpdate' in json) {
+            let changed = 0;
+
+            for (let i of json.addOrUpdate) {
+                if ('sid' in i)
+                    ++changed;
+            }
+            let added = json.addOrUpdate.length - changed;
+
+            if (added > 0)
+                msg += TR("- added %{smart_count} seat(s)<br>", {smart_count: added });
+            if (changed > 0)
+                msg += TR("- updated data of %{smart_count} seat(s)<br>", {smart_count: changed });
+        }
+
+
+        WarpModal.getInstance().open(
+            TR("Are you sure to update the zone?"),
+            msg,
+            {
+                buttons: [ {id: 1, text: TR("btn.Yes")}, {id: 0, text: TR("btn.No")} ],
+                onButtonHook: function(btnId) {
+
+                    if (btnId != 1)
+                        return;
+
+                    Utils.xhr(
+                        window.warpGlobals.URLs['zonesModifyXHR'],
+                        data)
+                    .then( () => {
+                        seatFactory.updateData();
+                    })
+                    .catch( () => {
+                        seatFactory.updateData();
+                    });
+
+                },
+            });
     });
+
+    window.addEventListener('beforeunload', function (e) {
+        if (seatFactory.isChanged()) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+
+    var changeFactory = function(prop) {
+        return function(e) {
+            let selSeat = seatFactory.getSelectedSeat();
+            if (!selSeat)
+                return;
+            selSeat[prop] = e.target.value;
+        }
+    }
+
+    seatNameEl.addEventListener('input', changeFactory('name'));
+    seatXEl.addEventListener('input', changeFactory('x'));
+    seatYEl.addEventListener('input', changeFactory('y'));
+
+    var seatXYMax = function() {
+        seatXEl.max = zoneMapImg.width - Seat.CONFIG.spriteSize;
+        seatYEl.max = zoneMapImg.height - Seat.CONFIG.spriteSize;
+    }
+
+    if (zoneMapImg.complete)
+        seatXYMax();
+    zoneMapImg.addEventListener('load', seatXYMax);
 
     seatFactory.updateData();
 

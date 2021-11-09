@@ -73,6 +73,7 @@ warpGlobals.i18n.phrases = {
         "Upload map": "Wczytaj mapę",
         "Add seats": "Dodaj miejsca",
         "Done adding": "Zakończ",
+        "Restore": "Przywróć",
     },
     'Password': 'Hasło',
     'Bookings': 'Rezerwacje',
@@ -189,4 +190,24 @@ warpGlobals.i18n.phrases = {
         "106": "Miejsce przypisane do innej osoby. (%{code})",
         "109": "Nie można zarezerwować, miejsce zostało już zarezerwowane przez kogoś innego. (%{code})",
     },
+    "Are you sure to update the zone?": "Czy na pewno chcesz wprowadzić zmiany?",
+    "The following changes will be applied:<br>": "Następujące zmiany zostaną wprowadzone:<br>",
+    "- updated zone map<br>": "- uaktualniono mapę strefy<br>",
+    "- added %{smart_count} seat(s)<br>":
+        "- dodano jedno miejsce<br>||||"+
+        "- dodano %{smart_count} miejsca<br>||||"+
+        "- dodano %{smart_count} miejsc<br>",
+    "- updated data of %{smart_count} seat(s)<br>":
+        "- zmienione dane jednego miejsca<br>||||"+
+        "- zmienione dane %{smart_count} miejsc<br>||||"+
+        "- zmienione dane %{smart_count} miejsc<br>",
+    "- deleted %{smart_count} seat(s)<br>":
+        "- usunięte jedno miejsce<br>||||"+
+        "- usunięte %{smart_count} miejsca<br>||||"+
+        "- usunięte %{smart_count} miejsc<br>",
+    seatEdit: {
+        "Seat name": "Nazwa",
+        "X": "X",
+        "Y": "Y",
+    }
 };

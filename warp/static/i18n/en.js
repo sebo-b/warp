@@ -73,6 +73,7 @@ warpGlobals.i18n.phrases = {
         "Upload map": "Upload map",
         "Add seats": "Add seats",
         "Done adding": "Done adding",
+        "Restore": "Restore",
     },
     'Password': 'Password',
     'Bookings': 'Bookings',
@@ -188,4 +189,22 @@ warpGlobals.i18n.phrases = {
         "106": "Seat is not assigned to you. (%{code})",
         "109": "Cannot book, the seat was already booked by someone else. (%{code})",
     },
+    "Are you sure to update the zone?": "Are you sure to update the zone?",
+    "The following changes will be applied:<br>": "The following changes will be applied:<br>",
+    "- updated zone map<br>": "- updated zone map<br>",
+    "- added %{smart_count} seat(s)<br>":
+        "- added one seat<br>||||"+
+        "- added %{smart_count} seats<br>",
+    "- updated data of %{smart_count} seat(s)<br>":
+        "- updated data of a seat<br>||||"+
+        "- updated data of %{smart_count} seats<br>",
+    "- deleted %{smart_count} seat(s)<br>":
+        "- deleted a seat<br>||||"+
+        "- deleted %{smart_count} seats<br>",
+    seatEdit: {
+        "Seat name": "Seat name",
+        "X": "X",
+        "Y": "Y",
+    }
+
 };

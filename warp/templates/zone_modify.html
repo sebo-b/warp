@@ -7,6 +7,7 @@
     window.warpGlobals.zid = {{ zid }};
     window.warpGlobals.URLs['zonesModifyXHR'] = "{{ url_for('xhr.zones.modify') }}";
     window.warpGlobals.URLs['zonesGetSeats'] = "{{ url_for('xhr.zones.getSeats', zid=zid) }}";
+    window.warpGlobals.URLs['seatSprite'] = "{{ url_for('static',filename='images/seat_icons.png') }}";
 </script>
 <script src="{{ url_for('static', filename='zone_modify_seat.js') }}"></script>
 <script src="{{ url_for('static', filename='zone_modify.js') }}"></script>
@@ -35,25 +36,25 @@
         <div id="seat_edit_panel" style="visibility: hidden">
           <div class="input-field">
             <input id="seat_name" type="text">
-            <label for="seat_name">Seat name</label>
+            <label for="seat_name" class="TR">seatEdit.Seat name</label>
           </div>
           <div class="input-field">
             <input id="seat_x" type="number" min="0">
-            <label for="seat_x">X</label>
+            <label for="seat_x" class="TR">seatEdit.X</label>
           </div>
           <div class="input-field">
             <input id="seat_y" type="number" min="0">
-            <label for="seat_y">Y</label>
+            <label for="seat_y" class="TR">seatEdit.Y</label>
           </div>
           <div class="input-field center-align">
-            <a class="waves-effect waves-light btn red darken-2 TR" id="seat_delete_btn">btn.Delete</a>
+            <a class="waves-effect waves-light btn TR" id="seat_delete_btn">btn.Delete</a>
           </div>
         </div>
 
       </div>
 
       <div class="zone_modify_sidepanel_bottom">
-            <a class="waves-effect waves-light btn TR" id="saveBtn">btn.Save</a>
+            <a class="waves-effect waves-light btn disabled TR" id="saveBtn">btn.Save</a>
       </div>
 
     </div>
