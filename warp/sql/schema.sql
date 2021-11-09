@@ -38,7 +38,6 @@ CREATE TABLE zone (
     id SERIAL PRIMARY KEY,
     zone_group integer NOT NULL,
     name text NOT NULL,
-    image text,
     iid integer,
     FOREIGN KEY (iid) REFERENCES blobs(id) ON DELETE SET NULL
     );

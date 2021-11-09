@@ -181,10 +181,38 @@ document.addEventListener("DOMContentLoaded", function(e) {
             });
     });
 
-    window.addEventListener('beforeunload', function (e) {
+    let onBeforeUnload = function(e) {
         if (seatFactory.isChanged()) {
             e.preventDefault();
             e.returnValue = '';
+        }
+    }
+
+    window.addEventListener('beforeunload', onBeforeUnload);
+
+    let cancelBtn = document.getElementById('cancelBtn');
+    cancelBtn.addEventListener('click', function(e) {
+
+        let pageRet = function() {
+            window.removeEventListener('beforeunload', onBeforeUnload);
+            window.location.href = window.warpGlobals['returnURL'];
+        };
+
+        if (seatFactory.isChanged()) {
+            WarpModal.getInstance().open(
+                TR("Are you sure?"),
+                TR("All unsaved changes will be lost."),
+                {
+                    buttons: [ {id: true, text: TR("btn.Yes")}, {id: false, text: TR("btn.No")} ],
+                    onButtonHook: function(btnId) {
+                        if (btnId)
+                            pageRet();
+                    }
+                }
+            );
+        }
+        else {
+            pageRet();
         }
     });
 

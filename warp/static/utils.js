@@ -72,3 +72,33 @@ Utils.xhr = function(url,data,toastOnSuccess = true, errorOnFailure = true, resp
         xhr.send(data);
     });
 }
+
+Utils.Listeners = function(types, async = true) {
+
+    this.async = async;
+
+    this.listeners = {};
+    for (let t of types)
+        this.listeners[t] = new Set();
+
+    this.on = function(type,listener) {
+        if (type in this.listeners && typeof(listener) === 'function') {
+            this.listeners[type].add(listener);
+        }
+    };
+
+    this.fireEvent = function(type,_this,param) {
+
+        if (this.async) {
+            for (let i of this.listeners[type]) {
+                setTimeout(i.bind(_this),0,param);
+            }
+        }
+        else {
+            for (let i of this.listeners[type]) {
+                i.call(this,param);
+            }
+        }
+    }
+
+}

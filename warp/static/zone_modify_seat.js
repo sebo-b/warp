@@ -1,20 +1,28 @@
 "use strict";
 
-function Seat(id, data, overlay, parentDiv, onChange = null) {
+function Seat(id, data, overlay, parentDiv) {
+
     this.id = id;
     this.data = data;
     this.overlay = overlay;
-    this.onChange = onChange;
+
+    this.listeners = new Utils.Listeners(['change'],true);
+    this.on = this.listeners.on.bind(this.listeners);
 
     this._createDiv(parentDiv);
 }
 
 Seat.CONFIG = {
+
     spriteSize: 48,
+
     newNamePrefix: "NEW_",
     newSidPrefix: "DUMMY_",
     DELETED: "DELETED",
-    userExactOffset: "0px",
+
+    unchangedOffset: "0px",
+    changedOffset: "-96px",
+    newSeatOffset: "-144px",
     disabledOffset: "-288px",
 
 }
@@ -22,13 +30,13 @@ Seat.CONFIG = {
 Seat.prototype._destroy = function() {
 
     this.seatDiv.parentNode.removeChild(this.seatDiv);
-    delete this.overlay[this.id];
+    this.overlay = {};
 }
 
 Seat.prototype._updateData = function(data) {
 
     this.data = data;
-    delete this.overlay[this.id];   //this is not really needed, as overlay is anyway cleaned up in the factory before
+    this.overlay = {};
     this._updateDiv();
 }
 
@@ -50,29 +58,33 @@ Seat.prototype._updateDiv = function() {
     this.seatDiv.style.left = this.x + "px";
     this.seatDiv.style.top = this.y + "px";
 
-    this.seatDiv.style.backgroundPositionX =
-        this.deleted? Seat.CONFIG.disabledOffset: Seat.CONFIG.userExactOffset;
+    let offset = Seat.CONFIG.unchangedOffset;
+    if (this.id.startsWith(Seat.CONFIG.newSidPrefix))
+        offset = Seat.CONFIG.newSeatOffset;
+    else if (this.deleted)
+        offset = Seat.CONFIG.disabledOffset;
+    else if (Object.keys(this.overlay).length > 0)
+        offset = Seat.CONFIG.changedOffset;
+
+    this.seatDiv.style.backgroundPositionX = offset;
 }
 
 Object.defineProperty(Seat.prototype, "deleted", {
     get: function() {
-        return this.id in this.overlay && Seat.CONFIG.DELETED in this.overlay[this.id];
+        return Seat.CONFIG.DELETED in this.overlay;
     },
     set: function(v) {
+
         if (this.deleted == v)
             return;
 
-        if (v) {
-            let d = {[Seat.CONFIG.DELETED]: true};
-            this.overlay[this.id] = Object.assign(d, this.overlay[this.id]);
-        }
-        else if (this.id in this.overlay) {
-            delete this.overlay[this.id][Seat.CONFIG.DELETED];
-        }
+        if (v)
+            this.overlay[Seat.CONFIG.DELETED] = true;
+        else
+            delete this.overlay[Seat.CONFIG.DELETED];
 
         this._updateDiv();
-        if (this.onChange)
-            this.onChange(this);
+        this.listeners.fireEvent('change',this);
     }
 });
 
@@ -88,29 +100,25 @@ Object.defineProperty(Seat.prototype, "select", {
 
 Seat._getterFactory = function(propName) {
     return function() {
-        let v = Object.assign({}, this.data, this.overlay[this.id]);
+        let v = Object.assign({}, this.data, this.overlay);
         return v[propName];
     }
 }
 
 Seat._setterFactory = function(propName,mutator = a => a) {
     return function(value) {
-        if (this.data
-            && this.data[propName] == mutator(value)
-            && this.id in this.overlay
-            && propName in this.overlay[this.id]) {
 
-                delete this.overlay[this.id][propName];
+        if (this.data && this.data[propName] === mutator(value) && propName in this.overlay) {
+                delete this.overlay[propName];
         }
-        else {
-            let newValObj = {}
-            newValObj[propName] = mutator(value);
-            this.overlay[this.id] = Object.assign({}, this.overlay[this.id], newValObj);
+        else if (this.overlay[propName] !== mutator(value)) {
+            this.overlay[propName] = mutator(value);
         }
+        else
+            return;
 
         this._updateDiv();
-        if (this.onChange)
-            this.onChange(this);
+        this.listeners.fireEvent('change',this);
     }
 }
 
@@ -136,13 +144,8 @@ function SeatFactory(url,parentDiv,zoneMapImg) {
         offsetY: 0,
     };
 
-    this.listeners = {
-        select: new Set(),
-        unselect: new Set(),
-        drag: new Set(),
-        change: new Set(),
-    };
-
+    this.listeners = new Utils.Listeners(['select','unselect','drag','change']);
+    this.on = this.listeners.on.bind(this.listeners);
 
     this.parentDiv.addEventListener("mouseout", this._zoneMouseOut.bind(this));
     this.parentDiv.addEventListener("mousemove", this._zoneMouseMove.bind(this));
@@ -158,7 +161,7 @@ SeatFactory.prototype._resetState = function() {
         this.selectedSeat.select = false;
         this.selectedSeat = null;
 
-        this._fireEvent('unselect',s);
+        this.listeners.fireEvent('unselect',this,s);
     }
 }
 
@@ -168,8 +171,6 @@ SeatFactory.prototype.updateData = function() {
 
     Utils.xhr(this.url,null,false,true,undefined,"GET")
     .then( (v) => {
-
-        Object.keys(this.overlay).forEach( (k) => delete this.overlay[k] );
 
         let oldIds = new Set( Object.keys(this.instances));
         let newData = v.response;
@@ -186,14 +187,15 @@ SeatFactory.prototype.updateData = function() {
         for (var sid of oldIds) {
             this.instances[sid]._destroy();
             delete this.instances[sid];
+            delete this.overlay[sid];
         }
 
-        this._fireEvent('change',null);
+        this.listeners.fireEvent('change',this,null);
     });
 }
 
 SeatFactory.prototype._seatOnChange = function(seat) {
-    this._fireEvent('change',seat);
+    this.listeners.fireEvent('change',this,seat);
 }
 
 SeatFactory.prototype.isChanged = function() {
@@ -201,8 +203,6 @@ SeatFactory.prototype.isChanged = function() {
     for (let i in this.overlay) {
         if (Object.keys(this.overlay[i]).length > 0)
             return true;
-        else
-            delete this.overlay[i];
     }
 
     return false;
@@ -216,14 +216,17 @@ SeatFactory.prototype.getChanges = function() {
     };
 
     for (let sid in this.overlay) {
+
         let value = this.overlay[sid]
 
         if (Object.keys(value).length == 0)
             continue;
 
         if (sid.startsWith(Seat.CONFIG.newSidPrefix)) {
-            if (Seat.CONFIG.DELETED in value) //this should not happen
+            if (Seat.CONFIG.DELETED in value) {//this should not happen
+                console.error("Deleted in artificial seat");
                 continue;
+            }
             res.addOrUpdate.push( Object.assign({},value));
         }
         else if (Seat.CONFIG.DELETED in value) {
@@ -264,8 +267,8 @@ SeatFactory.prototype.createNewSeat = function(name,x,y) {
     this._resetState();
     this.selectedSeat = seat;
     this.selectedSeat.select = true;
-    this._fireEvent('select',seat);
-    this._fireEvent('change',seat);
+    this.listeners.fireEvent('select',this,seat);
+    this.listeners.fireEvent('change',this,seat);
 }
 
 SeatFactory.prototype.deleteRestoreSeat = function(seat) {
@@ -283,11 +286,12 @@ SeatFactory.prototype.deleteRestoreSeat = function(seat) {
         if (sid.startsWith(Seat.CONFIG.newSidPrefix)) {
             seat._destroy();
             delete this.instances[sid];
+            delete this.overlay[sid];
 
             if (this.selectedSeat == seat)
                 this._resetState();
 
-            this._fireEvent('change',seat);
+            this.listeners.fireEvent('change',this,seat);
         }
         else {
             seat.deleted = true;
@@ -305,21 +309,11 @@ SeatFactory.prototype.on = function(type,listener) {
     }
 }
 
-SeatFactory.prototype._fireEvent = function(type,param) {
-
-    if (!(type in this.listeners))
-        return;
-
-    for (let i of this.listeners[type]) {
-        setTimeout(i.bind(this),0,param);
-    }
-}
-
 SeatFactory.prototype._seatMouseDown = function(seat,e) {
 
     if (this.selectedSeat) {
         this.selectedSeat.select = false;
-        this._fireEvent('unselect',this.selectedSeat);
+        this.listeners.fireEvent('unselect',this.selectedSeat);
     }
 
     this.selectedSeat = seat;
@@ -331,7 +325,7 @@ SeatFactory.prototype._seatMouseDown = function(seat,e) {
 
     e.stopPropagation();
 
-    this._fireEvent('select',seat);
+    this.listeners.fireEvent('select',this,seat);
 }
 
 SeatFactory.prototype._seatMouseUp = function(e) {
@@ -348,7 +342,7 @@ SeatFactory.prototype._zoneMouseDown = function(e) {
         let s = this.selectedSeat;
         this.selectedSeat.select = false;
         this.selectedSeat = null;
-        this._fireEvent('unselect',s);
+        this.listeners.fireEvent('unselect',this,s);
     }
 }
 
@@ -364,19 +358,21 @@ SeatFactory.prototype._zoneMouseMove = function(e) {
     this.selectedSeat.x = x-this.drag.offsetX;
     this.selectedSeat.y = y-this.drag.offsetY;
 
-    this._fireEvent('drag',this.selectedSeat);
+    this.listeners.fireEvent('drag',this,this.selectedSeat);
 
 }
 
 SeatFactory.prototype._createSeat = function(sid,data) {
 
-    if (sid in this.instances) {
-        this.instances[sid]._destroy();
-        delete this.instances[sid];
-    }
+    if (sid in this.instances)
+        throw Error('id already exists');
 
-    let seat = new Seat(sid,data, this.overlay, this.parentDiv, this._seatOnChange.bind(this));
+    if (!(sid in this.overlay))
+        this.overlay[sid] = {};
+
+    let seat = new Seat(sid, data, this.overlay[sid], this.parentDiv);
     this.instances[sid] = seat;
+    seat.on('change',this._seatOnChange.bind(this));
 
     let seatDiv = seat.seatDiv;
     seatDiv.addEventListener("mousedown", this._seatMouseDown.bind(this,seat));

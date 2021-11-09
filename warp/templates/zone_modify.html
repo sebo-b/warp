@@ -5,6 +5,7 @@
 
 <script>
     window.warpGlobals.zid = {{ zid }};
+    window.warpGlobals.returnURL = "{{ returnURL }}";
     window.warpGlobals.URLs['zonesModifyXHR'] = "{{ url_for('xhr.zones.modify') }}";
     window.warpGlobals.URLs['zonesGetSeats'] = "{{ url_for('xhr.zones.getSeats', zid=zid) }}";
     window.warpGlobals.URLs['seatSprite'] = "{{ url_for('static',filename='images/seat_icons.png') }}";
@@ -54,7 +55,8 @@
       </div>
 
       <div class="zone_modify_sidepanel_bottom">
-            <a class="waves-effect waves-light btn disabled TR" id="saveBtn">btn.Save</a>
+        <a class="waves-effect waves-light btn btn-flat TR" id="cancelBtn">btn.Cancel</a>
+        <a class="waves-effect waves-light btn disabled TR" id="saveBtn">btn.Save</a>
       </div>
 
     </div>

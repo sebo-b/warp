@@ -205,6 +205,6 @@ warpGlobals.i18n.phrases = {
         "Seat name": "Seat name",
         "X": "X",
         "Y": "Y",
-    }
-
+    },
+    "All unsaved changes will be lost.": "All unsaved changes will be lost.",
 };
