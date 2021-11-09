@@ -1,9 +1,14 @@
 import flask
+from werkzeug.middleware.proxy_fix import ProxyFix
 from warp.config import *
 
 def create_app():
 
     app = flask.Flask(__name__)
+
+    if app.env == 'production':
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
+
     initConfig(app)
 
     from . import db
