@@ -9,7 +9,7 @@ INSERT INTO zone (id,zone_group,name) VALUES (2,1,'Zone 1B');
 INSERT INTO zone (id,zone_group,name) VALUES (3,2,'Parking');
 
 -- fix PK sequence
-SELECT pg_catalog.setval(pg_get_serial_sequence('zone', 'id'), (SELECT MAX(id)+1 FROM zone));
+SELECT pg_catalog.setval(pg_get_serial_sequence('zone', 'id'), (SELECT MAX(id) FROM zone));
 
 INSERT INTO users VALUES ('group_1a',NULL,'Group 1A',100);
 INSERT INTO users VALUES ('group_1b',NULL,'Group 1B',100);
