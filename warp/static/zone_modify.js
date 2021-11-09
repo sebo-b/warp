@@ -41,7 +41,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
             return;
 
         zoneMapImg.src = URL.createObjectURL(mapUploadInput.files[0]);
-
+        saveBtn.classList.remove('disabled');
     });
 
     let seatEditPanel = document.getElementById("seat_edit_panel");
@@ -171,18 +171,15 @@ document.addEventListener("DOMContentLoaded", function(e) {
                         window.warpGlobals.URLs['zonesModifyXHR'],
                         data)
                     .then( () => {
+                        mapUploadInput.value = null;
                         seatFactory.updateData();
                     })
-                    .catch( () => {
-                        seatFactory.updateData();
-                    });
-
                 },
             });
     });
 
     let onBeforeUnload = function(e) {
-        if (seatFactory.isChanged()) {
+        if (mapUploadInput.files.length > 0 || seatFactory.isChanged()) {
             e.preventDefault();
             e.returnValue = '';
         }
@@ -198,7 +195,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
             window.location.href = window.warpGlobals['returnURL'];
         };
 
-        if (seatFactory.isChanged()) {
+        if (mapUploadInput.files.length > 0 || seatFactory.isChanged()) {
             WarpModal.getInstance().open(
                 TR("Are you sure?"),
                 TR("All unsaved changes will be lost."),

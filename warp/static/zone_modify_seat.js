@@ -30,13 +30,13 @@ Seat.CONFIG = {
 Seat.prototype._destroy = function() {
 
     this.seatDiv.parentNode.removeChild(this.seatDiv);
-    this.overlay = {};
+    Object.keys(this.overlay).forEach((e) => delete this.overlay[e]);
 }
 
 Seat.prototype._updateData = function(data) {
 
     this.data = data;
-    this.overlay = {};
+    Object.keys(this.overlay).forEach((e) => delete this.overlay[e]);
     this._updateDiv();
 }
 
@@ -108,7 +108,7 @@ Seat._getterFactory = function(propName) {
 Seat._setterFactory = function(propName,mutator = a => a) {
     return function(value) {
 
-        if (this.data && this.data[propName] === mutator(value) && propName in this.overlay) {
+        if (this.data[propName] === mutator(value) && propName in this.overlay) {
                 delete this.overlay[propName];
         }
         else if (this.overlay[propName] !== mutator(value)) {
@@ -262,7 +262,7 @@ SeatFactory.prototype.createNewSeat = function(name,x,y) {
         y: y - Seat.CONFIG.spriteSize/2,
     };
 
-    let seat = this._createSeat(newSid,null);
+    let seat = this._createSeat(newSid,{});
 
     this._resetState();
     this.selectedSeat = seat;
