@@ -203,7 +203,7 @@ function SeatFactory(url,parentDiv,zoneMapImg) {
     this.parentDiv.addEventListener("mousedown", this._zoneMouseDown.bind(this));
 }
 
-SeatFactory.prototype._resetState = function() {
+SeatFactory.prototype._resetSelectionState = function() {
 
     this.drag.state = false;
 
@@ -218,7 +218,8 @@ SeatFactory.prototype._resetState = function() {
 
 SeatFactory.prototype.updateData = function() {
 
-    this._resetState();
+    this._resetSelectionState();
+    this.endTransform(false);
 
     Utils.xhr(this.url,null,false,true,undefined,"GET")
     .then( (v) => {
@@ -311,7 +312,7 @@ SeatFactory.prototype.createNewSeat = function(name,x,y) {
 
     let seat = this._createSeat(newSid,{});
 
-    this._resetState();
+    this._resetSelectionState();
     this.selectedSeat = seat;
     this.selectedSeat.select = true;
     this.listeners.fireEvent('select',this,seat);
@@ -340,7 +341,7 @@ SeatFactory.prototype.deleteRestoreSeat = function(seat) {
             delete this.overlay[sid];
 
             if (this.selectedSeat == seat)
-                this._resetState();
+                this._resetSelectionState();
 
             this.listeners.fireEvent('change',this,seat);
         }
