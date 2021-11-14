@@ -52,33 +52,6 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     let seatFactory = new SeatFactory(window.warpGlobals.URLs['zonesGetSeats'],zoneMapContainer,zoneMapImg);
 
-    seatFactory.on('select', (seat) => {
-
-        seatDeleteBtnUpdate(seat);
-        seatNameEl.value = seat.name;
-        seatXEl.value = seat.x;
-        seatYEl.value = seat.y;
-        M.updateTextFields();
-        seatEditPanel.style.visibility = "visible";
-    });
-
-    seatFactory.on('unselect', (seat) => {
-        seatEditPanel.style.visibility = "hidden";
-    });
-
-    seatFactory.on('drag', (seat) => {
-        seatXEl.value = seat.x;
-        seatYEl.value = seat.y;
-    });
-
-    seatFactory.on('change', (seat) => {
-        if (seatFactory.isChanged())
-            saveBtn.classList.remove('disabled');
-        else
-            saveBtn.classList.add('disabled');
-    });
-
-
     zoneMapImg.addEventListener('mousedown', function(e) {
 
         if (!addSeatState)
@@ -110,6 +83,39 @@ document.addEventListener("DOMContentLoaded", function(e) {
         seatFactory.deleteRestoreSeat(seat);
         seatDeleteBtnUpdate(seat);
     });
+
+
+
+    let transformBtn = document.getElementById('transform_btn');
+
+    let transformBtnUpdate = function(seat) {
+        if (seatFactory.transformState()) {
+            transformBtn.classList.remove('disabled');
+            transformBtn.classList.add('green');
+            transformBtn.innerText = TR('btn.Finish alignment');
+
+
+        }
+        else {
+            transformBtn.classList.remove('green');
+            transformBtn.innerText = TR('btn.Align all');
+            if (seat.isNew())
+                transformBtn.classList.add('disabled');
+            else
+                transformBtn.classList.remove('disabled');
+        }
+    }
+
+    transformBtn.addEventListener('click', function(e) {
+
+        if (seatFactory.transformState())
+            seatFactory.endTransform(false);
+        else
+            seatFactory.beginTransform(true);
+
+        transformBtnUpdate(seatFactory.getSelectedSeat());
+    });
+
 
     saveBtn.addEventListener('click', function(e) {
 
@@ -177,6 +183,34 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 },
             });
     });
+
+    seatFactory.on('select', (seat) => {
+
+        seatDeleteBtnUpdate(seat);
+        transformBtnUpdate(seat);
+        seatNameEl.value = seat.name;
+        seatXEl.value = seat.x;
+        seatYEl.value = seat.y;
+        M.updateTextFields();
+        seatEditPanel.style.visibility = "visible";
+    });
+
+    seatFactory.on('unselect', (seat) => {
+        seatEditPanel.style.visibility = "hidden";
+    });
+
+    seatFactory.on('drag', (seat) => {
+        seatXEl.value = seat.x;
+        seatYEl.value = seat.y;
+    });
+
+    seatFactory.on('change', (seat) => {
+        if (seatFactory.isChanged())
+            saveBtn.classList.remove('disabled');
+        else
+            saveBtn.classList.add('disabled');
+    });
+
 
     let onBeforeUnload = function(e) {
         if (mapUploadInput.files.length > 0 || seatFactory.isChanged()) {

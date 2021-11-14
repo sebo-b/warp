@@ -74,6 +74,8 @@ warpGlobals.i18n.phrases = {
         "Add seats": "Dodaj miejsca",
         "Done adding": "Zakończ",
         "Restore": "Przywróć",
+        "Align all": "Dopasuj wsz.",
+        "Finish alignment": "Zakończ",
     },
     'Password': 'Hasło',
     'Bookings': 'Rezerwacje',

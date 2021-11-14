@@ -6,6 +6,9 @@ function Seat(id, data, overlay, parentDiv) {
     this.data = data;
     this.overlay = overlay;
 
+    this.__select = false;
+    this.__transformOrigin = false;
+
     this.listeners = new Utils.Listeners(['change'],true);
     this.on = this.listeners.on.bind(this.listeners);
 
@@ -25,6 +28,29 @@ Seat.CONFIG = {
     newSeatOffset: "-144px",
     disabledOffset: "-288px",
 
+}
+
+Seat.prototype.silentSetXY = function(x,y) {
+
+    x = Math.round(x);
+    y = Math.round(y);
+
+    if (this.data.x == x)
+        delete this.overlay['x'];
+    else
+        this.overlay['x'] = x;
+
+    if (this.data.y == y)
+        delete this.overlay['y'];
+    else
+        this.overlay['y'] = y;
+
+    this._updateDiv();
+
+}
+
+Seat.prototype.isNew = function() {
+    return this.id.startsWith(Seat.CONFIG.newSidPrefix);
 }
 
 Seat.prototype._destroy = function() {
@@ -59,7 +85,7 @@ Seat.prototype._updateDiv = function() {
     this.seatDiv.style.top = this.y + "px";
 
     let offset = Seat.CONFIG.unchangedOffset;
-    if (this.id.startsWith(Seat.CONFIG.newSidPrefix))
+    if (this.isNew())
         offset = Seat.CONFIG.newSeatOffset;
     else if (this.deleted)
         offset = Seat.CONFIG.disabledOffset;
@@ -67,6 +93,13 @@ Seat.prototype._updateDiv = function() {
         offset = Seat.CONFIG.changedOffset;
 
     this.seatDiv.style.backgroundPositionX = offset;
+
+    if (this.__select)
+        this.seatDiv.style.outline = "2px solid #b71c1c";
+    else if (this.__transformOrigin)
+        this.seatDiv.style.outline = "2px solid #1b5e20";
+    else
+        this.seatDiv.style.outline = "";
 }
 
 Object.defineProperty(Seat.prototype, "deleted", {
@@ -84,24 +117,41 @@ Object.defineProperty(Seat.prototype, "deleted", {
             delete this.overlay[Seat.CONFIG.DELETED];
 
         this._updateDiv();
-        this.listeners.fireEvent('change',this);
+        this.listeners.fireEvent('change',this,this);
     }
 });
 
 
 Object.defineProperty(Seat.prototype, "select", {
     get: function() {
-        return this.seatDiv.style.outline != "";
+        return this.__select;
     },
     set: function(v) {
-        this.seatDiv.style.outline = v? "2px solid #b71c1c": "";
+        if (this.__select != v) {
+            this.__select = v;
+            this._updateDiv();
+        }
+    }
+});
+
+Object.defineProperty(Seat.prototype, "transformOrigin", {
+    get: function() {
+        return this.__transformOrigin;
+    },
+    set: function(v) {
+        if (this.__transformOrigin != v) {
+            this.__transformOrigin = v;
+            this._updateDiv();
+        }
     }
 });
 
 Seat._getterFactory = function(propName) {
     return function() {
-        let v = Object.assign({}, this.data, this.overlay);
-        return v[propName];
+        if (propName in this.overlay)
+            return this.overlay[propName];
+        else
+            return this.data[propName];
     }
 }
 
@@ -118,14 +168,13 @@ Seat._setterFactory = function(propName,mutator = a => a) {
             return;
 
         this._updateDiv();
-        this.listeners.fireEvent('change',this);
+        this.listeners.fireEvent('change',this,this);
     }
 }
 
 Object.defineProperty(Seat.prototype, "name", { get: Seat._getterFactory('name'), set: Seat._setterFactory('name') } );
 Object.defineProperty(Seat.prototype, "x", { get: Seat._getterFactory('x'), set: Seat._setterFactory('x',parseInt) } );
 Object.defineProperty(Seat.prototype, "y", { get: Seat._getterFactory('y'), set: Seat._setterFactory('y',parseInt) } );
-
 
 function SeatFactory(url,parentDiv,zoneMapImg) {
 
@@ -143,6 +192,8 @@ function SeatFactory(url,parentDiv,zoneMapImg) {
         offsetX: 0,
         offsetY: 0,
     };
+
+    this.endTransform(false); // initialize this.transfer structure
 
     this.listeners = new Utils.Listeners(['select','unselect','drag','change']);
     this.on = this.listeners.on.bind(this.listeners);
@@ -192,10 +243,6 @@ SeatFactory.prototype.updateData = function() {
 
         this.listeners.fireEvent('change',this,null);
     });
-}
-
-SeatFactory.prototype._seatOnChange = function(seat) {
-    this.listeners.fireEvent('change',this,seat);
 }
 
 SeatFactory.prototype.isChanged = function() {
@@ -284,6 +331,10 @@ SeatFactory.prototype.deleteRestoreSeat = function(seat) {
         let sid = seat.id;
 
         if (sid.startsWith(Seat.CONFIG.newSidPrefix)) {
+
+            if (this.transform.state && this.transform.originSeat == seat)
+                throw Error("Cannot delete origin seat");
+
             seat._destroy();
             delete this.instances[sid];
             delete this.overlay[sid];
@@ -303,10 +354,151 @@ SeatFactory.prototype.getSelectedSeat = function() {
     return this.selectedSeat;
 }
 
-SeatFactory.prototype.on = function(type,listener) {
-    if (type in this.listeners && typeof(listener) === 'function') {
-        this.listeners[type].add(listener);
+SeatFactory.prototype.transformState = function() {
+    return this.transform.state;
+}
+
+SeatFactory.prototype.beginTransform = function() {
+
+    if (this.transform.state)
+        throw Error("Already in transform state");
+
+    if (!this.selectedSeat)
+        throw Error("A seat must be selected.");
+
+    if (this.selectedSeat.isNew())
+        throw Error("New seats cannot be transformed.");
+
+    this.transform.state = true;
+    this.transform.originSeat = this.selectedSeat;
+    this.transform.originSeatInitial.x = this.transform.originSeat.x;
+    this.transform.originSeatInitial.y = this.transform.originSeat.y;
+    this.transform.originOffset.x = this.transform.originOffset.y = 0;
+    this.transform.initialValues = {};
+    for (let s in this.instances) {
+        if (!this.instances[s].isNew())
+            this.transform.initialValues[s] = {
+                x: this.instances[s].x,
+                y: this.instances[s].y
+            }
     }
+    this.transform.originSeat.transformOrigin = true;
+}
+
+SeatFactory.prototype.endTransform = function(cancel = false) {
+
+    if (this.transform && this.transform.state) {
+        if (cancel) {
+            for (let s in this.transform.initialValues) {
+                this.instances[s].silentSetXY(
+                    this.transform.initialValues[s].x,
+                    this.transform.initialValues[s].y
+                )
+            }
+        }
+        this.transform.originSeat.transformOrigin = false;
+    }
+
+    this.transform = {
+        state: false,
+        originSeat: null,
+        originSeatInitial: { x:0, y:0 },    //just to speed up
+        originOffset: { x: 0, y:0 },
+        initialValues: {},
+    };
+
+}
+
+
+SeatFactory.prototype._transform = function(seat) {
+
+    if (!this.transform.state || seat.isNew())
+        return;
+
+    if (this.transform.originSeat == seat) {
+        // move
+        let newOffset = {
+            x: seat.x - this.transform.originSeatInitial.x,
+            y: seat.y - this.transform.originSeatInitial.y,
+        };
+
+        for (let sid in this.instances) {
+
+            let trSeat = this.instances[sid];
+            if (trSeat == seat)
+                continue;
+
+            let r = {
+                x: trSeat.x + newOffset.x - this.transform.originOffset.x,
+                y: trSeat.y + newOffset.y - this.transform.originOffset.y,
+            }
+
+            trSeat.silentSetXY(r.x,r.y);
+        }
+
+        this.transform.originOffset = newOffset;
+    }
+    else {
+
+        let seatInitial = {
+            x: this.transform.initialValues[seat.id].x,
+            y: this.transform.initialValues[seat.id].y
+        };
+
+        let a = {
+            x: this.transform.originSeatInitial.x - seatInitial.x,
+            y: this.transform.originSeatInitial.y - seatInitial.y,
+        };
+        let b = {
+            x: this.transform.originSeat.x - seat.x,
+            y: this.transform.originSeat.y - seat.y,
+        };
+
+        let magnASq = (a.x*a.x) + (a.y*a.y);
+        let sCosTheta = (a.x * b.x + a.y * b.y) / magnASq;
+        let sSinTheta = (a.x * b.y - a.y * b.x) / magnASq;
+
+        let transfM = [
+            sCosTheta, -sSinTheta,
+            sSinTheta, sCosTheta,
+        ];
+
+        function matrixPointMult(M,x,y) {
+            return {
+                x: M[0] * x + M[1] * y,
+                y: M[2] * x + M[3] * y
+            };
+        }
+
+        for (let sid in this.transform.initialValues) {
+
+            let trSeat = this.instances[sid];
+
+            if (trSeat == this.transform.originSeat || trSeat == seat)
+                continue;
+
+            let r = matrixPointMult(
+                transfM,
+                this.transform.initialValues[sid].x-this.transform.originSeatInitial.x,
+                this.transform.initialValues[sid].y-this.transform.originSeatInitial.y);
+
+            r.x += this.transform.originSeatInitial.x + this.transform.originOffset.x;
+            r.y += this.transform.originSeatInitial.y + this.transform.originOffset.y;
+
+            if (r.x < 0)
+                r.x = 0;
+            if (r.y < 0)
+                r.y = 0;
+
+            trSeat.silentSetXY(r.x, r.y);
+        }
+    }
+}
+
+SeatFactory.prototype._seatOnChange = function(seat) {
+
+    this._transform(seat);
+    this.listeners.fireEvent('change',this,seat);
 }
 
 SeatFactory.prototype._seatMouseDown = function(seat,e) {
@@ -359,7 +551,6 @@ SeatFactory.prototype._zoneMouseMove = function(e) {
     this.selectedSeat.y = y-this.drag.offsetY;
 
     this.listeners.fireEvent('drag',this,this.selectedSeat);
-
 }
 
 SeatFactory.prototype._createSeat = function(sid,data) {

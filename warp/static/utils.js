@@ -87,6 +87,16 @@ Utils.Listeners = function(types, async = true) {
         }
     };
 
+    this.off = function(type,listener = null) {
+        if (!type in this.listeners)
+            return;
+
+        if (listener == null)
+            this.listeners[type].clear();
+        else
+            this.listeners[type].delete(listener);
+    }
+
     this.fireEvent = function(type,_this,param) {
 
         if (this.async) {

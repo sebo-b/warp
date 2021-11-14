@@ -74,6 +74,8 @@ warpGlobals.i18n.phrases = {
         "Add seats": "Add seats",
         "Done adding": "Done adding",
         "Restore": "Restore",
+        "Align all": "Align all",
+        "Finish alignment": "Finish",
     },
     'Password': 'Password',
     'Bookings': 'Bookings',
