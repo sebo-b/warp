@@ -32,8 +32,8 @@ Seat.CONFIG = {
 
 Seat.prototype.silentSetXY = function(x,y) {
 
-    x = Math.round(x);
-    y = Math.round(y);
+    x = Math.max(Math.round(x),0);
+    y = Math.max(Math.round(y),0);
 
     if (this.data.x == x)
         delete this.overlay['x'];
@@ -173,8 +173,8 @@ Seat._setterFactory = function(propName,mutator = a => a) {
 }
 
 Object.defineProperty(Seat.prototype, "name", { get: Seat._getterFactory('name'), set: Seat._setterFactory('name') } );
-Object.defineProperty(Seat.prototype, "x", { get: Seat._getterFactory('x'), set: Seat._setterFactory('x',parseInt) } );
-Object.defineProperty(Seat.prototype, "y", { get: Seat._getterFactory('y'), set: Seat._setterFactory('y',parseInt) } );
+Object.defineProperty(Seat.prototype, "x", { get: Seat._getterFactory('x'), set: Seat._setterFactory('x',(a) => Math.max(a,0)) } );
+Object.defineProperty(Seat.prototype, "y", { get: Seat._getterFactory('y'), set: Seat._setterFactory('y',(a) => Math.max(a,0)) } );
 
 function SeatFactory(url,parentDiv,zoneMapImg) {
 
@@ -447,10 +447,12 @@ SeatFactory.prototype._transform = function(seat) {
         ];
     }
 
-    function matrixPointMult(M,x,y) {
+    function matrixMult(M,point,origin,offset) {
+        let x = point.x - origin.x;
+        let y = point.y - origin.y;
         return {
-            x: M[0] * x + M[1] * y,
-            y: M[2] * x + M[3] * y
+            x: M[0] * x + M[1] * y + origin.x + offset.x,
+            y: M[2] * x + M[3] * y + origin.y + offset.y
         };
     }
 
@@ -461,18 +463,11 @@ SeatFactory.prototype._transform = function(seat) {
         if (trSeat == this.transform.originSeat || trSeat == seat)
             continue;
 
-        let r = matrixPointMult(
+        let r = matrixMult(
             this.transform.matrix,
-            this.transform.initialValues[sid].x-this.transform.originSeatInitial.x,
-            this.transform.initialValues[sid].y-this.transform.originSeatInitial.y);
-
-        r.x += this.transform.originSeatInitial.x + this.transform.originOffset.x;
-        r.y += this.transform.originSeatInitial.y + this.transform.originOffset.y;
-
-        if (r.x < 0)
-            r.x = 0;
-        if (r.y < 0)
-            r.y = 0;
+            this.transform.initialValues[sid],
+            this.transform.originSeatInitial,
+            this.transform.originOffset);
 
         trSeat.silentSetXY(r.x, r.y);
     }
