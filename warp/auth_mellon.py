@@ -18,12 +18,16 @@ def login():
 
         return flask.redirect(endpoint)
 
-    login = flask.request.environ['MELLON_uid']
-    userName = bytes(flask.request.environ['MELLON_cn'],'ISO-8859-1').decode('utf-8')
+    login = flask.request.headers.get('X-MELLON_uid')
+    userName = flask.request.headers.get('X-MELLON_cn')
+    if (login is None or userName is None):
+        return flask.abort(400)
 
-    c = Users.select(Users.id, Users.name).where(Users.login == login)
+    userName = bytes(userName,'ISO-8859-1').decode('utf-8')
 
-    if len(c) == 0:
+    c = Users.select(Users.name).where(Users.login == login).scalar()
+
+    if c is None:
 
         with DB.atomic():
 
@@ -41,11 +45,10 @@ def login():
                     Groups.login: login
                 }).execute()
 
-    else:
+    elif c != userName:
 
-        if c[0]['name'] != userName:
-            with DB.atomic():
-                Users.update({Users.name: userName}).where(Users.login == login).execute()
+        with DB.atomic():
+            Users.update({Users.name: userName}).where(Users.login == login).execute()
 
 
     flask.session['login'] = login
