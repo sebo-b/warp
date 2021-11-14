@@ -9,7 +9,7 @@ bp = flask.Blueprint('auth', __name__)
 def login():
 
     # force SAML request
-    if flask.session.get('uid'):
+    if flask.session.get('login'):
 
         flask.session.clear()
 
@@ -21,33 +21,34 @@ def login():
     login = flask.request.environ['MELLON_uid']
     userName = bytes(flask.request.environ['MELLON_cn'],'ISO-8859-1').decode('utf-8')
 
-    c = Users.select(Users.id, Users.role, Users.name).where(Users.login == login)
+    c = Users.select(Users.id, Users.name).where(Users.login == login)
 
-    if len(c) == 1:
+    if len(c) == 0:
 
-        if c[0]['role'] >= ROLE_BLOCKED:
-            flask.abort(403)
+        with DB.atomic():
 
-        flask.session['uid'] = c[0]['id']
-        flask.session['role'] = c[0]['role']
+            Users.insert({
+                Users.login: login,
+                Users.name: userName,
+                Users.account_type: ACCOUNT_TYPE_USER,
+                Users.password: '*'
+            }).execute()
+
+            defaultGroup = flask.current_app.config.get('MELLON_DEFAULT_GROUP')
+            if defaultGroup is not None:
+                Groups.insert({
+                    Groups.group: defaultGroup,
+                    Groups.login: login
+                }).execute()
+
+    else:
 
         if c[0]['name'] != userName:
             with DB.atomic():
                 Users.update({Users.name: userName}).where(Users.login == login).execute()
 
-    else:
 
-        with DB.atomic():
-            lastrowid = Users.insert({
-                    Users.login: login,
-                    Users.name: userName,
-                    Users.role: ROLE_USER,
-                    Users.password: '*'
-                }).execute()
-
-        flask.session['uid'] = lastrowid
-        flask.session['role'] = ROLE_USER
-
+    flask.session['login'] = login
     flask.session['login_time'] = utils.now()
 
     return flask.redirect(flask.url_for('view.index'))

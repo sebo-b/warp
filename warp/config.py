@@ -50,6 +50,7 @@ class ProductionSettings(DefaultSettings):
     # use mellon (Apache SAML module) for authentication
     #AUTH_MELLON = False
     #MELLON_ENDPOINT = "/sp"
+    #MELLON_DEFAULT_GROUP = "everybody"
 
     # this is intentionally empty, as in production
     # DATABASE and SECRET_KEY should be passed via ENV
