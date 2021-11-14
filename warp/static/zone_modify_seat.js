@@ -405,6 +405,7 @@ SeatFactory.prototype.endTransform = function(cancel = false) {
         originSeat: null,
         originSeatInitial: { x:0, y:0 },    //just to speed up
         originOffset: { x: 0, y:0 },
+        matrix: [ 1, 0, 0, 1],
         initialValues: {},
     };
 
@@ -417,39 +418,20 @@ SeatFactory.prototype._transform = function(seat) {
         return;
 
     if (this.transform.originSeat == seat) {
-        // move
-        let newOffset = {
+
+        this.transform.originOffset = {
             x: seat.x - this.transform.originSeatInitial.x,
             y: seat.y - this.transform.originSeatInitial.y,
         };
 
-        for (let sid in this.instances) {
-
-            let trSeat = this.instances[sid];
-            if (trSeat == seat)
-                continue;
-
-            let r = {
-                x: trSeat.x + newOffset.x - this.transform.originOffset.x,
-                y: trSeat.y + newOffset.y - this.transform.originOffset.y,
-            }
-
-            trSeat.silentSetXY(r.x,r.y);
-        }
-
-        this.transform.originOffset = newOffset;
     }
     else {
 
-        let seatInitial = {
-            x: this.transform.initialValues[seat.id].x,
-            y: this.transform.initialValues[seat.id].y
+        let a = {
+            x: this.transform.originSeatInitial.x - this.transform.initialValues[seat.id].x,
+            y: this.transform.originSeatInitial.y - this.transform.initialValues[seat.id].y,
         };
 
-        let a = {
-            x: this.transform.originSeatInitial.x - seatInitial.x,
-            y: this.transform.originSeatInitial.y - seatInitial.y,
-        };
         let b = {
             x: this.transform.originSeat.x - seat.x,
             y: this.transform.originSeat.y - seat.y,
@@ -459,40 +441,40 @@ SeatFactory.prototype._transform = function(seat) {
         let sCosTheta = (a.x * b.x + a.y * b.y) / magnASq;
         let sSinTheta = (a.x * b.y - a.y * b.x) / magnASq;
 
-        let transfM = [
+        this.transform.matrix = [
             sCosTheta, -sSinTheta,
             sSinTheta, sCosTheta,
         ];
+    }
 
-        function matrixPointMult(M,x,y) {
-            return {
-                x: M[0] * x + M[1] * y,
-                y: M[2] * x + M[3] * y
-            };
-        }
+    function matrixPointMult(M,x,y) {
+        return {
+            x: M[0] * x + M[1] * y,
+            y: M[2] * x + M[3] * y
+        };
+    }
 
-        for (let sid in this.transform.initialValues) {
+    for (let sid in this.transform.initialValues) {
 
-            let trSeat = this.instances[sid];
+        let trSeat = this.instances[sid];
 
-            if (trSeat == this.transform.originSeat || trSeat == seat)
-                continue;
+        if (trSeat == this.transform.originSeat || trSeat == seat)
+            continue;
 
-            let r = matrixPointMult(
-                transfM,
-                this.transform.initialValues[sid].x-this.transform.originSeatInitial.x,
-                this.transform.initialValues[sid].y-this.transform.originSeatInitial.y);
+        let r = matrixPointMult(
+            this.transform.matrix,
+            this.transform.initialValues[sid].x-this.transform.originSeatInitial.x,
+            this.transform.initialValues[sid].y-this.transform.originSeatInitial.y);
 
-            r.x += this.transform.originSeatInitial.x + this.transform.originOffset.x;
-            r.y += this.transform.originSeatInitial.y + this.transform.originOffset.y;
+        r.x += this.transform.originSeatInitial.x + this.transform.originOffset.x;
+        r.y += this.transform.originSeatInitial.y + this.transform.originOffset.y;
 
-            if (r.x < 0)
-                r.x = 0;
-            if (r.y < 0)
-                r.y = 0;
+        if (r.x < 0)
+            r.x = 0;
+        if (r.y < 0)
+            r.y = 0;
 
-            trSeat.silentSetXY(r.x, r.y);
-        }
+        trSeat.silentSetXY(r.x, r.y);
     }
 }
 
