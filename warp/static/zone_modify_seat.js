@@ -372,40 +372,34 @@ SeatFactory.prototype.beginTransform = function() {
 
     this.transform.state = true;
     this.transform.originSeat = this.selectedSeat;
-    this.transform.originSeatInitial.x = this.transform.originSeat.x;
-    this.transform.originSeatInitial.y = this.transform.originSeat.y;
-    this.transform.originOffset.x = this.transform.originOffset.y = 0;
-    this.transform.initialValues = {};
+    //this.transform.originSeatInitial.x = this.transform.originSeat.x;
+    //this.transform.originSeatInitial.y = this.transform.originSeat.y;
+    //this.transform.originOffset.x = this.transform.originOffset.y = 0;
+
+    let ox = this.selectedSeat.x;
+    let oy = this.selectedSeat.y;
+
+    //this.transform.initialValues = {};
     for (let s in this.instances) {
-        if (!this.instances[s].isNew())
-            this.transform.initialValues[s] = {
-                x: this.instances[s].x,
-                y: this.instances[s].y
-            }
+        if (!this.instances[s].isNew() && this.instances[s] != this.transform.originSeat)
+            this.transform.initialValues[s] = [
+                this.instances[s].x - ox,
+                this.instances[s].y - oy
+            ]
     }
     this.transform.originSeat.transformOrigin = true;
 }
 
-SeatFactory.prototype.endTransform = function(cancel = false) {
+SeatFactory.prototype.endTransform = function() {
 
     if (this.transform && this.transform.state) {
-        if (cancel) {
-            for (let s in this.transform.initialValues) {
-                this.instances[s].silentSetXY(
-                    this.transform.initialValues[s].x,
-                    this.transform.initialValues[s].y
-                )
-            }
-        }
         this.transform.originSeat.transformOrigin = false;
     }
 
     this.transform = {
         state: false,
         originSeat: null,
-        originSeatInitial: { x:0, y:0 },    //just to speed up
-        originOffset: { x: 0, y:0 },
-        matrix: [ 1, 0, 0, 1],
+        matrix: [ 1, 0 ],   //just the first column
         initialValues: {},
     };
 
@@ -417,59 +411,40 @@ SeatFactory.prototype._transform = function(seat) {
     if (!this.transform.state || seat.isNew())
         return;
 
-    if (this.transform.originSeat == seat) {
+    let origin = [
+        this.transform.originSeat.x,
+        this.transform.originSeat.y,
+    ];
 
-        this.transform.originOffset = {
-            x: seat.x - this.transform.originSeatInitial.x,
-            y: seat.y - this.transform.originSeatInitial.y,
-        };
+    if (this.transform.originSeat != seat) {
 
-    }
-    else {
-
-        let a = {
-            x: this.transform.originSeatInitial.x - this.transform.initialValues[seat.id].x,
-            y: this.transform.originSeatInitial.y - this.transform.initialValues[seat.id].y,
-        };
-
-        let b = {
-            x: this.transform.originSeat.x - seat.x,
-            y: this.transform.originSeat.y - seat.y,
-        };
-
-        let magnASq = (a.x*a.x) + (a.y*a.y);
-        let sCosTheta = (a.x * b.x + a.y * b.y) / magnASq;
-        let sSinTheta = (a.x * b.y - a.y * b.x) / magnASq;
-
-        this.transform.matrix = [
-            sCosTheta, -sSinTheta,
-            sSinTheta, sCosTheta,
+        let a = [
+            this.transform.initialValues[seat.id][0],
+            this.transform.initialValues[seat.id][1],
         ];
-    }
 
-    function matrixMult(M,point,origin,offset) {
-        let x = point.x - origin.x;
-        let y = point.y - origin.y;
-        return {
-            x: M[0] * x + M[1] * y + origin.x + offset.x,
-            y: M[2] * x + M[3] * y + origin.y + offset.y
-        };
+        let b = [
+            seat.x - origin[0],
+            seat.y - origin[1],
+        ];
+
+        let magnASq = (a[0]*a[0]) + (a[1]*a[1]);
+        let sCosTheta = (a[0] * b[0] + a[1] * b[1]) / magnASq;
+        let sSinTheta = (a[0] * b[1] - a[1] * b[0]) / magnASq;
+
+        this.transform.matrix = [ sCosTheta, sSinTheta];
     }
 
     for (let sid in this.transform.initialValues) {
 
-        let trSeat = this.instances[sid];
-
-        if (trSeat == this.transform.originSeat || trSeat == seat)
+        if (sid == seat.id)
             continue;
 
-        let r = matrixMult(
-            this.transform.matrix,
-            this.transform.initialValues[sid],
-            this.transform.originSeatInitial,
-            this.transform.originOffset);
+        let initial = this.transform.initialValues[sid];
 
-        trSeat.silentSetXY(r.x, r.y);
+        this.instances[sid].silentSetXY(
+            this.transform.matrix[0] * initial[0] - this.transform.matrix[1] * initial[1] + origin[0],
+            this.transform.matrix[1] * initial[0] + this.transform.matrix[0] * initial[1] + origin[1] );
     }
 }
 
