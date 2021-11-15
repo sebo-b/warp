@@ -173,8 +173,8 @@ Seat._setterFactory = function(propName,mutator = a => a) {
 }
 
 Object.defineProperty(Seat.prototype, "name", { get: Seat._getterFactory('name'), set: Seat._setterFactory('name') } );
-Object.defineProperty(Seat.prototype, "x", { get: Seat._getterFactory('x'), set: Seat._setterFactory('x',(a) => Math.max(a,0)) } );
-Object.defineProperty(Seat.prototype, "y", { get: Seat._getterFactory('y'), set: Seat._setterFactory('y',(a) => Math.max(a,0)) } );
+Object.defineProperty(Seat.prototype, "x", { get: Seat._getterFactory('x'), set: Seat._setterFactory('x',(a) => Math.max(Math.round(a),0)) } );
+Object.defineProperty(Seat.prototype, "y", { get: Seat._getterFactory('y'), set: Seat._setterFactory('y',(a) => Math.max(Math.round(a),0)) } );
 
 function SeatFactory(url,parentDiv,zoneMapImg) {
 
@@ -306,8 +306,8 @@ SeatFactory.prototype.createNewSeat = function(name,x,y) {
 
     this.overlay[newSid] = {
         name: name,
-        x: x - Seat.CONFIG.spriteSize/2,
-        y: y - Seat.CONFIG.spriteSize/2,
+        x: Math.round(x - Seat.CONFIG.spriteSize/2),
+        y: Math.round(y - Seat.CONFIG.spriteSize/2),
     };
 
     let seat = this._createSeat(newSid,{});
@@ -372,17 +372,13 @@ SeatFactory.prototype.beginTransform = function() {
 
     this.transform.state = true;
     this.transform.originSeat = this.selectedSeat;
-    //this.transform.originSeatInitial.x = this.transform.originSeat.x;
-    //this.transform.originSeatInitial.y = this.transform.originSeat.y;
-    //this.transform.originOffset.x = this.transform.originOffset.y = 0;
 
     let ox = this.selectedSeat.x;
     let oy = this.selectedSeat.y;
 
-    //this.transform.initialValues = {};
     for (let s in this.instances) {
         if (!this.instances[s].isNew() && this.instances[s] != this.transform.originSeat)
-            this.transform.initialValues[s] = [
+            this.transform.initialVectors[s] = [
                 this.instances[s].x - ox,
                 this.instances[s].y - oy
             ]
@@ -400,7 +396,7 @@ SeatFactory.prototype.endTransform = function() {
         state: false,
         originSeat: null,
         matrix: [ 1, 0 ],   //just the first column
-        initialValues: {},
+        initialVectors: {},
     };
 
 }
@@ -418,10 +414,7 @@ SeatFactory.prototype._transform = function(seat) {
 
     if (this.transform.originSeat != seat) {
 
-        let a = [
-            this.transform.initialValues[seat.id][0],
-            this.transform.initialValues[seat.id][1],
-        ];
+        let a = this.transform.initialVectors[seat.id];
 
         let b = [
             seat.x - origin[0],
@@ -435,16 +428,16 @@ SeatFactory.prototype._transform = function(seat) {
         this.transform.matrix = [ sCosTheta, sSinTheta];
     }
 
-    for (let sid in this.transform.initialValues) {
+    for (let sid in this.transform.initialVectors) {
 
         if (sid == seat.id)
             continue;
 
-        let initial = this.transform.initialValues[sid];
+        let initialVector = this.transform.initialVectors[sid];
 
         this.instances[sid].silentSetXY(
-            this.transform.matrix[0] * initial[0] - this.transform.matrix[1] * initial[1] + origin[0],
-            this.transform.matrix[1] * initial[0] + this.transform.matrix[0] * initial[1] + origin[1] );
+            this.transform.matrix[0] * initialVector[0] - this.transform.matrix[1] * initialVector[1] + origin[0],
+            this.transform.matrix[1] * initialVector[0] + this.transform.matrix[0] * initialVector[1] + origin[1] );
     }
 }
 
