@@ -400,7 +400,7 @@ INPUT[type="text"] ~ .show_password_btn::after {
 }
 
 #spinner.active {
-    opacity: 1;
+    opacity: 0.8;
     visibility: visible;
     transition: visibility 1s ease-in-out 0s, opacity 1s ease-in-out 1s;
 }
