@@ -12,6 +12,8 @@
 {% block overlays %}
     {{ super() }}
 
+    <div id="spinner"></div>
+
     <ul class="sidenav" id="mobile-nav">
         {% for i in headerDataL %}
         <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}" class="TR">{{i['text']}}</a></li>

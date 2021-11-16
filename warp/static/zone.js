@@ -2,24 +2,19 @@
 
 function downloadSeatData(seatFactory) {
 
-    var xhr = new XMLHttpRequest();
-    xhr.addEventListener("load", function() {
-
-        var seatData = JSON.parse(this.responseText);
-
-        seatFactory.setSeatsData(seatData);
-        seatFactory.updateAllStates( getSelectedDates());
-    });
-
     var url = window.warpGlobals.URLs['getSeat'];
 
     var login = seatFactory.getLogin();
-    if (login !== window.warpGlobals.login) {
+    if (login !== window.warpGlobals.login)
         url += "?login=" + login;
-    }
 
-    xhr.open("GET", url);
-    xhr.send();
+    Utils.xhr(url, null, false, true, "json", "GET")
+    .then( function(v) {
+
+        seatFactory.setSeatsData(v.response);
+        seatFactory.updateAllStates( getSelectedDates());
+
+    })
 }
 
 function getSelectedDates() {
@@ -443,7 +438,7 @@ function initActionMenu(seatFactory) {
             }
 
             if (msg == "")
-                M.toast({html: TR('Action successfull.')});
+                M.toast({text: TR('Action successfull.')});
             else
                 WarpModal.getInstance().open(TR("Warning"),msg);
 
@@ -600,18 +595,13 @@ function initBookAs(seatFactory) {
 
     BookAs.getInstance().on('change', function(newLogin) {
 
-        var xhr = new XMLHttpRequest();
-        xhr.addEventListener("load", function() {
-
-            var seatData = JSON.parse(this.responseText);
-
-            seatFactory.updateLogin(newLogin, seatData);
-            seatFactory.updateAllStates( getSelectedDates());
-        });
-
         var url = window.warpGlobals.URLs['getSeat'] + "?onlyOtherZone=1&login=" + newLogin;
-        xhr.open("GET", url);
-        xhr.send();
+        Utils.xhr(url, null, false, true, "json", "GET")
+        .then( function(v) {
+            seatFactory.updateLogin(newLogin, v.response);
+            seatFactory.updateAllStates( getSelectedDates());
+
+        });
     })
 
 }

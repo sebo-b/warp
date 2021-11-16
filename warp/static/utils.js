@@ -40,12 +40,30 @@ Utils.formatError = function(status, response) {
 
 }
 
-Utils.xhr = function(url,data,toastOnSuccess = true, errorOnFailure = true, responseType = "json", requestType = "POST") {
+Utils.xhr = function F(url,data,toastOnSuccess = true, errorOnFailure = true, responseType = "json", requestType = "POST") {
+
+    if (!('counter' in F)) {
+        F.counter = 0;
+    }
+
     return new Promise(function(resolve, reject) {
 
         let xhr = new XMLHttpRequest();
-        xhr.addEventListener("load", function(e) {
+        let spinnerEl = document.getElementById('spinner');
 
+        xhr.addEventListener("loadstart", function(e) {
+            if (F.counter++ == 0) {
+                spinnerEl.classList.add('active');
+            }
+        });
+
+        xhr.addEventListener("loadend", function(e) {
+            if (--F.counter == 0) {
+                spinnerEl.classList.remove('active');
+            }
+        });
+
+        xhr.addEventListener("load", function(e) {
             if (this.status == 200 && this.response !== null) {
                 resolve({status:this.status, response: this.response, requestObject: this});
                 if (toastOnSuccess)
@@ -58,6 +76,10 @@ Utils.xhr = function(url,data,toastOnSuccess = true, errorOnFailure = true, resp
                     WarpModal.getInstance().open(TR("Error"),errorMsg);
                 }
             }
+        });
+
+        xhr.addEventListener("error", function(e) {
+            reject({status: 418, response: {}, requestObject: this, errorMsg: Utils.formatError(418,null)});
         });
 
         xhr.open(requestType, url);

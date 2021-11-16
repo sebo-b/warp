@@ -33,7 +33,6 @@ CREATE TABLE groups (
     FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE
     );
 
--- TODO remove image
 CREATE TABLE zone (
     id SERIAL PRIMARY KEY,
     zone_group integer NOT NULL,

@@ -90,20 +90,14 @@ ZoneUserData.prototype.on = function (type,listener) {
 
 ZoneUserData.prototype._init = function() {
 
-    var xhr = new XMLHttpRequest();
-    xhr.addEventListener("load", (e) => {
 
-        var respJSON = JSON.parse(e.currentTarget.responseText);
-
-        this.data = respJSON;
-
+    Utils.xhr(window.warpGlobals.URLs['zoneGetUsers'], null, false, true, "json", "GET")
+    .then( (e) => {
+        this.data = e.response;
         for (let l of this.listeners['load']) {
             l.call(this,this);
         }
-    });
-
-    xhr.open("GET", window.warpGlobals.URLs['zoneGetUsers']);
-    xhr.send();
+    })
 }
 
 
