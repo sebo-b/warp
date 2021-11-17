@@ -19,6 +19,8 @@ class DefaultSettings(object):
     # maximum size of uploaded map file
     MAX_MAP_SIZE = 2 * 1024 * 1024
 
+    MAX_REPORT_ROWS = 5000
+
     # these settings are available, but should not have default value
     # set them up in DevelopmentSettings or via environment
     #

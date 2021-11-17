@@ -16,7 +16,6 @@ function WarpModal() {
 
     document.body.appendChild(modalElement);
 
-    this.options = WarpModal.default_options;
     this.clickedBtnId = null;
 
     this.modal = M.Modal.init(modalElement,
@@ -29,7 +28,7 @@ function WarpModal() {
 
                 //object clean up before calling hooks
                 //as modal can be shown inside a hook
-                this.options = WarpModal.default_options;
+                delete this.options;
                 this.clickedBtnId = null;
                 this.footerElement.innerHTML = "";
 
@@ -51,12 +50,11 @@ function WarpModal() {
      *  onCancelHook:  function()
      * }
      **/
-    this.open = function(header,content,options) {
+    this.open = function(header,content,options = null) {
         this.headerElement.innerText = header;
         this.messageElement.innerHTML = content;
 
-        if (options)
-            this.options = options;
+        this.options = Object.assign({}, WarpModal.default_options, options)
 
         for (var b of this.options.buttons) {
             var bElem = this.footerElement.appendChild( document.createElement("a") );

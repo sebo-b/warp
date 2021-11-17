@@ -107,6 +107,9 @@ def listW(report = False):      # list is a built-in type
         if not flask.g.isAdmin:
             flask.abort(403)
 
+        # apply limit, clear offset (just in case)
+        query = query.offset().limit(flask.current_app.config['MAX_REPORT_ROWS'])
+
         # only xlsx for now
         memoryBuffer = io.BytesIO()
 

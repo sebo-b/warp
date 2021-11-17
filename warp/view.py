@@ -61,7 +61,9 @@ def report():
     if not flask.g.isAdmin:
         flask.abort(403)
 
-    return flask.render_template('bookings.html',report=True)
+    return flask.render_template('bookings.html',
+        report=True,
+        maxReportRows = flask.current_app.config['MAX_REPORT_ROWS'])
 
 @bp.route("/zone/<zid>")
 def zone(zid):

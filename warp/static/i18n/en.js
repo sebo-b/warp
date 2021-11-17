@@ -209,4 +209,7 @@ warpGlobals.i18n.phrases = {
         "Y": "Y",
     },
     "All unsaved changes will be lost.": "All unsaved changes will be lost.",
+    "More than %{smart_count} rows are selected. Report will be limited to that number of rows.":
+        "More than one row is selected. Report will be limited to that number of rows.||||"+
+        "More than %{smart_count} rows are selected. Report will be limited to that number of rows.",
 };

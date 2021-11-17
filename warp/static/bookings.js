@@ -16,7 +16,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
             showClearBtn: true,
             format: "yyyy-mm-dd",
             onClose: function() {
-                success(picker.value? (Date.parse(picker.value)/1000+offset): null)
+                success(picker.value? Math.round(Date.parse(picker.value)/1000)+offset: null)
             }
         };
 
@@ -26,6 +26,12 @@ document.addEventListener("DOMContentLoaded", function(e) {
         }
 
         M.Datepicker.init(picker, pickerOptions);
+
+        let cellValue = cell.getValue();
+        if (cellValue) {
+            let ts = new Date(parseInt(cellValue)*1000);
+            picker.value = ts.toISOString().substring(0,10);
+        }
 
         return picker;
     }
@@ -62,8 +68,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
             format: "yyyy-mm-dd",
             onClose: function() {
                 success({
-                    fromTS: fromDatePicker.value? (Date.parse(fromDatePicker.value)/1000): null,
-                    toTS: toDatePicker.value? (Date.parse(toDatePicker.value)/1000+24*3600-1): null
+                    fromTS: fromDatePicker.value? Math.round(Date.parse(fromDatePicker.value)/1000): null,
+                    toTS: toDatePicker.value? Math.round(Date.parse(toDatePicker.value)/1000)+24*3600-1: null
                 });
              }
         };
@@ -146,6 +152,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
     ];
 
     var initialSort = [];
+    var initialHeaderFilter = [];
 
     if (window.warpGlobals['report']) {
 
@@ -163,6 +170,17 @@ document.addEventListener("DOMContentLoaded", function(e) {
             {column:"fromTS", dir:"desc"},
             {column:"login", dir:"asc"}
         );
+
+        let todayTS = new Date();
+        todayTS = Math.round(todayTS / 1000) - todayTS.getTimezoneOffset()*60;
+        todayTS -= todayTS % (24*3600);
+        let twoWeeksAgo = todayTS - 14*24*3600;
+
+        initialHeaderFilter.push(
+            {field:"fromTS", value: twoWeeksAgo},
+            {field:"toTS", value: todayTS-1}
+        );
+
     }
     else {
         columns.push(
@@ -196,7 +214,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
         ajaxConfig: "POST",
         ajaxContentType: "json",
         columns: columns,
-        initialSort: initialSort
+        initialSort: initialSort,
+        initialHeaderFilter: initialHeaderFilter
 /*        persistence: {
             sort: true,
         },
@@ -209,28 +228,47 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
         document.getElementById('export_btn').addEventListener('click', function(e) {
 
+            let doExport = function() {
 
-            let data = {
-                export: "xlsx",
-                filters: table.getHeaderFilters(),
-                sorters: table.getSorters().map( (i) => { return { field: i.field, dir: i.dir} }  )
+                let data = {
+                    export: "xlsx",
+                    filters: table.getHeaderFilters(),
+                    sorters: table.getSorters().map( (i) => { return { field: i.field, dir: i.dir} }  )
+                }
+
+                Utils.xhr.post(
+                    window.warpGlobals.URLs['bookingsReport'],
+                    data,
+                    {toastOnSuccess: false})
+                .then(function(value) {
+                    let a = document.createElement("a");
+                    a.href = window.URL.createObjectURL(value.response);
+
+                    let m = value.requestObject.getResponseHeader('Content-Disposition').match("filename=(.*)");
+                    if (m != null)
+                        a.download = m[1];
+
+                    a.click();
+                    window.URL.revokeObjectURL(a.href);
+                });
+            };
+
+            let noOfRows = table.modules.page.size*table.modules.page.max;
+            let maxRows = window.warpGlobals['maxReportRows'];
+            if (noOfRows > maxRows) {
+                WarpModal.getInstance().open(
+                    TR("Warning"),
+                    TR("More than %{smart_count} rows are selected. Report will be limited to that number of rows.",{smart_count: maxRows}),
+                    { onButtonHook: () => {
+                        doExport();
+                        }
+                    }
+                );
+            }
+            else {
+                doExport();
             }
 
-            Utils.xhr.post(
-                window.warpGlobals.URLs['bookingsReport'],
-                data,
-                {toastOnSuccess: false})
-            .then(function(value) {
-                let a = document.createElement("a");
-                a.href = window.URL.createObjectURL(value.response);
-
-                let m = value.requestObject.getResponseHeader('Content-Disposition').match("filename=(.*)");
-                if (m != null)
-                    a.download = m[1];
-
-                a.click();
-                window.URL.revokeObjectURL(a.href);
-            });
         });
     }
 

@@ -213,4 +213,9 @@ warpGlobals.i18n.phrases = {
         "Y": "Y",
     },
     "All unsaved changes will be lost.": "Wszystkie niezapisane zmiany zostaną utracone.",
+    "More than %{smart_count} rows are selected. Report will be limited to that number of rows.":
+        "Wybrano więcej niż jeden wiersz. Raport będzie ograniczony do tej liczby wierszów.||||"+
+        "Wybrano więcej niż %{smart_count} wiersze. Raport będzie ograniczony do tej liczby wierszów.||||"+
+        "Wybrano więcej niż %{smart_count} wierszów. Raport będzie ograniczony do tej liczby wierszów.",
+
 };
