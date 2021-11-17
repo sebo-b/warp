@@ -40,60 +40,106 @@ Utils.formatError = function(status, response) {
 
 }
 
-Utils.xhr = function F(url,data,toastOnSuccess = true, errorOnFailure = true, responseType = "json", requestType = "POST") {
+Utils.xhr = {
+    _counter: 0,
+    _defaultOptions: {
+        toastOnSuccess: true,
+        errorOnFailure: true,
+    },
 
-    if (!('counter' in F)) {
-        F.counter = 0;
-    }
+    post: function(url,data,options = null) {
+        let opt = Object.assign(
+            {},
+            this._defaultOptions,
+            options,
+            {url: url, data: data, type: "POST" });
 
-    return new Promise(function(resolve, reject) {
+        return this._xhr(opt);
+    },
 
-        let xhr = new XMLHttpRequest();
-        let spinnerEl = document.getElementById('spinner');
+    get: function(url,options = null) {
+        let opt = Object.assign(
+            {},
+            this._defaultOptions,
+            options,
+            {url: url, data: undefined, type: "GET" });
 
-        xhr.addEventListener("loadstart", function(e) {
-            if (F.counter++ == 0) {
-                spinnerEl.classList.add('active');
-            }
-        });
+        return this._xhr(opt);
+    },
 
-        xhr.addEventListener("loadend", function(e) {
-            if (--F.counter == 0) {
-                spinnerEl.classList.remove('active');
-            }
-        });
+    _xhr: function(opt) {
 
-        xhr.addEventListener("load", function(e) {
-            if (this.status == 200 && this.response !== null) {
-                resolve({status:this.status, response: this.response, requestObject: this});
-                if (toastOnSuccess)
-                    M.toast({text: TR('Action successfull.')});
-            }
-            else {
-                let errorMsg = Utils.formatError(this.status,this.response);
-                reject({status:this.status, response: this.response, requestObject: this, errorMsg: errorMsg});
-                if (errorOnFailure) {
-                    WarpModal.getInstance().open(TR("Error"),errorMsg);
+        return new Promise( (resolve, reject) => {
+
+            let xhr = new XMLHttpRequest();
+            let spinnerEl = document.getElementById('spinner');
+
+            xhr.addEventListener("loadstart", () => {
+                if (this._counter++ == 0) {
+                    spinnerEl.classList.add('active');
                 }
+            });
+
+            xhr.addEventListener("loadend", () => {
+                if (--this._counter == 0) {
+                    spinnerEl.classList.remove('active');
+                }
+            });
+
+            xhr.addEventListener("load", function(e) {
+
+                let contentType = this.getResponseHeader("Content-Type");
+                let content = this.response;
+
+                try {
+                    if (contentType.startsWith('application/json')) {
+                        let decoder = new TextDecoder('utf-8');
+                        content = JSON.parse(decoder.decode(content));
+                    }
+                    else if (contentType.startsWith('text')) {
+                        let decoder = new TextDecoder('utf-8');
+                        content = decoder.decode(content);
+                    }
+                    else {
+                        content = new Blob([content],{type:contentType});
+                    }
+                }
+                catch (e) {
+                    //ignore
+                }
+
+                if (this.status == 200) {
+                    resolve({status:this.status, response: content, requestObject: this});
+                    if (opt.toastOnSuccess)
+                        M.toast({text: TR('Action successfull.')});
+                }
+                else {
+                    let errorMsg = Utils.formatError(this.status,content);
+                    reject({status:this.status, response: content, requestObject: this, errorMsg: errorMsg});
+                    if (opt.errorOnFailure) {
+                        WarpModal.getInstance().open(TR("Error"),errorMsg);
+                    }
+                }
+            });
+
+            xhr.addEventListener("error", function(e) {
+                reject({status: 418, response: {}, requestObject: this, errorMsg: Utils.formatError(418,null)});
+            });
+
+            xhr.open(opt.type, opt.url);
+
+            let data = opt.data;
+            if (!(data instanceof FormData)) {
+                data = JSON.stringify(data);
+                xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
             }
+
+            xhr.responseType = 'arraybuffer';
+            xhr.send(data);
         });
+    },
+};
 
-        xhr.addEventListener("error", function(e) {
-            reject({status: 418, response: {}, requestObject: this, errorMsg: Utils.formatError(418,null)});
-        });
-
-        xhr.open(requestType, url);
-        xhr.responseType = responseType;
-
-        if (!(data instanceof FormData)) {
-            // we try to jsonify it
-            data = JSON.stringify(data);
-            xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-        }
-
-        xhr.send(data);
-    });
-}
 
 Utils.Listeners = function(types, async = true) {
 

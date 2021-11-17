@@ -38,7 +38,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
             if (buttonId != 1)
                 return;
 
-            Utils.xhr(
+            Utils.xhr.post(
                 window.warpGlobals.URLs['groupsAssignXHR'],
                 {
                     groupLogin: window.warpGlobals.groupLogin,
@@ -77,7 +77,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         ],
         initialSort: [
             {column:"login", dir:"asc"},
-            {column:"Name", dir:"asc"}
+            {column:"name", dir:"asc"}
         ]
     });
 
@@ -113,7 +113,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 if (addData.length == 0)
                     return;
 
-                Utils.xhr(
+                Utils.xhr.post(
                     window.warpGlobals.URLs['groupsAssignXHR'],
                     {
                         groupLogin: window.warpGlobals.groupLogin,
@@ -162,11 +162,14 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
         if (typeof(addToGroupModal) == 'undefined') {
 
-            Utils.xhr(window.warpGlobals.URLs['usersList'],{},false)
-                .then( function(value) {
-                    initModal(value.response['data']);
-                    showModal();
-                });
+            Utils.xhr.post(
+                window.warpGlobals.URLs['usersList'],
+                {},
+                {toastOnSuccess: false})
+            .then( function(value) {
+                initModal(value.response['data']);
+                showModal();
+            });
 
         }
         else {

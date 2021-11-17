@@ -90,8 +90,9 @@ ZoneUserData.prototype.on = function (type,listener) {
 
 ZoneUserData.prototype._init = function() {
 
-
-    Utils.xhr(window.warpGlobals.URLs['zoneGetUsers'], null, false, true, "json", "GET")
+    Utils.xhr.get(
+        window.warpGlobals.URLs['zoneGetUsers'],
+        {toastOnSuccess:false})
     .then( (e) => {
         this.data = e.response;
         for (let l of this.listeners['load']) {

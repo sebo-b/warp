@@ -173,7 +173,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
                     if (btnId != 1)
                         return;
 
-                    Utils.xhr(
+                    Utils.xhr.post(
                         window.warpGlobals.URLs['zonesModifyXHR'],
                         data)
                     .then( () => {

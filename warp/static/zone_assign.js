@@ -62,7 +62,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
                     let payload = {
                         zid: window.warpGlobals.zid,
                         remove: [ cellData['login'] ] };
-                    Utils.xhr(window.warpGlobals.URLs['zoneAssign'],payload)
+                    Utils.xhr.post(window.warpGlobals.URLs['zoneAssign'],payload)
                         .then( () => {table.replaceData();})
                 }
             }
@@ -84,7 +84,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
             });
         }
 
-        Utils.xhr(window.warpGlobals.URLs['zoneAssign'],payload);
+        Utils.xhr.post(window.warpGlobals.URLs['zoneAssign'],payload);
         this.clearCellEdited();
     }
 
@@ -154,7 +154,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
                             (a) => ({'login': a['login'], 'role': a['zone_role']}) )
                     }
 
-                    Utils.xhr(window.warpGlobals.URLs['zoneAssign'],payload)
+                    Utils.xhr.post(window.warpGlobals.URLs['zoneAssign'],payload)
                          .then( () => {table.replaceData();})
             });
 
@@ -200,11 +200,14 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
         if (typeof(assignToZoneModal) == 'undefined') {
 
-            Utils.xhr(window.warpGlobals.URLs['usersList'],{}, false, true)
-                 .then( function(value) {
-                    initModal(value.response['data']);
-                    showModal();
-                 });
+            Utils.xhr.post(
+                window.warpGlobals.URLs['usersList'],
+                {},
+                {toastOnSuccess: false})
+            .then( function(value) {
+                initModal(value.response['data']);
+                showModal();
+            });
         }
         else {
             showModal();

@@ -8,7 +8,7 @@ function downloadSeatData(seatFactory) {
     if (login !== window.warpGlobals.login)
         url += "?login=" + login;
 
-    Utils.xhr(url, null, false, true, "json", "GET")
+    Utils.xhr.get(url, {toastOnSuccess:false})
     .then( function(v) {
 
         seatFactory.setSeatsData(v.response);
@@ -407,11 +407,11 @@ function initActionMenu(seatFactory) {
             applyData['remove'] = seatFactory.getMyConflictingBookings(true);
         }
 
-        Utils.xhr(
+        Utils.xhr.post(
             window.warpGlobals.URLs['zoneApply'],
             applyData,
-            false, true
-        ).then( (value) => {
+            {toastOnSuccess: false})
+        .then( (value) => {
 
             var msg = "";
 
@@ -596,7 +596,7 @@ function initBookAs(seatFactory) {
     BookAs.getInstance().on('change', function(newLogin) {
 
         var url = window.warpGlobals.URLs['getSeat'] + "?onlyOtherZone=1&login=" + newLogin;
-        Utils.xhr(url, null, false, true, "json", "GET")
+        Utils.xhr.get(url,{toastOnSuccess: false})
         .then( function(v) {
             seatFactory.updateLogin(newLogin, v.response);
             seatFactory.updateAllStates( getSelectedDates());

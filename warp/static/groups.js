@@ -96,10 +96,11 @@ document.addEventListener("DOMContentLoaded", function(e) {
                     action: action
                 };
 
-                Utils.xhr(
+                Utils.xhr.post(
                     window.warpGlobals.URLs['usersEdit'],
-                    actionData, true, false
-                ).then( () => {
+                    actionData,
+                    {errorOnFailure: false})
+                .then( () => {
                     table.replaceData();
                     editModal.close();
                 }).catch( (value) => {
@@ -115,10 +116,10 @@ document.addEventListener("DOMContentLoaded", function(e) {
                     if (buttonId != 1)
                         return;
 
-                    Utils.xhr(
+                    Utils.xhr.post(
                         window.warpGlobals.URLs['usersDelete'],
-                        { login: loginEl.value }
-                    ).then( () => {
+                        { login: loginEl.value })
+                    .then( () => {
                         table.replaceData();
                         editModal.close();
                     });

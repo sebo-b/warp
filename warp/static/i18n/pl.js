@@ -28,7 +28,7 @@ warpGlobals.i18n.tabulatorLangs = {
         "columns":{
         },
         "ajax":{
-            "loading":"Ładowanie",
+            "loading":"",   //just spinner is shown
             "error":"Błąd",
         },
         "pagination":{
@@ -184,7 +184,7 @@ warpGlobals.i18n.phrases = {
         "Other error. (status=%{status} code=%{code})": "Inny błąd. (status=%{status} kod=%{code})",
         "Other error. (status=%{status})": "Inny błąd. (status=%{status})",
         "213": "Grupa o tym id już istnieje. (%{code})",
-        "155": 'Użytkownik o tym loginie już istnieje. (%{code})',
+        "155": 'Użytkownik/grupa o tym loginie już istnieje. (%{code})',
         "102": "Brak wymaganych uprawnień w strefie. (%{code})",
         "103": "Niepoprawna data. (%{code})",
         "104": "Brak wymaganych uprawnień w strefie. (%{code})",

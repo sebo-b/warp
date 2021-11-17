@@ -221,7 +221,9 @@ SeatFactory.prototype.updateData = function() {
     this._resetSelectionState();
     this.endTransform(false);
 
-    Utils.xhr(this.url,null,false,true,undefined,"GET")
+    Utils.xhr.get(
+        this.url,
+        {toastOnSuccess:false})
     .then( (v) => {
 
         let oldIds = new Set( Object.keys(this.instances));

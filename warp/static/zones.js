@@ -26,10 +26,10 @@ document.addEventListener("DOMContentLoaded", function(e) {
                     delete actionData.action;
                     if (actionData.id === null)
                         delete actionData.id;
-                    return Utils.xhr(window.warpGlobals.URLs['zonesAddOrEdit'],actionData);
+                    return Utils.xhr.post(window.warpGlobals.URLs['zonesAddOrEdit'],actionData);
                 }
                 else if (actionData.action == 'delete')
-                    return Utils.xhr(window.warpGlobals.URLs['zonesDelete'], {id:actionData.id} );
+                    return Utils.xhr.post(window.warpGlobals.URLs['zonesDelete'], {id:actionData.id} );
             })
             .then(() => table.replaceData() );
     }

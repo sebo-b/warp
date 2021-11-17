@@ -113,7 +113,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
             if (buttonId != 1)
                 return;
 
-            Utils.xhr(
+            Utils.xhr.post(
                 window.warpGlobals.URLs['zoneApply'],
                 { remove: [ bid ]}
             ).then( () => {
@@ -216,10 +216,11 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 sorters: table.getSorters().map( (i) => { return { field: i.field, dir: i.dir} }  )
             }
 
-            Utils.xhr(
+            Utils.xhr.post(
                 window.warpGlobals.URLs['bookingsReport'],
-                data, false, true, 'blob'
-            ).then(function(value) {
+                data,
+                {toastOnSuccess: false})
+            .then(function(value) {
                 let a = document.createElement("a");
                 a.href = window.URL.createObjectURL(value.response);
 

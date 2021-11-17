@@ -152,11 +152,11 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 if (password1El.value !== "")
                     actionData['password'] = password1El.value;
 
-                Utils.xhr(
+                Utils.xhr.post(
                     window.warpGlobals.URLs['usersEdit'],
                     actionData,
-                    true, false
-                ).then( () => {
+                    {errorOnFailure: false})
+                .then( () => {
                     table.replaceData();
                     editModal.close();
                 }).catch( (value) => {
@@ -177,11 +177,11 @@ document.addEventListener("DOMContentLoaded", function(e) {
                     if (buttonId == 3)
                         actionData['force'] = true;
 
-                    Utils.xhr(
+                    Utils.xhr.post(
                         window.warpGlobals.URLs['usersDelete'],
                         actionData,
-                        true, false
-                    ).then( () => {
+                        {errorOnFailure: false})
+                    .then( () => {
                         table.replaceData();
                         editModal.close();
                     }).catch( (value) => {
