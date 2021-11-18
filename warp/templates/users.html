@@ -10,6 +10,7 @@
     window.warpGlobals.URLs['usersList'] = "{{ url_for('xhr.users.list') }}";
     window.warpGlobals.URLs['usersEdit'] = "{{ url_for('xhr.users.edit') }}";
     window.warpGlobals.URLs['usersDelete'] = "{{ url_for('xhr.users.delete') }}";
+    window.warpGlobals.URLs['userGroups'] = "{{ url_for('xhr.users.groups', login='__LOGIN__') }}";
 </script>
 <script src="{{ url_for('static', filename='users.js') }}"></script>
 
@@ -45,6 +46,15 @@
                 <label for="password2" class="TR">Retype password</label>
                 <i class="material-icons show_password_btn"></i>
             </div>
+
+            <div class="input-field col s12" id="add_to_group_container">
+                <div class="chips chips-autocomplete" id="add_to_group"></div>
+
+                {#<input type="text" id="add_to_group" class="autocomplete" autocomplete="off">
+                <label for="add_to_group" class="TR">Add to group</label>
+                #}
+            </div>
+
         </div>
         <div class="row" style="display: none" id="error_div">
             <div class="col s12" style="color: red" id="error_message">

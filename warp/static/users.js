@@ -75,6 +75,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
         var errorDiv = document.getElementById("error_div");
         var errorMsg = document.getElementById("error_message");
 
+        let addToGroupEl = document.getElementById('add_to_group');
+
         if (typeof(editModal) === 'undefined') {
 
             editModal = M.Modal.init(editModalEl, {
@@ -146,11 +148,16 @@ document.addEventListener("DOMContentLoaded", function(e) {
                     login: loginEl.value,
                     name: nameEl.value,
                     account_type: parseInt(accountTypeSelect.getSelectedValues()[0]),
-                    action: action
+                    action: action,
+                    groups: []
                 };
 
                 if (password1El.value !== "")
                     actionData['password'] = password1El.value;
+
+                let addToGroup = M.Chips.getInstance(addToGroupEl);
+                for (let g of addToGroup.getData())
+                    actionData.groups.push( Utils.makeUserStrRev(g.tag)[0] );
 
                 Utils.xhr.post(
                     window.warpGlobals.URLs['usersEdit'],
@@ -254,7 +261,73 @@ document.addEventListener("DOMContentLoaded", function(e) {
         errorMsg.innerText = "";
 
         M.updateTextFields();
-        editModal.open();
+
+        let addToGroup = M.Chips.getInstance(addToGroupEl);
+        let autocompletePromise, chipsDataPromise = null;
+        if (addToGroup) {
+            autocompletePromise = addToGroup.options.autocompleteOptions.data;
+            addToGroup.destroy(); // we have to recreate chips instance to clean up all chips inside
+        }
+        else {
+            autocompletePromise = Utils.xhr.post(
+                window.warpGlobals.URLs['usersList'],
+                {filters: [{field:"account_type", type:">=", value:100}]},
+                {toastOnSuccess:false, errorOnFailure: false});
+        }
+
+        if (login) {
+            chipsDataPromise = Utils.xhr.get(
+                window.warpGlobals.URLs['userGroups'].replace('__LOGIN__',login),
+                {toastOnSuccess:false, errorOnFailure: false});
+        }
+
+        let chipsOptions = {
+            autocompleteOptions: {
+                minLength: 2,
+                dropdownOptions: {
+                    container: document.body,
+                    constrainWidth: false
+                }
+            },
+            placeholder: TR("Add to group"),
+            limit: Infinity,
+            onChipAdd: function(chip) {
+
+                let i = this.chipsData.length - 1;  // chips are always pushed
+                let t = this.chipsData[i].tag;
+
+                if (!(t in this.autocomplete.options.data)) {
+                    this.deleteChip(i);
+                }
+            }
+        };
+
+        Promise.all([autocompletePromise,chipsDataPromise])
+        .then( (v) => {
+
+            if ('response' in v[0]) {
+                chipsOptions.autocompleteOptions.data = {};
+                for (let row of v[0].response.data)
+                    chipsOptions.autocompleteOptions.data[
+                        Utils.makeUserStr(row['login'],row['name']) ] = null;
+            }
+            else {
+                chipsOptions.autocompleteOptions.data = v[0];
+            }
+
+            if (v[1] !== null) {
+                chipsOptions.data = [];
+                for (let row of v[1].response)
+                    chipsOptions.data.push( {tag: Utils.makeUserStr(row['login'],row['name']) });
+            }
+
+            addToGroup = M.Chips.init(addToGroupEl, chipsOptions);
+            editModal.open();
+        })
+        .catch( (v) => {
+            WarpModal.getInstance().open(TR("Error"),v.errorMsg);
+        });
+
     }
 
     var addUserBtn = document.getElementById('add_user_btn');

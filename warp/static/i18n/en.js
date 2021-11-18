@@ -212,4 +212,5 @@ warpGlobals.i18n.phrases = {
     "More than %{smart_count} rows are selected. Report will be limited to that number of rows.":
         "More than one row is selected. Report will be limited to that number of rows.||||"+
         "More than %{smart_count} rows are selected. Report will be limited to that number of rows.",
+    "Add to group": "Add to group",
 };

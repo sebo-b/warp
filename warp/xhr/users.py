@@ -38,7 +38,13 @@ editSchema = {
         "name" : {"type" : "string"},
         "account_type" : {"enum" : [ACCOUNT_TYPE_ADMIN,ACCOUNT_TYPE_USER,ACCOUNT_TYPE_BLOCKED,ACCOUNT_TYPE_GROUP]},
         "password" : {"type" : "string"},
-        "action": {"enum": ["add","update"]}
+        "action": {"enum": ["add","update"]},
+        "groups": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+        }
     },
     "required": [ "login", "action", "name", "account_type"]
 }
@@ -87,6 +93,23 @@ def edit():
 
                 updColumns[Users.login] = action_data['login'],
                 Users.insert(updColumns).execute()
+
+            if 'groups' in action_data:
+
+                Groups.delete() \
+                    .where(Groups.login == action_data['login']) \
+                    .execute()
+
+                gr = [{
+                        Groups.login: action_data['login'],
+                        Groups.group: i
+                    } for i in action_data['groups']
+                ]
+
+                if len(gr):
+                    Groups.insert(gr) \
+                        .on_conflict_ignore() \
+                        .execute()
 
     except IntegrityError as err:
         if action_data['action'] == "add":
@@ -142,4 +165,23 @@ def delete():
         return {"msg": "Error", "code":  174}, 400
 
     return {"msg": "ok" }, 200
+
+
+@bp.route("groups/<login>")
+def groups(login):
+
+    if not flask.g.isAdmin:
+        return {"msg":"Forbidden", "code": 175}, 403
+
+    query = Groups.select(Users.login, Users.name) \
+        .join(Users, on=(Groups.group == Users.login)) \
+        .where(Groups.login == login)
+
+    res = [ *query.iterator() ]
+
+    return flask.current_app.response_class(
+        response=orjson.dumps(res),
+        status=200,
+        mimetype='application/json')
+
 
