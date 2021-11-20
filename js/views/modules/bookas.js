@@ -1,9 +1,8 @@
 'use strict';
 
-if (typeof(ZoneUserData) === 'undefined')
-    throw Error('bookas requires ZoneUserData module');
+import ZoneUserData from "./zoneuserdata";
 
-function BookAs() {
+export default function BookAs() {
 
     if (typeof(BookAs.instance) !== 'undefined')
         throw Error('BookAs is a singleton');
@@ -56,7 +55,7 @@ BookAs.prototype._setSelectedLogin = function(login) {
     if (!('selectedLogin' in this))
         throw Error("BookAs not initialized")
 
-    if (!(login in this.zoneUserData.getData()))
+    if (!(login in this.zoneUserData.data))
         login = this.zoneUserData.whoami();
 
     if (this.selectedLogin !== login) {

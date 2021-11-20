@@ -12,7 +12,6 @@
     window.warpGlobals.URLs['usersDelete'] = "{{ url_for('xhr.users.delete') }}";
     window.warpGlobals.URLs['userGroups'] = "{{ url_for('xhr.users.groups', login='__LOGIN__') }}";
 </script>
-<script src="{{ url_for('static', filename='users.js') }}"></script>
 
 {% endblock %}
 

@@ -1,5 +1,8 @@
 "use strict";
 
+import Utils from './modules/utils.js';
+import WarpModal from './modules/modal.js';
+
 document.addEventListener("DOMContentLoaded", function(e) {
 
     let accountTypes = [

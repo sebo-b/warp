@@ -1,5 +1,11 @@
 "use strict";
 
+import Utils from './modules/utils.js';
+import WarpModal from './modules/modal.js';
+import {WarpSeatFactory,WarpSeat} from './modules/seat.js';
+import ZoneUserData from './modules/zoneuserdata.js';
+import BookAs from './modules/bookas.js';
+
 function downloadSeatData(seatFactory) {
 
     var url = window.warpGlobals.URLs['getSeat'];
@@ -606,7 +612,9 @@ function initBookAs(seatFactory) {
 
 }
 
-function initZone() {
+document.addEventListener("DOMContentLoaded", function() {
+
+    ZoneUserData.init();
 
     initSlider();
     initDateSelectorStorage();
@@ -623,6 +631,4 @@ function initZone() {
     if (window.warpGlobals.isZoneAdmin) {
         initBookAs(seatFactory);
     }
-}
-
-window.addEventListener("load",initZone);
+});

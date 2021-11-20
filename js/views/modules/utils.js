@@ -1,6 +1,6 @@
 'use strict';
 
-function Utils() {
+export default function Utils() {
 }
 
 //TODO_X: remove the same from ZoneUserData
@@ -180,3 +180,4 @@ Utils.Listeners = function(types, async = true) {
     }
 
 }
+

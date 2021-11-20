@@ -1,6 +1,6 @@
 "use strict";
 
-function WarpModal() {
+export default function WarpModal() {
 
     var modalElement =  document.createElement("div");
     modalElement.className = "modal";

@@ -21,10 +21,10 @@ def headerDataInit():
             {"text": z['name'], "endpoint": "view.zone", "view_args": {"zid":str(z['id'])} })
 
     if headerDataL:
-        headerDataL.insert(0,{"text": "Bookings", "endpoint": "view.bookings", "view_args": {} })
+        headerDataL.insert(0,{"text": "Bookings", "endpoint": "view.bookings", "view_args": {"report":""} })
 
     headerDataR = [
-        {"text": "Report", "endpoint": "view.report", "view_args": {} },
+        {"text": "Report", "endpoint": "view.bookings", "view_args": {"report": "report"} },
         {"text": "Users", "endpoint": "view.users", "view_args": {} },
         {"text": "Groups", "endpoint": "view.groups", "view_args": {} },
         {"text": "Zones", "endpoint": "view.zones", "view_args": {} }
@@ -50,19 +50,15 @@ def headerDataInit():
 def index():
     return flask.render_template('index.html')
 
-@bp.route("/bookings")
-def bookings():
+@bp.route("/bookings/<string:report>")
+@bp.route("/bookings", defaults={"report": "" })
+def bookings(report):
 
-    return flask.render_template('bookings.html',report=False)
-
-@bp.route("/report")
-def report():
-
-    if not flask.g.isAdmin:
+    if report == "report" and not flask.g.isAdmin:
         flask.abort(403)
 
     return flask.render_template('bookings.html',
-        report=True,
+        report = (report == "report"),
         maxReportRows = flask.current_app.config['MAX_REPORT_ROWS'])
 
 @bp.route("/zone/<zid>")

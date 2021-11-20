@@ -10,8 +10,6 @@
     window.warpGlobals.URLs['zonesGetSeats'] = "{{ url_for('xhr.zones.getSeats', zid=zid) }}";
     window.warpGlobals.URLs['seatSprite'] = "{{ url_for('static',filename='images/seat_icons.png') }}";
 </script>
-<script src="{{ url_for('static', filename='zone_modify_seat.js') }}"></script>
-<script src="{{ url_for('static', filename='zone_modify.js') }}"></script>
 
 {% endblock %}
 

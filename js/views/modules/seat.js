@@ -509,3 +509,5 @@ WarpSeat.prototype._createDiv = function(rootDiv, spriteURL) {
 
     rootDiv.appendChild(this.seatDiv);
 };
+
+export { WarpSeatFactory, WarpSeat };

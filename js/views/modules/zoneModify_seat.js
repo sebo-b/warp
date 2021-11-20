@@ -1,5 +1,8 @@
 "use strict";
 
+import Utils from './utils.js';
+
+// TODO: make a base Seat class and merge it with Seat in Zone
 function Seat(id, data, overlay, parentDiv) {
 
     this.id = id;
@@ -519,3 +522,6 @@ SeatFactory.prototype._createSeat = function(sid,data) {
 
     return seat;
 }
+
+export const spriteSize = Seat.CONFIG.spriteSize;
+export { SeatFactory as default, SeatFactory };

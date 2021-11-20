@@ -10,4 +10,5 @@ __pycache__
 node_modules/
 package-lock.json
 *.pyc
-
+/warp/templates/headers/
+/warp/static/js/

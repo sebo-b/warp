@@ -23,14 +23,6 @@
 
     </script>
 
-    {% if isZoneAdmin %}
-    <script type="text/javascript" src="{{ url_for('static', filename='zoneuserdata.js') }}"></script>
-    <script type="text/javascript" src="{{ url_for('static', filename='bookas.js') }}"></script>
-    {% endif %}
-
-    <script src="{{ url_for('static', filename='zone.js') }}"></script>
-    <script src="{{ url_for('static', filename='seat.js') }}"></script>
-
 {% endblock %}
 
 {% block overlays %}

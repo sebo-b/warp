@@ -14,7 +14,6 @@
     window.warpGlobals.URLs['groupAssignView'] = "{{ url_for('view.groupAssign', group_login='__LOGIN__', return=request.url) }}";
     window.warpGlobals.URLs['usersList'] = "{{ url_for('xhr.users.list') }}";
 </script>
-<script src="{{ url_for('static', filename='group_assign.js') }}"></script>
 
 {% endblock %}
 

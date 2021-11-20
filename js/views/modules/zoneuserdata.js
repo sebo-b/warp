@@ -1,11 +1,35 @@
 'use strict';
 
-function ZoneUserData() {
+import Utils from "./utils";
 
+export default function ZoneUserData() {
+
+    this.__data = null;
     this.listeners = {
         load: new Set()
     };
 }
+
+Object.defineProperty(ZoneUserData.prototype, "data", {
+    get: function() {
+
+        if (!this.__data)
+            throw Error("UserData not initialized.");
+
+        return this.__data;
+    },
+    set: function(v) {
+
+        if (this.__data)
+            throw Error("UserData already initialized.");
+
+        this.__data = v;
+        for (let l of this.listeners['load'])
+            l.call(this,this);
+    }
+});
+
+
 
 ZoneUserData.makeUserStr = function(login,name) {
     return  name + " ["+login+"]";
@@ -33,16 +57,10 @@ ZoneUserData.getInstance = function() {
 
 ZoneUserData.prototype.getData = function() {
 
-    if (!this.data)
-        throw Error("UserData not initialized.");
-
     return this.data;
 }
 
 ZoneUserData.prototype.formatedIterator = function*() {
-
-    if (!this.data)
-        throw Error("UserData not initialized.");
 
     for (let login in this.data) {
         yield ZoneUserData.makeUserStr(login, this.data[login]);
@@ -60,9 +78,6 @@ ZoneUserData.prototype.whoami = function() {
 
 ZoneUserData.prototype.makeUserStr = function(login) {
 
-    if (!(login in this.data))
-        throw Error('Unknown login');
-
     return ZoneUserData.makeUserStr( login, this.data[login]);
 }
 
@@ -75,6 +90,7 @@ ZoneUserData.prototype.makeUserStrRev = function (str) {
     return login;
 }
 
+// TODO switch to Utils.listeners
 ZoneUserData.prototype.on = function (type,listener) {
 
     if (type in this.listeners && typeof(listener) === 'function') {
@@ -82,24 +98,18 @@ ZoneUserData.prototype.on = function (type,listener) {
 
         // in case we finish loading before other modules register for load
         // we must fire listeners immediately
-        if (type === "load" && typeof(this.data) !== 'undefined') {
+        if (type === "load" && this.__data) {
             listener.call(this,this);
         }
     }
 }
 
-ZoneUserData.prototype._init = function() {
+ZoneUserData.init = function() {
 
     Utils.xhr.get(
         window.warpGlobals.URLs['zoneGetUsers'],
         {toastOnSuccess:false})
     .then( (e) => {
-        this.data = e.response;
-        for (let l of this.listeners['load']) {
-            l.call(this,this);
-        }
+        ZoneUserData.getInstance().data = e.response;
     })
 }
-
-
-document.addEventListener("DOMContentLoaded", function() { ZoneUserData.getInstance()._init(); } );

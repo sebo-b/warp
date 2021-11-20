@@ -1,5 +1,9 @@
 "use strict";
 
+import Utils from './modules/utils.js';
+import WarpModal from './modules/modal.js';
+import { SeatFactory, spriteSize} from './modules/zoneModify_seat.js';
+
 document.addEventListener("DOMContentLoaded", function(e) {
 
     let chooseImgBtn = document.getElementById('chooseImgBtn');
@@ -261,8 +265,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
     seatYEl.addEventListener('input', changeFactory('y'));
 
     var seatXYMax = function() {
-        seatXEl.max = zoneMapImg.width - Seat.CONFIG.spriteSize;
-        seatYEl.max = zoneMapImg.height - Seat.CONFIG.spriteSize;
+        seatXEl.max = zoneMapImg.width - spriteSize;
+        seatYEl.max = zoneMapImg.height - spriteSize;
     }
 
     if (zoneMapImg.complete)

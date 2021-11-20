@@ -1,0 +1,23 @@
+{
+  "name": "warp_js",
+  "version": "1.0.0",
+  "description": "",
+  "main": "none",
+  "scripts": {
+    "build": "webpack-cli"
+  },
+  "author": "Sebastian Baberowski <sebastian@baberowski.com>",
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "@babel/core": "^7.16.0",
+    "@babel/preset-env": "^7.16.4",
+    "babel-loader": "^8.2.3",
+    "core-js": "^3.19.1",
+    "html-webpack-plugin": "^5.5.0",
+    "tabulator-tables": "^5.0.7",
+    "terser-webpack-plugin": "^5.2.5",
+    "webpack": "^5.64.2",
+    "webpack-cli": "^4.9.1"
+  }
+}
