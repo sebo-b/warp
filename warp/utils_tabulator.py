@@ -9,7 +9,7 @@ tabulatorSchema = {
     "properties": {
         "page" : {"type" : "integer"},
         "size" : {"type" : "integer"},
-        "sorters": {
+        "sort": {
             "type": "array",
             "items": {
                 "type": "object",
@@ -20,7 +20,7 @@ tabulatorSchema = {
                 "required": [ "field", "dir"],
             },
         },
-        "filters": {
+        "filter": {
             "type": "array",
             "items": {
                 "type": "object",
@@ -134,8 +134,8 @@ def applyTabulatorToQuery(query,requestJSON,columnsMap = None,functionOperator =
     if functionOperator is not None:
         operatorsMap['function'] = functionOperator
 
-    if "filters" in requestJSON:
-        for i in requestJSON['filters']:
+    if "filter" in requestJSON:
+        for i in requestJSON['filter']:
             if i["field"] in columnsMap:
                 field = columnsMap[i["field"]]
                 if i['type'] in operatorsMap:
@@ -164,8 +164,8 @@ def applyTabulatorToQuery(query,requestJSON,columnsMap = None,functionOperator =
 
         query = query.limit(limit)
 
-    if "sorters" in requestJSON:
-        for i in requestJSON['sorters']:
+    if "sort" in requestJSON:
+        for i in requestJSON['sort']:
             if i["field"] in columnsMap:
                 query = query.order_by_extend( columnsMap[i["field"]].asc() if i["dir"] == "asc" else columnsMap[i["field"]].desc() )
 

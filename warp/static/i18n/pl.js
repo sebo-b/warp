@@ -27,7 +27,7 @@ warpGlobals.i18n.tabulatorLangs = {
         },
         "columns":{
         },
-        "ajax":{
+        "data":{
             "loading":"",   //just spinner is shown
             "error":"Błąd",
         },

@@ -3,6 +3,8 @@
 import Utils from './modules/utils.js';
 import WarpModal from './modules/modal.js';
 
+import {TabulatorFull as Tabulator} from 'tabulator-tables';
+
 document.addEventListener("DOMContentLoaded", function(e) {
 
     var table;
@@ -66,10 +68,13 @@ document.addEventListener("DOMContentLoaded", function(e) {
         ajaxParams:{groupLogin:window.warpGlobals.groupLogin},
         index:"login",
         layout:"fitDataFill",
-        resizableColumns:true,
-        pagination: 'remote',
-        ajaxSorting:true,
-        ajaxFiltering:true,
+        columnDefaults:{
+            resizable:true,
+        },
+        pagination:true,
+        paginationMode:"remote",
+        sortMode:"remote",
+        filterMode:"remote",
         ajaxConfig: "POST",
         ajaxContentType: "json",
         columns: [

@@ -3,6 +3,8 @@
 import Utils from './modules/utils.js';
 import WarpModal from './modules/modal.js';
 
+import {TabulatorFull as Tabulator} from 'tabulator-tables';
+
 document.addEventListener("DOMContentLoaded", function(e) {
 
     var table;
@@ -99,10 +101,13 @@ document.addEventListener("DOMContentLoaded", function(e) {
         ajaxParams:{zid:window.warpGlobals.zid},
         index:"login",
         layout:"fitDataFill",
-        resizableColumns:true,
-        pagination: 'remote',
-        ajaxSorting:true,
-        ajaxFiltering:true,
+        columnDefaults:{
+            resizable:true,
+        },
+        pagination:true,
+        paginationMode:"remote",
+        sortMode:"remote",
+        filterMode:"remote",
         ajaxConfig: "POST",
         ajaxContentType: "json",
         columns: [
@@ -118,13 +123,14 @@ document.addEventListener("DOMContentLoaded", function(e) {
             },
             {formatter:userTypeFormater, width:40, hozAlign:"center", headerSort:false},
         ],
-        dataChanged:zoneRoleChanged,
         initialSort: [
             {column:"login", dir:"asc"},
             {column:"name", dir:"asc"},
             {column:"zone_role", dir:"asc"}
         ]
     });
+
+    table.on('dataChanged',zoneRoleChanged);
 
     var assignToZoneBtn = document.getElementById('assign_to_zone_btn');
     var assignToZoneModalEl = document.getElementById('assign_to_zone_modal');

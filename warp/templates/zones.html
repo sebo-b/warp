@@ -3,8 +3,7 @@
 {% block header %}
     {{ super() }}
 
-<script src="{{ url_for('static', filename='tabulator/tabulator.min.js') }}"></script>
-<link type="text/css" rel="stylesheet" href="{{ url_for('static', filename='tabulator/tabulator_materialize.min.css') }}"/>
+<link type="text/css" rel="stylesheet" href="{{ url_for('static', filename='styles/tabulator_materialize.min.css') }}"/>
 
 <script>
     window.warpGlobals.URLs['zonesList'] = "{{ url_for('xhr.zones.list') }}";

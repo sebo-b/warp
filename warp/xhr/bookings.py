@@ -19,7 +19,7 @@ listSchema = addToTabulatorSchema({
     "type": "object",
     "properties": {
         "export": {"enum": ["xlsx"] },
-        "filters": {    #this just extends the default tabulator schema for "function" filter
+        "filter": {    #this just extends the default tabulator schema for "function" filter
             "items": {
                 "properties": {
                     "type" : {"enum" : ["function"] }

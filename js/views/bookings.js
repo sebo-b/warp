@@ -1,6 +1,7 @@
 
 import Utils from './modules/utils.js';
 import WarpModal from './modules/modal.js';
+import {TabulatorFull as Tabulator} from 'tabulator-tables';
 
 document.addEventListener("DOMContentLoaded", function(e) {
 
@@ -210,10 +211,13 @@ document.addEventListener("DOMContentLoaded", function(e) {
         index:"id",
         layout:"fitDataFill",
         langs: warpGlobals.i18n.tabulatorLangs,
-        resizableColumns:true,
-        pagination: 'remote',
-        ajaxSorting:true,
-        ajaxFiltering:true,
+        columnDefaults:{
+            resizable:true,
+        },
+        pagination:true,
+        paginationMode:"remote",
+        sortMode:"remote",
+        filterMode:"remote",
         ajaxConfig: "POST",
         ajaxContentType: "json",
         columns: columns,
