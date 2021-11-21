@@ -7,8 +7,11 @@
         window.warpGlobals.login = "{{ g.login }}";
     </script>
 
-    {% include 'headers/' ~ (request.endpoint|replace('view.','',1)) ~ '.html' ignore missing %}
+{% endblock %}
 
+{% block header_final %}
+    {{ super() }}
+    {% include 'headers/' ~ (request.endpoint|replace('view.','',1)) ~ '.html' ignore missing %}
 {% endblock %}
 
 {% block overlays %}

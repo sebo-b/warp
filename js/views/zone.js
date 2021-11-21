@@ -6,6 +6,9 @@ import {WarpSeatFactory,WarpSeat} from './modules/seat.js';
 import ZoneUserData from './modules/zoneuserdata.js';
 import BookAs from './modules/bookas.js';
 
+import noUiSlider from 'nouislider';
+import "./css/zone/nouislider_materialize.scss";
+
 function downloadSeatData(seatFactory) {
 
     var url = window.warpGlobals.URLs['getSeat'];
@@ -614,8 +617,6 @@ function initBookAs(seatFactory) {
 
 document.addEventListener("DOMContentLoaded", function() {
 
-    ZoneUserData.init();
-
     initSlider();
     initDateSelectorStorage();
     initShiftSelectDates();
@@ -629,6 +630,7 @@ document.addEventListener("DOMContentLoaded", function() {
     downloadSeatData(seatFactory);
 
     if (window.warpGlobals.isZoneAdmin) {
+        ZoneUserData.init();
         initBookAs(seatFactory);
     }
 });

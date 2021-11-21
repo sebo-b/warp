@@ -1,5 +1,7 @@
 'use strict';
 
+import WarpModal from './modal.js';
+
 export default function Utils() {
 }
 

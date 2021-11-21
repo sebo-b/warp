@@ -3,9 +3,6 @@
 {% block header %}
     {{ super() }}
 
-    <link type="text/css" rel="stylesheet" href="{{ url_for('static', filename='nouislider/nouislider.css') }}"  media="screen,projection"/>
-    <script type="text/javascript" src="{{ url_for('static', filename='nouislider/nouislider.min.js') }}"></script>
-
     <script>
         window.warpGlobals.URLs['zoneApply'] = "{{ url_for('xhr.zone.apply') }}";
         window.warpGlobals.URLs['getSeat'] = "{{ url_for('xhr.zone.getSeats',zid=zid) }}";
@@ -15,7 +12,6 @@
 
         {% if isZoneAdmin %}
         window.warpGlobals.isZoneAdmin = true;
-
         window.warpGlobals.URLs['zoneGetUsers'] = "{{ url_for('xhr.zone.getUsers',zid=zid)}}";
         {% elif isZoneViewer %}
         window.warpGlobals.isZoneViewer = true;

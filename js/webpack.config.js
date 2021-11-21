@@ -1,101 +1,173 @@
 
 const path = require('path');
-const fs = require('fs');
+const fsp = require('fs/promises');
 
 const TerserPlugin = require("terser-webpack-plugin");
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 
 const warpDir = path.resolve(__dirname, '../warp');
+const outputDir = path.join(warpDir,'static/dist');
+const htmlOutputDir = path.join(warpDir,'templates/headers');
 
-function createHtmlWebpackPlugin(chunkName) {
+async function generateConfig() {
 
-  const outputDir = path.join(warpDir,'templates/headers');
+  async function removeFiles(dir) {
 
-  return new HtmlWebpackPlugin({
-    filename: path.join(outputDir, chunkName+'.html'),
-    publicPath: '/static/dist',
-    minify: false,
-    chunks: [chunkName],
-    inject: false,
-    templateContent: (v) => v.htmlWebpackPlugin.tags.headTags.toString(),
-  });
+    let p = [];
+    try {
+      const files = await fsp.readdir(dir,{withFileTypes:true});
+      for (const f of files) {
+        if (f.isFile()) {
+          let fn = path.join(dir,f.name);
+          console.log(`Removing: ${fn}`);
+          p.push(fsp.unlink(fn));
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
 
-}
+    return Promise.all(p);
+  }
 
-let config = [
-  {
-    entry: {
-      base: './base/base.js',
-    },
-    mode: 'production',
-    output: {
-      path: path.join(warpDir,'static/dist'),
-      filename: '[name].[contenthash].js',
-      clean: true,
-    },
-    performance: {
-      maxEntrypointSize: 400000,
-      maxAssetSize: 400000
-    },
-    optimization: {
-      moduleIds: 'deterministic',
-      runtimeChunk: {
-        name: 'webpack_runtime',
+  // do not use {clean: true} option in webpack config
+  // as we write from multiple entries to the same dir
+  await Promise.all([
+    removeFiles(outputDir),
+    removeFiles(htmlOutputDir)
+  ]);
+
+  function createHtmlWebpackPlugin(chunkName) {
+
+    return new HtmlWebpackPlugin({
+      filename: path.join(htmlOutputDir, chunkName+'.html'),
+      publicPath: '/static/dist',
+      minify: true,
+      chunks: [chunkName],
+      inject: false,
+      templateContent: (v) => v.htmlWebpackPlugin.tags.headTags.toString(),
+    });
+
+  }
+
+  let config = [
+    {
+      entry: {},
+      mode: 'production',
+      output: {
+        path: outputDir,
+        filename: '[name].[contenthash].js',
+  //      clean: true,
       },
-      minimize: true,
-      minimizer: [new TerserPlugin()],
-      splitChunks: {
-        chunks: 'all',
-        minChunks: 2,
-        minSize: 0,
-        minSizeReduction: 0,
+      performance: {
+        maxEntrypointSize: 400000,
+        maxAssetSize: 400000
       },
-    },
-    module: {
-      rules: [
-        {
-          test: /\.(s[ac]ss|css)$/i,
-          use: [
-            MiniCssExtractPlugin.loader,
-            "css-loader",
-            {
-              loader: "postcss-loader",
-              options: {
-                postcssOptions: {
-                  plugins: [ "postcss-preset-env", "cssnano" ],
-                }
-              }
-            },
-            "sass-loader",
-          ],
+      optimization: {
+        moduleIds: 'deterministic',
+        runtimeChunk: {
+          name: 'webpack_runtime',
         },
+        minimize: true,
+        minimizer: [new TerserPlugin()],
+        splitChunks: {
+          chunks: 'all',
+          minChunks: 2,
+          minSize: 0,
+          minSizeReduction: 0,
+        },
+      },
+      module: {
+        rules: [
+          {
+            test: /\.(s[ac]ss|css)$/i,
+            use: [
+              MiniCssExtractPlugin.loader,
+              "css-loader",
+              {
+                loader: "postcss-loader",
+                options: {
+                  postcssOptions: {
+                    plugins: [ "postcss-preset-env", "cssnano" ],
+                  }
+                }
+              },
+              "sass-loader",
+            ],
+          },
+        ],
+      },
+      plugins: [
+        new MiniCssExtractPlugin({
+          filename: "[name].[contenthash].css",
+        }),
       ],
     },
-    plugins: [
-      new MiniCssExtractPlugin({
-        filename: "[name].[contenthash].css",
-      }),
-      createHtmlWebpackPlugin('base'),
-    ],
-  },
-]
-
-function fillConfig(config,directory) {
-
-  directory = path.resolve(directory);
-
-
-  fs.readdirSync(directory,{withFileTypes:true}).forEach( (e) => {
-
-    if (e.isFile() && e.name.endsWith('.js')) {
-      let chunk = e.name.slice(0,-3);
-      config.entry[chunk] = path.join(directory, e.name);
-      config.plugins.push(createHtmlWebpackPlugin(chunk));
+    {
+      entry: {
+        base: './base/base.js',
+      },
+      mode: 'production',
+      output: {
+        path: outputDir,
+        filename: '[name].[contenthash].js',
+      },
+      optimization: {
+        moduleIds: 'deterministic',
+        minimize: true,
+        minimizer: [new TerserPlugin()],
+      },
+      module: {
+        rules: [
+          {
+            test: /\.(s[ac]ss|css)$/i,
+            use: [
+              MiniCssExtractPlugin.loader,
+              "css-loader",
+              {
+                loader: "postcss-loader",
+                options: {
+                  postcssOptions: {
+                    plugins: [ "postcss-preset-env", "cssnano" ],
+                  }
+                }
+              },
+              "sass-loader",
+            ],
+          },
+        ],
+      },
+      plugins: [
+        new MiniCssExtractPlugin({
+          filename: "[name].[contenthash].css",
+        }),
+        createHtmlWebpackPlugin('base'),
+      ]
     }
-  });
-};
+  ]
 
-fillConfig(config[0],'views');
+  async function fillConfig(config,directory) {
 
-module.exports = config;
+    directory = path.resolve(directory);
+
+    try {
+      const files = await fsp.readdir(directory,{withFileTypes:true});
+      for (const f of files) {
+        if (f.isFile() && f.name.endsWith('.js')) {
+          let chunk = f.name.slice(0,-3);
+          config.entry[chunk] = path.join(directory, f.name);
+          config.plugins.push(createHtmlWebpackPlugin(chunk));
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  await fillConfig(config[0],'views');
+
+  return config;
+}
+
+module.exports = generateConfig();
