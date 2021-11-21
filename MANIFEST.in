@@ -1,5 +1,3 @@
 graft warp/templates
 graft warp/static
 graft warp/sql
-graft warp/xhr
-LICENSE
