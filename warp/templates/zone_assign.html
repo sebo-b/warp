@@ -3,9 +3,6 @@
 {% block header %}
     {{ super() }}
 
-<link type="text/css" rel="stylesheet" href="{{ url_for('static', filename='styles/tabulator_materialize.min.css') }}"/>
-
-
 <script>
     window.warpGlobals.zid = {{ zid }};
 

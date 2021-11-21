@@ -3,8 +3,6 @@
 {% block header %}
     {{ super() }}
 
-<link type="text/css" rel="stylesheet" href="{{ url_for('static', filename='styles/tabulator_materialize.min.css') }}"/>
-
 <script>
     {% if report %}
     window.warpGlobals.URLs['bookingsReport'] = "{{ url_for('xhr.bookings.report') }}";
