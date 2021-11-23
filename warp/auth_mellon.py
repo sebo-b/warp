@@ -18,8 +18,10 @@ def login():
 
         return flask.redirect(endpoint)
 
-    login = flask.request.headers.get('X-MELLON_uid')
-    userName = flask.request.headers.get('X-MELLON_cn')
+    login = flask.request.environ.get('MELLON_uid')
+    userName = flask.request.environ.get('MELLON_cn')
+    #login = flask.request.headers.get('X-MELLON_uid')
+    #userName = flask.request.headers.get('X-MELLON_cn')
     if (login is None or userName is None):
         return flask.abort(400)
 
