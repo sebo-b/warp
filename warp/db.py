@@ -1,7 +1,10 @@
-from peewee import SqliteDatabase, Table, SQL, fn, IntegrityError
+from functools import partial
+
+from peewee import Table, SQL, fn, IntegrityError, DatabaseError
 import playhouse.db_url
 import click
 from flask.cli import with_appcontext
+from flask import current_app
 
 DB = None
 
@@ -35,6 +38,8 @@ __all__ = ["DB", "Blobs", "Users", "Groups","Seat", "Zone", "ZoneAssign", "Book"
            'ACCOUNT_TYPE_ADMIN','ACCOUNT_TYPE_USER','ACCOUNT_TYPE_BLOCKED','ACCOUNT_TYPE_GROUP',
            'ZONE_ROLE_ADMIN', 'ZONE_ROLE_USER', 'ZONE_ROLE_VIEWER']
 
+_INITIALIZED_TABLE = 'db_initialized'
+
 def _connect():
     DB.connect()
 
@@ -65,39 +70,47 @@ def init(app):
 
     if 'DATABASE_INIT_SCRIPT' in app.config:
 
-        commandParams = {"help": "Create and initialize database.", 'callback': with_appcontext(initDB) }
-
-        if 'DATABASE_SAMPLEDATA_SCRIPT' in app.config:
-            commandParams['params'] = [ click.Option(('-s','--sample-data','sample_data'), is_flag = True, default = False, help = "Populate database with a sample data.") ]
-
+        commandParams = {"help": "Create and initialize database.", 'callback': with_appcontext(partial(initDB,True)) }
         cmd = click.Command('init-db', **commandParams)
         app.cli.add_command(cmd)
 
-def initDB(sample_data = False):
+    if '--help' not in click.get_os_args() and 'init-db' not in click.get_os_args():
+        with app.app_context():
+            initDB()
 
-    from flask import current_app
+def initDB(force = False):
 
-    schemaPath = current_app.config['DATABASE_INIT_SCRIPT']
+    initScripts = current_app.config.get('DATABASE_INIT_SCRIPT')
 
-    with current_app.open_resource(schemaPath) as f, DB:
-        sql = f.read().decode('utf8')
+    if not initScripts:
+        print("DATABASE_INIT_SCRIPT not defined ")
+        return
 
-        # for sqlite we need to use non-standard executescript
-        if isinstance(DB,SqliteDatabase):
-            DB.cursor().executescript(sql)
-        else:
-            DB.execute(SQL(sql))
+    if isinstance(initScripts,str):
+        initScripts = [ initScripts ]
 
-    click.echo('The database initialized.')
+    with DB:
 
-    if sample_data:
-        sampleDataPath = current_app.config['DATABASE_SAMPLEDATA_SCRIPT']
-        with DB, current_app.open_resource(sampleDataPath) as f:
-            sql = f.read().decode('utf8')
-            # for sqlite we need to use non-standard executescript
-            if isinstance(DB,SqliteDatabase):
-                DB.cursor().executescript(sql)
-            else:
+        if not force:
+
+            try:
+                DB.execute_sql(f"CREATE TABLE {_INITIALIZED_TABLE}();")
+            except DatabaseError:
+                # database already initialized
+                return
+
+        print(f'Initializing DB force={force}')
+
+        for file in initScripts:
+
+            print(f'Executing SQL: {file}')
+
+            with current_app.open_resource(file) as f:
+                sql = f.read().decode('utf8')
                 DB.execute(SQL(sql))
 
-        click.echo('Sample data inserted.')
+        # in case it is cleaned up in the above scripts (or force == True)
+        DB.execute_sql(f"CREATE TABLE IF NOT EXISTS {_INITIALIZED_TABLE}();")
+
+    print('The database initialized.')
+

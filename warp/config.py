@@ -21,14 +21,14 @@ class DefaultSettings(object):
 
     MAX_REPORT_ROWS = 5000
 
+    DATABASE_INIT_SCRIPT = "sql/schema.sql"
+
     # these settings are available, but should not have default value
     # set them up in DevelopmentSettings or via environment
     #
     # SECRET_KEY
     # DATABASE
     # DATABASE_ARGS
-    # DATABASE_INIT_SCRIPT
-    # DATABASE_SAMPLEDATA_SCRIPT
     # AUTH_MELLON
     # MELLON_ENDPOINT
 
@@ -39,11 +39,11 @@ class DevelopmentSettings(DefaultSettings):
     #DATABASE = "sqlite:///warp/db.sqlite"
     #DATABASE_ARGS = {"pragmas": {"foreign_keys": "ON"}}
 
-    DATABASE_INIT_SCRIPT = "sql/schema.sql"
-    DATABASE_SAMPLEDATA_SCRIPT = "sql/sample_data.sql"
-
-    #DATABASE_INIT_SCRIPT = "sql/schema_sqlite.sql"
-    #DATABASE_SAMPLEDATA_SCRIPT = "sql/sample_data_sqlite.sql"
+    DATABASE_INIT_SCRIPT = [
+        "sql/clean_db.sql",
+        "sql/schema.sql",
+        "sql/sample_data.sql"
+    ]
 
     SECRET_KEY = b'change_me'
 

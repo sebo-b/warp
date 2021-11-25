@@ -6,9 +6,6 @@ def create_app():
 
     app = flask.Flask(__name__)
 
-    if app.env == 'production':
-        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
-
     initConfig(app)
 
     from . import db

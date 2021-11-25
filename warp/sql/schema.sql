@@ -1,12 +1,3 @@
-DROP MATERIALIZED VIEW IF EXISTS user_to_zone_roles;
-DROP TABLE IF EXISTS seat_assign;
-DROP TABLE IF EXISTS book;
-DROP TABLE IF EXISTS seat;
-DROP TABLE IF EXISTS zone_assign;
-DROP TABLE IF EXISTS zone;
-DROP TABLE IF EXISTS groups;
-DROP TABLE IF EXISTS users;
-DROP TABLE IF EXISTS blobs;
 
 CREATE TABLE blobs (
     id SERIAL PRIMARY KEY,
@@ -22,6 +13,9 @@ CREATE TABLE users (
     name text,
     account_type integer NOT NULL
     );
+
+-- create initial admin with password 'noneshallpass'
+INSERT INTO users VALUES ('admin','pbkdf2:sha256:260000$LdN4KNf6xzb0XlSu$810ca4acafd3b6955e6ebc39d2edafd582c8020ab87fd56e3cede1bfebb7df03','Admin',10);
 
 CREATE INDEX users_account_type_idx ON users(account_type);
 
@@ -125,7 +119,7 @@ ON user_to_zone_roles("login",zid,zone_role);
 CREATE INDEX user_to_zone_roles_zid_idx
 ON user_to_zone_roles(zid);
 
-CREATE OR REPLACE FUNCTION update_user_to_zone_roles()
+CREATE FUNCTION update_user_to_zone_roles()
  RETURNS trigger
  LANGUAGE plpgsql
 AS $$
@@ -135,13 +129,11 @@ BEGIN
 END
 $$;
 
-DROP TRIGGER IF EXISTS zone_assign_update on zone_assign;
 CREATE TRIGGER zone_assign_update
 AFTER INSERT OR UPDATE OR DELETE ON zone_assign
 FOR STATEMENT
 EXECUTE PROCEDURE update_user_to_zone_roles();
 
-DROP TRIGGER IF EXISTS groups_update on groups;
 CREATE TRIGGER groups_update
 AFTER INSERT OR UPDATE OR DELETE ON groups
 FOR STATEMENT
@@ -166,7 +158,7 @@ EXECUTE PROCEDURE update_user_to_zone_roles();
 -- GROUP BY u.login, za.zid
 
 
-CREATE OR REPLACE FUNCTION public.book_overlap_insert()
+CREATE FUNCTION book_overlap_insert()
  RETURNS trigger
  LANGUAGE plpgsql
 AS $$
@@ -191,8 +183,6 @@ BEGIN
     RETURN NEW;
 END;
 $$;
-
-DROP TRIGGER IF EXISTS book_overlap_insert_trig on book;
 
 CREATE TRIGGER book_overlap_insert_trig
 BEFORE INSERT ON book

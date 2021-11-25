@@ -2,5 +2,5 @@ flask
 jsonschema
 xlsxwriter
 peewee
-psycopg2-binary
+psycopg2
 orjson
