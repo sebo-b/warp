@@ -59,7 +59,7 @@ class ProductionSettings(DefaultSettings):
     # as WARP_SECRET_KEY and WARP_DATABASE
     pass
 
-def readEnvironmentSettings():
+def readEnvironmentSettings(app):
 
     PREFIX="WARP_"
 
@@ -68,9 +68,12 @@ def readEnvironmentSettings():
         if key.startswith(PREFIX):
             if val.startswith(('{','[')):
                 val = json.loads(val)
+            elif isinstance(app.config.get(key.removeprefix(PREFIX)),int):
+                val = int(val)
             res[key.removeprefix(PREFIX)] = val
 
-    return res
+    app.config.update(res)
+
 
 
 def initConfig(app):
@@ -80,7 +83,7 @@ def initConfig(app):
     else:
         app.config.from_object(ProductionSettings)
 
-    app.config.update(readEnvironmentSettings())
+    readEnvironmentSettings(app)
 
     if app.config.get('SECRET_KEY',None) is None:
         raise Exception('SECRET_KEY must be defined or passed via WARP_SECRET_KEY environment variable')
