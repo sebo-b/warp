@@ -29,3 +29,16 @@ index 0249486a..0ca2249b 100644
  $chip-margin: 5px !default;
  
  
+diff --git a/sass/components/forms/_checkboxes.scss b/sass/components/forms/_checkboxes.scss
+index ddc7d961..dcc5c654 100644
+--- a/sass/components/forms/_checkboxes.scss
++++ b/sass/components/forms/_checkboxes.scss
+@@ -4,7 +4,7 @@
+ /* Remove default checkbox */
+ [type="checkbox"]:not(:checked),
+ [type="checkbox"]:checked {
+-  position: absolute;
++  position: fixed;
+   opacity: 0;
+   pointer-events: none;
+ }
