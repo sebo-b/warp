@@ -36,6 +36,11 @@ class DefaultSettings(object):
     # DATABASE_ARGS
     # AUTH_MELLON
     # MELLON_ENDPOINT
+    # AUTH_GOOGLE
+    # GOOGLE_AUTH_REDIRECT_URI
+    # GOOGLE_CLIENT_ID
+    # GOOGLE_CLIENT_SECRET
+   
 
 class DevelopmentSettings(DefaultSettings):
 
@@ -58,7 +63,8 @@ class ProductionSettings(DefaultSettings):
     #AUTH_MELLON = False
     #MELLON_ENDPOINT = "/sp"
     #MELLON_DEFAULT_GROUP = "everybody"
-
+   
+  
     # this is intentionally empty, as in production
     # DATABASE and SECRET_KEY should be passed via ENV
     # as WARP_SECRET_KEY and WARP_DATABASE

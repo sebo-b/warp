@@ -11,3 +11,4 @@ node_modules/
 *.pyc
 /warp/templates/headers/
 /warp/static/dist/
+build
