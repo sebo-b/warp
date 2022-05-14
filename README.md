@@ -51,6 +51,7 @@ $ git clone https://github.com/sebo-b/warp.git
 $ cd warp
 
 # build docker image (you can skip hash if you don't want to track it)
+# it will fail on non-x86 machine, update NODE_URL in Dockerfile in such a case
 $ export GIT_HASH=`git log -1 --format=%h`
 $ Docker build -t warp:latest -t warp:$GIT_HASH .
 
