@@ -1,4 +1,5 @@
 from functools import partial
+import sys
 
 from peewee import Table, SQL, fn, IntegrityError, DatabaseError
 import playhouse.db_url
@@ -74,7 +75,7 @@ def init(app):
         cmd = click.Command('init-db', **commandParams)
         app.cli.add_command(cmd)
 
-    if '--help' not in click.get_os_args() and 'init-db' not in click.get_os_args():
+    if '--help' not in sys.argv[1:] and 'init-db' not in sys.argv[1:]:
         with app.app_context():
             initDB()
 
