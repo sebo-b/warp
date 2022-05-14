@@ -17,13 +17,9 @@ I've quickly evaluated a couple of existing solutions, but they were either too 
 - Multiple zones (maps) can be created, for example, floors or parking.
 - Zones can be grouped. One person can have only one seat booked simultaneously in a zone group (so you can have one group for floors and another group for parking stalls).
 - Admin(s) can book / modify / unbook seat for any user.
-- Full user management (no self-service)
+- Full admin interface to add/remove/edit maps, zones, groups, users.
 - SAML2.0 support - via Apache [mod_auth_mellon](https://github.com/latchset/mod_auth_mellon) module.
-
-## What's not done yet
-- Map/zone management - new zones have to be created directly in the database.
-- Translations - it is now only in English (and texts are hardcoded).
-- Statistics dashboard
+- Translations - currently English and Polish are supported.
 
 ## What I'm not even planning to do
 - Approvals - the main goal of the system was to make it autonomous and management-free. So I don't plan to implement approval flows.
@@ -36,24 +32,90 @@ To be honest, I was not paying much attention to browser compatibility, neither 
 
 ![demo animation](res/demo.gif)
 
-I have also deployed a demo into Google App Engine. Keep in mind that it is running only on one instance (so no heavy load) and using an in-memory database (so it is cleared up every time the instance is downscaled). Don't be surprised if your bookings disappear after a couple of minutes of inactivity.
-
-You can [access it here](https://smart-spark-323312.oa.r.appspot.com/).
-Log in as either one of: `admin`, `user1`, `user2` or `user3`
-Password is `password`
+It is so easy to run it in a docker that I have removed the demo which was available some time ago.
 
 # Deployment
 
-## What technologies are used
-- [Python 3.x](https://www.python.org/)
-- [Flask 2.0.x](https://flask.palletsprojects.com/en/2.0.x/)
-- [Sqlite](https://www.sqlite.org)
-- [Materialize CSS](https://materializecss.com)
-- a lot of JavaScript
+During the first run on an empty database, WARP will populate database schema and create an admin user.
 
-## Quickstart
+Default admin credentials are: `admin:noneshallpass`
 
-You need a working Python3 environment, and I won't cover it here.
+## Demo quickstart
+
+The preferred way to deploy to run it via Docker. You need a working docker, and I won't cover it here.
+
+From the command line:
+```
+# clone the repository
+$ git clone https://github.com/sebo-b/warp.git
+$ cd warp
+
+# build docker image (you can skip hash if you don't want to track it)
+$ export GIT_HASH=`git log -1 --format=%h`
+$ docker build -t warp:latest -t warp:$GIT_HASH .
+
+# install postrgres (what I cover here is a simplistic way just to run a demo)
+$ docker pull postgres
+$ docker run --name warp-demo-db -e POSTGRES_PASSWORD=postgres_password -d postgres
+$ export WARP_DEMO_DB_IP=`docker inspect  -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' warp-demo-db`
+
+# start warp
+$ docker run --name warp-demo-wsgi --env 'WARP_DATABASE=postgresql://postgres:postgres_password@warp-demo-db:5432/postgres' --env WARP_SECRET_KEY=mysecretkey --add-host=warp-demo-db:${WARP_DEMO_DB_IP} -d warp:latest
+$ export WARP_DEMO_WSGI_IP=`docker inspect  -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' warp-demo-wsgi`
+
+# install nginx as wsgi rewerse proxy
+$ docker pull nginx
+$ docker run --add-host=warp-demo-wsgi:${WARP_DEMO_WSGI_IP} --mount type=bind,source="$(pwd)"/res/nginx.conf,target=/etc/nginx/conf.d/default.conf,readonly -d -p 127.0.0.1:8080:80 nginx
+```
+
+After that open http://127.0.0.1:8080 in your browser and login as `admin` with password `noneshallpass`.
+
+## Production environment
+
+For the production envirnoment I recommend to run Nginx and PostgreSQL on a separate VMs. Then (even multiple) WARP image can be simply started via docker and rev-proxed from nginx.
+
+Each configuration parameter (check config.py) can be passed via envirnoment as `WARP_varname`.
+
+### SECRET_KEY
+
+For the production environment, **make sure** that you have generated `SECRET_KEY` used for signing cookies. It is defined in `config.py.`
+
+Flask documentation mentions this method to generate it:
+```
+$ python -c 'import os; print(os.urandom(16))'
+```
+
+Alternatively, you can use OpenSSL and Sed:
+```
+$ openssl rand -hex 16 | sed 's/\(..\)/\\x\1/g;s/^/b"/;s/$/"/'
+```
+or wrap it into Python:
+```
+$ python -c 'from subprocess import run; print(run(["openssl","rand","16"],capture_output=True).stdout)'
+```
+
+### How to import users
+
+You can add them manually one by one via the users management tab or import directly to the database. Basically insert users to `user` table, look at table definition in `warp/sql/schema.sql.`
+
+The role is one of:
+```
+10 - admin
+20 - regular user
+90 - account blocked
+```
+
+Password is a hash used by `werkzeug.security.check_password_hash` (more documentation can be [found here](https://werkzeug.palletsprojects.com/en/2.0.x/utils/#werkzeug.security.generate_password_hash)), by default (in my configuration) it is pbkdf2:sha256 with 16 bytes salt and 260,000 iterations.
+
+You can generate it with Python (just make sure you have activated the environment where Flask is installed):
+```
+python -c 'from getpass import getpass; from werkzeug.security import generate_password_hash; print(generate_password_hash(getpass()))'
+
+```
+
+## How to start it without docker - the old way
+
+You need a working Python3 environment, Node.js and PostgreSQL, and I won't cover it here. This is not a preferred way, use it only for debugging or development purposes. Things may change and this section can be outdated - but I assume that you know what you are doing.
 
 From the command line:
 
@@ -89,82 +151,6 @@ docker run -d -p 5000:5000 --name warp warp:latest
 
 ## Production environment
 
-### SECRET_KEY
-
-For the production environment, **make sure** that you have generated `SECRET_KEY` used for signing cookies. It is defined in `config.py.`
-
-Flask documentation mentions this method to generate it:
-```
-$ python -c 'import os; print(os.urandom(16))'
-```
-
-Alternatively, you can use OpenSSL and Sed:
-```
-$ openssl rand -hex 16 | sed 's/\(..\)/\\x\1/g;s/^/b"/;s/$/"/'
-```
-or wrap it into Python:
-```
-$ python -c 'from subprocess import run; print(run(["openssl","rand","16"],capture_output=True).stdout)'
-```
-
-### Webservers and WSGI
-
-There is great documentation about various deployments options on [Flask webpage](https://flask.palletsprojects.com/en/2.0.x/deploying/index.html). I recommend reading that.
-
-As a shortcut (if you know what you are doing), here is guinicorn command:
-```
-gunicorn "warp:create_app()"
-```
-
-and [mod_wsgi](https://modwsgi.readthedocs.io/) configuration:
-```
-# warp.wsgi file
-from warp import create_app
-application = create_app()
-
-# Apache2 warp.conf
-
-WSGIDaemonProcess warp python-home=/srv/warp user=warp group=warp threads=5
-WSGIProcessGroup warp
-WSGIApplicationGroup %{GLOBAL}
-
-WSGIScriptAlias / /srv/warp/warp.wsgi
-
-<Directory /srv/warp>
-        Require all granted
-</Directory>
-
-Alias /static/ /srv/warp/src/warp/warp/static/
-<Directory /srv/warp/src/warp/warp/static>
-        Options -Indexes
-        Require all granted
-</Directory>
-```
-
-### How to configure maps and zones
-
-There is no UI for it yet. So SQL is your best friend. Look at tables `zone` and `seat` in `warp/sql/schema.sql` and `warp/sql/sample_data.sql.` Note that seat (x,y) coordinates are not the center of the seat. It is the top-left corner of the seat sprite, which is 48x48.
-
-### How to import users
-
-You can add them manually one by one via the users management tab or import directly to sqlite. Basically insert users to `user` table, look at table definition in `warp/sql/schema.sql.`
-
-The role is one of:
-```
-0 - admin
-1 - manager - currently the same as admin
-2 - regular user
-3 - viewer (read-only)
-100 - account blocked
-```
-
-Password is a hash used by `werkzeug.security.check_password_hash` (more documentation can be [found here](https://werkzeug.palletsprojects.com/en/2.0.x/utils/#werkzeug.security.generate_password_hash)), by default (in my configuration) it is pbkdf2:sha256 with 16 bytes salt and 260,000 iterations. 
-
-You can generate it with Python (just make sure you have activated the environment where Flask is installed):
-```
-python -c 'from getpass import getpass; from werkzeug.security import generate_password_hash; print(generate_password_hash(getpass()))'
-
-```
 
 ## How can I support you
 
