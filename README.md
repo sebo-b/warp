@@ -32,7 +32,7 @@ To be honest, I was not paying much attention to browser compatibility, nor was 
 
 ![demo animation](res/demo.gif)
 
-It is so easy to run it in a docker that I have removed the demo, which was available some time ago.
+It is so easy to run it via docker compose that I have removed the demo, which was available some time ago.
 
 # Deployment
 
@@ -44,6 +44,21 @@ Default admin credentials are: `admin:noneshallpass`
 
 The preferred way to deploy is to run it via Docker. You need a working docker, and I won't cover it here.
 
+### docker compose
+
+From the command line:
+```
+# clone the repository
+$ git clone https://github.com/sebo-b/warp.git
+$ cd warp
+
+$ docker compose -f demo_compose.yaml up
+```
+
+After that, open http://127.0.0.1:8080 in your browser and log in as `admin` with password `noneshallpass`.
+
+### without docker compose (but why?)
+
 From the command line:
 ```
 # clone the repository
@@ -51,9 +66,8 @@ $ git clone https://github.com/sebo-b/warp.git
 $ cd warp
 
 # build docker image (you can skip hash if you don't want to track it)
-# it will fail on non-x86 machine, update NODE_URL in Dockerfile in such a case
 $ export GIT_HASH=`git log -1 --format=%h`
-$ Docker build -t warp:latest -t warp:$GIT_HASH .
+$ docker build -t warp:latest -t warp:$GIT_HASH .
 
 # install postrgres (what I cover here is a simplistic way just to run a demo)
 $ docker pull postgres
@@ -61,7 +75,11 @@ $ docker run --name warp-demo-db -e POSTGRES_PASSWORD=postgres_password -d postg
 $ export WARP_DEMO_DB_IP=`docker inspect  -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' warp-demo-db`
 
 # start warp
-$ docker run --name warp-demo-wsgi --env 'WARP_DATABASE=postgresql://postgres:postgres_password@warp-demo-db:5432/postgres' --env WARP_SECRET_KEY=mysecretkey --add-host=warp-demo-db:${WARP_DEMO_DB_IP} -d warp:latest
+$ docker run --name warp-demo-wsgi \
+> --env 'WARP_DATABASE=postgresql://postgres:postgres_password@warp-demo-db:5432/postgres' \
+> --env WARP_SECRET_KEY=mysecretkey \
+> --env WARP_DATABASE_INIT_SCRIPT='["sql/schema.sql","sql/sample_data.sql"]' \
+> --add-host=warp-demo-db:${WARP_DEMO_DB_IP} -d warp:latest
 $ export WARP_DEMO_WSGI_IP=`docker inspect  -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' warp-demo-wsgi`
 
 # install nginx as wsgi rewerse proxy

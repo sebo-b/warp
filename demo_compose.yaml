@@ -1,0 +1,23 @@
+version: "3"
+services:
+  warp-demo-db:
+    image: postgres
+    environment:
+      POSTGRES_PASSWORD: 'postgres_password'
+  warp-demo-wsgi:
+    build: .
+    depends_on:
+    - warp-demo-db
+    environment:
+      WARP_DATABASE: "postgresql://postgres:postgres_password@warp-demo-db:5432/postgres"
+      WARP_SECRET_KEY: 'mysecretkey'
+      WARP_DATABASE_INIT_SCRIPT: '["sql/schema.sql","sql/sample_data.sql"]'
+      WARP_LANGUAGE_FILE: 'i18n/en.js'
+  warp-demo-nginx:
+    image: nginx
+    depends_on:
+    - warp-demo-wsgi
+    volumes:
+      - ./res/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "127.0.0.1:8080:80"
