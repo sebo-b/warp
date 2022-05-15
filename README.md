@@ -89,6 +89,43 @@ $ docker run --add-host=warp-demo-wsgi:${WARP_DEMO_WSGI_IP} --mount type=bind,so
 
 After that, open http://127.0.0.1:8080 in your browser and log in as `admin` with password `noneshallpass`.
 
+### without Docker - the old way
+
+You need a working Python3 environment, Node.js, and PostgreSQL, and I won't cover it here. This is not a preferred way, use it only for debugging or development purposes. Things may change, and this section can be outdated - but I assume that you know what you are doing.
+
+From the command line:
+
+```
+# clone repo
+$ git clone https://github.com/sebo-b/warp.git
+$ cd warp
+
+# create virtual envirnoment and activate it
+$ python3 -m venv --prompt warp .venv
+$ source .venv/bin/activate
+
+# install python requirements
+# if this raises an error in psycopg2, either install its all build dependencies
+# or change psycopg2 to psycopg2-binary in requirements.txt
+$ pip install -r requirements.txt
+
+# compile JavaScript files
+$ pushd js
+$ npm ci
+$ npm run build
+$ popd
+
+# setup Flask and database URL
+$ export FLASK_APP=warp
+$ export FLASK_ENV=development
+$ export WARP_DATABASE=postgresql://warp:warp@localhost:5432/warp
+
+# run the app
+$ flash run
+```
+
+After that, open http://127.0.0.1:5000 in your browser and log in as `admin` with password `noneshallpass`.
+
 ## Production environment
 
 For the production envirnoment, I recommend running Nginx and PostgreSQL on separate VMs. Then (even multiple) WARP image can be simply started via Docker and rev-proxed from Nginx.
@@ -135,43 +172,6 @@ You can generate it with Python (just make sure you have activated the environme
 python -c 'from getpass import getpass; from werkzeug.security import generate_password_hash; print(generate_password_hash(getpass()))'
 
 ```
-
-## How to start it without Docker - the old way
-
-You need a working Python3 environment, Node.js, and PostgreSQL, and I won't cover it here. This is not a preferred way, use it only for debugging or development purposes. Things may change, and this section can be outdated - but I assume that you know what you are doing.
-
-From the command line:
-
-```
-# clone repo
-$ git clone https://github.com/sebo-b/warp.git
-$ cd warp
-
-# create virtual envirnoment and activate it
-$ python3 -m venv --prompt warp .venv
-$ source .venv/bin/activate
-
-# install python requirements
-# if this raises an error in psycopg2, either install its all build dependencies
-# or change psycopg2 to psycopg2-binary in requirements.txt
-$ pip install -r requirements.txt
-
-# compile JavaScript files
-$ pushd js
-$ npm ci
-$ npm run build
-$ popd
-
-# setup Flask and database URL
-$ export FLASK_APP=warp
-$ export FLASK_ENV=development
-$ export WARP_DATABASE=postgresql://warp:warp@localhost:5432/warp
-
-# run the app
-$ flash run
-```
-
-After that, open http://127.0.0.1:5000 in your browser and log in as `admin` with password `noneshallpass`.
 
 # Other
 
