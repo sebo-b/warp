@@ -23,6 +23,11 @@ class DefaultSettings(object):
 
     DATABASE_INIT_SCRIPT = "sql/schema.sql"
 
+    # number of connection retries to DB on initialization
+    DATABASE_INIT_RETRIES = 10
+    # delay between retries
+    DATABASE_INIT_RETRIES_DELAY = 2
+
     # these settings are available, but should not have default value
     # set them up in DevelopmentSettings or via environment
     #

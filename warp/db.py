@@ -1,7 +1,8 @@
 from functools import partial
+from time import sleep
 import sys
 
-from peewee import Table, SQL, fn, IntegrityError, DatabaseError
+from peewee import Table, SQL, fn, IntegrityError, DatabaseError, OperationalError
 import playhouse.db_url
 import click
 from flask.cli import with_appcontext
@@ -90,28 +91,49 @@ def initDB(force = False):
     if isinstance(initScripts,str):
         initScripts = [ initScripts ]
 
-    with DB:
+    retries = current_app.config['DATABASE_INIT_RETRIES']
+    retDelay = current_app.config['DATABASE_INIT_RETRIES_DELAY']
 
-        if not force:
+    if retries < 1:
+        retries = 1
 
-            try:
-                DB.execute_sql(f"CREATE TABLE {_INITIALIZED_TABLE}();")
-            except DatabaseError:
-                # database already initialized
-                return
+    while True:
 
-        print(f'Initializing DB force={force}')
+        try:
 
-        for file in initScripts:
+            with DB:
 
-            print(f'Executing SQL: {file}')
+                if not force:
 
-            with current_app.open_resource(file) as f:
-                sql = f.read().decode('utf8')
-                DB.execute(SQL(sql))
+                    try:
+                        DB.execute_sql(f"CREATE TABLE {_INITIALIZED_TABLE}();")
+                    except DatabaseError:
+                        # database already initialized
+                        return
 
-        # in case it is cleaned up in the above scripts (or force == True)
-        DB.execute_sql(f"CREATE TABLE IF NOT EXISTS {_INITIALIZED_TABLE}();")
+                print(f'Initializing DB force={force}')
 
-    print('The database initialized.')
+                for file in initScripts:
 
+                    print(f'Executing SQL: {file}')
+
+                    with current_app.open_resource(file) as f:
+                        sql = f.read().decode('utf8')
+                        DB.execute(SQL(sql))
+
+                # in case it is cleaned up in the above scripts (or force == True)
+                DB.execute_sql(f"CREATE TABLE IF NOT EXISTS {_INITIALIZED_TABLE}();")
+
+            print('The database initialized.')
+            break
+
+        except OperationalError:
+
+            retries -= 1
+            if retries == 0:
+                print(f"ERROR: Cannot connect to the database.", file=sys.stderr, flush=True)
+                raise
+
+            print(f"Database connection error, waiting {retDelay} second(s).", file=sys.stderr, flush=True)
+            sleep(retDelay)
+            print(f'Retrying ({retries}).', file=sys.stderr, flush=True)
