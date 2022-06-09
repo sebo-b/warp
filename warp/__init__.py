@@ -20,14 +20,14 @@ def create_app():
 
     from . import auth
     from . import auth_mellon
-    from . import google_auth
+    from . import auth_google
     if 'AUTH_MELLON' in app.config \
        and 'MELLON_ENDPOINT' in app.config \
        and app.config['AUTH_MELLON']:
         app.register_blueprint(auth_mellon.bp)
     elif 'AUTH_GOOGLE' in app.config \
             and app.config['AUTH_GOOGLE']:
-        app.register_blueprint(google_auth.bp)
+        app.register_blueprint(auth_google.bp)
     else:
         app.register_blueprint(auth.bp)
 

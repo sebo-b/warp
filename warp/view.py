@@ -1,4 +1,4 @@
-from . import google_auth
+from . import auth_google
 import flask
 
 from warp.db import *
@@ -50,8 +50,8 @@ def headerDataInit():
 @bp.route("/")
 def index():
     user_info = None
-    if google_auth.is_logged_in():
-        user_info = google_auth.get_user_info()
+    if auth_google.is_logged_in():
+        user_info = auth_google.get_user_info()
 
     return flask.render_template('index.html', user_info=user_info)
 

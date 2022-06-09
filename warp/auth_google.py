@@ -1,9 +1,9 @@
 import functools
-from .db import *
 from . import utils
+from warp.db import *
 
 import flask
-from warp.auth import ROLE_USER, ROLE_BLOCKED, session
+from warp.auth import ROLE_USER, session
 
 from authlib.integrations.requests_client import OAuth2Session
 import google.oauth2.credentials
@@ -33,8 +33,8 @@ def build_credentials():
     return google.oauth2.credentials.Credentials(
         oauth2_tokens['access_token'],
         refresh_token=oauth2_tokens['refresh_token'],
-        client_id=flask.current_app.config['GOOGLE_CLIENT_ID'],
-        client_secret=flask.current_app.config['GOOGLE_CLIENT_SECRET'],
+        client_id=flask.current_app.config.get('GOOGLE_CLIENT_ID'),
+        client_secret=flask.current_app.config.get('GOOGLE_CLIENT_SECRET'),
         token_uri=ACCESS_TOKEN_URI)
 
 
@@ -48,35 +48,45 @@ def get_user_info():
     return oauth2_client.userinfo().get().execute()
 
 
-def upsert_user(login, username):
+def upsert_user(login, userName):
+    # c = Users.select(Users.name).where(Users.login == login).scalar()
 
-    c = Users.select(Users.id, Users.role, Users.name).where(
+    c = Users.select().where(
         Users.login == login)
 
     if len(c) == 1:
 
-        if c[0]['role'] >= ROLE_BLOCKED:
+        if c[0]['account_type'] >= ACCOUNT_TYPE_BLOCKED:
             flask.abort(403)
 
-        flask.session['uid'] = c[0]['id']
-        flask.session['role'] = c[0]['role']
+        flask.session['login'] = c[0]['login']
+        flask.session['account_type'] = c[0]['account_type']
 
-        if c[0]['name'] != username:
+        if c[0]['name'] != userName:
             with DB.atomic():
-                Users.update({Users.name: username}).where(
+                Users.update({Users.name: userName}).where(
                     Users.login == login).execute()
 
     else:
         from secrets import token_urlsafe
         from werkzeug.security import generate_password_hash
+
         with DB.atomic():
             lastrowid = Users.insert({
                 Users.login: login,
-                Users.name: username,
-                Users.role: ROLE_USER,
+                Users.name: userName,
+                Users.account_type: ACCOUNT_TYPE_USER,
                 Users.password: generate_password_hash(
                     token_urlsafe(18))
             }).execute()
+
+            defaultGroup = flask.current_app.config.get('GOOGLE_DEFAULT_GROUP')
+
+            if defaultGroup is not None:
+                Groups.insert({
+                    Groups.group: defaultGroup,
+                    Groups.login: login
+                }).execute()
 
         flask.session['uid'] = lastrowid
         flask.session['role'] = ROLE_USER
@@ -101,10 +111,11 @@ def no_cache(view):
 def login():
     flask.session.clear()
 
-    session = OAuth2Session(flask.current_app.config['GOOGLE_CLIENT_ID'],
-                            flask.current_app.config['GOOGLE_CLIENT_SECRET'],
+    session = OAuth2Session(flask.current_app.config.get('GOOGLE_CLIENT_ID'),
+                            flask.current_app.config.get(
+                                'GOOGLE_CLIENT_SECRET'),
                             scope=AUTHORIZATION_SCOPE,
-                            redirect_uri=flask.current_app.config['GOOGLE_AUTH_REDIRECT_URI'])
+                            redirect_uri=flask.current_app.config.get('GOOGLE_AUTH_REDIRECT_URI'))
 
     uri, state = session.create_authorization_url(AUTHORIZATION_URL)
 
@@ -122,10 +133,10 @@ def google_auth_redirect():
         response = flask.make_response('Invalid state parameter', 401)
         return response
 
-    session = OAuth2Session(flask.current_app.config['GOOGLE_CLIENT_ID'], flask.current_app.config['GOOGLE_CLIENT_SECRET'],
+    session = OAuth2Session(flask.current_app.config.get('GOOGLE_CLIENT_ID'), flask.current_app.config.get('GOOGLE_CLIENT_SECRET'),
                             scope=AUTHORIZATION_SCOPE,
                             state=flask.session[AUTH_STATE_KEY],
-                            redirect_uri=flask.current_app.config['GOOGLE_AUTH_REDIRECT_URI'])
+                            redirect_uri=flask.current_app.config.get('GOOGLE_AUTH_REDIRECT_URI'))
 
     oauth2_tokens = session.fetch_access_token(
         ACCESS_TOKEN_URI,
