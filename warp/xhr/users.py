@@ -69,6 +69,7 @@ def edit():
                 Users.name: action_data['name'],
                 Users.account_type: action_data['account_type'],
             }
+            login = action_data['login'].strip()
 
             if len(action_data.get('password','')) > 0 and action_data['account_type'] < ACCOUNT_TYPE_GROUP:
                 updColumns[Users.password] = generate_password_hash(action_data['password'])
@@ -76,7 +77,7 @@ def edit():
             if action_data['action'] == "update":
 
                 updateQ = Users.update(updColumns) \
-                                .where(Users.login == action_data['login'])
+                    .where(Users.login == login)
 
                 # prevent conversion from User <=> Group
                 if updColumns[ Users.account_type ] < ACCOUNT_TYPE_GROUP:
@@ -91,17 +92,17 @@ def edit():
 
             elif action_data['action'] == "add":
 
-                updColumns[Users.login] = action_data['login'],
+                updColumns[Users.login] = login,
                 Users.insert(updColumns).execute()
 
             if 'groups' in action_data:
 
                 Groups.delete() \
-                    .where(Groups.login == action_data['login']) \
+                    .where(Groups.login == login) \
                     .execute()
 
                 gr = [{
-                        Groups.login: action_data['login'],
+                    Groups.login: login,
                         Groups.group: i
                     } for i in action_data['groups']
                 ]
