@@ -169,11 +169,11 @@ LDAP auth is a easy way to allow your active directory or LDAP users access to W
 - WARP_LDAP_USER_NAME_ATTRIBUTE: Attribute used to obtain name of the automatically created user on warp. 
 - WARP_LDAP_USER_GROUPS_ATTRIBUTE: attribute of the LDAP user contaning group list.
 - WARP_LDAP_SEARCH_BASE: Base domain name to locate user and groups
-- WARP_LDAP_AUTH_SERVER: 'yourServerName or Ip'    
+- WARP_LDAP_AUTH_SERVER: yourServerName/Ip    
 - WARP_LDAP_AUTH_SERVER_PORT: 
 - WARP_LDAP_AUTH_USE_SSL: false or true
 - WARP_LDAP_AUTH_TYPE: NTLM/SIMPLE 
-- WARP_LDAP_AUTH_NTLM_DOMAIN: NTLM domain name is the prefix used for teh login name when NTLM AUTH is enabled *DomainNam\loginname*
+- WARP_LDAP_AUTH_NTLM_DOMAIN: NTLM domain name is the prefix used for the login name when NTLM AUTH is enabled *DomainNam\loginname*
   
   **Sample values:**
     ```
@@ -186,7 +186,7 @@ LDAP auth is a easy way to allow your active directory or LDAP users access to W
     WARP_LDAP_USER_NAME_ATTRIBUTE: "name"       
     WARP_LDAP_USER_GROUPS_ATTRIBUTE: "memberOf"
     WARP_LDAP_SEARCH_BASE: 'DC=yourDomain,DC=com'
-    WARP_LDAP_AUTH_SERVER: 'yourServerName or Ip'   
+    WARP_LDAP_AUTH_SERVER: '192.168.3.6'   
     WARP_LDAP_AUTH_SERVER_PORT: 389
     WARP_LDAP_AUTH_USE_SSL: False
     WARP_LDAP_AUTH_TYPE: 'NTLM'  
