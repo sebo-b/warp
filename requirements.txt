@@ -1,6 +1,7 @@
-flask
-jsonschema
-xlsxwriter
-peewee
-psycopg2
-orjson
+flask==2.1.2
+jsonschema==4.6.1
+xlsxwriter==3.0.3
+peewee==3.14.10
+psycopg2==2.9.3
+orjson==3.7.6
+ldap3==2.9.1

@@ -1,4 +1,5 @@
 import os
+import traceback
 
 import flask
 from peewee import JOIN, fn, EXCLUDED
@@ -205,7 +206,7 @@ def assign():
                                 .execute()
 
                 if rowCount != len(jsonData['change']):
-                    raise ApplyError("Wrong number of affected rows", 223)
+                    raise ApplyError(f"Wrong number of affected rows {rowCount} !=  (expected) "+ str(len(jsonData['change'])), 223)
 
             if 'remove' in jsonData:
 
@@ -220,7 +221,8 @@ def assign():
     except IntegrityError as err:
         return {"msg": "Error", "code": 225 }, 400
     except ApplyError as err:
-        return {"msg": "Error", "code": err.args[1] }, 400
+        traceback.print_exc()
+        return {"msg": err.args[1], "code": err.args[1] }, 400
 
     return {"msg": "ok" }, 200
 
