@@ -19,6 +19,7 @@ I've quickly evaluated a couple of existing solutions, but they were either too 
 - Admin(s) can book / modify / unbook seat for any user.
 - Full admin interface to add/remove/edit maps, zones, groups, and users.
 - SAML2.0 support - via Apache [mod_auth_mellon](https://github.com/latchset/mod_auth_mellon) module.
+- LDAP and Active Directory - via LDAP3 library.
 - Translations - currently, English and Polish are supported.
 
 ## What I'm not even planning to do
@@ -153,6 +154,44 @@ $ python -c 'from subprocess import run; print(run(["openssl","rand","16"],captu
 ### Language
 
 Change `LANGUAGE_FILE` variable in `config.py` or set `WARP_LANGUAGE_FILE` environment variable. Currently, language is global for the instance.
+
+### *Active Directory* (or any other LDAP) authentication
+Authentication via LDAP server like Active Directory is possible. To enable LDAP auth use *WARP_AUTH_LDAP* env variable. 
+
+LDAP auth is a easy way to allow your active directory or LDAP users access to WARP. When enabled WARP will check user login and password via LDAP bind action if successfull and user does not exist in warp database create user and assign the group defined by *WARP_LDAP_GROUP_MAP*. Users belonging to *WARP_LDAP_EXCLUDED_USERS* will check credentials via warp database auth.
+
+ **Configuration enviroment vars and meaning:**
+- WARP_AUTH_LDAP: True
+- WARP_LDAP_EXCLUDED_USERS: array of users login that use database auth. 
+- WARP_LDAP_GROUP_MAP: mapping between LDAP group and default asigned group on 
+- WARP_LDAP_USER_CLASS: LDAP user objectclass. Order is important as only one group is assigned. First match is used.
+- WARP_LDAP_USER_ID_ATTRIBUTE: Attribute to compare with login
+- WARP_LDAP_USER_NAME_ATTRIBUTE: Attribute used to obtain name of the automatically created user on warp. 
+- WARP_LDAP_USER_GROUPS_ATTRIBUTE: attribute of the LDAP user contaning group list.
+- WARP_LDAP_SEARCH_BASE: Base domain name to locate user and groups
+- WARP_LDAP_AUTH_SERVER: 'yourServerName or Ip'    
+- WARP_LDAP_AUTH_SERVER_PORT: 
+- WARP_LDAP_AUTH_USE_SSL: false or true
+- WARP_LDAP_AUTH_TYPE: NTLM/SIMPLE 
+- WARP_LDAP_AUTH_NTLM_DOMAIN: NTLM domain name is the prefix used for teh login name when NTLM AUTH is enabled *DomainNam\loginname*
+  
+  **Sample values:**
+    ```
+    WARP_AUTH_LDAP: True
+    WARP_LDAP_EXCLUDED_USERS: '["admin"]'
+    WARP_LDAP_GROUP_MAP: '[{"ldapGroup": "CN=LDAP-GROUP-NAME,OU=XXXX,DC=yourDomain,
+    =com", "warpGroup": "AsignedGroupOnWarpApp"}]'
+    WARP_LDAP_USER_CLASS: "user"
+    WARP_LDAP_USER_ID_ATTRIBUTE: "sAMAccountName"
+    WARP_LDAP_USER_NAME_ATTRIBUTE: "name"       
+    WARP_LDAP_USER_GROUPS_ATTRIBUTE: "memberOf"
+    WARP_LDAP_SEARCH_BASE: 'DC=yourDomain,DC=com'
+    WARP_LDAP_AUTH_SERVER: 'yourServerName or Ip'   
+    WARP_LDAP_AUTH_SERVER_PORT: 389
+    WARP_LDAP_AUTH_USE_SSL: False
+    WARP_LDAP_AUTH_TYPE: 'NTLM'  
+    WARP_LDAP_AUTH_NTLM_DOMAIN: "Domain1"
+    ```
 
 ### How to import users
 

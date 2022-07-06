@@ -4,7 +4,7 @@ import json
 import traceback
 from warp.db import *
 from . import utils
-from ldap3 import Server, Connection, ALL, NTLM, Tls
+from ldap3 import Server, Connection, ALL, NTLM, Tls, SIMPLE
 import  ssl
 from ldap3.core.exceptions import LDAPException
 from ldap3.utils.conv import escape_filter_chars
@@ -46,7 +46,7 @@ def ldapValidateCredentials(username, password):
         # tls_configuration = Tls(validate=ssl.CERT_REQUIRED, version=ssl.PROTOCOL_TLSv1)
         # server = Server(LDAP_AUTH_SERVER, port=LDAP_AUTH_SERVER_PORT, use_ssl=LDAP_AUTH_USE_SSL, tls=tls_configuration)
        
-        authType= NTLM if (LDAP_AUTH_TYPE == 'NTLM') else LDAP_AUTH_TYPE 
+        authType= NTLM if (LDAP_AUTH_TYPE == 'NTLM') else SIMPLE 
         bindUser= LDAP_AUTH_NTLM_DOMAIN + '\\' + username if (LDAP_AUTH_TYPE == 'NTLM') else username
         server = Server(LDAP_AUTH_SERVER, port=LDAP_AUTH_SERVER_PORT, use_ssl=LDAP_AUTH_USE_SSL, get_info=ALL) 
         connection = Connection(server=server, authentication=authType, read_only=True, user=bindUser, password=password)
