@@ -1,4 +1,5 @@
 # WARP: Workspace Autonomous Reservation Program
+**Note:** *This is a Fork of warp original project. Adding LDAP auth support*
 
 The story of this project begins when, due to COVID-19, we have converted our regular office into a hybrid of regular and hot-desk assignments. We needed to find a solution for desk reservations, transparency of that, and detailed logging of who was in the office for epidemic purposes.
 
