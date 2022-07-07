@@ -354,7 +354,7 @@ def apply():
                         SeatAssign.login: l
                         } for l in apply_data['assign']['logins']]
 
-                    rowCount = SeatAssign.insert(insertData).execute()
+                    rowCount = SeatAssign.insert(insertData).as_rowcount().execute()
 
                     if rowCount != len(apply_data['assign']['logins']):
                         raise ApplyError("Number of affected row is different then in assign.logins.", 107)
