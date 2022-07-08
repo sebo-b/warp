@@ -4,3 +4,7 @@ xlsxwriter
 peewee
 psycopg2
 orjson
+authlib
+google-api-python-client
+google-auth
+virtualenv
