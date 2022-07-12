@@ -157,11 +157,19 @@ $ python -c 'from subprocess import run; print(run(["openssl","rand","16"],captu
 Change `LANGUAGE_FILE` variable in `config.py` or set `WARP_LANGUAGE_FILE` environment variable. Currently, language is global for the instance.
 
 ### *Active Directory* (or any other LDAP) authentication
-Authentication via LDAP server like Active Directory is possible. To enable LDAP auth use *WARP_AUTH_LDAP* env variable. 
+Authentication via LDAP server like Active Directory, it is an easy way to allow your LDAP directory users login on your WARP instalation. 
 
-LDAP auth is a easy way to allow your active directory or LDAP users access to WARP. When enabled WARP will check user login and password via LDAP bind action if successfull and user does not exist in warp database create user and assign the group defined by *WARP_LDAP_GROUP_MAP*. Users belonging to *WARP_LDAP_EXCLUDED_USERS* will check credentials via warp database auth.
+Supported configurations to connect LDAP server are:
+- **LDAP protocol:** *LDAP* or *LDAPS*. It is not recommend to use LDAP plain connections, on production enviroments.
+- **Authentication mechanims:** *SIMPLE* or *NTLM v2*.
 
- **Configuration enviroment vars and meaning:**
+To enable LDAP auth set *WARP_AUTH_LDAP* env variable to *True*. WARP will check user login and password via LDAP bind action and the list of authorithed groups (see *WARP_LDAP_GROUP_MAP* env variable). If Bind acction succed and user belongs to authorized groups login is allowed. 
+
+Authorization is managed by adding user, on first login, to WARP auth database and assign the WARP group defined by *WARP_LDAP_GROUP_MAP*. 
+
+It is possible to exclude some users from using LDAP auth by adding them to *WARP_LDAP_EXCLUDED_USERS* list. Users on this list will check credentials via warp auth database ignoring LDAP AUTH configuration.
+
+ **Configuration enviroment variables:**
 - WARP_AUTH_LDAP: True
 - WARP_LDAP_EXCLUDED_USERS: array of users login that use database auth. 
 - WARP_LDAP_GROUP_MAP: mapping between LDAP group and default asigned group on 
@@ -171,27 +179,37 @@ LDAP auth is a easy way to allow your active directory or LDAP users access to W
 - WARP_LDAP_USER_GROUPS_ATTRIBUTE: attribute of the LDAP user contaning group list.
 - WARP_LDAP_SEARCH_BASE: Base domain name to locate user and groups
 - WARP_LDAP_AUTH_SERVER: yourServerName/Ip    
-- WARP_LDAP_AUTH_SERVER_PORT: 
-- WARP_LDAP_AUTH_USE_SSL: false or true
+- WARP_LDAP_AUTH_SERVER_PORT: LDAP/LDAPS server port 
+- WARP_LDAP_AUTH_USE_LDAPS: True form LDAPS connection not defined or False for LDAP plain connection
+- WARP_LDAP_AUTH_TLS_VERSION: *'1.2'* for TLS1.2 not defined for TLS1
+- WARP_LDAP_AUTH_CIPHER: Set to a valid cipher for LDAPS server not defined *ECDHE-RSA-AES256-SHA384* is used.
+- WARP_LDAP_AUTH_VALIDATE_CERT: *False* for non certificate validation not defined or True for Certificate validation.
 - WARP_LDAP_AUTH_TYPE: NTLM/SIMPLE 
-- WARP_LDAP_AUTH_NTLM_DOMAIN: NTLM domain name is the prefix used for the login name when NTLM AUTH is enabled *DomainNam\loginname*
+- WARP_LDAP_AUTH_NTLM_DOMAIN: NTLM domain name is the prefix used for the login name when NTLM AUTH is enabled *DomainName\loginname*
   
   **Sample values:**
     ```
     WARP_AUTH_LDAP: True
+    WARP_LDAP_AUTH_TYPE: 'NTLM'  
+    WARP_LDAP_AUTH_NTLM_DOMAIN: "Domain1"
     WARP_LDAP_EXCLUDED_USERS: '["admin"]'
-    WARP_LDAP_GROUP_MAP: '[{"ldapGroup": "CN=LDAP-GROUP-NAME,OU=XXXX,DC=yourDomain,
-    =com", "warpGroup": "AsignedGroupOnWarpApp"}]'
+    WARP_LDAP_GROUP_MAP: '[{"ldapGroup": "CN=LDAP-GROUP-NAME,OU=XXXX,DC=yourDomain,dc=com", "warpGroup": "AsignedGroupOnWarpApp"}]'
     WARP_LDAP_USER_CLASS: "user"
     WARP_LDAP_USER_ID_ATTRIBUTE: "sAMAccountName"
     WARP_LDAP_USER_NAME_ATTRIBUTE: "name"       
     WARP_LDAP_USER_GROUPS_ATTRIBUTE: "memberOf"
     WARP_LDAP_SEARCH_BASE: 'DC=yourDomain,DC=com'
-    WARP_LDAP_AUTH_SERVER: '192.168.3.6'   
+    WARP_LDAP_AUTH_SERVER: 'ldapServerName'   
+
+    # LDAP  
     WARP_LDAP_AUTH_SERVER_PORT: 389
-    WARP_LDAP_AUTH_USE_SSL: False
-    WARP_LDAP_AUTH_TYPE: 'NTLM'  
-    WARP_LDAP_AUTH_NTLM_DOMAIN: "Domain1"
+
+    # LDAPS 
+    WARP_LDAP_AUTH_SERVER_PORT: 636 
+    WARP_LDAP_AUTH_USE_LDAPS: True                            # When not pressent or False plaintext LDAP connection used
+    WARP_LDAP_AUTH_TLS_VERSION:  '1.2'                        # 1.2 for TLS1.2 none for TLS1
+    WARP_LDAP_AUTH_CIPHER: 'ECDHE-RSA-AES256-SHA384'
+    WARP_LDAP_AUTH_VALIDATE_CERT: True                        # False to disable certificate validation
     ```
 
 ### How to import users

@@ -37,19 +37,40 @@ def ldapValidateCredentials(username, password):
         LDAP_USER_GROUPS_ATTRIBUTE= flask.current_app.config.get('LDAP_USER_GROUPS_ATTRIBUTE')
         LDAP_SEARCH_BASE= flask.current_app.config.get('LDAP_SEARCH_BASE')
         LDAP_AUTH_SERVER= flask.current_app.config.get('LDAP_AUTH_SERVER')
-        LDAP_AUTH_USE_SSL= True if flask.current_app.config.get('LDAP_AUTH_USE_SSL') == 'true' else False
+        LDAP_AUTH_USE_LDAPS= True if flask.current_app.config.get('LDAP_AUTH_USE_LDAPS') == 'true' else False
+        LDAP_AUTH_USE_STARTTLS= True if flask.current_app.config.get('LDAP_AUTH_USE_STARTTLS') == 'true' else False
+        LDAP_AUTH_TLS_VERSION= ssl.PROTOCOL_TLSv1_2 if flask.current_app.config.get('LDAP_AUTH_TLS_VERSION') == '1.2' else ssl.PROTOCOL_TLSv1
+        LDAP_AUTH_VALIDATE_CERT= ssl.CERT_REQUIRED if flask.current_app.config.get('LDAP_AUTH_VALIDATE_CERT') == 'true' else ssl.CERT_NONE
+        LDAP_AUTH_CIPHER=  flask.current_app.config.get('LDAP_AUTH_CIPHER') if flask.current_app.config.get('LDAP_AUTH_CIPHER') is not None else 'ECDHE-RSA-AES256-SHA384'
         LDAP_AUTH_SERVER_PORT= int(flask.current_app.config.get('LDAP_AUTH_SERVER_PORT')) or 389
         LDAP_AUTH_TYPE= flask.current_app.config.get('LDAP_AUTH_TYPE') or 'SIMPLE'
         LDAP_AUTH_NTLM_DOMAIN= flask.current_app.config.get('LDAP_AUTH_NTLM_DOMAIN')  
-
-        # TODO ADD suport to SSL and TLS configuration.
-        # tls_configuration = Tls(validate=ssl.CERT_REQUIRED, version=ssl.PROTOCOL_TLSv1)
-        # server = Server(LDAP_AUTH_SERVER, port=LDAP_AUTH_SERVER_PORT, use_ssl=LDAP_AUTH_USE_SSL, tls=tls_configuration)
-       
-        authType= NTLM if (LDAP_AUTH_TYPE == 'NTLM') else SIMPLE 
+        authType= NTLM if (LDAP_AUTH_TYPE == 'NTLM') else SIMPLE
         bindUser= LDAP_AUTH_NTLM_DOMAIN + '\\' + username if (LDAP_AUTH_TYPE == 'NTLM') else username
-        server = Server(LDAP_AUTH_SERVER, port=LDAP_AUTH_SERVER_PORT, use_ssl=LDAP_AUTH_USE_SSL, get_info=ALL) 
-        connection = Connection(server=server, authentication=authType, read_only=True, user=bindUser, password=password)
+
+        server= None
+        connection = None
+        if (LDAP_AUTH_USE_STARTTLS):   # LDAP + START _TLS
+            # TODO check to solve connection error 104 
+            tls_configuration = Tls(validate=LDAP_AUTH_VALIDATE_CERT, version=LDAP_AUTH_TLS_VERSION, ciphers=LDAP_AUTH_CIPHER)
+            server = Server(LDAP_AUTH_SERVER, port=LDAP_AUTH_SERVER_PORT, use_ssl=True, get_info=ALL, tls=tls_configuration)
+            print(server)
+            connection = Connection(server=server, authentication=LDAP_AUTH_TYPE, read_only=True, user=bindUser, password=password)
+            connection.open()
+            connection.start_tls()
+        elif (LDAP_AUTH_USE_LDAPS): 	# LDAPS connection
+            tls_configuration = Tls(validate=LDAP_AUTH_VALIDATE_CERT, version=LDAP_AUTH_TLS_VERSION, ciphers=LDAP_AUTH_CIPHER)
+            server = Server(LDAP_AUTH_SERVER, port=LDAP_AUTH_SERVER_PORT, use_ssl=True, get_info=ALL, tls=tls_configuration)
+            connection = Connection(server=server, authentication=LDAP_AUTH_TYPE, read_only=True, user=bindUser, password=password)
+        else :    			# Plain LDAP connection
+            server = Server(LDAP_AUTH_SERVER, port=LDAP_AUTH_SERVER_PORT, use_ssl=False, get_info=ALL) 
+            print("WARNING: Using LDAP non secure connection: " + server)
+            connection = Connection(server=server, authentication=LDAP_AUTH_TYPE, read_only=True, user=bindUser, password=password)
+        
+        if (connection is None):
+            print("Unnable to connect LDAP server: " + server)
+            return {'bind': False} 
+
         connection.bind()         
         print(f'LDAP bind: {connection.result["description"]}')  # "success" if bind is ok
         searchString = f'(&(objectclass={LDAP_USER_CLASS})({LDAP_USER_ID_ATTRIBUTE}={escape_filter_chars(username)}))'
@@ -64,15 +85,14 @@ def ldapValidateCredentials(username, password):
             if (groupMapping != None) :
                 return {'bind': True, 'name': str(userInfo.name), 'warpGroup': groupMapping['warpGroup']}
             else :
-                print("User not in Auth Groups: "+ username)
+                print("User is not in authorithed groups: "+ username)
                 return {'bind': False}
 		
     except LDAPException as e:
-        print("Error connecting to Server. User ("+username+"): " + str(e))
+        print("Error login as ("+username+"): " + str(e))
         return {'bind': False}
     except Exception as e:
-        print("Error connecting to Server. User ("+username+"): " + str(e))
-        traceback.print_exc()
+        print("Error login as ("+username+"): " + str(e))
         return {'bind': False}
 
 def ldapLogin(login, password):
@@ -81,7 +101,6 @@ def ldapLogin(login, password):
 
     LDAP_USER_NAME_ATTRIBUTE = flask.current_app.config.get('LDAP_USER_NAME_ATTRIBUTE')
     userInfo=ldapValidateCredentials(login, password)
-    # print("Results: "+(str(userInfo)))
 
     if userInfo['bind']:
         c = Users.select(Users.name).where(Users.login == login).scalar()
@@ -91,7 +110,7 @@ def ldapLogin(login, password):
                     Users.login: login,
                     Users.name: userInfo[LDAP_USER_NAME_ATTRIBUTE] ,
                     Users.account_type: ACCOUNT_TYPE_USER,
-                    Users.password: 'Pass not here used LDAP bind'
+                    Users.password: 'Passin LDAP server'
                 }).execute()
 
                 defaultGroup = userInfo['warpGroup'] 
