@@ -203,6 +203,7 @@ def assign():
                                 .on_conflict(
                                     conflict_target=[ZoneAssign.zid,ZoneAssign.login],
                                     update={ZoneAssign.zone_role: EXCLUDED.zone_role} ) \
+                                .as_rowcount() \
                                 .execute()
 
                 if rowCount != len(jsonData['change']):
@@ -382,7 +383,7 @@ def modify():
                         dataInsert.append(entry)
 
                 if len(dataInsert):
-                    rowCount = Seat.insert(dataInsert).execute()
+                    rowCount = Seat.insert(dataInsert).as_rowcount().execute()
                     totalCount += rowCount
 
                 if totalCount != len(jsonData['addOrUpdate']):
