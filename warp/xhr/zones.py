@@ -206,7 +206,7 @@ def assign():
                                 .execute()
 
                 if rowCount != len(jsonData['change']):
-                     raise ApplyError("Wrong number of affected rows", 223)
+                    raise ApplyError("Wrong number of affected rows", 223)
 
             if 'remove' in jsonData:
 
