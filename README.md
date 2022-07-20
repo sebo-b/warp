@@ -170,6 +170,7 @@ It is possible to exclude some users from using LDAP auth by adding them to *WAR
 
  **Configuration enviroment variables:**
 - WARP_AUTH_LDAP: True
+- LDAP_MATCHING_RULE_IN_CHAIN: Set ti True for Active Directory or any LDAP supporting "LDAP_MATCHING_RULE_IN_CHAIN" (default is false). When enabled nested groups are considered.
 - WARP_LDAP_EXCLUDED_USERS: array of users login that use database auth. 
 - WARP_LDAP_GROUP_MAP: mapping between LDAP group and default asigned group on 
 - WARP_LDAP_USER_CLASS: LDAP user objectclass. Order is important as only one group is assigned. First match is used.
@@ -188,7 +189,8 @@ It is possible to exclude some users from using LDAP auth by adding them to *WAR
   
   **Sample values:**
     ```
-    WARP_AUTH_LDAP: True
+    WARP_AUTH_LDAP: 'true'
+    LDAP_MATCHING_RULE_IN_CHAIN: 'true'
     WARP_LDAP_AUTH_TYPE: 'NTLM'  
     WARP_LDAP_AUTH_NTLM_DOMAIN: "Domain1"
     WARP_LDAP_EXCLUDED_USERS: '["admin"]'
@@ -205,10 +207,10 @@ It is possible to exclude some users from using LDAP auth by adding them to *WAR
 
     # LDAPS 
     WARP_LDAP_AUTH_SERVER_PORT: 636 
-    WARP_LDAP_AUTH_USE_LDAPS: True                            # When not pressent or False plaintext LDAP connection used
-    WARP_LDAP_AUTH_TLS_VERSION:  '1.2'                        # 1.2 for TLS1.2 none for TLS1
+    WARP_LDAP_AUTH_USE_LDAPS: 'true'                            # When not pressent or False plaintext LDAP connection used
+    WARP_LDAP_AUTH_TLS_VERSION:  '1.2'                          # 1.2 for TLS1.2 none for TLS1
     WARP_LDAP_AUTH_CIPHER: 'ECDHE-RSA-AES256-SHA384'
-    WARP_LDAP_AUTH_VALIDATE_CERT: True                        # False to disable certificate validation
+    WARP_LDAP_AUTH_VALIDATE_CERT: 'true'                        # False to disable certificate validation
     ```
 
 ### How to import users

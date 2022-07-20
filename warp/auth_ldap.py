@@ -39,6 +39,7 @@ def ldapValidateCredentials(username, password):
         LDAP_AUTH_SERVER= flask.current_app.config.get('LDAP_AUTH_SERVER')
         LDAP_AUTH_USE_LDAPS= True if flask.current_app.config.get('LDAP_AUTH_USE_LDAPS') == 'true' else False
         LDAP_AUTH_USE_STARTTLS= True if flask.current_app.config.get('LDAP_AUTH_USE_STARTTLS') == 'true' else False
+        LDAP_MATCHING_RULE_IN_CHAIN= True if flask.current_app.config.get('LDAP_MATCHING_RULE_IN_CHAIN') == 'true' else False
         LDAP_AUTH_TLS_VERSION= ssl.PROTOCOL_TLSv1_2 if flask.current_app.config.get('LDAP_AUTH_TLS_VERSION') == '1.2' else ssl.PROTOCOL_TLSv1
         LDAP_AUTH_VALIDATE_CERT= ssl.CERT_REQUIRED if flask.current_app.config.get('LDAP_AUTH_VALIDATE_CERT') == 'true' else ssl.CERT_NONE
         LDAP_AUTH_CIPHER=  flask.current_app.config.get('LDAP_AUTH_CIPHER') if flask.current_app.config.get('LDAP_AUTH_CIPHER') is not None else 'ECDHE-RSA-AES256-SHA384'
@@ -73,20 +74,36 @@ def ldapValidateCredentials(username, password):
 
         connection.bind()         
         print(f'LDAP bind: {connection.result["description"]}')  # "success" if bind is ok
-        searchString = f'(&(objectclass={LDAP_USER_CLASS})({LDAP_USER_ID_ATTRIBUTE}={escape_filter_chars(username)}))'
-        connection.search(LDAP_SEARCH_BASE, searchString, attributes=[LDAP_USER_NAME_ATTRIBUTE, LDAP_USER_GROUPS_ATTRIBUTE])
-        if (len(connection.entries) != 1) :
-             print(f'Unexpected number of Results on ldap query {len(connection.entries)}', file=sys.stderr, flush=True)
-             return {'bind': False} 
-        else :
-            userInfo = connection.entries[0]
-            userGroups = userInfo[LDAP_USER_GROUPS_ATTRIBUTE]
-            groupMapping = next((x for x in LDAP_GROUP_MAP if x['ldapGroup'] in userGroups), None)
-            if (groupMapping != None) :
-                return {'bind': True, 'name': str(userInfo.name), 'warpGroup': groupMapping['warpGroup']}
+        if (connection.result['description'] == "invalidCredentials") :
+            return {'bind': False}
+
+        if (LDAP_MATCHING_RULE_IN_CHAIN):   # Servers supporting LDAP_MATCHING_RULE_IN_CHAIN check is done in groups and nested groups
+            # Check Groups on Active directory
+            for groupMap in LDAP_GROUP_MAP:
+	        # Search on groups and subgroups for 
+                searchString = f'(&(objectclass={LDAP_USER_CLASS})({LDAP_USER_ID_ATTRIBUTE}={escape_filter_chars(username)})({LDAP_USER_GROUPS_ATTRIBUTE}:1.2.840.113556.1.4.1941:={groupMap["ldapGroup"]}))'
+                connection.search(LDAP_SEARCH_BASE, searchString, attributes=[LDAP_USER_NAME_ATTRIBUTE, LDAP_USER_GROUPS_ATTRIBUTE])
+                if (len(connection.entries) == 1) :
+                     userInfo = connection.entries[0]
+                     return {'bind': True, 'name': str(userInfo.name), 'warpGroup': groupMap['warpGroup']}
+        else :                              # Servers not supporting LDAP_MATCHING_RULE_IN_CHAIN check is done by users direct groups only
+            searchString = f'(&(objectclass={LDAP_USER_CLASS})({LDAP_USER_ID_ATTRIBUTE}={escape_filter_chars(username)}))'
+            connection.search(LDAP_SEARCH_BASE, searchString, attributes=[LDAP_USER_NAME_ATTRIBUTE, LDAP_USER_GROUPS_ATTRIBUTE])
+            if (len(connection.entries) != 1) :
+                 print(f'Unexpected number of Results on ldap query {len(connection.entries)}', file=sys.stderr, flush=True)
+                 return {'bind': False} 
             else :
-                print("User is not in authorithed groups: "+ username)
-                return {'bind': False}
+                userInfo = connection.entries[0]
+                userGroups = userInfo[LDAP_USER_GROUPS_ATTRIBUTE]
+                groupMapping = next((x for x in LDAP_GROUP_MAP if x['ldapGroup'] in userGroups), None)
+                if (groupMapping != None) :
+                    return {'bind': True, 'name': str(userInfo.name), 'warpGroup': groupMapping['warpGroup']}
+                else :
+                    print("User is not in authorithed groups: "+ username)
+                    return {'bind': False}
+
+            print("User is not in authorithed groups: "+ username)
+            return {'bind': False}
 		
     except LDAPException as e:
         print("Error login as ("+username+"): " + str(e))
