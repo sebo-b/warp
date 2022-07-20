@@ -170,9 +170,9 @@ It is possible to exclude some users from using LDAP auth by adding them to *WAR
 
  **Configuration enviroment variables:**
 - WARP_AUTH_LDAP: True
-- LDAP_MATCHING_RULE_IN_CHAIN: Set ti True for Active Directory or any LDAP supporting "LDAP_MATCHING_RULE_IN_CHAIN" (default is false). When enabled nested groups are considered.
-- WARP_LDAP_EXCLUDED_USERS: array of users login that use database auth. 
-- WARP_LDAP_GROUP_MAP: mapping between LDAP group and default asigned group on 
+- LDAP_MATCHING_RULE_IN_CHAIN: Set to True for Active Directory or any LDAP supporting "LDAP_MATCHING_RULE_IN_CHAIN" (default is false). When enabled nested groups are considered when looking for group mapping.
+- WARP_LDAP_EXCLUDED_USERS: array of users login that are excluded form LDAP login (password stored on warp DB).
+- WARP_LDAP_GROUP_MAP: mapping between LDAP group and default asigned group on WARP.
 - WARP_LDAP_USER_CLASS: LDAP user objectclass. Order is important as only one group is assigned. First match is used.
 - WARP_LDAP_USER_ID_ATTRIBUTE: Attribute to compare with login
 - WARP_LDAP_USER_NAME_ATTRIBUTE: Attribute used to obtain name of the automatically created user on warp. 
