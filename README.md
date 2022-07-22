@@ -162,7 +162,7 @@ Supported configurations to connect LDAP server are:
 - **LDAP protocol:** *LDAP* or *LDAPS*. It is not recommend to use LDAP plain connections, on production enviroments.
 - **Authentication mechanims:** *SIMPLE* or *NTLM v2*.
 
-To enable LDAP auth set *WARP_AUTH_LDAP* env variable to *True*. WARP will check user login and password via LDAP bind action and the list of authorithed groups (see *WARP_LDAP_GROUP_MAP* env variable). If Bind acction succed and user belongs to authorized groups login is allowed. 
+To enable LDAP auth set *WARP_AUTH_LDAP* env variable to *'true'*. When enabled WARP will check user login and password via LDAP bind action and the list of authorithed groups (see *WARP_LDAP_GROUP_MAP* env variable). If Bind acction succedd and user belongs to authorized groups login is allowed. 
 
 Authorization is managed by adding user, on first login, to WARP auth database and assign the WARP group defined by *WARP_LDAP_GROUP_MAP*. 
 
@@ -170,13 +170,12 @@ It is possible to exclude some users from using LDAP auth by adding them to *WAR
 
  **Configuration enviroment variables:**
 - WARP_AUTH_LDAP: True
-- LDAP_MATCHING_RULE_IN_CHAIN: Set to True for Active Directory or any LDAP supporting "LDAP_MATCHING_RULE_IN_CHAIN" (default is false). When enabled nested groups are considered when looking for group mapping.
-- WARP_LDAP_EXCLUDED_USERS: array of users login that are excluded form LDAP login (password stored on warp DB).
-- WARP_LDAP_GROUP_MAP: mapping between LDAP group and default asigned group on WARP.
-- WARP_LDAP_USER_CLASS: LDAP user objectclass. Order is important as only one group is assigned. First match is used.
-- WARP_LDAP_USER_ID_ATTRIBUTE: Attribute to compare with login
-- WARP_LDAP_USER_NAME_ATTRIBUTE: Attribute used to obtain name of the automatically created user on warp. 
-- WARP_LDAP_USER_GROUPS_ATTRIBUTE: attribute of the LDAP user contaning group list.
+- WARP_LDAP_EXCLUDED_USERS: array of users login that are excluded form LDAP auth (to check login of this users Warp use password stored on warp DB).
+- WARP_LDAP_GROUP_MAP: Array of mapping between LDAP group and default asigned group on WARP. Order is important as only one group is assigned. First match is used.
+- WARP_LDAP_USER_CLASS: LDAP user objectclass.
+- WARP_LDAP_USER_ID_ATTRIBUTE: LDAP directory attribute to be compare with login.
+- WARP_LDAP_USER_NAME_ATTRIBUTE: LDAP directory attribute used to obtain name for the automatically created user on warp DB. 
+- WARP_LDAP_USER_GROUPS_ATTRIBUTE: LDAP directory attribute contaning group list.
 - WARP_LDAP_SEARCH_BASE: Base domain name to locate user and groups
 - WARP_LDAP_AUTH_SERVER: yourServerName/Ip    
 - WARP_LDAP_AUTH_SERVER_PORT: LDAP/LDAPS server port 
@@ -186,6 +185,7 @@ It is possible to exclude some users from using LDAP auth by adding them to *WAR
 - WARP_LDAP_AUTH_VALIDATE_CERT: *False* for non certificate validation not defined or True for Certificate validation.
 - WARP_LDAP_AUTH_TYPE: NTLM/SIMPLE 
 - WARP_LDAP_AUTH_NTLM_DOMAIN: NTLM domain name is the prefix used for the login name when NTLM AUTH is enabled *DomainName\loginname*
+- LDAP_MATCHING_RULE_IN_CHAIN: Set to 'true' to include nested groups on ldap group search. For Active Directory set to 'true'. On other LDAP implementation check if your ldap implementation supports [*LDAP_MATCHING_RULE_IN_CHAIN*|https://ldapwiki.com/wiki/LDAP_MATCHING_RULE_IN_CHAIN].  
   
   **Sample values:**
     ```
