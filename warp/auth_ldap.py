@@ -86,24 +86,22 @@ def ldapValidateCredentials(username, password):
                 if (len(connection.entries) == 1) :
                      userInfo = connection.entries[0]
                      return {'bind': True, 'name': str(userInfo.name), 'warpGroup': groupMap['warpGroup']}
+            print("User is not in authorithed groups: "+ username)
+            return {'bind': False}
         else :                              # Servers not supporting LDAP_MATCHING_RULE_IN_CHAIN check is done by users direct groups only
             searchString = f'(&(objectclass={LDAP_USER_CLASS})({LDAP_USER_ID_ATTRIBUTE}={escape_filter_chars(username)}))'
             connection.search(LDAP_SEARCH_BASE, searchString, attributes=[LDAP_USER_NAME_ATTRIBUTE, LDAP_USER_GROUPS_ATTRIBUTE])
-            if (len(connection.entries) != 1) :
-                 print(f'Unexpected number of Results on ldap query {len(connection.entries)}', file=sys.stderr, flush=True)
-                 return {'bind': False} 
-            else :
+            if (len(connection.entries) == 1) :
                 userInfo = connection.entries[0]
                 userGroups = userInfo[LDAP_USER_GROUPS_ATTRIBUTE]
                 groupMapping = next((x for x in LDAP_GROUP_MAP if x['ldapGroup'] in userGroups), None)
                 if (groupMapping != None) :
                     return {'bind': True, 'name': str(userInfo.name), 'warpGroup': groupMapping['warpGroup']}
-                else :
-                    print("User is not in authorithed groups: "+ username)
-                    return {'bind': False}
-
-            print("User is not in authorithed groups: "+ username)
-            return {'bind': False}
+                print("User is not in authorithed groups: "+ username)
+                return {'bind': False}
+            else :
+                print(f'Unexpected number of Results on ldap query {len(connection.entries)}', file=sys.stderr, flush=True)
+                return {'bind': False} 
 		
     except LDAPException as e:
         print("Error login as ("+username+"): " + str(e))
