@@ -85,7 +85,7 @@ def ldapValidateCredentials(username, password):
                 connection.search(LDAP_SEARCH_BASE, searchString, attributes=[LDAP_USER_NAME_ATTRIBUTE, LDAP_USER_GROUPS_ATTRIBUTE])
                 if (len(connection.entries) == 1) :
                      userInfo = connection.entries[0]
-                     return {'bind': True, 'name': str(userInfo.name), 'warpGroup': groupMap['warpGroup']}
+                     return {'bind': True, 'name': str(userInfo[LDAP_USER_NAME_ATTRIBUTE]), 'warpGroup': groupMap['warpGroup']}
             print("User is not in authorithed groups: "+ username)
             return {'bind': False}
         else :                              # Servers not supporting LDAP_MATCHING_RULE_IN_CHAIN check is done by users direct groups only
@@ -96,7 +96,7 @@ def ldapValidateCredentials(username, password):
                 userGroups = userInfo[LDAP_USER_GROUPS_ATTRIBUTE]
                 groupMapping = next((x for x in LDAP_GROUP_MAP if x['ldapGroup'] in userGroups), None)
                 if (groupMapping != None) :
-                    return {'bind': True, 'name': str(userInfo.name), 'warpGroup': groupMapping['warpGroup']}
+                    return {'bind': True, 'name': str(userInfo[LDAP_USER_NAME_ATTRIBUTE]), 'warpGroup': groupMapping['warpGroup']}
                 print("User is not in authorithed groups: "+ username)
                 return {'bind': False}
             else :
@@ -116,6 +116,7 @@ def ldapLogin(login, password):
 
     LDAP_USER_NAME_ATTRIBUTE = flask.current_app.config.get('LDAP_USER_NAME_ATTRIBUTE')
     userInfo=ldapValidateCredentials(login, password)
+    print("Data: "+str(userInfo))
 
     if userInfo['bind']:
         c = Users.select(Users.name).where(Users.login == login).scalar()
@@ -123,7 +124,7 @@ def ldapLogin(login, password):
             with DB.atomic():
                 Users.insert({
                     Users.login: login,
-                    Users.name: userInfo[LDAP_USER_NAME_ATTRIBUTE] ,
+                    Users.name: userInfo['name'] ,
                     Users.account_type: ACCOUNT_TYPE_USER,
                     Users.password: 'Passin LDAP server'
                 }).execute()
