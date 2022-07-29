@@ -28,7 +28,7 @@ warpGlobals.i18n.tabulatorLangs = {
         "columns":{
         },
         "data":{
-			"loading":"Läd",   //just spinner is shown
+			"loading":"",   //just spinner is shown
 			"error":"Error",
         },
         "pagination":{
