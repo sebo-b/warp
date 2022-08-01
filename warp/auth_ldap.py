@@ -73,8 +73,9 @@ def ldapValidateCredentials(username, password):
             return {'bind': False} 
 
         connection.bind()         
-        print(f'LDAP bind: {connection.result["description"]}')  # "success" if bind is ok
-        if (connection.result['description'] == "invalidCredentials") :
+        # print(f'LDAP bind: {connection.result["description"]}')  # "success" if bind is ok
+        if (connection.result['description'] == "invalidCredentials") :            
+            print("LDAP auth invalidCredentials for ("+username+")")
             return {'bind': False}
 
         if (LDAP_MATCHING_RULE_IN_CHAIN):   # Servers supporting LDAP_MATCHING_RULE_IN_CHAIN check is done in groups and nested groups
@@ -116,8 +117,7 @@ def ldapLogin(login, password):
 
     LDAP_USER_NAME_ATTRIBUTE = flask.current_app.config.get('LDAP_USER_NAME_ATTRIBUTE')
     userInfo=ldapValidateCredentials(login, password)
-    print("Data: "+str(userInfo))
-
+    
     if userInfo['bind']:
         c = Users.select(Users.name).where(Users.login == login).scalar()
         if c is None:
