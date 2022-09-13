@@ -157,7 +157,6 @@ def login():
         p =  flask.request.form.get('password')
         AUTH_LDAP =  True if flask.current_app.config.get('AUTH_LDAP') == 'true' else False
         LDAP_EXCLUDED_USERS=flask.current_app.config.get('LDAP_EXCLUDED_USERS') or []
-        print (LDAP_EXCLUDED_USERS)
         if AUTH_LDAP and u not in LDAP_EXCLUDED_USERS :
             if ldapLogin(u,p) :
                 return flask.redirect(flask.url_for('view.index'))
