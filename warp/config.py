@@ -3,9 +3,10 @@ import os
 
 __all__ = ['initConfig']
 
+
 class DefaultSettings(object):
 
-    LANGUAGE_FILE="i18n/en.js"
+    LANGUAGE_FILE = "i18n/en.js"
 
     # after how many days force user to re-login (note that it is not a session timeout)
     SESSION_LIFETIME = 1
@@ -36,6 +37,11 @@ class DefaultSettings(object):
     # DATABASE_ARGS
     # AUTH_MELLON
     # MELLON_ENDPOINT
+    # AUTH_GOOGLE
+    # GOOGLE_AUTH_REDIRECT_URI
+    # GOOGLE_CLIENT_ID
+    # GOOGLE_CLIENT_SECRET
+
 
 class DevelopmentSettings(DefaultSettings):
 
@@ -59,26 +65,34 @@ class ProductionSettings(DefaultSettings):
     #MELLON_ENDPOINT = "/sp"
     #MELLON_DEFAULT_GROUP = "everybody"
 
+    # use Google for authentication
+    # AUTH_GOOGLE = False
+    # GOOGLE_AUTH_REDIRECT_URI = "http://127.0.0.1/google/auth"
+    # GOOGLE_BASE_URI = "http://127.0.0.1:5000"
+    # GOOGLE_CLIENT_ID = 'YOUR_GOOOGLE_CLIENT_ID'
+    # GOOGLE_CLIENT_SECRET = 'YOUR_GOOOGLE_CLIENT_SECRET'
+    # GOOGLE_DEFAULT_GROUP = "everybody"
+
     # this is intentionally empty, as in production
     # DATABASE and SECRET_KEY should be passed via ENV
     # as WARP_SECRET_KEY and WARP_DATABASE
     pass
 
+
 def readEnvironmentSettings(app):
 
-    PREFIX="WARP_"
+    PREFIX = "WARP_"
 
     res = {}
-    for key,val in os.environ.items():
+    for key, val in os.environ.items():
         if key.startswith(PREFIX):
-            if val.startswith(('{','[')):
+            if val.startswith(('{', '[')):
                 val = json.loads(val)
-            elif isinstance(app.config.get(key.removeprefix(PREFIX)),int):
+            elif isinstance(app.config.get(key.removeprefix(PREFIX)), int):
                 val = int(val)
             res[key.removeprefix(PREFIX)] = val
 
     app.config.update(res)
-
 
 
 def initConfig(app):
@@ -90,7 +104,9 @@ def initConfig(app):
 
     readEnvironmentSettings(app)
 
-    if app.config.get('SECRET_KEY',None) is None:
-        raise Exception('SECRET_KEY must be defined or passed via WARP_SECRET_KEY environment variable')
-    if app.config.get('DATABASE',None) is None:
-        raise Exception('DATABASE must be defined or passed via WARP_DATABASE environment variable')
+    if app.config.get('SECRET_KEY', None) is None:
+        raise Exception(
+            'SECRET_KEY must be defined or passed via WARP_SECRET_KEY environment variable')
+    if app.config.get('DATABASE', None) is None:
+        raise Exception(
+            'DATABASE must be defined or passed via WARP_DATABASE environment variable')

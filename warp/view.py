@@ -1,3 +1,4 @@
+from . import auth_google
 import flask
 
 from warp.db import *
@@ -48,7 +49,12 @@ def headerDataInit():
 
 @bp.route("/")
 def index():
-    return flask.render_template('index.html')
+    user_info = None
+    if auth_google.is_logged_in():
+        user_info = auth_google.get_user_info()
+
+    return flask.render_template('index.html', user_info=user_info)
+
 
 @bp.route("/bookings/<string:report>")
 @bp.route("/bookings", defaults={"report": "" })
