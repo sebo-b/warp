@@ -97,6 +97,7 @@ def ldapValidateCredentials(username, password):
                 userGroups = userInfo[LDAP_USER_GROUPS_ATTRIBUTE]
                 groupMapping = next((x for x in LDAP_GROUP_MAP if x['ldapGroup'] in userGroups), None)
                 if (groupMapping != None) :
+                    print("User " + username + " matched warpGroup " + groupMapping['warpGroup'])
                     return {'bind': True, 'name': str(userInfo[LDAP_USER_NAME_ATTRIBUTE]), 'warpGroup': groupMapping['warpGroup']}
                 print("User is not in authorithed groups: "+ username)
                 return {'bind': False}
