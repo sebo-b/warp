@@ -190,7 +190,7 @@ Supported configurations to contact the LDAP server are:
   **Sample values:**
     ```
     WARP_AUTH_LDAP: 'true'
-    LDAP_MATCHING_RULE_IN_CHAIN: 'true'
+    WARP_LDAP_MATCHING_RULE_IN_CHAIN: 'true'
     WARP_LDAP_AUTH_TYPE: 'NTLM'  
     WARP_LDAP_AUTH_NTLM_DOMAIN: "Domain1"
     WARP_LDAP_EXCLUDED_USERS: '["admin"]'
