@@ -130,12 +130,16 @@ def ldapLogin(login, password):
                     Users.password: 'LDAP auto-imported user'
                 }).execute()
 
-                defaultGroup = userInfo['warpGroup'] 
-                if defaultGroup is not None:
+        defaultGroup = userInfo['warpGroup']
+        if defaultGroup is not None:
+            ug = Groups.select(Groups.group).where( (Groups.group == defaultGroup) & (Groups.login == login) ).scalar()
+            if ug is None:
+                with DB.atomic():
                     Groups.insert({
-                        Groups.group: defaultGroup,
-                        Groups.login: login
-                    }).execute()
+                            Groups.group: defaultGroup,
+                            Groups.login: login
+                        }).execute()
+
         
         flask.session['login'] = login
         flask.session['login_time'] = utils.now()
