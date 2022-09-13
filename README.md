@@ -185,7 +185,7 @@ Supported configurations to contact the LDAP server are:
 * WARP_LDAP_AUTH_VALIDATE_CERT: *False* for non certificate validation not defined or True for Certificate validation.
 * WARP_LDAP_AUTH_TYPE: NTLM/SIMPLE 
 * WARP_LDAP_AUTH_NTLM_DOMAIN: NTLM domain name is the prefix used for the login name when NTLM AUTH is enabled *DomainName\loginname*
-* LDAP_MATCHING_RULE_IN_CHAIN: Set to 'true' to include nested groups on ldap group search. For Active Directory set to 'true'. On other LDAP implementation check if your ldap implementation supports [LDAP_MATCHING_RULE_IN_CHAIN](https://ldapwiki.com/wiki/LDAP_MATCHING_RULE_IN_CHAIN).  
+* WARP_LDAP_MATCHING_RULE_IN_CHAIN: Set to 'true' to include nested groups on ldap group search. For Active Directory set to 'true'. On other LDAP implementation check if your ldap implementation supports [LDAP_MATCHING_RULE_IN_CHAIN](https://ldapwiki.com/wiki/LDAP_MATCHING_RULE_IN_CHAIN).  
   
   **Sample values:**
     ```
