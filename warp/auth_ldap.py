@@ -127,7 +127,7 @@ def ldapLogin(login, password):
                     Users.login: login,
                     Users.name: userInfo['name'] ,
                     Users.account_type: ACCOUNT_TYPE_USER,
-                    Users.password: 'Passin LDAP server'
+                    Users.password: 'LDAP auto-imported user'
                 }).execute()
 
                 defaultGroup = userInfo['warpGroup'] 
