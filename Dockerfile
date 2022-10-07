@@ -36,6 +36,9 @@ RUN python setup.py bdist_wheel -d wheel
 
 FROM python:3-slim
 WORKDIR /opt/warp
+RUN apt-get update && \
+  apt-get install --yes mime-support  && \
+  rm -rf /var/lib/apt/lists/*
 
 RUN \
     --mount=type=bind,from=compile-image,source=/opt/warp/debs,target=./debs \
