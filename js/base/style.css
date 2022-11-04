@@ -69,6 +69,7 @@ NAV {
 
 .book-as_container {
     display: none;
+    width: 100%;
 }
 
 .noUi-warp-connect {
@@ -127,6 +128,7 @@ NAV {
     overflow: auto;
     padding: 10px;
     z-index: 1;
+    width: 260px;
 }
 
 .zone_sidepanel_close {
@@ -146,11 +148,11 @@ NAV {
 }
 
 .zone_datepicker {
-    width: 260px;
     border: 1px solid gray;
     border-radius: 5px;
     padding-left: 5px;
-    color: gray;
+    padding-top: 10px;
+    padding-bottom: 10px;
     cursor: pointer;
 }
 
@@ -159,6 +161,16 @@ NAV {
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
+}
+
+.zone_remove_date_button {
+    color: rgb(125, 25, 25);
+    background-color: rgb(252, 187, 187);
+    border-radius: 5px;
+    -webkit-box-shadow: 5px 5px 15px 1px rgba(0,0,0,0.3); 
+    box-shadow: 5px 5px 15px 1px rgba(0,0,0,0.3);
+    border: 1px solid rgb(125, 25, 25);
+    cursor: pointer;
 }
 
 .zonemap_datetime_trigger {

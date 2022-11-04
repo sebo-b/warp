@@ -8,15 +8,15 @@ import BookAs from './modules/bookas.js';
 
 import "./css/zone/nouislider_materialize.scss";
 
-const dateList = [];
+let dateList = [];
 let seatFactory;
 
 
 function downloadSeatData(seatFactory) {
 
-    var url = window.warpGlobals.URLs['getSeat'];
+    let url = window.warpGlobals.URLs['getSeat'];
 
-    var login = seatFactory.getLogin();
+    let login = seatFactory.getLogin();
     if (login !== window.warpGlobals.login)
         url += "?login=" + login;
 
@@ -31,7 +31,7 @@ function downloadSeatData(seatFactory) {
 
 function getSelectedDates() {
 
-    var res = [];
+    const res = [];
 
     for(let i = 0; i < dateList.length; i++) {
         let dateStart = new Date(dateList[i]);
@@ -48,23 +48,28 @@ function getSelectedDates() {
 }
 
 function handleOnClickDatePicker() {
-    dateList.push(this.value);
+    if(!dateList.includes(this.value)) {
+        dateList.push(this.value);
+    }
+
     renderSelectedDates();
 }
 
 function renderSelectedDates() {
     let container = document.getElementById("selectedDates");
-    clearSelecteDates();
+    clearSelectedDates();
     dateList.sort();
     for(let i = 0; i < dateList.length; i++) {
         const dateEntryContainer = document.createElement("div");
-        dateEntryContainer.classList = "zone_date_entry_ontainer";
+        dateEntryContainer.classList = "zone_date_entry_container browser-default";
 
         const datetag = document.createElement("p");
-        datetag.innerText = dateList[i];
+        datetag.innerText = new Date(dateList[i]).toLocaleDateString("de-DE", { weekday: 'short', day: '2-digit', month: '2-digit', year: "numeric" });
 
         const removeDateButton = document.createElement("button");
+        removeDateButton.classList = "zone_remove_date_button";
         removeDateButton.innerText = "Entfernen";
+        removeDateButton.onclick = () => removeDateEntry(dateList[i]);
 
         dateEntryContainer.appendChild(datetag);
         dateEntryContainer.appendChild(removeDateButton);
@@ -75,21 +80,27 @@ function renderSelectedDates() {
 
 function initDatePicker() {
     const datepicker = document.getElementById("datepicker");
-    const numWeeks = 1;
+    const numOfWeeks = 1;
     const today = new Date();
     datepicker.addEventListener("change", handleOnClickDatePicker, false);
     datepicker.value = today.getDate();
-    datepicker.min = today.getDate();
-    datepicker.max = today.setDate(today.getDate() + numWeeks * 7);
+    datepicker.min = today.toISOString().split("T")[0];
+    datepicker.max = new Date(today.setDate(today.getDate() + numOfWeeks * 7)).toISOString().split("T")[0];
 
     return datepicker;
 } 
 
-function clearSelecteDates() {
+function clearSelectedDates() {
     let container = document.getElementById("selectedDates");
     while(container.childElementCount > 0) {
         container.removeChild(container.firstElementChild);
     }
+}
+
+function removeDateEntry(datestring) {
+    dateList = dateList.filter((elem) => elem !== datestring );
+    renderSelectedDates();
+    
 }
 
 
@@ -105,22 +116,22 @@ function initSeats() {
 
 function initSeatPreview(seatFactory) {
 
-    var zoneMap = document.getElementById("zonemap");
+    const zoneMap = document.getElementById("zonemap");
 
     seatFactory.on( 'mouseover', function() {
 
-        var previewDiv = document.createElement("div");
+        const previewDiv = document.createElement("div");
         previewDiv.className = 'seat_preview';
 
-        var previewTitle = previewDiv.appendChild(document.createElement("div"));
+        let previewTitle = previewDiv.appendChild(document.createElement("div"));
         previewTitle.innerText = TR("Seat %{seat_name}",{seat_name: this.getName()});
         previewTitle.className = "seat_preview_title";
 
         // position of the frame
-        var pands = this.getPositionAndSize();
+        const pands = this.getPositionAndSize();
 
-        var parentWidth = zoneMap.clientWidth;
-        var clientPosX = pands.x - zoneMap.scrollLeft;
+        let parentWidth = zoneMap.clientWidth;
+        let clientPosX = pands.x - zoneMap.scrollLeft;
 
         if (clientPosX < parentWidth / 2) {
             previewDiv.style.right = "";
@@ -131,8 +142,8 @@ function initSeatPreview(seatFactory) {
             previewDiv.style.right = (parentWidth - pands.x - pands.size * 0.30) + "px";
         }
 
-        var parentHeight = zoneMap.clientHeight;
-        var clientPosY = pands.y;
+        let parentHeight = zoneMap.clientHeight;
+        let clientPosY = pands.y;
 
         if (clientPosY < parentHeight / 2) {
             previewDiv.style.top = (pands.y + pands.size * 0.70) + "px";
@@ -144,31 +155,31 @@ function initSeatPreview(seatFactory) {
         }
 
         // content of the frame
-        var assignments = Object.values(this.getAssignments());
+        let assignments = Object.values(this.getAssignments());
         if (assignments.length) {
 
-            var header = previewDiv.appendChild(document.createElement("span"));
+            let header = previewDiv.appendChild(document.createElement("span"));
             header.appendChild(document.createTextNode(TR("Assigned to:")));
             header.className = "seat_preview_header";
 
-            var table =  previewDiv.appendChild(document.createElement("table"));
+            let table =  previewDiv.appendChild(document.createElement("table"));
             for (let a of assignments) {
-                var tr = table.appendChild( document.createElement("tr"));
+                let tr = table.appendChild( document.createElement("tr"));
                 tr.appendChild( document.createElement("td")).appendChild( document.createTextNode(a));
             }
         }
 
-        var bookings = this.getBookings();
+        let bookings = this.getBookings();
         if (bookings.length) {
 
-            var header = previewDiv.appendChild(document.createElement("span"))
+            let header = previewDiv.appendChild(document.createElement("span"))
             header.appendChild(document.createTextNode(TR("Bookings:")));
             header.className = "seat_preview_header";
 
-            var table =  previewDiv.appendChild(document.createElement("table"));
-            var maxToShow = 8;
+            let table =  previewDiv.appendChild(document.createElement("table"));
+            let maxToShow = 8;
 
-            for (var b of bookings) {
+            for (let b of bookings) {
 
                 if (maxToShow-- == 0) {
                     b.datetime1 = "...";
@@ -176,7 +187,7 @@ function initSeatPreview(seatFactory) {
                     b.username = "";
                 }
 
-                var tr = table.appendChild( document.createElement("tr"));
+                let tr = table.appendChild( document.createElement("tr"));
                 tr.appendChild( document.createElement("td")).innerText = b.datetime1;
                 tr.appendChild( document.createElement("td")).innerText = b.datetime2;
                 tr.appendChild( document.createElement("td")).innerText = b.username;
@@ -190,8 +201,8 @@ function initSeatPreview(seatFactory) {
     });
 
     seatFactory.on( 'mouseout', function() {
-        var previewDivs = document.getElementsByClassName('seat_preview');
-        for (var d of previewDivs) {
+        let previewDivs = document.getElementsByClassName('seat_preview');
+        for (let d of previewDivs) {
             d.remove();
         }
     });
@@ -200,38 +211,38 @@ function initSeatPreview(seatFactory) {
 
 function initAssignedSeatsModal(seat) {
 
-    var assignModalEl = document.getElementById("assigned_seat_modal");
+    let assignModalEl = document.getElementById("assigned_seat_modal");
     if (!assignModalEl || typeof(ZoneUserData) === 'undefined')
         return null;
 
-    var assignModal = M.Modal.getInstance(assignModalEl);
+    let assignModal = M.Modal.getInstance(assignModalEl);
     if (!assignModal) {
         assignModal = M.Modal.init(assignModalEl, {});
     }
 
-    var zoneUserData = ZoneUserData.getInstance();
+    let zoneUserData = ZoneUserData.getInstance();
 
-    var chipsEl = document.getElementById('assigned_seat_chips');
+    let chipsEl = document.getElementById('assigned_seat_chips');
 
-    var chipsOptions;
-    var chips = M.Chips.getInstance(chipsEl);
+    let chipsOptions;
+    let chips = M.Chips.getInstance(chipsEl);
     if (chips) {
         chipsOptions = chips.options;
         chips.destroy(); // we have to recreate chips instance to clean up all chips inside
     }
     else {
 
-        var onChipApp = function(chip) {
+        let onChipApp = function(chip) {
 
-            var i = this.chipsData.length - 1;  // chips are always pushed
-            var t = this.chipsData[i].tag;
+            let i = this.chipsData.length - 1;  // chips are always pushed
+            let t = this.chipsData[i].tag;
 
             if (!(t in this.autocomplete.options.data)) {
                 this.deleteChip(i);
             }
         }
 
-        var chipsAutocompleteData = {};
+        let chipsAutocompleteData = {};
         for (let d of zoneUserData.formatedIterator()) {
             chipsAutocompleteData[ d] = null;
         }
@@ -252,7 +263,7 @@ function initAssignedSeatsModal(seat) {
 
     chips = M.Chips.init(chipsEl, chipsOptions);
 
-    var assignments = seat.getAssignments();
+    let assignments = seat.getAssignments();
     for (let login in assignments) {
         chips.addChip({tag: ZoneUserData.makeUserStr(login,assignments[login])})
     }
@@ -265,28 +276,28 @@ function initActionMenu(seatFactory) {
     if (window.warpGlobals.isZoneViewer)
         return;
 
-    var seat = null;    // used for passing seat to btn click events (closure)
+    let seat = null;    // used for passing seat to btn click events (closure)
                         // it is set at the end of seatFactory.on('click'
                         // it is used in actionBtn click event
                         // and it is reset (to release reference) in actionModal onCloseEnd event
 
     // init modal
-    var actionEl = document.getElementById('action_modal');
-    var actionModal =  M.Modal.init(actionEl);
+    let actionEl = document.getElementById('action_modal');
+    let actionModal =  M.Modal.init(actionEl);
 
     // register hooks
-    var actionBtns = document.getElementsByClassName('zone_action_btn');
+    let actionBtns = document.getElementsByClassName('zone_action_btn');
 
     seatFactory.on( 'click', function() {
 
-        var state = this.getState();
+        let state = this.getState();
 
         if (state == WarpSeat.SeatStates.NOT_AVAILABLE)
             return;
 
-        var actions = [];
-        var bookMsg = false;
-        var removeMsg = false;
+        let actions = [];
+        let bookMsg = false;
+        let removeMsg = false;
 
         switch (state) {
             case WarpSeat.SeatStates.CAN_BOOK:
@@ -324,7 +335,7 @@ function initActionMenu(seatFactory) {
 
         if (bookMsg) {
 
-            var bookDatesTable = document.createElement("table");
+            let bookDatesTable = document.createElement("table");
             for (let d of getSelectedDates()) {
                 let f = WarpSeatFactory._formatDatePair(d);
                 let tr = bookDatesTable.appendChild(document.createElement("tr"));
@@ -344,7 +355,7 @@ function initActionMenu(seatFactory) {
 
         if (removeMsg) {
 
-            var myConflictsTable = document.createElement("table");
+            let myConflictsTable = document.createElement("table");
             for (let c of seatFactory.getMyConflictingBookings()) {
                 let tr = myConflictsTable.appendChild(document.createElement("tr"));
                 tr.appendChild( document.createElement("td")).innerText = c.zone_name
@@ -367,33 +378,33 @@ function initActionMenu(seatFactory) {
                 btn.style.display = "none";
         }
 
-        //var actionElTitle = document.getElementById('action_modal_title');
+        //let actionElTitle = document.getElementById('action_modal_title');
         //actionElTitle.innerText = "Seat: "+this.getName();
 
         seat = this;
         actionModal.open();
     });
 
-    var actionBtnClicked = function(e) {
+    let actionBtnClicked = function(e) {
 
         // this is not a real action, it should just show modal
         // real action button is inside modal
         if (this.dataset.action == 'assign-modal') {
-            var assignModal = initAssignedSeatsModal(seat);
+            let assignModal = initAssignedSeatsModal(seat);
             document.getElementById('assigned_seat_chips').focus();
             assignModal.open();
             return;
         }
 
-        var applyData = {};
+        let applyData = {};
 
         if (this.dataset.action == "assign" && typeof(ZoneUserData) !== 'undefined') {
 
-            var chipsEl = document.getElementById('assigned_seat_chips');
-            var chips = M.Chips.getInstance(chipsEl);
+            let chipsEl = document.getElementById('assigned_seat_chips');
+            let chips = M.Chips.getInstance(chipsEl);
 
-            var logins = [];
-            for (var c of chips.getData()) {
+            let logins = [];
+            for (let c of chips.getData()) {
                 logins.push(ZoneUserData.makeUserStrRev(c.tag));
             }
 
@@ -430,7 +441,7 @@ function initActionMenu(seatFactory) {
             {toastOnSuccess: false})
         .then( (value) => {
 
-            var msg = "";
+            let msg = "";
 
             if (value.response.conflicts_in_disable) {
                 msg += TR("Seat is successfully disabled.<br>However there are existing reservations in the the next few weeks. " +
@@ -475,10 +486,10 @@ function initActionMenu(seatFactory) {
 // preserves states across pages
 function initDateSelectorStorage() {
 
-    var storage = window.sessionStorage;
+    let storage = window.sessionStorage;
 
     // restore values from session storage
-    var restoredSelections = storage.getItem('zoneSelections');
+    let restoredSelections = storage.getItem('zoneSelections');
     restoredSelections = restoredSelections? JSON.parse(restoredSelections): window.warpGlobals['defaultSelectedDates'];
 
     let cleanCBSelections = []; // used to clean up the list of checkboxes doesn't exist anymore
@@ -494,7 +505,7 @@ function initDateSelectorStorage() {
 function initShiftSelectDates() {
 
     // find lowest selected value
-    var lastSelectedValue = 0;
+    let lastSelectedValue = 0;
     for (let cb of document.getElementsByClassName('date_checkbox')) {
         if (cb.checked) {
             if (lastSelectedValue === 0)
@@ -504,13 +515,13 @@ function initShiftSelectDates() {
         }
     }
 
-    var cbClick = function(e) {
+    let cbClick = function(e) {
 
         if (e.shiftKey)
         {
-            var targetState = this.checked; // materialize has already changed the state
-            var minValue  = Math.min( parseInt(this.value), lastSelectedValue);
-            var maxValue  = Math.max( parseInt(this.value), lastSelectedValue);
+            let targetState = this.checked; // materialize has already changed the state
+            let minValue  = Math.min( parseInt(this.value), lastSelectedValue);
+            let maxValue  = Math.max( parseInt(this.value), lastSelectedValue);
 
             for (let cb of document.getElementsByClassName('date_checkbox')) {
                 if (parseInt(cb.value) >= minValue && parseInt(cb.value) <= maxValue) {
@@ -536,20 +547,20 @@ function initShiftSelectDates() {
 
 function initZoneHelp() {
 
-    var helpModalEl = document.getElementById('zonemap_help_modal');
-    var helpModal = M.Modal.init(helpModalEl);
+    let helpModalEl = document.getElementById('zonemap_help_modal');
+    let helpModal = M.Modal.init(helpModalEl);
 
-    var helpModalSpriteDivs = document.getElementsByClassName("help_modal_sprite");
+    let helpModalSpriteDivs = document.getElementsByClassName("help_modal_sprite");
     for (let d of helpModalSpriteDivs) {
         d.style.width = WarpSeat.Sprites.spriteSize + "px";
         d.style.height = WarpSeat.Sprites.spriteSize + "px";
         d.style.backgroundImage = 'url('+window.warpGlobals.URLs['seatSprite']+')';
 
-        var type = d.dataset.sprite + "Offset";
+        let type = d.dataset.sprite + "Offset";
         d.style.backgroundPositionX = WarpSeat.Sprites[type];
     }
 
-    var helpDiv = document.getElementsByClassName("zonemap_help");
+    let helpDiv = document.getElementsByClassName("zonemap_help");
     for (let d of helpDiv) {
         d.addEventListener('click', function() { helpModal.open(); } )
     }
@@ -559,7 +570,7 @@ function initZoneHelp() {
 
 function initZoneSidepanel() {
 
-    var el = document.getElementById('zone_sidepanel');
+    let el = document.getElementById('zone_sidepanel');
     M.Sidenav.init(el, {
         onCloseEnd: function(e) {
             e.style.transform = "";
@@ -571,7 +582,7 @@ function initBookAs(seatFactory) {
 
     BookAs.getInstance().on('change', function(newLogin) {
 
-        var url = window.warpGlobals.URLs['getSeat'] + "?onlyOtherZone=1&login=" + newLogin;
+        let url = window.warpGlobals.URLs['getSeat'] + "?onlyOtherZone=1&login=" + newLogin;
         Utils.xhr.get(url,{toastOnSuccess: false})
         .then( function(v) {
             seatFactory.updateLogin(newLogin, v.response);
@@ -589,7 +600,7 @@ document.addEventListener("DOMContentLoaded", function() {
     //initDateSelectorStorage();
     initShiftSelectDates();
     
-    var seatFactory = initSeats();
+    let seatFactory = initSeats();
     initSeatPreview(seatFactory);
     initActionMenu(seatFactory);
     initZoneHelp();
