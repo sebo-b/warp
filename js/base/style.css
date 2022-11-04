@@ -142,7 +142,23 @@ NAV {
 
 .zone_datetime_container {
     display: flex;
+    flex-direction: column;
+}
+
+.zone_datepicker {
+    width: 260px;
+    border: 1px solid gray;
+    border-radius: 5px;
+    padding-left: 5px;
+    color: gray;
+    cursor: pointer;
+}
+
+.zone_date_entry_container {
+    display: flex;
     flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .zonemap_datetime_trigger {
@@ -420,4 +436,12 @@ INPUT[type="text"] ~ .show_password_btn::after {
 @keyframes spinnerRotate {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
+}
+
+
+.flex-col {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    
 }

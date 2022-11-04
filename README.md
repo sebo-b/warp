@@ -117,11 +117,14 @@ $ popd
 
 # setup Flask and database URL
 $ export FLASK_APP=warp
-$ export FLASK_ENV=development
+# export FLASK_ENV=development //deprecated
+$ export FLASK_DEBUG=true
+#postgresql://username:password@server:port/database
 $ export WARP_DATABASE=postgresql://warp:warp@localhost:5432/warp
+$ export WARP_SECRET_KEY: 'mysecretkey'
 
 # run the app
-$ flash run
+$ flask run
 ```
 
 After that, open http://127.0.0.1:5000 in your browser and log in as `admin` with password `noneshallpass`.

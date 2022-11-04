@@ -6,8 +6,11 @@ import {WarpSeatFactory,WarpSeat} from './modules/seat.js';
 import ZoneUserData from './modules/zoneuserdata.js';
 import BookAs from './modules/bookas.js';
 
-import noUiSlider from 'nouislider';
 import "./css/zone/nouislider_materialize.scss";
+
+const dateList = [];
+let seatFactory;
+
 
 function downloadSeatData(seatFactory) {
 
@@ -27,69 +30,75 @@ function downloadSeatData(seatFactory) {
 }
 
 function getSelectedDates() {
-    var slider = document.getElementById('timeslider');
-    var times = slider.noUiSlider.get(true);
-
-    // if next day 00:00, move it one second back
-    if (times[1] == 24*3600)
-        times[1] = 24*3600-1;
 
     var res = [];
 
-    for (var e of document.getElementsByClassName('date_checkbox')) {
-        if (e.checked) {
-            res.push( {
-                fromTS: parseInt(e.value) + parseInt(times[0]),
-                toTS: parseInt(e.value) + parseInt(times[1])
-            });
-        }
-    };
+    for(let i = 0; i < dateList.length; i++) {
+        let dateStart = new Date(dateList[i]);
+        let dateEnd = new Date(dateList[i]);
+        dateStart.setHours(7);
+        dateEnd.setHours(19);
+        res.push( {
+            fromTS: dateStart.getTime(),
+            toTS: dateEnd.getTime()
+        });
+    }
 
     return res;
 }
 
-function initSlider() {
-
-    var slider = document.getElementById('timeslider');
-    noUiSlider.create(slider, {
-        start: window.warpGlobals['defaultSelectedDates'].slider,    //this later on can be anyway overwritten from session storage
-        connect: true,
-        behaviour: 'drag',
-        step: 15*60,
-        margin: 15*60,
-        orientation: 'vertical',
-        range: { 'min': 0, 'max': 24*3600 }
-    });
-
-    var minDiv = document.getElementById('timeslider-min');
-    var maxDiv = document.getElementById('timeslider-max');
-    slider.noUiSlider.on('update', function(values, handle, unencoded, tap, positions, noUiSlider) {
-        minDiv.innerText = new Date(unencoded[0]*1000).toISOString().substring(11,16)
-        maxDiv.innerText = unencoded[1] == 24*3600? "23:59": new Date(unencoded[1]*1000).toISOString().substring(11,16);
-    });
-
-    return slider;
+function handleOnClickDatePicker() {
+    dateList.push(this.value);
+    renderSelectedDates();
 }
+
+function renderSelectedDates() {
+    let container = document.getElementById("selectedDates");
+    clearSelecteDates();
+    dateList.sort();
+    for(let i = 0; i < dateList.length; i++) {
+        const dateEntryContainer = document.createElement("div");
+        dateEntryContainer.classList = "zone_date_entry_ontainer";
+
+        const datetag = document.createElement("p");
+        datetag.innerText = dateList[i];
+
+        const removeDateButton = document.createElement("button");
+        removeDateButton.innerText = "Entfernen";
+
+        dateEntryContainer.appendChild(datetag);
+        dateEntryContainer.appendChild(removeDateButton);
+        container.appendChild(dateEntryContainer);
+        seatFactory.updateAllStates(getSelectedDates());
+    }
+}
+
+function initDatePicker() {
+    const datepicker = document.getElementById("datepicker");
+    const numWeeks = 1;
+    const today = new Date();
+    datepicker.addEventListener("change", handleOnClickDatePicker, false);
+    datepicker.value = today.getDate();
+    datepicker.min = today.getDate();
+    datepicker.max = today.setDate(today.getDate() + numWeeks * 7);
+
+    return datepicker;
+} 
+
+function clearSelecteDates() {
+    let container = document.getElementById("selectedDates");
+    while(container.childElementCount > 0) {
+        container.removeChild(container.firstElementChild);
+    }
+}
+
 
 function initSeats() {
 
-    var seatFactory = new WarpSeatFactory(
+    seatFactory = new WarpSeatFactory(
         window.warpGlobals.URLs['seatSprite'],
         "zonemap",
         window.warpGlobals.login);
-
-    // register WarpSeats for updates
-    var updateSeatsView = function() {
-        var dates = getSelectedDates();
-        seatFactory.updateAllStates(dates);
-    }
-
-    var slider = document.getElementById('timeslider');
-    slider.noUiSlider.on('update', updateSeatsView);
-
-    for (var e of document.getElementsByClassName('date_checkbox')) {
-        e.addEventListener('change',updateSeatsView);
-    }
 
     return seatFactory;
 }
@@ -250,7 +259,6 @@ function initAssignedSeatsModal(seat) {
 
     return assignModal;
 }
-
 
 function initActionMenu(seatFactory) {
 
@@ -475,52 +483,11 @@ function initDateSelectorStorage() {
 
     let cleanCBSelections = []; // used to clean up the list of checkboxes doesn't exist anymore
 
-    // if nothing is selected, let's force default selection, hence 2 tries
-    for (let i = 0; i < 2; ++i) {
-
-        for (let cb of document.getElementsByClassName('date_checkbox')) {
-            let ts = parseInt(cb.value)
-            if (restoredSelections.cb.includes(ts)) {
-                cb.checked = true;
-                cleanCBSelections.push(ts);
-            }
-        }
-
-        if (cleanCBSelections.length)
-            break;
-
-        restoredSelections.cb = window.warpGlobals['defaultSelectedDates'].cb;
-    }
-
     restoredSelections.cb = cleanCBSelections;
-
-    var slider = document.getElementById('timeslider');
-    slider.noUiSlider.set(restoredSelections.slider);
 
     storage.setItem('zoneSelections', JSON.stringify(restoredSelections));
 
-    var cbChange = function(e) {
-        let zoneSelections = JSON.parse( storage.getItem('zoneSelections'));
 
-        let ts = parseInt(this.value);
-        if (this.checked)
-            zoneSelections.cb.push(ts);
-        else
-            zoneSelections.cb.splice( zoneSelections.cb.indexOf(ts), 1);
-
-        storage.setItem('zoneSelections', JSON.stringify(zoneSelections));
-    }
-
-    for (let cb of document.getElementsByClassName('date_checkbox'))
-        cb.addEventListener('change', cbChange);
-
-    slider.noUiSlider.on('update', function(values, handle, unencoded, tap, positions, noUiSlider) {
-
-        let zoneSelections = JSON.parse( storage.getItem('zoneSelections'));
-        zoneSelections.slider = values;
-        storage.setItem('zoneSelections', JSON.stringify(zoneSelections));
-
-    });
 
 }
 
@@ -616,21 +583,23 @@ function initBookAs(seatFactory) {
 }
 
 document.addEventListener("DOMContentLoaded", function() {
-
-    initSlider();
-    initDateSelectorStorage();
+    dateList.push(new Date().toLocaleDateString("fr-CA"))
+    
+    initDatePicker();
+    //initDateSelectorStorage();
     initShiftSelectDates();
-
+    
     var seatFactory = initSeats();
     initSeatPreview(seatFactory);
     initActionMenu(seatFactory);
     initZoneHelp();
     initZoneSidepanel();
-
+    
     downloadSeatData(seatFactory);
-
+    
     if (window.warpGlobals.isZoneAdmin) {
         ZoneUserData.init();
         initBookAs(seatFactory);
     }
+    renderSelectedDates();
 });
