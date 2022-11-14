@@ -189,7 +189,7 @@ warpGlobals.i18n.phrases = {
         "104": "You don't have required permissions in the zone. (%{code})",
         "105": "You don't have required permissions in the zone. (%{code})",
         "106": "Seat is not assigned to you. (%{code})",
-        "109": "Cannot book, the seat was already booked by someone else. (%{code})",
+        "109": "Cannot book, the seat was already booked by someone else or you already booked another seat for the current day. (%{code})",
     },
     "Are you sure to update the zone?": "Are you sure to update the zone?",
     "The following changes will be applied:<br>": "The following changes will be applied:<br>",

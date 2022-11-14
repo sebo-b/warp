@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
             container: document.body,
             autoClose: true,
             showClearBtn: true,
-            format: "yyyy-mm-dd",
+            format: "dd.mm.yyyy",
             onClose: function() {
                 success({
                     fromTS: fromDatePicker.value? Math.round(Date.parse(fromDatePicker.value)/1000): null,

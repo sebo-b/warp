@@ -113,7 +113,7 @@ function renderSelectedDates() {
         container.appendChild(dateEntryContainer);
         seatFactory.updateAllStates(getSelectedDates());
 
-        initCollapsibles();
+        //initCollapsibles();
     }
 }
 
@@ -243,7 +243,7 @@ function initSeatPreview(seatFactory) {
                 }
 
                 let tr = table.appendChild( document.createElement("tr"));
-                tr.appendChild( document.createElement("td")).innerText = b.datetime1;
+                tr.appendChild( document.createElement("td")).innerText = new Date(b.datetime1).toLocaleDateString("de-DE", { weekday: 'short', day: '2-digit', month: '2-digit', year: "numeric" });
                 tr.appendChild( document.createElement("td")).innerText = b.datetime2;
                 tr.appendChild( document.createElement("td")).innerText = b.username;
 
@@ -394,7 +394,9 @@ function initActionMenu(seatFactory) {
             for (let d of getSelectedDates()) {
                 let f = WarpSeatFactory._formatDatePair(d);
                 let tr = bookDatesTable.appendChild(document.createElement("tr"));
-                tr.appendChild( document.createElement("td")).innerText = f.datetime1;
+
+                //new Date(dateList[i]).toLocaleDateString("de-DE", { weekday: 'short', day: '2-digit', month: '2-digit', year: "numeric" })
+                tr.appendChild( document.createElement("td")).innerText = new Date(f.datetime1).toLocaleDateString("de-DE", { weekday: 'short', day: '2-digit', month: '2-digit', year: "numeric" });
                 tr.appendChild( document.createElement("td")).innerText = f.datetime2;
             }
 
@@ -415,7 +417,7 @@ function initActionMenu(seatFactory) {
                 let tr = myConflictsTable.appendChild(document.createElement("tr"));
                 tr.appendChild( document.createElement("td")).innerText = c.zone_name
                 tr.appendChild( document.createElement("td")).innerText = c.seat_name;
-                tr.appendChild( document.createElement("td")).innerText = c.datetime1;
+                tr.appendChild( document.createElement("td")).innerText = new Date(c.datetime1).toLocaleDateString("de-DE", { weekday: 'short', day: '2-digit', month: '2-digit', year: "numeric" });
                 tr.appendChild( document.createElement("td")).innerText = c.datetime2;
             }
 
@@ -504,7 +506,7 @@ function initActionMenu(seatFactory) {
                 let rList = [];
                 for (let r of value.response.conflicts_in_disable) {
                     let dateStr = WarpSeatFactory._formatDatePair(r);
-                    rList.push( r.username + "&nbsp;on&nbsp;" + dateStr.datetime1 + "&nbsp;" + dateStr.datetime2);
+                    rList.push( r.username + "&nbsp;on&nbsp;" + new Date(dateStr.datetime1).toLocaleDateString("de-DE", { weekday: 'short', day: '2-digit', month: '2-digit', year: "numeric" }) + "&nbsp;" + dateStr.datetime2);
                 }
                 msg += rList.join('<br>');
             }
@@ -515,7 +517,7 @@ function initActionMenu(seatFactory) {
                 let rList = [];
                 for (let r of value.response.conflicts_in_assign) {
                     let dateStr = WarpSeatFactory._formatDatePair(r);
-                    rList.push( r.username + "&nbsp;on&nbsp;" + dateStr.datetime1 + "&nbsp;" + dateStr.datetime2);
+                    rList.push( r.username + "&nbsp;on&nbsp;" + new Date(dateStr.datetime1).toLocaleDateString("de-DE", { weekday: 'short', day: '2-digit', month: '2-digit', year: "numeric" }) + "&nbsp;" + dateStr.datetime2);
                 }
                 msg += rList.join('<br>');
             }

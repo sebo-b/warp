@@ -294,11 +294,11 @@ def apply():
             return {"msg": "Forbidden", "code": 102 }, 403
 
     if 'book' in apply_data:
-
         if not flask.g.isAdmin:     # TODO: should admin be allowed to do that?
+            # b comes in ms and has to be converted to seconds
             for b in apply_data['book']['dates']:
-                if b['fromTS'] < ts["fromTS"] or b['fromTS'] > ts["toTS"] \
-                    or b['toTS'] < ts["fromTS"] or b['toTS'] > ts["toTS"]:
+                if b['fromTS']/1000 < ts["fromTS"] or b['fromTS']/1000 > ts["toTS"] \
+                    or b['toTS']/1000 < ts["fromTS"] or b['toTS']/1000 > ts["toTS"]:
                     return {"msg": "Forbidden", "code": 103}, 403
 
         sid = apply_data['book']['sid']
