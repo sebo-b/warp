@@ -158,9 +158,55 @@ NAV {
 
 .zone_date_entry_container {
     display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.zone_date_entry {
+    display: flex;
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
+    width: 100%;
+}
+
+.collabpsible {
+    background-color: #eee;
+  color: #444;
+  cursor: pointer;
+  width: 100%;
+  border: none !important;
+  text-align: left;
+  outline: none;
+  font-size: 15px;
+}
+
+.slot_container {
+    width: 100%;
+    display: none;
+    overflow: hidden;
+}
+
+.zone_checkbox_container {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    width: 100%;
+}
+
+.zone_checkbox {
+    opacity: 1 !important;
+    pointer-events: all !important;
+    position: initial !important;
+}
+
+[type=checkbox]:not(:checked), [type=checkbox]:checked {
+    opacity: 1 !important;
+    pointer-events: all !important;
+    position: initial !important;
+    margin-right: 1rem;
 }
 
 .zone_remove_date_button {

@@ -34,7 +34,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
         let cellValue = cell.getValue();
         if (cellValue) {
-            let ts = new Date(parseInt(cellValue)*1000);
+            let ts = new Date(parseInt(cellValue));
             picker.value = ts.toISOString().substring(0,10);
         }
 
@@ -43,7 +43,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     var tsFormatter = function(cell) {
         var data = cell.getValue();
-        var ts = new Date(parseInt(data)*1000);
+        var ts = new Date(parseInt(data));
 
         return ts.toISOString().substring(0,16).replace('T',' ');
     }
@@ -92,8 +92,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     var mergedTsFormatter = function(cell) {
         var data = cell.getRow().getData();
-        var fromTS = new Date(parseInt(data.fromTS)*1000);
-        var toTS = new Date(parseInt(data.toTS)*1000);
+        var fromTS = new Date(parseInt(data.fromTS));
+        var toTS = new Date(parseInt(data.toTS));
 
         var res =
             fromTS.toUTCString().substring(0,5)+

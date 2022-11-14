@@ -120,8 +120,9 @@ $ export FLASK_APP=warp
 # export FLASK_ENV=development //deprecated
 $ export FLASK_DEBUG=true
 #postgresql://username:password@server:port/database
-$ export WARP_DATABASE=postgresql://warp:warp@localhost:5432/warp
-$ export WARP_SECRET_KEY: 'mysecretkey'
+# old export WARP_DATABASE=postgresql://warp:warp@localhost:5432/warp
+$ export WARP_DATABASE=postgresql://flaskuser:postgres_password@localhost:5432/warp
+$ export WARP_SECRET_KEY='mysecretkey'
 
 # run the app
 $ flask run

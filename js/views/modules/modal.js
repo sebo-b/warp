@@ -51,6 +51,7 @@ export default function WarpModal() {
      * }
      **/
     this.open = function(header,content,options = null) {
+        console.log("content: ", content);
         this.headerElement.innerText = header;
         this.messageElement.innerHTML = content;
 

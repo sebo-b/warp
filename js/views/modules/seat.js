@@ -209,10 +209,10 @@ WarpSeatFactory.prototype.updateLogin = function(login, seatsData) {
 }
 
 WarpSeatFactory._formatDatePair = function(b) {
-
-    var fromStr = new Date(b.fromTS*1000).toISOString();
-    var toStr = new Date(b.toTS*1000).toISOString();
-
+    var fromStr = new Date(b.fromTS).toISOString();
+    var toStr = new Date(b.toTS).toISOString();
+    
+    console.log(fromStr);
     if (fromStr.substring(0,10) == toStr.substring(0,10)) {
         return {
             datetime1: fromStr.substring(0,10),

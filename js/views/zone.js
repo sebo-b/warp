@@ -10,6 +10,7 @@ import "./css/zone/nouislider_materialize.scss";
 
 let dateList = [];
 let seatFactory;
+let timeSlots = [{startTS: "8:00", endTS: "12:00"}, {startTS: "10:00", endTS: "14:00"}, {startTS: "14:00", endTS: "18:00"}]
 
 
 function downloadSeatData(seatFactory) {
@@ -43,7 +44,6 @@ function getSelectedDates() {
             toTS: dateEnd.getTime()
         });
     }
-
     return res;
 }
 
@@ -63,6 +63,9 @@ function renderSelectedDates() {
         const dateEntryContainer = document.createElement("div");
         dateEntryContainer.classList = "zone_date_entry_container browser-default";
 
+        const dateEntry = document.createElement("div");
+        dateEntry.classList = "zone_date_entry browser-default"
+
         const datetag = document.createElement("p");
         datetag.innerText = new Date(dateList[i]).toLocaleDateString("de-DE", { weekday: 'short', day: '2-digit', month: '2-digit', year: "numeric" });
 
@@ -71,10 +74,46 @@ function renderSelectedDates() {
         removeDateButton.innerText = "Entfernen";
         removeDateButton.onclick = () => removeDateEntry(dateList[i]);
 
-        dateEntryContainer.appendChild(datetag);
-        dateEntryContainer.appendChild(removeDateButton);
+        //slot options
+        // const collapsibleButton = document.createElement("button");
+        // collapsibleButton.classList="collapsible";
+        // collapsibleButton.innerText="Erweiterte Optionen";
+        // collapsibleButton.id = "collapsible" + i;
+
+        // const slotContainer = document.createElement("div");
+        // slotContainer.classList = "slot_container browser-default";
+
+        // for(let i = 0; i < timeSlots.length; i++) {
+
+        //             const slot = document.createElement("div");
+        //             slot.classList = "zone_checkbox_container";
+
+        //             const halfdayInput = document.createElement("input");
+        //             halfdayInput.type = "checkbox";
+        //             halfdayInput.name = "halfdayInput" + timeSlots[i].startTS;
+        //             halfdayInput.id = "halfdayInput" + timeSlots[i].startTS;
+        //             halfdayInput.value = timeSlots[i].startTS;
+        //             halfdayInput.classList = "checkbox browser-default"; 
+            
+        //             const halfdayInputLabel = document.createElement("label");
+        //             halfdayInputLabel.appendChild(document.createTextNode(timeSlots[i].startTS + " Uhr - " + timeSlots[i].endTS + " Uhr"));
+        //             halfdayInputLabel.htmlFor="halfdayInput" + timeSlots[i].startTS;
+
+        //             slot.appendChild(halfdayInput);
+        //             slot.appendChild(halfdayInputLabel);
+        //             slotContainer.appendChild(slot);
+
+        // }
+
+        dateEntry.appendChild(datetag);
+        dateEntry.appendChild(removeDateButton);
+        dateEntryContainer.appendChild(dateEntry);
+        //dateEntryContainer.appendChild(collapsibleButton);
+        //dateEntryContainer.appendChild(slotContainer);
         container.appendChild(dateEntryContainer);
         seatFactory.updateAllStates(getSelectedDates());
+
+        initCollapsibles();
     }
 }
 
@@ -89,6 +128,22 @@ function initDatePicker() {
 
     return datepicker;
 } 
+
+function initCollapsibles() {
+    var coll = document.getElementsByClassName("collapsible");
+
+    for (let i = 0; i < coll.length; i++) {
+        coll[i].addEventListener("click", function() {
+          this.classList.toggle("active");
+          var content = this.nextElementSibling;
+          if (content.style.display === "block") {
+            content.style.display = "none";
+          } else {
+            content.style.display = "block";
+          }
+        });
+      }
+}
 
 function clearSelectedDates() {
     let container = document.getElementById("selectedDates");
