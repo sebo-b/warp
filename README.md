@@ -119,7 +119,7 @@ $ popd
 $ export FLASK_APP=warp
 # export FLASK_ENV=development //deprecated
 $ export FLASK_DEBUG=true
-#postgresql://username:password@server:port/database
+# postgresql://username:password@server:port/database
 # old export WARP_DATABASE=postgresql://warp:warp@localhost:5432/warp
 $ export WARP_DATABASE=postgresql://flaskuser:postgres_password@localhost:5432/warp
 $ export WARP_SECRET_KEY='mysecretkey'
