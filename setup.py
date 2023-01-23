@@ -28,7 +28,7 @@ def getRequirements():
 setup(
     name='warp',
     packages=find_packages(),
-    version='2.0-rolling',
+    version='2.0.dev1',
     include_package_data=True,
     install_requires=getRequirements(),
 )
