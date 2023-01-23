@@ -4,7 +4,10 @@ ENV NODE_VER=16.3.0
 
 WORKDIR /opt/warp
 RUN apt-get update
-RUN mkdir debs && apt-get install -y -d --no-install-recommends libpq5 && cp /var/cache/apt/archives/*deb debs
+RUN mkdir debs && \
+    apt-get install -y -d --no-install-recommends libpq5 mime-support && \
+    cp /var/cache/apt/archives/*deb debs
+
 RUN \
     apt-get install -y wget && \
     NODE_ARCH=$(uname -m | sed 's/^x86_64\|amd64$/x64/;s/^i.*86$/x86/;s/^aarch64$/arm64/') && \
