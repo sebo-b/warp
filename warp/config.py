@@ -28,6 +28,20 @@ class DefaultSettings(object):
     # delay between retries
     DATABASE_INIT_RETRIES_DELAY = 2
 
+    # LDAP defaults
+    LDAP_USER_CLASS = "user"
+    WARP_LDAP_USER_ID_ATTRIBUTE = "uid"
+    WARP_LDAP_USER_NAME_ATTRIBUTE = "cn"
+    LDAP_AUTH_USE_LDAPS = False
+    LDAP_AUTH_USE_STARTTLS = False
+    LDAP_MATCHING_RULE_IN_CHAIN = False
+    LDAP_USER_GROUPS_ATTRIBUTE = "memberOf"
+    LDAP_AUTH_TLS_VERSION = "1.2"
+    LDAP_AUTH_VALIDATE_CERT = False
+    LDAP_AUTH_CIPHER = "ECDHE-RSA-AES256-SHA384"
+    LDAP_AUTH_SERVER_PORT = 389
+    LDAP_AUTH_TYPE = "SIMPLE"
+
     # these settings are available, but should not have default value
     # set them up in DevelopmentSettings or via environment
     #
@@ -39,7 +53,7 @@ class DefaultSettings(object):
 
 class DevelopmentSettings(DefaultSettings):
 
-    DATABASE = "postgresql://warp:warp@localhost:5432/warp"
+    DATABASE = "postgresql://postgres:postgres_password@127.0.0.1:5432/postgres"
 
     #DATABASE = "sqlite:///warp/db.sqlite"
     #DATABASE_ARGS = {"pragmas": {"foreign_keys": "ON"}}
@@ -71,10 +85,10 @@ def readEnvironmentSettings(app):
     res = {}
     for key,val in os.environ.items():
         if key.startswith(PREFIX):
-            if val.startswith(('{','[')):
-                val = json.loads(val)
-            elif isinstance(app.config.get(key.removeprefix(PREFIX)),int):
-                val = int(val)
+            try:
+                val = json.loads(val.lower())       # try to parse any valid json type
+            except json.decoder.JSONDecodeError:
+                pass                                # fallback to string (no change)
             res[key.removeprefix(PREFIX)] = val
 
     app.config.update(res)

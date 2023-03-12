@@ -155,63 +155,70 @@ $ python -c 'from subprocess import run; print(run(["openssl","rand","16"],captu
 
 Change `LANGUAGE_FILE` variable in `config.py` or set `WARP_LANGUAGE_FILE` environment variable. Currently, language is global for the instance.
 
-### How to use *Active Directory* (or any other LDAP) authentication
-WARP supports authentication agains an LDAP srever. It is, the simplest way to allow your LDAP directory users login on your WARP instalation. 
+### Active Directory (or any other LDAP) authentication
 
-Enable LDAP auth is as simple as set *WARP_AUTH_LDAP* env variable to *'true'*. When enabled WARP will check user login and password via LDAP bind action and the list of authorithed groups (see *WARP_LDAP_GROUP_MAP* env variable). If Bind acction succedd and user belongs to authorized groups login is allowed. 
+WARP supports authentication against an LDAP server. It is the simplest way to allow your LDAP directory users to log in on your WARP installation.
 
-Authorization is managed by adding user, on first login, to WARP auth database and assign the WARP group defined by *WARP_LDAP_GROUP_MAP*. 
+To enable LDAP auth, you need to configure `AUTH_LDAP`, `LDAP_SEARCH_BASE`, `LDAP_AUTH_SERVER`, and `LDAP_GROUP_MAP`. When enabled, WARP will check the user login and password via LDAP bind action and the list of authorized groups (see `WARP_LDAP_GROUP_MAP` configuration setting). Logging is allowed if the Bind action succeeds and the user belongs to authorized groups.
 
-It is possible to exclude some users from using LDAP auth by adding them to *WARP_LDAP_EXCLUDED_USERS* list. Users on this list will check credentials via warp auth database ignoring LDAP AUTH configuration.
+Authorization is managed by adding a user, on the first login, to WARP auth database and assigning the WARP group defined by `LDAP_GROUP_MAP`.
+
+It is possible to exclude some users from using LDAP auth by adding them to `LDAP_EXCLUDED_USERS` list. Credentials for users on this list will be checked via WARP auth database ignoring LDAP AUTH configuration.
 
 Supported configurations to contact the LDAP server are:
-- **LDAP protocol:** *LDAP* or *LDAPS*. It is not recommend to use LDAP plain connections, on production enviroments.
-- **Authentication mechanims:** *SIMPLE* or *NTLM v2*.
+- LDAP protocol: `LDAP` or `LDAPS`. It is not recommended to use LDAP plain connections in production environments.
+- Authentication mechanisms: `SIMPLE` or `NTLM v2*`
 
- **Enviroment variables:**
-* WARP_AUTH_LDAP: 'true'
-* WARP_LDAP_EXCLUDED_USERS: array of users login that are excluded form LDAP auth (to check login of this users Warp use password stored on warp DB).
-* WARP_LDAP_GROUP_MAP: Array of mapping between LDAP group and default asigned group on WARP. Order is important as only one group is assigned. First match is used.
-* WARP_LDAP_USER_CLASS: LDAP user objectclass.
-* WARP_LDAP_USER_ID_ATTRIBUTE: LDAP directory attribute to be compare with login.
-* WARP_LDAP_USER_NAME_ATTRIBUTE: LDAP directory attribute used to obtain name for the automatically created user on warp DB. 
-* WARP_LDAP_USER_GROUPS_ATTRIBUTE: LDAP directory attribute contaning group list.
-* WARP_LDAP_SEARCH_BASE: Base domain name to locate user and groups
-* WARP_LDAP_AUTH_SERVER: yourServerName/Ip    
-* WARP_LDAP_AUTH_SERVER_PORT: LDAP/LDAPS server port 
-* WARP_LDAP_AUTH_USE_LDAPS: True form LDAPS connection not defined or False for LDAP plain connection
-* WARP_LDAP_AUTH_TLS_VERSION: *'1.2'* for TLS1.2 not defined for TLS1
-* WARP_LDAP_AUTH_CIPHER: Set to a valid cipher for LDAPS server not defined *ECDHE-RSA-AES256-SHA384* is used.
-* WARP_LDAP_AUTH_VALIDATE_CERT: *False* for non certificate validation not defined or True for Certificate validation.
-* WARP_LDAP_AUTH_TYPE: NTLM/SIMPLE 
-* WARP_LDAP_AUTH_NTLM_DOMAIN: NTLM domain name is the prefix used for the login name when NTLM AUTH is enabled *DomainName\loginname*
-* WARP_LDAP_MATCHING_RULE_IN_CHAIN: Set to 'true' to include nested groups on ldap group search. For Active Directory set to 'true'. On other LDAP implementation check if your ldap implementation supports [LDAP_MATCHING_RULE_IN_CHAIN](https://ldapwiki.com/wiki/LDAP_MATCHING_RULE_IN_CHAIN).  
-  
-  **Sample values:**
-    ```
-    WARP_AUTH_LDAP: 'true'
-    WARP_LDAP_MATCHING_RULE_IN_CHAIN: 'true'
-    WARP_LDAP_AUTH_TYPE: 'NTLM'  
-    WARP_LDAP_AUTH_NTLM_DOMAIN: "Domain1"
-    WARP_LDAP_EXCLUDED_USERS: '["admin"]'
-    WARP_LDAP_GROUP_MAP: '[{"ldapGroup": "CN=LDAP-GROUP-NAME,OU=XXXX,DC=yourDomain,dc=com", "warpGroup": "AsignedGroupOnWarpApp"}]'
-    WARP_LDAP_USER_CLASS: "user"
-    WARP_LDAP_USER_ID_ATTRIBUTE: "sAMAccountName"
-    WARP_LDAP_USER_NAME_ATTRIBUTE: "name"       
-    WARP_LDAP_USER_GROUPS_ATTRIBUTE: "memberOf"
-    WARP_LDAP_SEARCH_BASE: 'DC=yourDomain,DC=com'
-    WARP_LDAP_AUTH_SERVER: 'ldapServerName'   
+#### Configuration variables
 
-    # LDAP  
-    WARP_LDAP_AUTH_SERVER_PORT: 389
+Please note that every variable can be set either in the config file or via the environment (in that case, it needs to be prefixed by `WARP_` string).
 
-    # LDAPS 
-    WARP_LDAP_AUTH_SERVER_PORT: 636 
-    WARP_LDAP_AUTH_USE_LDAPS: 'true'                            # When not pressent or False plaintext LDAP connection used
-    WARP_LDAP_AUTH_TLS_VERSION:  '1.2'                          # 1.2 for TLS1.2 none for TLS1
-    WARP_LDAP_AUTH_CIPHER: 'ECDHE-RSA-AES256-SHA384'
-    WARP_LDAP_AUTH_VALIDATE_CERT: 'true'                        # False to disable certificate validation
-    ```
+|variable|default value|description|
+|--|--|--|
+`AUTH_LDAP`|`None`| If set to `True` enables LDAP authentication|
+`LDAP_SEARCH_BASE`|`None`| Location in the directory of user and groups|
+`LDAP_AUTH_SERVER`|`None`| LDAP server address|
+`LDAP_GROUP_MAP`|`[]`| Array of mapping between LDAP group and default asigned group on WARP. Order is important as only one group is assigned. First match is used.|
+`LDAP_EXCLUDED_USERS`|`[]`| Array of logins that are excluded form LDAP auth (to check login of this users WARP uses password stored in warp DB).|
+`LDAP_USER_CLASS`|`user`| LDAP user objectclass.|
+`LDAP_USER_ID_ATTRIBUTE`|`uid`| LDAP directory attribute to be compare with login.|
+`LDAP_USER_NAME_ATTRIBUTE`|`cn`| LDAP directory attribute used to obtain name for the automatically created user on warp DB.|
+`LDAP_USER_GROUPS_ATTRIBUTE`|`memberOf`| LDAP directory attribute contaning group list.|
+`LDAP_AUTH_SERVER_PORT`|`389`| LDAP/LDAPS server port|
+`LDAP_AUTH_USE_LDAPS`|`False`| True form LDAPS connection not defined or False for LDAP plain connection|
+`LDAP_AUTH_TLS_VERSION`|`1.2`| `1.2` for TLS1.2, any other value for TLS1|
+`LDAP_AUTH_CIPHER`|`ECDHE-RSA-AES256-SHA384`| Set to a valid cipher for LDAPS server.|
+`LDAP_AUTH_VALIDATE_CERT`|`False`| Certificate validation.|
+`LDAP_AUTH_TYPE`|`SIMPLE`| `NTLM` or `SIMPLE`|
+`LDAP_AUTH_NTLM_DOMAIN`|`None`| NTLM domain name is the prefix used for the login name when NTLM AUTH is enabled `DomainName\loginname`|
+`LDAP_MATCHING_RULE_IN_CHAIN`|`False`| Set to `True` to include nested groups on ldap group search. For Active Directory set to `True`. On other LDAP implementation check if your ldap implementation supports [LDAP_MATCHING_RULE_IN_CHAIN](https://ldapwiki.com/wiki/LDAP_MATCHING_RULE_IN_CHAIN).|
+
+#### Sample values:
+
+```
+WARP_AUTH_LDAP: 'True'
+WARP_LDAP_MATCHING_RULE_IN_CHAIN: 'True'
+WARP_LDAP_AUTH_TYPE: 'NTLM'
+WARP_LDAP_AUTH_NTLM_DOMAIN: "Domain1"
+WARP_LDAP_EXCLUDED_USERS: '["admin"]'
+WARP_LDAP_GROUP_MAP: '[{"ldapGroup": "CN=LDAP-GROUP-NAME,OU=XXXX,DC=yourDomain,dc=com", "warpGroup": "AsignedGroupOnWarpApp"}]'
+WARP_LDAP_USER_CLASS: "user"
+WARP_LDAP_USER_ID_ATTRIBUTE: "sAMAccountName"
+WARP_LDAP_USER_NAME_ATTRIBUTE: "name"
+WARP_LDAP_USER_GROUPS_ATTRIBUTE: "memberOf"
+WARP_LDAP_SEARCH_BASE: 'DC=yourDomain,DC=com'
+WARP_LDAP_AUTH_SERVER: 'ldapServerName'
+
+# LDAP
+WARP_LDAP_AUTH_SERVER_PORT: 389
+
+# LDAPS
+WARP_LDAP_AUTH_SERVER_PORT: 636
+WARP_LDAP_AUTH_USE_LDAPS: 'True'
+WARP_LDAP_AUTH_TLS_VERSION: '1.2'
+WARP_LDAP_AUTH_CIPHER: 'ECDHE-RSA-AES256-SHA384'
+WARP_LDAP_AUTH_VALIDATE_CERT: 'True'
+```
 
 ### How to import users
 
