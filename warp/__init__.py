@@ -25,7 +25,6 @@ def create_app():
        and app.config['AUTH_MELLON']:
         app.register_blueprint(auth_mellon.bp)
     elif 'AUTH_LDAP' in app.config \
-       and 'LDAP_AUTH_SERVER' in app.config \
        and app.config['AUTH_LDAP']:
         app.register_blueprint(auth_ldap.bp)
     else:

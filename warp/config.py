@@ -29,27 +29,34 @@ class DefaultSettings(object):
     DATABASE_INIT_RETRIES_DELAY = 2
 
     # LDAP defaults
-    LDAP_USER_CLASS = "user"
-    WARP_LDAP_USER_ID_ATTRIBUTE = "uid"
-    WARP_LDAP_USER_NAME_ATTRIBUTE = "cn"
-    LDAP_AUTH_USE_LDAPS = False
-    LDAP_AUTH_USE_STARTTLS = False
-    LDAP_MATCHING_RULE_IN_CHAIN = False
-    LDAP_USER_GROUPS_ATTRIBUTE = "memberOf"
-    LDAP_AUTH_TLS_VERSION = "1.2"
-    LDAP_AUTH_VALIDATE_CERT = False
-    LDAP_AUTH_CIPHER = "ECDHE-RSA-AES256-SHA384"
-    LDAP_AUTH_SERVER_PORT = 389
     LDAP_AUTH_TYPE = "SIMPLE"
+    LDAP_STARTTLS = True
+    LDAP_VALIDATE_CERT = False
+    LDAP_USER_NAME_ATTRIBUTE = "cn"
+    LDAP_GROUP_SEARCH_FILTER_TEMPLATE = "(&(memberUid={login})(cn={group}))"
+    LDAP_GROUP_MAP = [ [None,None] ]
+    LDAP_GROUP_STRICT_MAPPING = False
+    LDAP_EXCLUDED_USERS = []
+
+    ### LDAP variables to be configured
+    # AUTH_LDAP = True
+    # LDAP_SERVER_URL = "ldap://server:port"
+    # LDAP_USER_DN_TEMPLATE = "uid={login},ou=users,dc=example,dc=org"
+    # LDAP_GROUP_SEARCH_BASE = "ou=groups,dc=example,dc=org"
+    # LDAP_AUTH_NTLM_DOMAIN (optional)
+    # LDAP_TLS_VERSION (optional)
+    # LDAP_TLS_CIPHERS (optional)
 
     # these settings are available, but should not have default value
     # set them up in DevelopmentSettings or via environment
-    #
     # SECRET_KEY
     # DATABASE
     # DATABASE_ARGS
+
+    # mellon settings
     # AUTH_MELLON
     # MELLON_ENDPOINT
+    # MELLON_DEFAULT_GROUP
 
 class DevelopmentSettings(DefaultSettings):
 
@@ -65,6 +72,7 @@ class DevelopmentSettings(DefaultSettings):
     ]
 
     SECRET_KEY = b'change_me'
+
 
 class ProductionSettings(DefaultSettings):
 
