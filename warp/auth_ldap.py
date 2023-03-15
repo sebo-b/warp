@@ -33,7 +33,7 @@ def ldapValidateCredentials(username, password):
         LDAP_AUTH_USE_LDAPS = flask.current_app.config.get('LDAP_AUTH_USE_LDAPS')  # default: False
         LDAP_AUTH_USE_STARTTLS = flask.current_app.config.get('LDAP_AUTH_USE_STARTTLS')  # default: False
         LDAP_MATCHING_RULE_IN_CHAIN = flask.current_app.config.get('LDAP_MATCHING_RULE_IN_CHAIN')  # default: False
-        LDAP_AUTH_TLS_VERSION = ssl.PROTOCOL_TLSv1_2 if flask.current_app.config.get('LDAP_AUTH_TLS_VERSION') == '1.2' else ssl.PROTOCOL_TLSv1  # default: 1.2
+        LDAP_AUTH_TLS_VERSION = ssl.PROTOCOL_TLSv1_2 if flask.current_app.config.get('LDAP_AUTH_TLS_VERSION') == 1.2 else ssl.PROTOCOL_TLSv1  # default: 1.1
         LDAP_AUTH_VALIDATE_CERT = ssl.CERT_REQUIRED if flask.current_app.config.get('LDAP_AUTH_VALIDATE_CERT') else ssl.CERT_NONE  # default: True
         LDAP_AUTH_CIPHER = flask.current_app.config.get('LDAP_AUTH_CIPHER')  # default: ECDHE-RSA-AES256-SHA384
         LDAP_AUTH_SERVER_PORT = flask.current_app.config.get('LDAP_AUTH_SERVER_PORT')  # default: 389
@@ -75,11 +75,12 @@ def ldapValidateCredentials(username, password):
             # Check Groups on Active directory
             for groupMap in LDAP_GROUP_MAP:
                 # Search on groups and subgroups for
-                searchString = f'(&(objectclass={LDAP_USER_CLASS})({LDAP_USER_ID_ATTRIBUTE}={escape_filter_chars(username)})({LDAP_USER_GROUPS_ATTRIBUTE}:1.2.840.113556.1.4.1941:={groupMap["ldapGroup"]}))'
+                searchString = f'(&(objectclass={LDAP_USER_CLASS})({LDAP_USER_ID_ATTRIBUTE}={escape_filter_chars(username)})({LDAP_USER_GROUPS_ATTRIBUTE}:1.2.840.113556.1.4.1941:={groupMap["ldapgroup"]}))'
+
                 connection.search(LDAP_SEARCH_BASE, searchString, attributes=[LDAP_USER_NAME_ATTRIBUTE, LDAP_USER_GROUPS_ATTRIBUTE])
                 if len(connection.entries) == 1:
                     userInfo = connection.entries[0]
-                    return {'bind': True, 'name': str(userInfo[LDAP_USER_NAME_ATTRIBUTE]), 'warpGroup': groupMap['warpGroup']}
+                    return {'bind': True, 'name': str(userInfo[LDAP_USER_NAME_ATTRIBUTE]), 'warpGroup': groupMap['warpgroup']}
             print("User is not in authorithed groups: " + username)
             return {'bind': False}
         else:                              # Servers not supporting LDAP_MATCHING_RULE_IN_CHAIN check is done by users direct groups only
@@ -99,10 +100,10 @@ def ldapValidateCredentials(username, password):
                 return {'bind': False}
 
     except LDAPException as e:
-        print("Error login as ("+username+"): " + str(e))
+        print("LDAP error login as ("+username+"): " + str(e))
         return {'bind': False}
     except Exception as e:
-        print("Error login as ("+username+"): " + str(e))
+        print("Generic error login as ("+username+"): " + str(e))
         return {'bind': False}
 
 

@@ -159,7 +159,7 @@ Change `LANGUAGE_FILE` variable in `config.py` or set `WARP_LANGUAGE_FILE` envir
 
 WARP supports authentication against an LDAP server. It is the simplest way to allow your LDAP directory users to log in on your WARP installation.
 
-To enable LDAP auth, you need to configure `AUTH_LDAP`, `LDAP_SEARCH_BASE`, `LDAP_AUTH_SERVER`, and `LDAP_GROUP_MAP`. When enabled, WARP will check the user login and password via LDAP bind action and the list of authorized groups (see `WARP_LDAP_GROUP_MAP` configuration setting). Logging is allowed if the Bind action succeeds and the user belongs to authorized groups.
+To enable LDAP auth, you need to configure `AUTH_LDAP`, `LDAP_SEARCH_BASE`, `LDAP_AUTH_SERVER`, and `LDAP_GROUP_MAP`. When enabled, WARP will check the user login and password via LDAP bind action and the list of authorized groups (see `LDAP_GROUP_MAP` configuration setting). Logging is allowed if the Bind action succeeds and the user belongs to authorized groups.
 
 Authorization is managed by adding a user, on the first login, to WARP auth database and assigning the WARP group defined by `LDAP_GROUP_MAP`.
 
@@ -186,7 +186,7 @@ Please note that every variable can be set either in the config file or via the 
 `LDAP_USER_GROUPS_ATTRIBUTE`|`memberOf`| LDAP directory attribute contaning group list.|
 `LDAP_AUTH_SERVER_PORT`|`389`| LDAP/LDAPS server port|
 `LDAP_AUTH_USE_LDAPS`|`False`| True form LDAPS connection not defined or False for LDAP plain connection|
-`LDAP_AUTH_TLS_VERSION`|`1.2`| `1.2` for TLS1.2, any other value for TLS1|
+`LDAP_AUTH_TLS_VERSION`| 1.2 | 1.2 for TLS1.2, any other value for TLS1|
 `LDAP_AUTH_CIPHER`|`ECDHE-RSA-AES256-SHA384`| Set to a valid cipher for LDAPS server.|
 `LDAP_AUTH_VALIDATE_CERT`|`False`| Certificate validation.|
 `LDAP_AUTH_TYPE`|`SIMPLE`| `NTLM` or `SIMPLE`|
@@ -196,28 +196,28 @@ Please note that every variable can be set either in the config file or via the 
 #### Sample values:
 
 ```
-WARP_AUTH_LDAP: 'True'
-WARP_LDAP_MATCHING_RULE_IN_CHAIN: 'True'
-WARP_LDAP_AUTH_TYPE: 'NTLM'
-WARP_LDAP_AUTH_NTLM_DOMAIN: "Domain1"
-WARP_LDAP_EXCLUDED_USERS: '["admin"]'
-WARP_LDAP_GROUP_MAP: '[{"ldapGroup": "CN=LDAP-GROUP-NAME,OU=XXXX,DC=yourDomain,dc=com", "warpGroup": "AsignedGroupOnWarpApp"}]'
-WARP_LDAP_USER_CLASS: "user"
-WARP_LDAP_USER_ID_ATTRIBUTE: "sAMAccountName"
-WARP_LDAP_USER_NAME_ATTRIBUTE: "name"
-WARP_LDAP_USER_GROUPS_ATTRIBUTE: "memberOf"
-WARP_LDAP_SEARCH_BASE: 'DC=yourDomain,DC=com'
-WARP_LDAP_AUTH_SERVER: 'ldapServerName'
+AUTH_LDAP: 'True'
+LDAP_MATCHING_RULE_IN_CHAIN: 'True'
+LDAP_AUTH_TYPE: 'NTLM'
+LDAP_AUTH_NTLM_DOMAIN: "Domain1"
+LDAP_EXCLUDED_USERS: '["admin"]'
+LDAP_GROUP_MAP: '[{"ldapgroup": "CN=LDAP-GROUP-NAME,OU=XXXX,DC=yourDomain,dc=com", "warpgroup": "AsignedGroupOnWarpApp"}]'
+LDAP_USER_CLASS: "user"
+LDAP_USER_ID_ATTRIBUTE: "sAMAccountName"
+LDAP_USER_NAME_ATTRIBUTE: "name"
+LDAP_USER_GROUPS_ATTRIBUTE: "memberOf"
+LDAP_SEARCH_BASE: 'DC=yourDomain,DC=com'
+LDAP_AUTH_SERVER: 'ldapServerName'
 
 # LDAP
-WARP_LDAP_AUTH_SERVER_PORT: 389
+LDAP_AUTH_SERVER_PORT: 389
 
 # LDAPS
-WARP_LDAP_AUTH_SERVER_PORT: 636
-WARP_LDAP_AUTH_USE_LDAPS: 'True'
-WARP_LDAP_AUTH_TLS_VERSION: '1.2'
-WARP_LDAP_AUTH_CIPHER: 'ECDHE-RSA-AES256-SHA384'
-WARP_LDAP_AUTH_VALIDATE_CERT: 'True'
+LDAP_AUTH_SERVER_PORT: 636
+LDAP_AUTH_USE_LDAPS: 'True'
+LDAP_AUTH_TLS_VERSION: 1.2
+LDAP_AUTH_CIPHER: 'ECDHE-RSA-AES256-SHA384'
+LDAP_AUTH_VALIDATE_CERT: 'True'
 ```
 
 ### How to import users
