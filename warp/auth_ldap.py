@@ -70,7 +70,7 @@ def ldapConnect(login, password):
         ldapConnection.start_tls()
 
     if not ldapServer.ssl and not ldapConnection.tls_started:
-        print(f"WARNING: Non-secure LDAP connection used")
+        print("WARNING: Non-secure LDAP connection used")
 
     if not ldapConnection.bind():
         return None
@@ -121,7 +121,7 @@ def ldapGetUserMetadata(login,ldapConnection):
         if len(ldapConnection.entries) == 0:
             continue
         elif len(ldapConnection.entries) > 1:
-            print(f"LDAP group search returned more than one entry. Probably LDAP_GROUP_SEARCH_FILTER is wrongly defined.",file=sys.stderr)
+            print("LDAP group search returned more than one entry. Probably LDAP_GROUP_SEARCH_FILTER is wrongly defined.",file=sys.stderr)
 
         loginAllowed = True
         if warpGroup:
