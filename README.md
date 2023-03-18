@@ -27,7 +27,7 @@ I've quickly evaluated a couple of existing solutions, but they were either too 
 ## What I'm not even planning to do
 
 - Approvals - the main goal of the system was to make it autonomous and management-free. So I don't intend to implement approval flows.
-- Timezone support - the selected time is always in the same timezone as a zone. It works well and is simple. But in case someone would like to have a couple of zones in different timezones and keep the`one person one seat at a given time` rule across these timezones, this will fail.
+- Timezone support - the selected time is always in the same timezone as a zone. It works well and is simple. But in case someone would like to have a couple of zones in different timezones and keep the `one person one seat at a given time` rule across these timezones, this will fail.
 
 ## What browsers are supported
 
@@ -135,11 +135,11 @@ After that, open http://127.0.0.1:5000 in your browser and log in as `admin` wit
 
 ## Production environment
 
-For the production envirnoment, I recommend running Nginx and PostgreSQL on separate VMs. Then (even multiple) WARP image can be simply started via Docker and rev-proxed from Nginx.
+For the production environment, I recommend running Nginx and PostgreSQL on separate VMs. Then (even multiple) WARP image can be simply started via Docker and rev-proxed from Nginx.
 
 Each configuration parameter (check config.py) can be passed via the envirnoment as `WARP_varname`.
-As envirnoment variables as passed as strings, they need to be parsed into Python types and data structures.
-To do that values are first converted to lower case and then `jsom.loads` is used. If that fails variable is treaten as string.
+As environment variables as passed as strings, they need to be parsed into Python types and data structures.
+To do that values are first converted to lower case and then `json.loads` is used. If that fails variable is treaten as string.
 This makes possible to pass integers, floats, booleans as well as dicts, arrays and None value (as JSON null).
 
 ### SECRET_KEY
@@ -174,7 +174,7 @@ Change `LANGUAGE_FILE` variable in `config.py` or set `WARP_LANGUAGE_FILE` envir
 
 WARP supports authentication against an LDAP server. In this way your LDAP directory users to log in on your WARP installation.
 
-To enable LDAP auth, you need to set`AUTH_LDAP` to `True` and at least configure `LDAP_SERVER_URL`, `LDAP_USER_DN_TEMPLATE`. Probably you will need to tweak more parameters to make it working with your LDAP setup, so keep reading.
+To enable LDAP auth, you need to set `AUTH_LDAP` to `True` and at least configure `LDAP_SERVER_URL`, `LDAP_USER_DN_TEMPLATE`. Probably you will need to tweak more parameters to make it working with your LDAP setup, so keep reading.
 
 This plugin supports:
 - LDAP over plain text, SSL or StartTLS
@@ -214,7 +214,7 @@ With a proper `LDAP_GROUP_MAP` and `LDAP_GROUP_STRICT_MAPPING` you can achieve t
 - remove users from Warp groups based on LDAP groups
 - add users to specified default Warp groups
 
-`LDAP_GROUP_MAP` must be an array of array of two strings. The first string is LDAP group, the second string is Warp group.
+`LDAP_GROUP_MAP` must be an array of arrays of two strings. The first string is LDAP group, the second string is Warp group.
 
 You can interpret that in the following way:
 - what LDAP groups are allowing user to log in to Warp
@@ -263,7 +263,7 @@ Of course you can build a more complicated scenarios with multiple mappings, mul
 
 Only users from LDAP groups specified in this array are allowed to login to Warp, unless there is a special `[null,null]` entry in this array.
 
-Warp group are not automatically created by LDAP plugin, users are only added (and possibly removed) to an existing Warp groups.
+Warp groups are not automatically created by LDAP plugin, users are only added (and possibly removed) to an existing Warp groups.
 
 If `LDAP_GROUP_STRICT_MAPPING` is set to `False` users are not removed from Warp groups based on LDAP group mapping mechanism.
 If `LDAP_GROUP_STRICT_MAPPING` is set to `True` users are removed from all Warp groups not matched by the mapping.
