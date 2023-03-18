@@ -28,18 +28,39 @@ class DefaultSettings(object):
     # delay between retries
     DATABASE_INIT_RETRIES_DELAY = 2
 
+    # LDAP defaults
+    LDAP_AUTH_TYPE = "SIMPLE"
+    LDAP_STARTTLS = True
+    LDAP_VALIDATE_CERT = False
+    LDAP_USER_NAME_ATTRIBUTE = "cn"
+    LDAP_GROUP_SEARCH_FILTER_TEMPLATE = "(&(memberUid={login})(cn={group}))"
+    LDAP_GROUP_MAP = [ [None,None] ]
+    LDAP_GROUP_STRICT_MAPPING = False
+    LDAP_EXCLUDED_USERS = []
+
+    ### LDAP variables to be configured
+    # AUTH_LDAP = True
+    # LDAP_SERVER_URL = "ldap://server:port"
+    # LDAP_USER_DN_TEMPLATE = "uid={login},ou=users,dc=example,dc=org"
+    # LDAP_GROUP_SEARCH_BASE = "ou=groups,dc=example,dc=org"
+    # LDAP_AUTH_NTLM_DOMAIN (optional)
+    # LDAP_TLS_VERSION (optional)
+    # LDAP_TLS_CIPHERS (optional)
+
     # these settings are available, but should not have default value
     # set them up in DevelopmentSettings or via environment
-    #
     # SECRET_KEY
     # DATABASE
     # DATABASE_ARGS
+
+    # mellon settings
     # AUTH_MELLON
     # MELLON_ENDPOINT
+    # MELLON_DEFAULT_GROUP
 
 class DevelopmentSettings(DefaultSettings):
 
-    DATABASE = "postgresql://warp:warp@localhost:5432/warp"
+    DATABASE = "postgresql://postgres:postgres_password@127.0.0.1:5432/postgres"
 
     #DATABASE = "sqlite:///warp/db.sqlite"
     #DATABASE_ARGS = {"pragmas": {"foreign_keys": "ON"}}
@@ -51,6 +72,7 @@ class DevelopmentSettings(DefaultSettings):
     ]
 
     SECRET_KEY = b'change_me'
+
 
 class ProductionSettings(DefaultSettings):
 
@@ -71,10 +93,10 @@ def readEnvironmentSettings(app):
     res = {}
     for key,val in os.environ.items():
         if key.startswith(PREFIX):
-            if val.startswith(('{','[')):
-                val = json.loads(val)
-            elif isinstance(app.config.get(key.removeprefix(PREFIX)),int):
-                val = int(val)
+            try:
+                val = json.loads(val.lower())       # try to parse any valid json type
+            except json.decoder.JSONDecodeError:
+                pass                                # fallback to string (no change)
             res[key.removeprefix(PREFIX)] = val
 
     app.config.update(res)

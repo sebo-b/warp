@@ -5,6 +5,7 @@ The story of this project begins when, due to COVID-19, we have converted our re
 I've quickly evaluated a couple of existing solutions, but they were either too big and complicated and/or too expensive. As I assumed that other people would have the same challenge I had, I decided to spend my after-hours time making an open-source tailored system for the need. Yes - it is free as speech, not as beer.
 
 ## What WARP can do
+
 - It allows people to book / change / unbook desks (or even parking stalls) in the office.
 - It allows people to check who else will be in the office.
 - It works on mobile.
@@ -12,6 +13,7 @@ I've quickly evaluated a couple of existing solutions, but they were either too 
 - Generate a report of past bookings and export it to Excel file
 
 ## More advanced features
+
 - Seats can be limited to certain people, so other people cannot book them (it is called assigned seats).
 - Seats can be disabled, so people don't see them at all.
 - Multiple zones (maps) can be created, for example, floors or parking.
@@ -19,13 +21,16 @@ I've quickly evaluated a couple of existing solutions, but they were either too 
 - Admin(s) can book / modify / unbook seat for any user.
 - Full admin interface to add/remove/edit maps, zones, groups, and users.
 - SAML2.0 support - via Apache [mod_auth_mellon](https://github.com/latchset/mod_auth_mellon) module.
+- LDAP and Active Directory - via LDAP3 library.
 - Translations - currently, English and Polish are supported.
 
 ## What I'm not even planning to do
+
 - Approvals - the main goal of the system was to make it autonomous and management-free. So I don't intend to implement approval flows.
 - Timezone support - the selected time is always in the same timezone as a zone. It works well and is simple. But in case someone would like to have a couple of zones in different timezones and keep the `one person one seat at a given time` rule across these timezones, this will fail.
 
 ## What browsers are supported
+
 To be honest, I was not paying much attention to browser compatibility, nor was I extensively testing it on other browsers than Chrome and Firefox. Nevertheless, all modern browsers should be supported (definitely not IE).
 
 ## Is there any demo?
@@ -47,6 +52,7 @@ The preferred way to deploy is to run it via Docker. You need a working docker, 
 ### docker compose
 
 From the command line:
+
 ```
 # clone the repository
 $ git clone https://github.com/sebo-b/warp.git
@@ -60,6 +66,7 @@ After that, open http://127.0.0.1:8080 in your browser and log in as `admin` wit
 ### without docker compose (but why?)
 
 From the command line:
+
 ```
 # clone the repository
 $ git clone https://github.com/sebo-b/warp.git
@@ -128,24 +135,31 @@ After that, open http://127.0.0.1:5000 in your browser and log in as `admin` wit
 
 ## Production environment
 
-For the production envirnoment, I recommend running Nginx and PostgreSQL on separate VMs. Then (even multiple) WARP image can be simply started via Docker and rev-proxed from Nginx.
+For the production environment, I recommend running Nginx and PostgreSQL on separate VMs. Then (even multiple) WARP image can be simply started via Docker and rev-proxed from Nginx.
 
 Each configuration parameter (check config.py) can be passed via the envirnoment as `WARP_varname`.
+As environment variables as passed as strings, they need to be parsed into Python types and data structures.
+To do that values are first converted to lower case and then `json.loads` is used. If that fails variable is treaten as string.
+This makes possible to pass integers, floats, booleans as well as dicts, arrays and None value (as JSON null).
 
 ### SECRET_KEY
 
 For the production environment, **make sure** that you have generated `SECRET_KEY` used for signing cookies. It is defined in `config.py.`
 
 Flask documentation mentions this method to generate it:
+
 ```
 $ python -c 'import os; print(os.urandom(16))'
 ```
 
 Alternatively, you can use OpenSSL and Sed:
+
 ```
 $ openssl rand -hex 16 | sed 's/\(..\)/\\x\1/g;s/^/b"/;s/$/"/'
 ```
+
 or wrap it into Python:
+
 ```
 $ python -c 'from subprocess import run; print(run(["openssl","rand","16"],capture_output=True).stdout)'
 ```
@@ -154,11 +168,158 @@ $ python -c 'from subprocess import run; print(run(["openssl","rand","16"],captu
 
 Change `LANGUAGE_FILE` variable in `config.py` or set `WARP_LANGUAGE_FILE` environment variable. Currently, language is global for the instance.
 
+# Advanced configuration
+
+## LDAP authentication (including Active Directory)
+
+WARP supports authentication against an LDAP server. In this way your LDAP directory users to log in on your WARP installation.
+
+To enable LDAP auth, you need to set `AUTH_LDAP` to `True` and at least configure `LDAP_SERVER_URL`, `LDAP_USER_DN_TEMPLATE`. Probably you will need to tweak more parameters to make it working with your LDAP setup, so keep reading.
+
+This plugin supports:
+- LDAP over plain text, SSL or StartTLS
+- SIMPLE or NTLM LDAP authentication
+- automatic Warp user creation on the first login
+- replicating user name and user groups from LDAP
+- limiting access only to users within a specific LDAP group(s)
+- exclude users (e.g. admins) from LDAP login
+
+### Configuration variables
+
+Please note that every variable can be set either in the config file or via the environment (in that case, it needs to be prefixed by `WARP_` string).
+
+| variable | default value | type | description |
+| --- | --- | --- | --- |
+| `AUTH_LDAP` | `False` | `boolean` | If set to `True` enables LDAP authentication |
+| `LDAP_SERVER_URL` | `None` | `string` | Server url, either `ldap://address[:port]` or `ldaps://address[:port]`<br/>It must be `ldap://` for StartTLS |
+| `LDAP_AUTH_TYPE` | `SIMPLE` | `string`: `SIMPLE` or `NTLM` | LDAP authentication type.<br/>For `NTLM` authentication `LDAP_AUTH_NTLM_DOMAIN` must be also set |
+| `LDAP_AUTH_NTLM_DOMAIN` | `None` | `string` | NTLM domain used for `NTLM` authentication |
+| `LDAP_STARTTLS` | `True` | `boolean` | If StartTLS should be invoked before bind. |
+| `LDAP_VALIDATE_CERT` | `False` | `boolean` | If server certificate should be validated for `SSL` or `StartTLS` |
+| `LDAP_TLS_VERSION` | `None` | `string`: `TLSv1`, `TLSv1.1` or `TLSv1.2` | TLS version to be user.<br/>If not set, default Python SSL module is used. |
+| `LDAP_TLS_CIPHERS` | `None` | `string` | Limit TLS only to specified ciphers. |
+| `LDAP_USER_DN_TEMPLATE` | `None` | `string` | Template used for user distinguished name, it must contain `{login}` placeholder.<br/>Example value is: `uid={login},ou=users,dc=example,dc=org` |
+| `LDAP_USER_NAME_ATTRIBUTE` | `cn` | `string` | Full user name LDAP atribute. |
+| `LDAP_GROUP_SEARCH_BASE` | `None` | `string` | Base for searching for user groups.<br/>Example value is: `ou=groups,dc=example,dc=org`<br>Check the next sections for more advanced examples. |
+| `LDAP_GROUP_SEARCH_FILTER_TEMPLATE` | `(&(memberUid={login})(cn={group}))` | `string` | Search filter for user's group lookup.<br>It must contain `{login}` and `{group}` placeholders.<br>Check the next sections for more advanced examples. |
+| `LDAP_GROUP_MAP` | `[ [null,null] ]` | `array` of `tuples` | See the next section |
+| `LDAP_GROUP_STRICT_MAPPING` | `False` | `boolean` | Should user be removed from Warp groups if such mapping is not present in LDAP.<br>See next section for more details |
+| `LDAP_EXCLUDED_USERS` | `[]` | `array` of `strings` | List of logins to be excluded from LDAP authentication. <br/> This can be usable for admins |
+
+### LDAP group mapping
+
+With a proper `LDAP_GROUP_MAP` and `LDAP_GROUP_STRICT_MAPPING` you can achieve the following scenarios:
+- allow only limited LDAP group to login to Warp
+- add users to Warp groups based on LDAP groups
+- remove users from Warp groups based on LDAP groups
+- add users to specified default Warp groups
+
+`LDAP_GROUP_MAP` must be an array of arrays of two strings. The first string is LDAP group, the second string is Warp group.
+
+You can interpret that in the following way:
+- what LDAP groups are allowing user to log in to Warp
+- to what WARP groups user should be added to, based on LDAP groups
+
+The following configurations of an entry are possible:
+1.
+```
+[
+['LDAP group 1',null],
+['LDAP group 2',null]
+]
+```
+User must be in one of the `LDAP group 1` or `LDAP group 2` to be allowed to log in to Warp.
+
+2.
+```
+[
+['LDAP group 1','WARP group A'],
+['LDAP group 2','WARP group B']
+]
+```
+As in the previous example user must be in one of the `LDAP group 1` or `LDAP group 2` to be allowed to log in to Warp. In addition, during logging in user will be also accordingly added to `WARP group A` and/or `WARP group B` (based on LDAP group membership).
+
+3.
+```
+[
+['LDAP group 1',null],
+[null,'WARP group A']
+[null,'WARP group B']
+]
+```
+User must be in the `LDAP group 1` to be allowed to log in to Warp (the first entry). During logging in user will be always added to `WARP group A` and `WARP group B`.
+
+4.
+```
+[
+[null,null],
+['LDAP group 1','WARP group A'],
+['LDAP group 2','WARP group B']
+]
+```
+The first entry (`[null,null]`) changes the standard behaviour and every LDAP user will be allowed to log in to Warp. In addition if user is in `LDAP group 1` and/or `LDAP group 2` will be accordingly added to `WARP group A` and/or `WARP group B`.
+
+Of course you can build a more complicated scenarios with multiple mappings, multiple default Warp, and multiple LDAP groups without a mapping.
+
+Only users from LDAP groups specified in this array are allowed to login to Warp, unless there is a special `[null,null]` entry in this array.
+
+Warp groups are not automatically created by LDAP plugin, users are only added (and possibly removed) to an existing Warp groups.
+
+If `LDAP_GROUP_STRICT_MAPPING` is set to `False` users are not removed from Warp groups based on LDAP group mapping mechanism.
+If `LDAP_GROUP_STRICT_MAPPING` is set to `True` users are removed from all Warp groups not matched by the mapping.
+
+### `memberOf` LDAP attribute and `LDAP_MATCHING_RULE_IN_CHAIN`
+
+In case you use `memberOf` (or similar) LDAP attribute to assign users to groups, the follwing setup should do the trick:
+```
+LDAP_GROUP_SEARCH_BASE = "dc=example,dc=org"
+LDAP_GROUP_SEARCH_FILTER_TEMPLATE = "(&(objectclass=user)(sAMAccountName={login})(memberOf={group}))"
+```
+
+In addition, if your server supports `LDAP_MATCHING_RULE_IN_CHAIN` you can specify it as follow:
+```
+LDAP_GROUP_SEARCH_BASE = "dc=example,dc=org"
+LDAP_GROUP_SEARCH_FILTER_TEMPLATE = "(&(objectclass=user)(sAMAccountName={login})(memberOf:1.2.840.113556.1.4.1941:={group}))"
+```
+
+### Example configuration
+
+#### For OpenLDAP
+```
+WARP_AUTH_LDAP = "True"
+WARP_LDAP_SERVER_URL = "ldap://ldap.example.org:1389"
+WARP_LDAP_USER_DN_TEMPLATE = "uid={login},ou=users,dc=example,dc=org"
+WARP_LDAP_GROUP_SEARCH_BASE = "ou=groups,dc=example,dc=org"
+WARP_LDAP_GROUP_MAP = "[ ['WARP_allowed',null], [null,'Everyone'] ]"
+WARP_LDAP_EXCLUDED_USERS = "['admin']"
+
+# the following values are default, keeping here just for clarity
+WARP_LDAP_STARTTLS = "True"
+WARP_LDAP_VALIDATE_CERT = "False"
+WARP_LDAP_USER_NAME_ATTRIBUTE = "cn"
+WARP_LDAP_GROUP_SEARCH_FILTER_TEMPLATE = "(&(memberUid={login})(cn={group}))"
+```
+
+#### For Active Directory
+```
+WARP_AUTH_LDAP = "True"
+WARP_LDAP_SERVER_URL = "ldaps://ldap.example.org:636"
+WARP_LDAP_VALIDATE_CERT = "True"
+WARP_LDAP_AUTH_TYPE = "NTLM"
+WARP_LDAP_AUTH_NTLM_DOMAIN = "Example1"
+WARP_LDAP_USER_DN_TEMPLATE = "sAMAccountName={login},ou=users,dc=example,dc=org"
+WARP_LDAP_GROUP_SEARCH_BASE = "dc=example,dc=org"
+WARP_LDAP_GROUP_SEARCH_FILTER_TEMPLATE = "(&(objectclass=user)(sAMAccountName={login})(memberOf:1.2.840.113556.1.4.1941:={group}))"
+WARP_LDAP_EXCLUDED_USERS = "['admin']"
+WARP_LDAP_GROUP_MAP = "[ ['WARP_allowed',null], [null,'Everyone'] ]"
+```
+
 ### How to import users
 
 You can add them manually one by one via the users' management tab or import them directly to the database. Basically, insert users to `user` table, look at the table definition in `warp/sql/schema.sql.`
 
 The role is one of:
+
 ```
 10 - admin
 20 - regular user
@@ -168,6 +329,7 @@ The role is one of:
 Password is a hash used by `werkzeug.security.check_password_hash` (more documentation can be [found here](https://werkzeug.palletsprojects.com/en/2.0.x/utils/#werkzeug.security.generate_password_hash)), by default (in my configuration) it is pbkdf2:sha256 with 16 bytes salt and 260,000 iterations.
 
 You can generate it with Python (just make sure you have activated the environment where Flask is installed):
+
 ```
 python -c 'from getpass import getpass; from werkzeug.security import generate_password_hash; print(generate_password_hash(getpass()))'
 

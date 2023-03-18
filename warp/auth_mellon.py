@@ -1,6 +1,6 @@
 import flask
 from .db import *
-from warp.auth import ROLE_USER, ROLE_BLOCKED, session
+from warp.auth import session
 from . import utils
 
 bp = flask.Blueprint('auth', __name__)

@@ -3,17 +3,17 @@ from werkzeug.security import check_password_hash
 from warp.db import *
 from . import utils
 
-
-#NOTE: these roles are also defined in userdata.js
-ROLE_ADMIN = 0
-ROLE_MANAGER = 1
-ROLE_USER = 2
-ROLE_VIEVER = 3
-ROLE_BLOCKED = 100
-
 bp = flask.Blueprint('auth', __name__)
 
-@bp.route('/login', methods=['GET', 'POST'])
+# NOTE:
+# In this module I don't use decorators (route and before_app_request) to register
+# functions in blueprint I register them after the function definition
+# this exposes a raw function ,so it can be registered in alternative auth modules.
+#
+# BTW: both route and before_app_request are just registering a function, they return
+#      unwrapped function reference however this may change in the future, so let's keep it clean
+
+
 def login():
 
     # clear session to force re-login
@@ -47,17 +47,14 @@ def login():
 
     return flask.render_template('login.html')
 
-@bp.route('/logout')
+bp.route('/login', methods=['GET', 'POST'])(login)
+
 def logout():
     flask.session.clear()
     return flask.redirect(flask.url_for('auth.login'))
 
-# We don't use before_app_request decorator here (we register it after the function)
-# to expose a raw function ,so it can be registered in alternative auth modules.
-#
-# Note: bp.before_app_request is just registering a function, it returns unwrapped function reference
-#       however this may change in the future, so let's keep it clean
-# @bp.before_app_request
+bp.route('/logout')(logout)
+
 def session():
 
     if flask.request.blueprint == 'auth':

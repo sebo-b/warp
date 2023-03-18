@@ -4,3 +4,4 @@ xlsxwriter
 peewee
 psycopg2
 orjson
+ldap3
