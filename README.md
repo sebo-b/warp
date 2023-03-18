@@ -188,23 +188,99 @@ This plugin supports:
 
 Please note that every variable can be set either in the config file or via the environment (in that case, it needs to be prefixed by `WARP_` string).
 
-| variable | default value | type | description |
-| --- | --- | --- | --- |
-| `AUTH_LDAP` | `False` | `boolean` | If set to `True` enables LDAP authentication |
-| `LDAP_SERVER_URL` | `None` | `string` | Server url, either `ldap://address[:port]` or `ldaps://address[:port]`<br/>It must be `ldap://` for StartTLS |
-| `LDAP_AUTH_TYPE` | `SIMPLE` | `string`: `SIMPLE` or `NTLM` | LDAP authentication type.<br/>For `NTLM` authentication `LDAP_AUTH_NTLM_DOMAIN` must be also set |
-| `LDAP_AUTH_NTLM_DOMAIN` | `None` | `string` | NTLM domain used for `NTLM` authentication |
-| `LDAP_STARTTLS` | `True` | `boolean` | If StartTLS should be invoked before bind. |
-| `LDAP_VALIDATE_CERT` | `False` | `boolean` | If server certificate should be validated for `SSL` or `StartTLS` |
-| `LDAP_TLS_VERSION` | `None` | `string`: `TLSv1`, `TLSv1.1` or `TLSv1.2` | TLS version to be user.<br/>If not set, default Python SSL module is used. |
-| `LDAP_TLS_CIPHERS` | `None` | `string` | Limit TLS only to specified ciphers. |
-| `LDAP_USER_DN_TEMPLATE` | `None` | `string` | Template used for user distinguished name, it must contain `{login}` placeholder.<br/>Example value is: `uid={login},ou=users,dc=example,dc=org` |
-| `LDAP_USER_NAME_ATTRIBUTE` | `cn` | `string` | Full user name LDAP atribute. |
-| `LDAP_GROUP_SEARCH_BASE` | `None` | `string` | Base for searching for user groups.<br/>Example value is: `ou=groups,dc=example,dc=org`<br>Check the next sections for more advanced examples. |
-| `LDAP_GROUP_SEARCH_FILTER_TEMPLATE` | `(&(memberUid={login})(cn={group}))` | `string` | Search filter for user's group lookup.<br>It must contain `{login}` and `{group}` placeholders.<br>Check the next sections for more advanced examples. |
-| `LDAP_GROUP_MAP` | `[ [null,null] ]` | `array` of `tuples` | See the next section |
-| `LDAP_GROUP_STRICT_MAPPING` | `False` | `boolean` | Should user be removed from Warp groups if such mapping is not present in LDAP.<br>See next section for more details |
-| `LDAP_EXCLUDED_USERS` | `[]` | `array` of `strings` | List of logins to be excluded from LDAP authentication. <br/> This can be usable for admins |
+|variable:|`AUTH_LDAP`|
+|:---|:---|
+|type:|`boolean`|
+|default value:|`False`|
+|description:|If set to `True` enables LDAP authentication|
+
+
+|variable:|`LDAP_SERVER_URL`|
+|:---|:---|
+|type:|`string`|
+|default value:|`None` (have to be defined)|
+|description:|Server url, either `ldap://address[:port]` or `ldaps://address[:port]`<br/>It must be `ldap://` for StartTLS |
+
+|variable:|`LDAP_AUTH_TYPE`|
+|:---|:---|
+|type:|`string`: `SIMPLE` or `NTLM`|
+|default value:|`SIMPLE`|
+|description:|LDAP authentication type.<br/>For `NTLM` authentication `LDAP_AUTH_NTLM_DOMAIN` must be also set|
+
+|variable:|`LDAP_AUTH_NTLM_DOMAIN`|
+|:---|:---|
+|type:|`string`|
+|default value:|`None`|
+|description:|NTLM domain used for `NTLM` authentication|
+
+|variable:|`LDAP_STARTTLS`|
+|:---|:---|
+|type:|`boolean`|
+|default value:|`True`|
+|description:|If StartTLS should be invoked before bind.|
+
+|variable:|`LDAP_VALIDATE_CERT`|
+|:---|:---|
+|type:|`boolean`|
+|default value:|`False`|
+|description:|If server certificate should be validated for `SSL` or `StartTLS`|
+
+|variable:|`LDAP_TLS_VERSION`|
+|:---|:---|
+|type:|`string`: `TLSv1`, `TLSv1.1` or `TLSv1.2`|
+|default value:|`None`|
+|description:|TLS version to be user.<br/>If not set, default value from Python SSL module is used.|
+
+|variable:|`LDAP_TLS_CIPHERS`|
+|:---|:---|
+|type:|`string`|
+|default value:|`None`|
+|description:|Limit TLS only to specified ciphers.<br/>If not set, default value from Python SSL module is used.|
+
+|variable:|`LDAP_USER_DN_TEMPLATE`|
+|:---|:---|
+|type:|`string`|
+|default value:|`None`|
+|description:|Template used for user distinguished name, it must contain `{login}` placeholder.|
+|example value:|`uid={login},ou=users,dc=example,dc=org`|
+
+|variable:|`LDAP_USER_NAME_ATTRIBUTE`|
+|:---|:---|
+|type:|`string`|
+|default value:|`cn`|
+|description:|Full user name LDAP atribute.|
+
+|variable:|`LDAP_GROUP_SEARCH_BASE`|
+|:---|:---|
+|type:|`string`|
+|default value:|`None` (have to be defined)|
+|description:|Base for searching for user groups.<br/>Check the next sections for more advanced examples.|
+|example value:|`ou=groups,dc=example,dc=org`|
+
+|variable:|`LDAP_GROUP_SEARCH_FILTER_TEMPLATE`|
+|:---|:---|
+|type:|`string`|
+|default value:|`(&(memberUid={login})(cn={group}))`|
+|description:|Search filter for user's group lookup.<br>It must contain `{login}` and `{group}` placeholders.<br>Check the next sections for more advanced examples.|
+
+|variable:|`LDAP_GROUP_MAP`|
+|:---|:---|
+|type:|`array` of `tuples`|
+|default value:|`[ [null,null] ]`|
+|description:|See [LDAP group mapping section.](#LDAP-group-mapping)|
+
+|variable:|`LDAP_GROUP_STRICT_MAPPING`|
+|:---|:---|
+|type:|`boolean`|
+|default value:|`False`|
+|description:|Should user be removed from Warp groups if such mapping is not present in LDAP.<br>See [LDAP group mapping section](#LDAP-group-mapping) for more details.|
+
+
+|variable:|`LDAP_EXCLUDED_USERS`|
+|:---|:---|
+|type:|`array` of `strings`|
+|default value:|`[]`|
+|description:|List of logins to be excluded from LDAP authentication. <br/> This can be usable for admins|
 
 ### LDAP group mapping
 
@@ -221,6 +297,7 @@ You can interpret that in the following way:
 - to what WARP groups user should be added to, based on LDAP groups
 
 The following configurations of an entry are possible:
+
 1.
 ```
 [
