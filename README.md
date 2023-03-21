@@ -205,13 +205,7 @@ Please note that every variable can be set either in the config file or via the 
 |:---|:---|
 |type:|`string`: `SIMPLE` or `NTLM`|
 |default value:|`SIMPLE`|
-|description:|LDAP authentication type.<br/>For `NTLM` authentication `LDAP_AUTH_NTLM_DOMAIN` must be also set|
-
-|variable:|`LDAP_AUTH_NTLM_DOMAIN`|
-|:---|:---|
-|type:|`string`|
-|default value:|`None`|
-|description:|NTLM domain used for `NTLM` authentication|
+|description:|LDAP authentication type.<br/>For `NTLM` see [Active Directory authentication ](#Active-Directory-authentication) for more details.|
 
 |variable:|`LDAP_STARTTLS`|
 |:---|:---|
@@ -237,12 +231,26 @@ Please note that every variable can be set either in the config file or via the 
 |default value:|`None`|
 |description:|Limit TLS only to specified ciphers.<br/>If not set, default value from Python SSL module is used.|
 
-|variable:|`LDAP_USER_DN_TEMPLATE`|
+|variable:|`LDAP_USER_TEMPLATE`|
 |:---|:---|
 |type:|`string`|
 |default value:|`None`|
-|description:|Template used for user distinguished name, it must contain `{login}` placeholder.|
-|example value:|`uid={login},ou=users,dc=example,dc=org`|
+|description:|Template used for user authentication (bind) to LDAP. It must contain `{login}` placeholder.<br/>For OpenLDAP it is usually a distinguished name, for AD it is usually `Domain\\{login}`|
+|example value:|OpenLDAP: `uid={login},ou=users,dc=example,dc=org`<br/>AD: `SAMDOM\{login}`|
+
+|variable:|`LDAP_USER_SEARCH_BASE`|
+|:---|:---|
+|type:|`string`|
+|default value:|`None`|
+|description:|Search base used for fetching user data. If this is not defined, `LDAP_USER_TEMPLATE` is used as it is usually configured as DN for OpenLDAP.<br/>It can contain `{login}` placeholder.|
+|example value:|OpenLDAP: `None`<br/>AD: `cn=users,dc=samdom,dc=example,dc=org`|
+
+|variable:|`LDAP_USER_SEARCH_FILTER_TEMPLATE`|
+|:---|:---|
+|type:|`string`|
+|default value:|`(objectClass=person)`|
+|description:|Search filter used for fetching user data.<br/>If `LDAP_USER_SEARCH_BASE` is DN, it can even be `(objectClass=*)`.|
+|example value:|OpenLDAP: `(objectClass=*)`<br/>AD: `(&(sAMAccountName={login})(objectClass=user))`|
 
 |variable:|`LDAP_USER_NAME_ATTRIBUTE`|
 |:---|:---|
@@ -255,13 +263,14 @@ Please note that every variable can be set either in the config file or via the 
 |type:|`string`|
 |default value:|`None` (have to be defined)|
 |description:|Base for searching for user groups.<br/>Check the next sections for more advanced examples.|
-|example value:|`ou=groups,dc=example,dc=org`|
+|example value:|OpenLDAP: `ou=groups,dc=example,dc=org`<br/>AD: `CN=Users,DC=samdom,DC=example,DC=org`|
 
 |variable:|`LDAP_GROUP_SEARCH_FILTER_TEMPLATE`|
 |:---|:---|
 |type:|`string`|
 |default value:|`(&(memberUid={login})(cn={group}))`|
 |description:|Search filter for user's group lookup.<br>It must contain `{login}` and `{group}` placeholders.<br>Check the next sections for more advanced examples.|
+|example value:|AD: `(&(sAMAccountName={login})(objectClass=user)(memberOf:1.2.840.113556.1.4.1941:={group}))`|
 
 |variable:|`LDAP_GROUP_MAP`|
 |:---|:---|
@@ -274,7 +283,6 @@ Please note that every variable can be set either in the config file or via the 
 |type:|`boolean`|
 |default value:|`False`|
 |description:|Should user be removed from Warp groups if such mapping is not present in LDAP.<br>See [LDAP group mapping section](#LDAP-group-mapping) for more details.|
-
 
 |variable:|`LDAP_EXCLUDED_USERS`|
 |:---|:---|
@@ -345,18 +353,31 @@ Warp groups are not automatically created by LDAP plugin, users are only added (
 If `LDAP_GROUP_STRICT_MAPPING` is set to `False` users are not removed from Warp groups based on LDAP group mapping mechanism.
 If `LDAP_GROUP_STRICT_MAPPING` is set to `True` users are removed from all Warp groups not matched by the mapping.
 
+### Active Directory authentication
+
+The distinguished name is (usually?) not used for authenticating against Active Directory. The user name is in the form of `Domain\Username`, in such scenario the following variable needs to be properly configured (example values given):
+```
+WARP_LDAP_USER_TEMPLATE = "SAMDOM\{login}"
+WARP_LDAP_USER_SEARCH_BASE = "cn=Users,dc=samdom,dc=example,dc=org"
+WARP_LDAP_USER_SEARCH_FILTER_TEMPLATE = "(&(sAMAccountName={login})(objectClass=user))"
+```
+
+This applies to both `SAMPLE` and `NTML` authentication mechanisms.
+
+Please also note that backslash in most of the cases is the escape character, so after the domain in  `WARP_LDAP_USER_TEMPLATE`, it usually needs to be escaped (`\\`).
+
 ### `memberOf` LDAP attribute and `LDAP_MATCHING_RULE_IN_CHAIN`
 
-In case you use `memberOf` (or similar) LDAP attribute to assign users to groups, the follwing setup should do the trick:
+In case you use `memberOf` (or similar) LDAP attribute to assign users to groups, the follwing setup should do the trick (example values given):
 ```
-LDAP_GROUP_SEARCH_BASE = "dc=example,dc=org"
-LDAP_GROUP_SEARCH_FILTER_TEMPLATE = "(&(objectclass=user)(sAMAccountName={login})(memberOf={group}))"
+LDAP_GROUP_SEARCH_BASE = "CN=Users,DC=samdom,DC=example,DC=org"
+LDAP_GROUP_SEARCH_FILTER_TEMPLATE = "(&(sAMAccountName={login})(objectClass=user)(memberOf={group}))"
 ```
 
 In addition, if your server supports `LDAP_MATCHING_RULE_IN_CHAIN` you can specify it as follow:
 ```
-LDAP_GROUP_SEARCH_BASE = "dc=example,dc=org"
-LDAP_GROUP_SEARCH_FILTER_TEMPLATE = "(&(objectclass=user)(sAMAccountName={login})(memberOf:1.2.840.113556.1.4.1941:={group}))"
+LDAP_GROUP_SEARCH_BASE = "CN=Users,DC=samdom,DC=example,DC=org"
+LDAP_GROUP_SEARCH_FILTER_TEMPLATE = "(&(sAMAccountName={login})(objectClass=user)(memberOf:1.2.840.113556.1.4.1941:={group}))"
 ```
 
 ### Example configuration
@@ -365,7 +386,7 @@ LDAP_GROUP_SEARCH_FILTER_TEMPLATE = "(&(objectclass=user)(sAMAccountName={login}
 ```
 WARP_AUTH_LDAP = "True"
 WARP_LDAP_SERVER_URL = "ldap://ldap.example.org:1389"
-WARP_LDAP_USER_DN_TEMPLATE = "uid={login},ou=users,dc=example,dc=org"
+WARP_LDAP_USER_TEMPLATE = "uid={login},ou=users,dc=example,dc=org"
 WARP_LDAP_GROUP_SEARCH_BASE = "ou=groups,dc=example,dc=org"
 WARP_LDAP_GROUP_MAP = "[ ['WARP_allowed',null], [null,'Everyone'] ]"
 WARP_LDAP_EXCLUDED_USERS = "['admin']"
@@ -383,12 +404,13 @@ WARP_AUTH_LDAP = "True"
 WARP_LDAP_SERVER_URL = "ldaps://ldap.example.org:636"
 WARP_LDAP_VALIDATE_CERT = "True"
 WARP_LDAP_AUTH_TYPE = "NTLM"
-WARP_LDAP_AUTH_NTLM_DOMAIN = "Example1"
-WARP_LDAP_USER_DN_TEMPLATE = "sAMAccountName={login},ou=users,dc=example,dc=org"
-WARP_LDAP_GROUP_SEARCH_BASE = "dc=example,dc=org"
-WARP_LDAP_GROUP_SEARCH_FILTER_TEMPLATE = "(&(objectclass=user)(sAMAccountName={login})(memberOf:1.2.840.113556.1.4.1941:={group}))"
+WARP_LDAP_USER_TEMPLATE = "SAMDOM\\{login}"
+WARP_LDAP_USER_SEARCH_BASE = "cn=Users,dc=samdom,dc=example,dc=org"
+WARP_LDAP_USER_SEARCH_FILTER_TEMPLATE = "(&(sAMAccountName={login})(objectClass=user))"
+WARP_LDAP_GROUP_SEARCH_BASE = "CN=Users,DC=samdom,DC=example,DC=org"
+WARP_LDAP_GROUP_SEARCH_FILTER_TEMPLATE = "(&(sAMAccountName={login})(objectClass=user)(memberOf:1.2.840.113556.1.4.1941:={group}))"
 WARP_LDAP_EXCLUDED_USERS = "['admin']"
-WARP_LDAP_GROUP_MAP = "[ ['WARP_allowed',null], [null,'Everyone'] ]"
+WARP_LDAP_GROUP_MAP = "[ ['CN=warp_allowed,CN=Users,DC=samdom,DC=example,DC=com',"AD users"], [null,'Everyone'] ]"
 ```
 
 ### How to import users

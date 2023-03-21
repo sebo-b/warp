@@ -40,22 +40,22 @@ def ldapConnect(login, password):
         raise Exception("LDAP_SERVER_URL must be either ldap:// or ldaps://")
     ldapServer = ldap3.Server(url,tls=tls,get_info=ALL)
 
-    bindUser = flask.current_app.config.get("LDAP_USER_DN_TEMPLATE")
-    bindUser = bindUser.format(login=escape_rdn(login))
+    userName = flask.current_app.config.get("LDAP_USER_TEMPLATE")
+    userName = userName.format(login=escape_rdn(login))
 
     ldapAuthType = flask.current_app.config.get('LDAP_AUTH_TYPE')
     if ldapAuthType.upper() == "SIMPLE":
         ldapAuthType = ldap3.SIMPLE
     elif ldapAuthType.upper() == "NTLM":
         ldapAuthType = ldap3.NTLM
-        ntlmDomain = flask.current_app.config.get("LDAP_AUTH_NTLM_DOMAIN",None)
-        if not ntlmDomain:
-            print("For NTLM authentication LDAP_AUTH_NTLM_DOMAIN should be defined.",file=sys.stderr)
-            raise Exception("For NTLM authentication LDAP_AUTH_NTLM_DOMAIN should be defined.")
-        bindUser = f"{ntlmDomain}\\{escape_rdn(login)}"
+        if '\\' not in userName:
+            print("For NTLM authentication LDAP_USER_TEMPLATE should contain Domain name.",file=sys.stderr)
     else:
         print(f"Wrong LDAP_AUTH_TYPE specified {ldapAuthType}",file=sys.stderr)
         raise Exception("Wrong LDAP_AUTH_TYPE specified")
+
+    if '\\' in userName and not flask.current_app.config.get("LDAP_USER_SEARCH_BASE",None):
+        print("For AD authentication LDAP_USER_SEARCH_BASE should be configured.",file=sys.stderr)
 
     ldapConnection = ldap3.Connection(
         ldapServer,
@@ -63,7 +63,7 @@ def ldapConnect(login, password):
         lazy=False,
         read_only=True,
         auto_bind=ldap3.AUTO_BIND_NONE,
-        user=bindUser,
+        user=userName,
         password=password)
 
     if flask.current_app.config.get('LDAP_STARTTLS') and url.lower().startswith('ldap://'):
@@ -80,13 +80,17 @@ def ldapConnect(login, password):
 def ldapGetUserMetadata(login,ldapConnection):
 
 
-    userDN = flask.current_app.config.get("LDAP_USER_DN_TEMPLATE")
-    userDN = userDN.format(login=escape_rdn(login))
+    userSearchBase = flask.current_app.config.get("LDAP_USER_SEARCH_BASE",None)
+    if not userSearchBase:
+        userSearchBase = flask.current_app.config.get("LDAP_USER_TEMPLATE","")
+    userSearchBase = userSearchBase.format(login=escape_rdn(login))
+
+    userSearchFilter = flask.current_app.config.get("LDAP_USER_SEARCH_FILTER_TEMPLATE","")
+    userSearchFilter = userSearchFilter.format(login=escape_rdn(login))
 
     ldapNameAtt = flask.current_app.config.get('LDAP_USER_NAME_ATTRIBUTE')
-    ldapConnection.search(search_base=userDN,
-                          search_filter="(objectClass=*)",
-                          search_scope=ldap3.BASE,
+    ldapConnection.search(search_base=userSearchBase,
+                          search_filter=userSearchFilter,
                           attributes=ldapNameAtt)
 
     if len(ldapConnection.entries) != 1:

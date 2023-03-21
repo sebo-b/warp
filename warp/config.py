@@ -33,6 +33,7 @@ class DefaultSettings(object):
     LDAP_STARTTLS = True
     LDAP_VALIDATE_CERT = False
     LDAP_USER_NAME_ATTRIBUTE = "cn"
+    LDAP_USER_SEARCH_FILTER_TEMPLATE = "(objectClass=person)"
     LDAP_GROUP_SEARCH_FILTER_TEMPLATE = "(&(memberUid={login})(cn={group}))"
     LDAP_GROUP_MAP = [ [None,None] ]
     LDAP_GROUP_STRICT_MAPPING = False
@@ -41,9 +42,9 @@ class DefaultSettings(object):
     ### LDAP variables to be configured
     # AUTH_LDAP = True
     # LDAP_SERVER_URL = "ldap://server:port"
-    # LDAP_USER_DN_TEMPLATE = "uid={login},ou=users,dc=example,dc=org"
+    # LDAP_USER_TEMPLATE = "uid={login},ou=users,dc=example,dc=org"
+    # LDAP_USER_SEARCH_BASE
     # LDAP_GROUP_SEARCH_BASE = "ou=groups,dc=example,dc=org"
-    # LDAP_AUTH_NTLM_DOMAIN (optional)
     # LDAP_TLS_VERSION (optional)
     # LDAP_TLS_CIPHERS (optional)
 
