@@ -357,7 +357,7 @@ If `LDAP_GROUP_STRICT_MAPPING` is set to `True` users are removed from all Warp 
 
 The distinguished name is (usually?) not used for authenticating against Active Directory. The user name is in the form of `Domain\Username`, in such scenario the following variable needs to be properly configured (example values given):
 ```
-WARP_LDAP_USER_TEMPLATE = "SAMDOM\{login}"
+WARP_LDAP_USER_TEMPLATE = "SAMDOM\\{login}"
 WARP_LDAP_USER_SEARCH_BASE = "cn=Users,dc=samdom,dc=example,dc=org"
 WARP_LDAP_USER_SEARCH_FILTER_TEMPLATE = "(&(sAMAccountName={login})(objectClass=user))"
 ```
