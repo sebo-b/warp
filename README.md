@@ -410,7 +410,7 @@ WARP_LDAP_USER_SEARCH_FILTER_TEMPLATE = "(&(sAMAccountName={login})(objectClass=
 WARP_LDAP_GROUP_SEARCH_BASE = "CN=Users,DC=samdom,DC=example,DC=org"
 WARP_LDAP_GROUP_SEARCH_FILTER_TEMPLATE = "(&(sAMAccountName={login})(objectClass=user)(memberOf:1.2.840.113556.1.4.1941:={group}))"
 WARP_LDAP_EXCLUDED_USERS = "['admin']"
-WARP_LDAP_GROUP_MAP = "[ ['CN=warp_allowed,CN=Users,DC=samdom,DC=example,DC=com',"AD users"], [null,'Everyone'] ]"
+WARP_LDAP_GROUP_MAP = "[ ['CN=warp_allowed,CN=Users,DC=samdom,DC=example,DC=com','AD users'], [null,'Everyone'] ]"
 ```
 
 ### How to import users
