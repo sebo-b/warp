@@ -1,9 +1,8 @@
 import flask
 from werkzeug.security import check_password_hash
 
-from warp.db import *
-
 from . import utils
+from .db import ACCOUNT_TYPE_ADMIN, ACCOUNT_TYPE_BLOCKED, ACCOUNT_TYPE_GROUP, Users
 
 bp = flask.Blueprint("auth", __name__)
 
