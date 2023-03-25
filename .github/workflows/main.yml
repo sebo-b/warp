@@ -10,7 +10,7 @@ jobs:
     - name: Build docker image and run a smoke test
       id: build_docker_image
       run: |
-        docker build -f Dockerfile_DEV -t warp:latest .
+        docker build -f Dockerfile -t warp:latest .
         docker run -d -p 5000:5000 --name warp warp:latest
         sleep 10
         docker rm -f warp
