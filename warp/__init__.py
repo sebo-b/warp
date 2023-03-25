@@ -1,7 +1,6 @@
 import flask
-from werkzeug.middleware.proxy_fix import ProxyFix
 
-from warp.config import *
+from .config import initConfig
 
 
 def create_app():
