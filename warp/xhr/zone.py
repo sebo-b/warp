@@ -3,10 +3,20 @@ from collections import defaultdict
 import flask
 import orjson
 import peewee
-from jsonschema import ValidationError, validate
 
-from warp import auth, utils
-from warp.db import *
+from .. import utils
+from ..db import (
+    COUNT_STAR,
+    DB,
+    SQL_ONE,
+    ZONE_ROLE_ADMIN,
+    Book,
+    Seat,
+    SeatAssign,
+    Users,
+    UserToZoneRoles,
+    Zone,
+)
 
 bp = flask.Blueprint("zone", __name__, url_prefix="zone")
 
