@@ -3,7 +3,7 @@ import io
 import flask
 from flask.wrappers import Response
 
-from warp.db import *
+from .db import DB, Blobs
 
 
 def deleteBlob(blobId=None, blobIdQuery=None):
