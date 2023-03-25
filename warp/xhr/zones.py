@@ -5,9 +5,22 @@ import orjson
 from jsonschema import ValidationError, validate
 from peewee import EXCLUDED, JOIN, fn
 
-from warp import blob_storage, utils
-from warp.db import *
-from warp.utils_tabulator import *
+from .. import blob_storage, utils
+from ..db import (
+    ACCOUNT_TYPE_GROUP,
+    COUNT_STAR,
+    DB,
+    ZONE_ROLE_ADMIN,
+    ZONE_ROLE_USER,
+    ZONE_ROLE_VIEWER,
+    IntegrityError,
+    Seat,
+    Users,
+    UserToZoneRoles,
+    Zone,
+    ZoneAssign,
+)
+from ..utils_tabulator import addToTabulatorSchema, applyTabulatorToQuery, tabulatorSchema
 
 bp = flask.Blueprint("zones", __name__, url_prefix="zones")
 
