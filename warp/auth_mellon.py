@@ -1,9 +1,8 @@
 import flask
 
-from warp.auth import session
-
 from . import utils
-from .db import *
+from .auth import session
+from .db import ACCOUNT_TYPE_USER, DB, Groups, Users
 
 bp = flask.Blueprint("auth", __name__)
 
