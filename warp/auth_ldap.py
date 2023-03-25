@@ -3,16 +3,12 @@ import sys
 
 import flask
 import ldap3
-from ldap3 import ALL, Connection, Server, Tls
-from ldap3.core.exceptions import LDAPException
+from ldap3 import ALL
 from ldap3.utils.conv import escape_filter_chars
 from ldap3.utils.dn import escape_rdn
-from werkzeug.security import check_password_hash
 
-import .auth
-from .db import *
-
-from . import utils
+from . import auth, utils
+from .db import ACCOUNT_TYPE_GROUP, ACCOUNT_TYPE_USER, DB, Groups, Users
 
 bp = flask.Blueprint("auth", __name__)
 
@@ -227,10 +223,10 @@ def login():
             flask.flash("Wrong username or password")
 
         else:
-            return warp.auth.login()
+            return auth.login()
 
     return flask.render_template("login.html")
 
 
-bp.route("/logout")(warp.auth.logout)
-bp.before_app_request(warp.auth.session)
+bp.route("/logout")(auth.logout)
+bp.before_app_request(auth.session)
