@@ -1,8 +1,15 @@
 import flask
 
-from warp.db import *
-
 from . import blob_storage, utils
+from .db import (
+    ACCOUNT_TYPE_GROUP,
+    ZONE_ROLE_ADMIN,
+    ZONE_ROLE_USER,
+    ZONE_ROLE_VIEWER,
+    Users,
+    UserToZoneRoles,
+    Zone,
+)
 
 bp = flask.Blueprint("view", __name__)
 
