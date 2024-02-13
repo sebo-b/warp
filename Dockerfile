@@ -40,6 +40,9 @@ RUN python setup.py bdist_wheel -d wheel
 FROM python:3-slim
 WORKDIR /opt/warp
 
+RUN apt-get update
+RUN apt-get install -y build-essential libpq-dev libpcre3 libpcre3-dev
+
 RUN \
     --mount=type=bind,from=compile-image,source=/opt/warp/debs,target=./debs \
     dpkg -i debs/*.deb
