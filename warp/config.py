@@ -14,6 +14,10 @@ class DefaultSettings(object):
     # (after the current week)
     WEEKS_IN_ADVANCE = 1
 
+    # opening and closing time in seconds from 00:00
+    BOOK_OPEN = 0
+    BOOK_CLOSE = 24 * 3600
+
     MAX_CONTENT_LENGTH = 5 * 1024 * 1024
 
     # maximum size of uploaded map file

@@ -58,7 +58,7 @@ function initSlider() {
         step: 15*60,
         margin: 15*60,
         orientation: 'vertical',
-        range: { 'min': 0, 'max': 24*3600 }
+        range: { min: +slider.dataset.min, max: +slider.dataset.max }
     });
 
     var minDiv = document.getElementById('timeslider-min');
