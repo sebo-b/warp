@@ -337,7 +337,7 @@ function initActionMenu(seatFactory) {
         if (removeMsg) {
 
             var myConflictsTable = document.createElement("table");
-            for (let c of seatFactory.getMyConflictingBookings()) {
+            for (let c of seatFactory.getMyConflictingBookings(this.group)) {
                 let tr = myConflictsTable.appendChild(document.createElement("tr"));
                 tr.appendChild( document.createElement("td")).innerText = c.zone_name
                 tr.appendChild( document.createElement("td")).innerText = c.seat_name;
@@ -413,7 +413,7 @@ function initActionMenu(seatFactory) {
         }
 
         if (this.dataset.action == 'delete' || this.dataset.action == 'update') {
-            applyData['remove'] = seatFactory.getMyConflictingBookings(true);
+            applyData['remove'] = seatFactory.getMyConflictingBookings(seat.group, true);
         }
 
         Utils.xhr.post(
