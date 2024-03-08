@@ -14,6 +14,10 @@ class DefaultSettings(object):
     # (after the current week)
     WEEKS_IN_ADVANCE = 1
 
+    # Weekdays to hide for reservation, 0 for monday to 6 for sunday
+    # Set to [5,6] to omit weekends
+    OMITTED_WEEKDAYS = []
+
     MAX_CONTENT_LENGTH = 5 * 1024 * 1024
 
     # maximum size of uploaded map file
