@@ -8,13 +8,14 @@ if (typeof(window?.warpGlobals?.i18n) !== 'object')
 
 let locale = window.warpGlobals.i18n.locale;
 let phrases = window.warpGlobals.i18n.phrases;
+let weekdaysShort = window.warpGlobals.i18n.weekdaysShort;
 
 if (!locale || !phrases)
   throw Error('locale and phrases must be defined');
 
 window.warpGlobals.i18n.polyglot = new Polyglot({
   locale: locale,
-  phrases: phrases
+  phrases: { ...phrases, weekdaysShort }
 })
 
 window.TR = window.warpGlobals.i18n.polyglot.t.bind(window.warpGlobals.i18n.polyglot);
