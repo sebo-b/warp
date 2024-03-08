@@ -290,10 +290,11 @@ def modify():
                         "name" : {"type" : "string"},
                         "x" : {"type" : "integer"},
                         "y" : {"type" : "integer"},
+                        "group" : {"type" : ["integer", "null"]},
                     },
                     "anyOf": [
                         {"required": ["sid"] },
-                        {"required": ["name","x","y"] },
+                        {"required": ["name","x","y","group"] },
                     ],
                 },
             },
@@ -358,7 +359,8 @@ def modify():
                     'sid': Seat.id,
                     'name': Seat.name,
                     'x': Seat.x,
-                    'y': Seat.y
+                    'y': Seat.y,
+                    'group': Seat.seat_group
                 }
 
                 dataInsert = []
@@ -399,14 +401,15 @@ def getSeats(zid):
     if not flask.g.isAdmin:
         return {"msg": "Forbidden", "code": 250 }, 403
 
-    query = Seat.select(Seat.id, Seat.name, Seat.x, Seat.y) \
+    query = Seat.select(Seat.id, Seat.name, Seat.x, Seat.y, Seat.seat_group) \
                 .where(Seat.zid == zid)
 
     res = {
         str(i['id']): {
             "name": i['name'],
             "x": i['x'],
-            "y": i['y']
+            "y": i['y'],
+            "group": i['seat_group']
             } for i in query.iterator()
     }
 
