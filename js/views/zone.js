@@ -55,7 +55,7 @@ function initSlider() {
         start: window.warpGlobals['defaultSelectedDates'].slider,    //this later on can be anyway overwritten from session storage
         connect: true,
         behaviour: 'drag',
-        step: 15*60,
+        step: 30*60,
         margin: 15*60,
         orientation: 'vertical',
         range: { min: +slider.dataset.min, max: +slider.dataset.max }
