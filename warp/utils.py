@@ -52,6 +52,7 @@ def getNextWeek():
     noOfSundays = 0
 
     weeksInAdvance = flask.current_app.config['WEEKS_IN_ADVANCE']
+    omittedWeekdays = flask.current_app.config['OMITTED_WEEKDAYS']
 
     while noOfSundays <= weeksInAdvance:
 
