@@ -42,6 +42,7 @@ def ldapConnect(login, password):
 
     userName = flask.current_app.config.get("LDAP_USER_TEMPLATE")
     userName = userName.format(login=escape_rdn(login))
+   
 
     ldapAuthType = flask.current_app.config.get('LDAP_AUTH_TYPE')
     if ldapAuthType.upper() == "SIMPLE":
@@ -92,15 +93,30 @@ def ldapGetUserMetadata(login,ldapConnection):
     ldapConnection.search(search_base=userSearchBase,
                           search_filter=userSearchFilter,
                           attributes=ldapNameAtt)
+# insert CH
+    ldapAktUserName = ldapConnection.entries[0][ldapNameAtt].value
+# End Insert CH - muss ich mir den Wert merken
 
     if len(ldapConnection.entries) != 1:
         raise Exception(f"LDAP: Wrong number of enties returned for the user: {len(ldapConnection.entries)}")
 
+# insert CH
+    ldapNameAtt = flask.current_app.config.get('LDAP_USER_MAIL_ATTRIBUTE')
+    #print("ch: ldapNameAtt "+ ldapNameAtt )
+    ldapConnection.search(search_base=userSearchBase,
+                          search_filter=userSearchFilter,
+                          attributes=ldapNameAtt)
+    #print("ch: ldapConnection.entries "+ str(len(ldapConnection.entries))) #print ("ch: join " + str.join(ldapConnection))
+    #print (ldapConnection)
 
     ret = {
-        "userName": ldapConnection.entries[0][ldapNameAtt].value,
-        "groups": []
+        "userName": ldapAktUserName ,
+        "groups": [],
+        "mail" : ldapConnection.entries[0][ldapNameAtt].value
     }
+    #print ("CH: ret")
+    #print (ret)
+# end insert CH
 
     searchBase = flask.current_app.config.get('LDAP_GROUP_SEARCH_BASE', None)
     if searchBase is None:
@@ -150,6 +166,13 @@ def ldapApplyUserMetadata(login,userData):
             }).execute()
         elif c != userData["userName"]:
             Users.update({Users.name: userData["userName"]}).where(Users.login == login).execute()
+
+# insert ch
+        c = Users.select(Users.mailaddress).where(Users.login == login).scalar()
+        if c != userData["mail"]:
+            Users.update({Users.mailaddress: userData["mail"]}).where(Users.login == login).execute()
+# end insert
+
 
         existingGroups = Users.select( Users.login ) \
             .where( Users.account_type == ACCOUNT_TYPE_GROUP ) \
@@ -204,12 +227,18 @@ def login():
 
         u = flask.request.form.get('login')
         p = flask.request.form.get('password')
+        print("User before {u}",u)
+        u = u.lower ()
+        print("User after {u}",u)
+        #print ("password",p)
+
 
         LDAP_EXCLUDED_USERS = flask.current_app.config.get('LDAP_EXCLUDED_USERS', [])
 
         if u not in LDAP_EXCLUDED_USERS:
 
             if ldapLogin(u, p):
+                flask.session.permanent = True
                 return flask.redirect(flask.url_for('view.index'))
             flask.flash("Wrong username or password")
 

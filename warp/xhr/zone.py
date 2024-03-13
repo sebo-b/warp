@@ -331,10 +331,19 @@ def apply():
     # APPLY CHANGES
     # -------------------------------------
 
-    class ApplyError(Exception):
-        pass
+# CH Berechne, ob heute, wenn ja: Dann gleich auf confirmed setzen
+    def checkConfirmed (x):
+       if (x > startTS) & (x < endTS):
+          return (True)
+       else:
+          return (False)
 
     try:
+
+        today = datetime.utcnow().date()
+        start = datetime(today.year, today.month, today.day)
+        startTS = int(datetime.timestamp(start))
+        endTS = startTS + 86400
 
         with DB.atomic():
 
@@ -382,6 +391,8 @@ def apply():
                         Book.sid: sid,
                         Book.fromts: x['fromTS'],
                         Book.tots: x['toTS']
+                        Book.bookuid : uuid.uuid4(),
+                        Book.confirmed : checkConfirmed(x['fromTS'])
                     } for x in apply_data['book']['dates'] ]
 
                 stmt = Book.insert(insertData)
