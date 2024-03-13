@@ -56,12 +56,13 @@ def getNextWeek():
     while noOfSundays <= weeksInAdvance:
 
         t = gmtime(ts)
-        res.append( {
-            "timestamp": ts,
-            "date": strftime("%Y-%m-%d",t),
-            "weekdayN": strftime("%w",t),
-            "isWeekend": t.tm_wday>=5
-        })
+        if t.tm_wday not in omittedWeekdays:
+            res.append( {
+                "timestamp": ts,
+                "date": strftime("%Y-%m-%d",t),
+                "weekdayN": strftime("%w",t),
+                "isWeekend": t.tm_wday>=5
+            })
 
         ts = ts + 24*3600
 
