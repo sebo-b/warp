@@ -60,6 +60,7 @@ $ cd warp
 
 $ docker compose -f demo_compose.yaml up
 for rebuild:
+git pull origin main
 docker compose  --file demo_compose.yaml build --no-cache
 ```
 
