@@ -59,6 +59,8 @@ $ git clone https://github.com/sebo-b/warp.git
 $ cd warp
 
 $ docker compose -f demo_compose.yaml up
+for rebuild:
+docker compose  --file demo_compose.yaml build --no-cache
 ```
 
 After that, open http://127.0.0.1:8080 in your browser and log in as `admin` with password `noneshallpass`.
