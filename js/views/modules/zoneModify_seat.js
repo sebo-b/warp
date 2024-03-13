@@ -178,6 +178,7 @@ Seat._setterFactory = function(propName,mutator = a => a) {
 Object.defineProperty(Seat.prototype, "name", { get: Seat._getterFactory('name'), set: Seat._setterFactory('name') } );
 Object.defineProperty(Seat.prototype, "x", { get: Seat._getterFactory('x'), set: Seat._setterFactory('x',(a) => Math.max(Math.round(a),0)) } );
 Object.defineProperty(Seat.prototype, "y", { get: Seat._getterFactory('y'), set: Seat._setterFactory('y',(a) => Math.max(Math.round(a),0)) } );
+Object.defineProperty(Seat.prototype, "group", { get: Seat._getterFactory('group'), set: Seat._setterFactory('group', (a) => a ? +a : null) } );
 
 function SeatFactory(url,parentDiv,zoneMapImg) {
 
