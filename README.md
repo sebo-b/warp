@@ -61,6 +61,11 @@ $ cd warp
 $ docker compose -f demo_compose.yaml up
 for rebuild:
 git pull origin main
+for reset:
+git reset --hard origin/main
+for pull of branch:
+git pull origin christianh17-step-change
+
 docker compose  --file demo_compose.yaml build --no-cache
 ```
 
