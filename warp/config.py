@@ -14,6 +14,10 @@ class DefaultSettings(object):
     # (after the current week)
     WEEKS_IN_ADVANCE = 1
 
+    # Weekdays to hide for reservation, 0 for monday to 6 for sunday
+    # Set to [5,6] to omit weekends
+    OMITTED_WEEKDAYS = []
+
     # opening and closing time in seconds from 00:00
     BOOK_OPEN = 0
     BOOK_CLOSE = 24 * 3600
