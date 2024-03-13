@@ -73,6 +73,8 @@ CREATE TABLE book (
     sid integer NOT NULL,
     fromts integer NOT NULL,
     tots integer NOT NULL,
+    bookuid uuid,
+    confirmed boolean DEFAULT false,
     FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE,
     FOREIGN KEY (sid) REFERENCES seat(id) ON DELETE CASCADE
     );
@@ -88,6 +90,9 @@ ON book(fromts);
 
 CREATE INDEX book_toTS
 ON book(tots);
+
+CREATE INDEX book_bookuid
+ON book(bookuid);
 
 CREATE MATERIALIZED VIEW user_to_zone_roles ("login",zid,zone_role) AS
     with recursive zone_assign_expanded("login",zid,zone_role,account_type) as (
