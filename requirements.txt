@@ -5,3 +5,4 @@ peewee
 psycopg2
 orjson
 ldap3
+pycryptodome
