@@ -196,10 +196,32 @@ NAV {
 }
 
 .zonemap_help {
-    position: fixed;
-    right: 0px;
     color: #9e9e9e;
     cursor: pointer;
+    margin-left: auto;
+}
+
+.zonemap_menu_left_bottom {
+    position: fixed;
+    right: 0px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    overflow: auto;
+    padding: 10px;
+    z-index: 1000;
+}
+
+.zonemap_menu_right_bottom {
+    position: fixed;
+    right: 0px;
+    bottom: 0px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    overflow: auto;
+    padding: 10px;
+    z-index: 1000;
 }
 
 .zone_action_btn {

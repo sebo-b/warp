@@ -9,7 +9,7 @@ import BookAs from './modules/bookas.js';
 import noUiSlider from 'nouislider';
 import "./css/zone/nouislider_materialize.scss";
 
-function downloadSeatData(seatFactory) {
+function downloadSeatData(seatFactory, previewCheckbox, zoneMap) {
 
     var url = window.warpGlobals.URLs['getSeat'];
 
@@ -22,6 +22,10 @@ function downloadSeatData(seatFactory) {
 
         seatFactory.setSeatsData(v.response);
         seatFactory.updateAllStates( getSelectedDates());
+    
+        if (previewCheckbox.checked) {
+            handleSmallPreviews(seatFactory, zoneMap);
+        }
 
     })
 }
@@ -75,7 +79,7 @@ function initSeats() {
 
     var seatFactory = new WarpSeatFactory(
         window.warpGlobals.URLs['seatSprite'],
-        "zonemap",
+        "zonemap-seats",
         window.warpGlobals.login);
 
     // register WarpSeats for updates
@@ -94,48 +98,129 @@ function initSeats() {
     return seatFactory;
 }
 
-function initSeatPreview(seatFactory) {
+function initPreviewDiv(seat_name, position, with_title) {
 
-    var zoneMap = document.getElementById("zonemap");
+    var previewDiv = document.createElement("div");
+    previewDiv.className = 'seat_preview';
+
+    if (with_title) {
+        var previewTitle = previewDiv.appendChild(document.createElement("div"));
+        previewTitle.innerText = TR("Seat %{seat_name}",{seat_name: seat_name});
+        previewTitle.className = "seat_preview_title";
+    }
+
+    previewDiv.style.right = position.right;
+    previewDiv.style.left = position.left;
+    previewDiv.style.top = position.top;
+    previewDiv.style.bottom = position.bottom;
+
+    return previewDiv;
+}
+
+const all_small_seat_previews = []
+function initSmallPreviews(seatFactory, zoneMap) {
+    for (const value in seatFactory.instances) {
+        var seat = seatFactory.instances[value]
+        if (seat.otherZone) {
+            continue;
+        }
+        // position of the frame
+        var pands = seat.getPositionAndSize();
+        var seat_name = seat.getName();
+        var bookings = seat.getBookings();
+
+        var position = {
+            left: pands.x + "px",
+            right: "",
+            top: (pands.y + pands.size * 0.70) + "px",
+            bottom: ""
+        };
+
+        var previewDiv = initPreviewDiv(seat_name, position, true);
+
+        var header = null
+        if (bookings.length) {
+            header = previewDiv.appendChild(document.createElement("span"));
+            header.appendChild(document.createTextNode(bookings[0].username));
+            header.className = "seat_preview_header";
+        }
+
+        zoneMap.appendChild(previewDiv);
+
+        all_small_seat_previews.push({
+            previewDiv: previewDiv,
+            header: header,
+            seat: seat
+        })
+    }
+}
+
+function updateAllSmallPreviews() {
+    for (const d of all_small_seat_previews) {
+        var bookings = d.seat.getBookings();
+        if (d.header !== null) {
+            d.header.remove()
+            d.header = null
+        }
+        if (bookings.length) {
+            d.header = d.previewDiv.appendChild(document.createElement("span"))
+            d.header.appendChild(document.createTextNode(bookings[0].username));
+            d.header.className = "seat_preview_header";
+        }
+    }
+}
+
+function handleSmallPreviews(seatFactory, zoneMap) {
+    if (all_small_seat_previews.length !== 0) {
+        updateAllSmallPreviews()
+    } else {
+        initSmallPreviews(seatFactory, zoneMap)
+    }
+}
+
+function initSeatPreview(seatFactory, previewCheckbox, zoneMap) {
+    let currentPreview = null
 
     seatFactory.on( 'mouseover', function() {
-
-        var previewDiv = document.createElement("div");
-        previewDiv.className = 'seat_preview';
-
-        var previewTitle = previewDiv.appendChild(document.createElement("div"));
-        previewTitle.innerText = TR("Seat %{seat_name}",{seat_name: this.getName()});
-        previewTitle.className = "seat_preview_title";
-
+        var assignments = Object.values(this.getAssignments());
         // position of the frame
         var pands = this.getPositionAndSize();
+        var seat_name = this.getName();
+        var bookings = this.getBookings();
+
+        if (previewCheckbox.checked && !assignments.length && !bookings.length) {
+            return
+        }
 
         var parentWidth = zoneMap.clientWidth;
         var clientPosX = pands.x - zoneMap.scrollLeft;
 
+        var position = new Object();
+
         if (clientPosX < parentWidth / 2) {
-            previewDiv.style.right = "";
-            previewDiv.style.left = (pands.x + pands.size * 0.70) + "px";
+            position.right = "";
+            position.left = (pands.x + pands.size * 0.70) + "px";
         }
         else {
-            previewDiv.style.left = "";
-            previewDiv.style.right = (parentWidth - pands.x - pands.size * 0.30) + "px";
+            position.left = "";
+            position.right = (parentWidth - pands.x - pands.size * 0.30) + "px";
         }
 
         var parentHeight = zoneMap.clientHeight;
         var clientPosY = pands.y;
 
-        if (clientPosY < parentHeight / 2) {
-            previewDiv.style.top = (pands.y + pands.size * 0.70) + "px";
-            previewDiv.style.bottom = "";
+        if (previewCheckbox.checked || (clientPosY > parentHeight / 2)) {
+            position.top = "";
+            position.bottom = (parentHeight - pands.y - pands.size * 0.30) + "px";
         }
         else {
-            previewDiv.style.top = "";
-            previewDiv.style.bottom = (parentHeight - pands.y - pands.size * 0.30) + "px";
+            position.top = (pands.y + pands.size * 0.70) + "px";
+            position.bottom = "";
         }
 
+        var previewDiv = initPreviewDiv(seat_name, position, !previewCheckbox.checked);
+
         // content of the frame
-        var assignments = Object.values(this.getAssignments());
         if (assignments.length) {
 
             var header = previewDiv.appendChild(document.createElement("span"));
@@ -149,7 +234,6 @@ function initSeatPreview(seatFactory) {
             }
         }
 
-        var bookings = this.getBookings();
         if (bookings.length) {
 
             var header = previewDiv.appendChild(document.createElement("span"))
@@ -178,12 +262,31 @@ function initSeatPreview(seatFactory) {
         }
 
         zoneMap.appendChild(previewDiv);
+        currentPreview = previewDiv
     });
 
+    previewCheckbox.addEventListener("change", function() {
+        if (previewCheckbox.checked) {
+            initSmallPreviews(seatFactory, zoneMap);
+        } else {
+            var previewDivs = document.querySelectorAll('.seat_preview');
+            for (const d of previewDivs) {
+                d.remove();
+            }
+            all_small_seat_previews.length = 0;
+        }
+    });
+
+    var slider = document.getElementById('timeslider');
+    slider.noUiSlider.on('update', updateAllSmallPreviews);  
+    for (var e of document.getElementsByClassName('date_checkbox')) {
+        e.addEventListener('change', updateAllSmallPreviews);
+    }
+
     seatFactory.on( 'mouseout', function() {
-        var previewDivs = document.getElementsByClassName('seat_preview');
-        for (var d of previewDivs) {
-            d.remove();
+        if (currentPreview !== null) {
+            currentPreview.remove()
+            currentPreview = null
         }
     });
 
@@ -252,7 +355,7 @@ function initAssignedSeatsModal(seat) {
 }
 
 
-function initActionMenu(seatFactory) {
+function initActionMenu(seatFactory, previewCheckbox, zoneMap) {
 
     if (window.warpGlobals.isZoneViewer)
         return;
@@ -451,9 +554,9 @@ function initActionMenu(seatFactory) {
             else
                 WarpModal.getInstance().open(TR("Warning"),msg);
 
-            downloadSeatData(seatFactory);
+            downloadSeatData(seatFactory, previewCheckbox, zoneMap);
         }).catch( (value) => {
-            downloadSeatData(seatFactory);
+            downloadSeatData(seatFactory, previewCheckbox, zoneMap);
         });
 
     };
@@ -469,9 +572,14 @@ function initDateSelectorStorage() {
 
     var storage = window.sessionStorage;
 
-    // restore values from session storage
-    var restoredSelections = storage.getItem('zoneSelections');
-    restoredSelections = restoredSelections? JSON.parse(restoredSelections): window.warpGlobals['defaultSelectedDates'];
+    var restoreSelectedDates = window.warpGlobals['restoreSelectedDates']
+    if (restoreSelectedDates) {
+        // restore values from session storage
+        var restoredSelections = storage.getItem('zoneSelections');
+        restoredSelections = restoredSelections? JSON.parse(restoredSelections): window.warpGlobals['defaultSelectedDates'];
+    } else {
+        var restoredSelections = window.warpGlobals['defaultSelectedDates'];
+    }
 
     let cleanCBSelections = []; // used to clean up the list of checkboxes doesn't exist anymore
 
@@ -622,12 +730,14 @@ document.addEventListener("DOMContentLoaded", function() {
     initShiftSelectDates();
 
     var seatFactory = initSeats();
-    initSeatPreview(seatFactory);
-    initActionMenu(seatFactory);
+    const previewCheckbox = document.getElementById("preview-checkbox");
+    const zoneMap = document.getElementById("zonemap");
+    initSeatPreview(seatFactory, previewCheckbox, zoneMap);
+    initActionMenu(seatFactory, previewCheckbox, zoneMap);
     initZoneHelp();
     initZoneSidepanel();
 
-    downloadSeatData(seatFactory);
+    downloadSeatData(seatFactory, previewCheckbox, zoneMap);
 
     if (window.warpGlobals.isZoneAdmin) {
         ZoneUserData.init();

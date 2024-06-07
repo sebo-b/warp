@@ -72,10 +72,16 @@ document.addEventListener("DOMContentLoaded", function(e) {
             showClearBtn: true,
             format: "yyyy-mm-dd",
             onClose: function() {
-                success({
-                    fromTS: fromDatePicker.value? Math.round(Date.parse(fromDatePicker.value)/1000): null,
-                    toTS: toDatePicker.value? Math.round(Date.parse(toDatePicker.value)/1000)+24*3600-1: null
-                });
+                let fromTS = fromDatePicker.value? Math.round(Date.parse(fromDatePicker.value)/1000): null
+                let toTS = toDatePicker.value? Math.round(Date.parse(toDatePicker.value)/1000)+24*3600-1: null
+                if (fromTS !== null && toTS !== null) {
+                    success({
+                        fromTS: fromDatePicker.value? Math.round(Date.parse(fromDatePicker.value)/1000): null,
+                        toTS: toDatePicker.value? Math.round(Date.parse(toDatePicker.value)/1000)+24*3600-1: null
+                    });
+                } else {
+                    cancel();
+                };
              }
         };
 
@@ -189,10 +195,14 @@ document.addEventListener("DOMContentLoaded", function(e) {
     }
     else {
         columns.push(
-            {title:TR("Time"), field: "fromTS", width: 275,
-                formatter:mergedTsFormatter,
-                headerFilter:mergedDateFilterEditor,
-                headerFilterFunc:function(){} },
+            {
+                title: TR("Time"), 
+                field: "fromTS", 
+                width: 275,
+                formatter: mergedTsFormatter,
+                headerFilter: mergedDateFilterEditor,
+                headerFilterFunc: function(){} 
+            },
         );
 
         columns.splice(0,0,
