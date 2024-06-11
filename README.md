@@ -1,3 +1,8 @@
+# Announcement
+
+$${\color{red}looking\ for\ a\ maintainer}$$
+Recently, I haven't had too much time to maintain this project. There are a couple of great PRs waiting for my review and merge, and I'm sad that I'm not able to do that. So, I'm looking for a maintainer for this project. If you are an experienced Python and JavaScript (full-stack) developer, I'll be more than happy to accept your help! Please reach out to me via email (available in git-log).
+
 # WARP: Workspace Autonomous Reservation Program
 
 The story of this project begins when, due to COVID-19, we have converted our regular office into a hybrid of regular and hot-desk assignments. We needed to find a solution for desk reservations, transparency of that, and detailed logging of who was in the office for epidemic purposes.
