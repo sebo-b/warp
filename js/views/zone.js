@@ -117,10 +117,10 @@ function initPreviewDiv(seat_name, position, with_title) {
     return previewDiv;
 }
 
-const all_small_seat_previews = []
+const all_small_seat_previews = [];
 function initSmallPreviews(seatFactory, zoneMap) {
     for (const value in seatFactory.instances) {
-        var seat = seatFactory.instances[value]
+        var seat = seatFactory.instances[value];
         if (seat.otherZone) {
             continue;
         }
@@ -138,7 +138,7 @@ function initSmallPreviews(seatFactory, zoneMap) {
 
         var previewDiv = initPreviewDiv(seat_name, position, true);
 
-        var header = null
+        var header = null;
         if (bookings.length) {
             header = previewDiv.appendChild(document.createElement("span"));
             header.appendChild(document.createTextNode(bookings[0].username));
@@ -159,11 +159,11 @@ function updateAllSmallPreviews() {
     for (const d of all_small_seat_previews) {
         var bookings = d.seat.getBookings();
         if (d.header !== null) {
-            d.header.remove()
-            d.header = null
+            d.header.remove();
+            d.header = null;
         }
         if (bookings.length) {
-            d.header = d.previewDiv.appendChild(document.createElement("span"))
+            d.header = d.previewDiv.appendChild(document.createElement("span"));
             d.header.appendChild(document.createTextNode(bookings[0].username));
             d.header.className = "seat_preview_header";
         }
@@ -172,14 +172,14 @@ function updateAllSmallPreviews() {
 
 function handleSmallPreviews(seatFactory, zoneMap) {
     if (all_small_seat_previews.length !== 0) {
-        updateAllSmallPreviews()
+        updateAllSmallPreviews();
     } else {
-        initSmallPreviews(seatFactory, zoneMap)
+        initSmallPreviews(seatFactory, zoneMap);
     }
 }
 
 function initSeatPreview(seatFactory, previewCheckbox, zoneMap) {
-    let currentPreview = null
+    let currentPreview = null;
 
     seatFactory.on( 'mouseover', function() {
         var assignments = Object.values(this.getAssignments());
@@ -189,7 +189,7 @@ function initSeatPreview(seatFactory, previewCheckbox, zoneMap) {
         var bookings = this.getBookings();
 
         if (previewCheckbox.checked && !assignments.length && !bookings.length) {
-            return
+            return;
         }
 
         var parentWidth = zoneMap.clientWidth;
@@ -236,7 +236,7 @@ function initSeatPreview(seatFactory, previewCheckbox, zoneMap) {
 
         if (bookings.length) {
 
-            var header = previewDiv.appendChild(document.createElement("span"))
+            var header = previewDiv.appendChild(document.createElement("span"));
             header.appendChild(document.createTextNode(TR("Bookings:")));
             header.className = "seat_preview_header";
 
@@ -262,7 +262,7 @@ function initSeatPreview(seatFactory, previewCheckbox, zoneMap) {
         }
 
         zoneMap.appendChild(previewDiv);
-        currentPreview = previewDiv
+        currentPreview = previewDiv;
     });
 
     previewCheckbox.addEventListener("change", function() {
@@ -285,8 +285,8 @@ function initSeatPreview(seatFactory, previewCheckbox, zoneMap) {
 
     seatFactory.on( 'mouseout', function() {
         if (currentPreview !== null) {
-            currentPreview.remove()
-            currentPreview = null
+            currentPreview.remove();
+            currentPreview = null;
         }
     });
 

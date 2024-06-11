@@ -72,8 +72,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
             showClearBtn: true,
             format: "yyyy-mm-dd",
             onClose: function() {
-                let fromTS = fromDatePicker.value? Math.round(Date.parse(fromDatePicker.value)/1000): null
-                let toTS = toDatePicker.value? Math.round(Date.parse(toDatePicker.value)/1000)+24*3600-1: null
+                let fromTS = fromDatePicker.value? Math.round(Date.parse(fromDatePicker.value)/1000): null;
+                let toTS = toDatePicker.value? Math.round(Date.parse(toDatePicker.value)/1000)+24*3600-1: null;
                 if (fromTS !== null && toTS !== null) {
                     success({
                         fromTS: fromDatePicker.value? Math.round(Date.parse(fromDatePicker.value)/1000): null,
