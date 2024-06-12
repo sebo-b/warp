@@ -51,6 +51,7 @@ CREATE TABLE seat (
     name text NOT NULL,
     x integer NOT NULL,
     y integer NOT NULL,
+    seat_group integer,
     enabled boolean NOT NULL DEFAULT TRUE,
     FOREIGN KEY (zid) REFERENCES zone(id) ON DELETE CASCADE
     );
@@ -171,8 +172,8 @@ BEGIN
         (SELECT 1 FROM book b
          JOIN seat s on b.sid = s.id
          JOIN zone z on s.zid = z.id
-         WHERE z.zone_group =
-            (SELECT zone_group FROM zone z JOIN seat s on z.id = s.zid WHERE s.id = NEW.sid LIMIT 1)
+         WHERE COALESCE(s.seat_group, z.zone_group) =
+            (SELECT COALESCE(seat_group, zone_group) FROM zone z JOIN seat s on z.id = s.zid WHERE s.id = NEW.sid LIMIT 1)
          AND (b.sid = NEW.sid OR b.login = NEW.login)
          AND b.fromTS < NEW.toTS
          AND b.toTS > NEW.fromTS) IS NOT NULL

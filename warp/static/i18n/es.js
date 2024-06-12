@@ -205,6 +205,7 @@ warpGlobals.i18n.phrases = {
         "Seat name": "Nombre del asiento",
         "X": "X",
         "Y": "Y",
+        "group": "Grupo"
     },
     "All unsaved changes will be lost.": "Todos los cambios sin guardar se perderán.",
     "More than %{smart_count} rows are selected. Report will be limited to that number of rows.":

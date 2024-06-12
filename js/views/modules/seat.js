@@ -14,6 +14,7 @@ function WarpSeat(sid,seatData,zonesNames,usersNames,factory) {
     this.sid = sid;
     this.zoneName = zonesNames[seatData.zid];
     this.otherZone = !('x' in seatData && 'y' in seatData);
+    this.group = seatData.group;
 
     this._setData(seatData,usersNames);
 
@@ -145,16 +146,19 @@ WarpSeatFactory.prototype.updateLogin = function(login, seatsData) {
 
 /**
  * Returns a list of my bookings which conflicts in the given datetime
+ * @param group group to filter bookings
  * @param raw if true returns an array of bid's
  * @returns array of { sid: 10, bid: 10, fromTS: 1, toTS: 2, zone_name = "Zone 1", seat_name: "Seat 1", datetime1: "yyyy-mm-dd", datetime2: "hh:mm-hh:mm" }
  */
- WarpSeatFactory.prototype.getMyConflictingBookings = function(raw = false) {
+ WarpSeatFactory.prototype.getMyConflictingBookings = function(group, raw = false) {
 
     var res = [];
 
     for (var sid of this.myConflictingBookings) {
 
         var seat = this.instances[sid];
+        if (seat.group != group)
+            continue;
 
         for (let i of seat._bookingsIterator()) {
 
@@ -412,7 +416,8 @@ WarpSeat.prototype._updateView = function() {
             this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.userConflictOffset;
             break;
         case WarpSeat.SeatStates.CAN_BOOK:
-            if (this.factory.myConflictingBookings.size > 0) {
+            const conflictingBookings = this.factory.getMyConflictingBookings(this.group)
+            if (conflictingBookings.length > 0) {
                 this.state = WarpSeat.SeatStates.CAN_REBOOK;    //this is not very elegant
                 this.seatDiv.style.backgroundPositionX =
                     assignedToMe ? WarpSeat.Sprites.rebookAssignedOffset : WarpSeat.Sprites.rebookOffset;
