@@ -439,6 +439,75 @@ python -c 'from getpass import getpass; from werkzeug.security import generate_p
 
 ```
 
+## Azure Active Directory authentication
+
+WARP supports authentication against an Azure AD application.
+
+To enable Azure AD auth, you need to set `AUTH_AAD` to `True` and at least configure `AAD_TENANT`, `AAD_CLIENT_ID` and `AAD_CLIENT_SECRET`.
+
+This plugin supports:
+- automatic Warp user creation on the first login, user name update on each login
+- replicating user name and user groups from Azure AD groups.
+
+### Configuration variables
+
+Please note that every variable can be set either in the config file or via the environment (in that case, it needs to be prefixed by `WARP_` string).
+
+|variable:|`AUTH_AAD`|
+|:---|:---|
+|type:|`boolean`|
+|default value:|`False`|
+|description:|If set to `True` enables Azure AD authentication|
+
+|variable:|`AAD_TENANT`|
+|:---|:---|
+|type:|`string`|
+|default value:|`None` (have to be defined)|
+|description:|Azure tenant id |
+
+|variable:|`AAD_CLIENT_ID`|
+|:---|:---|
+|type:|`string`|
+|default value:|`None` (have to be defined)|
+|description:|Azure Application (client) ID|
+
+|variable:|`AAD_CLIENT_SECRET`|
+|:---|:---|
+|type:|`string`|
+|default value:|`None` (have to be defined)|
+|description:|Azure application token|
+
+|variable:|`AAD_HTTPS_SCHEME`|
+|:---|:---|
+|type:|`string`: `https` or `http`|
+|default value:|`https`|
+|description:|If Azure AD callback URL should be over HTTPS|
+
+|variable:|`AAD_USER_NAME_ATTRIBUTE`|
+|:---|:---|
+|type:|`string`|
+|default value:|`name`|
+|description:|Full user name attribute in claims|
+
+|variable:|`AAD_LOGIN_ATTRIBUTE`|
+|:---|:---|
+|type:|`string`|
+|default value:|`preferred_username`|
+|description:|Login attribute in claims|
+
+|variable:|`AAD_GROUP_MAP`|
+|:---|:---|
+|type:|`array` of `tuples`|
+|default value:|`[ [null,null] ]`|
+|description:|Works like the LDAP part, see [LDAP group mapping section.](#LDAP-group-mapping)|
+
+|variable:|`AAD_GROUP_STRICT_MAPPING`|
+|:---|:---|
+|type:|`boolean`|
+|default value:|`False`|
+|description:|Should user be removed from Warp groups if such mapping is not present in AAD.<br>Works like the LDAP part, see [LDAP group mapping section](#LDAP-group-mapping) for more details.|
+
+
 # Other
 
 ## How can I support you

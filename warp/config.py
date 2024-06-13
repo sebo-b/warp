@@ -39,6 +39,13 @@ class DefaultSettings(object):
     LDAP_GROUP_STRICT_MAPPING = False
     LDAP_EXCLUDED_USERS = []
 
+    # AAD defaults
+    AAD_HTTPS_SCHEME = "https"
+    AAD_USER_NAME_ATTRIBUTE = "name"
+    AAD_LOGIN_ATTRIBUTE = "preferred_username"
+    AAD_GROUP_MAP = [ [None,None] ]
+    AAD_GROUP_STRICT_MAPPING = False
+
     ### LDAP variables to be configured
     # AUTH_LDAP = True
     # LDAP_SERVER_URL = "ldap://server:port"
