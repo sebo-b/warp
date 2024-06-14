@@ -96,7 +96,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
         var toTS = new Date(parseInt(data.toTS)*1000);
 
         var res =
-            fromTS.toUTCString().substring(0,5)+
+            TR(`weekdaysShort.${fromTS.getDay()}`)+
+            ', '+
             fromTS.toISOString().substring(0,16).replace('T',' ')+
             '-'+
             toTS.toISOString().substring(11,16);
