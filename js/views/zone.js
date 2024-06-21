@@ -140,8 +140,12 @@ function initSmallPreviews(seatFactory, zoneMap) {
 
         var header = null;
         if (bookings.length) {
-            header = previewDiv.appendChild(document.createElement("span"));
-            header.appendChild(document.createTextNode(bookings[0].username));
+            header = previewDiv.appendChild(document.createElement("div"));
+            let headerSpan = header.appendChild(document.createElement("span"));
+            bookings[0].username.split(' ').forEach(function(n) {
+                headerSpan.appendChild(document.createTextNode(n));
+                headerSpan.appendChild(document.createElement('br'));
+            })
             header.className = "seat_preview_header";
         }
 
@@ -163,8 +167,12 @@ function updateAllSmallPreviews() {
             d.header = null;
         }
         if (bookings.length) {
-            d.header = d.previewDiv.appendChild(document.createElement("span"));
-            d.header.appendChild(document.createTextNode(bookings[0].username));
+            d.header = d.previewDiv.appendChild(document.createElement("div"));
+            let headerSpan = d.header.appendChild(document.createElement("span"));
+            bookings[0].username.split(' ').forEach(function(n) {
+                headerSpan.appendChild(document.createTextNode(n));
+                headerSpan.appendChild(document.createElement('br'));
+            })
             d.header.className = "seat_preview_header";
         }
     }
