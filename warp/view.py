@@ -1,3 +1,6 @@
+from datetime import datetime
+import json
+
 import flask
 
 from warp.db import *
@@ -70,16 +73,40 @@ def zone(zid):
 
     if zoneRole is None:
         flask.abort(403)
+    
+    preselected_times_strategy = flask.current_app.config['PRESELECTED_TIMES_STRATEGY']
+    match preselected_times_strategy:
+        case 'now':
+            now = datetime.now()
+            last_quarter_minute = now.minute // 15
+            slider_start = (now.hour * 3600) + (last_quarter_minute * 60 * 15)
+            slider_end = slider_start + (4*3600)
+            defaultSelectedDates = {
+                "slider": [slider_start, slider_end]
+            }
+        case 'predefined_timespan':
+            preselected_times_start = flask.current_app.config['PRESELECTED_TIMES_START']
+            preselected_times_end = flask.current_app.config['PRESELECTED_TIMES_END']
+            defaultSelectedDates = {
+                "slider": [preselected_times_start*3600, preselected_times_end*3600]
+            }
 
-    nextWeek = utils.getNextWeek()
-    defaultSelectedDates = {
-        "slider": [9*3600, 17*3600]
-    }
+    preselected_dates_strategy = flask.current_app.config['PRESELECTED_DATES_STRATEGY']
 
-    for d in nextWeek[1:]:
-        if not d['isWeekend']:
-            defaultSelectedDates['cb'] = [d['timestamp']]
-            break
+    match preselected_dates_strategy:
+        case 'tomorrow':
+            nextWeek = utils.getNextWeek()
+            for d in nextWeek[1:]:
+                if not d['isWeekend']:
+                    defaultSelectedDates['cb'] = [d['timestamp']]
+                    break
+        case 'today':
+            nextWeek = utils.getNextWeek()
+            for d in nextWeek:
+                if not d['isWeekend']:
+                    defaultSelectedDates['cb'] = [d['timestamp']]
+                    break
+
 
     if zoneRole <= ZONE_ROLE_ADMIN:
         zoneRole = {'isZoneAdmin': True}
@@ -89,13 +116,15 @@ def zone(zid):
         zoneRole = {'isZoneViewer': True}
     else:
         raise Exception('Undefined role')
-
+    
+    restore_selected_dates = json.dumps(flask.current_app.config['RESTORE_SELECTED_DATES'])
 
     return flask.render_template('zone.html',
         **zoneRole,
         zid = zid,
         nextWeek=nextWeek,
-        defaultSelectedDates=defaultSelectedDates)
+        defaultSelectedDates=defaultSelectedDates,
+        restoreSelectedDates=restore_selected_dates)
 
 @bp.route("/zone/image/<zid>")
 def zoneImage(zid):
