@@ -52,6 +52,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
     let seatNameEl = document.getElementById("seat_name");
     let seatXEl = document.getElementById("seat_x");
     let seatYEl = document.getElementById("seat_y");
+    let seatGroupEl = document.getElementById("seat_group");
     let seatDeleteBtn = document.getElementById('seat_delete_btn');
 
     let seatFactory = new SeatFactory(window.warpGlobals.URLs['zonesGetSeats'],zoneMapContainer,zoneMapImg);
@@ -195,6 +196,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         seatNameEl.value = seat.name;
         seatXEl.value = seat.x;
         seatYEl.value = seat.y;
+        seatGroupEl.value = seat.group;
         M.updateTextFields();
         seatEditPanel.style.visibility = "visible";
     });
@@ -263,6 +265,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
     seatNameEl.addEventListener('input', changeFactory('name'));
     seatXEl.addEventListener('input', changeFactory('x'));
     seatYEl.addEventListener('input', changeFactory('y'));
+    seatGroupEl.addEventListener('input', changeFactory('group'));
 
     var seatXYMax = function() {
         seatXEl.max = zoneMapImg.width - spriteSize;
