@@ -158,7 +158,7 @@ WarpSeatFactory.prototype.updateLogin = function(login, seatsData) {
 
         for (let i of seat._bookingsIterator()) {
 
-            if (!i.book.login == this.login)
+            if (i.book.login != this.login)
                 continue;
 
             if (raw) {

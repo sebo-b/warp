@@ -1,3 +1,8 @@
+# Announcement
+
+$${\color{red}looking\ for\ a\ maintainer}$$
+Recently, I haven't had too much time to maintain this project. There are a couple of great PRs waiting for my review and merge, and I'm sad that I'm not able to do that. So, I'm looking for a maintainer for this project. If you are an experienced Python and JavaScript (full-stack) developer, I'll be more than happy to accept your help! Please reach out to me via email (available in git-log).
+
 # WARP: Workspace Autonomous Reservation Program
 
 The story of this project begins when, due to COVID-19, we have converted our regular office into a hybrid of regular and hot-desk assignments. We needed to find a solution for desk reservations, transparency of that, and detailed logging of who was in the office for epidemic purposes.
@@ -433,6 +438,75 @@ You can generate it with Python (just make sure you have activated the environme
 python -c 'from getpass import getpass; from werkzeug.security import generate_password_hash; print(generate_password_hash(getpass()))'
 
 ```
+
+## Azure Active Directory authentication
+
+WARP supports authentication against an Azure AD application.
+
+To enable Azure AD auth, you need to set `AUTH_AAD` to `True` and at least configure `AAD_TENANT`, `AAD_CLIENT_ID` and `AAD_CLIENT_SECRET`.
+
+This plugin supports:
+- automatic Warp user creation on the first login, user name update on each login
+- replicating user name and user groups from Azure AD groups.
+
+### Configuration variables
+
+Please note that every variable can be set either in the config file or via the environment (in that case, it needs to be prefixed by `WARP_` string).
+
+|variable:|`AUTH_AAD`|
+|:---|:---|
+|type:|`boolean`|
+|default value:|`False`|
+|description:|If set to `True` enables Azure AD authentication|
+
+|variable:|`AAD_TENANT`|
+|:---|:---|
+|type:|`string`|
+|default value:|`None` (have to be defined)|
+|description:|Azure tenant id |
+
+|variable:|`AAD_CLIENT_ID`|
+|:---|:---|
+|type:|`string`|
+|default value:|`None` (have to be defined)|
+|description:|Azure Application (client) ID|
+
+|variable:|`AAD_CLIENT_SECRET`|
+|:---|:---|
+|type:|`string`|
+|default value:|`None` (have to be defined)|
+|description:|Azure application token|
+
+|variable:|`AAD_HTTPS_SCHEME`|
+|:---|:---|
+|type:|`string`: `https` or `http`|
+|default value:|`https`|
+|description:|If Azure AD callback URL should be over HTTPS|
+
+|variable:|`AAD_USER_NAME_ATTRIBUTE`|
+|:---|:---|
+|type:|`string`|
+|default value:|`name`|
+|description:|Full user name attribute in claims|
+
+|variable:|`AAD_LOGIN_ATTRIBUTE`|
+|:---|:---|
+|type:|`string`|
+|default value:|`preferred_username`|
+|description:|Login attribute in claims|
+
+|variable:|`AAD_GROUP_MAP`|
+|:---|:---|
+|type:|`array` of `tuples`|
+|default value:|`[ [null,null] ]`|
+|description:|Works like the LDAP part, see [LDAP group mapping section.](#LDAP-group-mapping)|
+
+|variable:|`AAD_GROUP_STRICT_MAPPING`|
+|:---|:---|
+|type:|`boolean`|
+|default value:|`False`|
+|description:|Should user be removed from Warp groups if such mapping is not present in AAD.<br>Works like the LDAP part, see [LDAP group mapping section](#LDAP-group-mapping) for more details.|
+
 
 # Other
 

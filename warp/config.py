@@ -14,6 +14,10 @@ class DefaultSettings(object):
     # (after the current week)
     WEEKS_IN_ADVANCE = 1
 
+    # Weekdays to hide for reservation, 0 for monday to 6 for sunday
+    # Set to [5,6] to omit weekends
+    OMITTED_WEEKDAYS = []
+        
     # opening and closing time in seconds from 00:00
     BOOK_OPEN = 0
     BOOK_CLOSE = 24 * 3600
@@ -42,6 +46,13 @@ class DefaultSettings(object):
     LDAP_GROUP_MAP = [ [None,None] ]
     LDAP_GROUP_STRICT_MAPPING = False
     LDAP_EXCLUDED_USERS = []
+
+    # AAD defaults
+    AAD_HTTPS_SCHEME = "https"
+    AAD_USER_NAME_ATTRIBUTE = "name"
+    AAD_LOGIN_ATTRIBUTE = "preferred_username"
+    AAD_GROUP_MAP = [ [None,None] ]
+    AAD_GROUP_STRICT_MAPPING = False
 
     ### LDAP variables to be configured
     # AUTH_LDAP = True
