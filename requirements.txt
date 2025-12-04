@@ -6,3 +6,4 @@ psycopg2
 orjson
 ldap3
 msal
+pycryptodome
