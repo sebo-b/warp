@@ -4,7 +4,7 @@ ENV NODE_VER=16.3.0
 
 WORKDIR /opt/warp
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends wget mime-support build-essential libpq-dev libpcre3-dev
+    apt-get install -y --no-install-recommends wget media-types build-essential libpq-dev libpcre2-dev
 
 RUN NODE_ARCH=$(uname -m | sed 's/^x86_64\|amd64$/x64/;s/^i.*86$/x86/;s/^aarch64$/arm64/') && \
     NODE_URL="https://nodejs.org/dist/v${NODE_VER}/node-v${NODE_VER}-linux-${NODE_ARCH}.tar.gz" && \
@@ -36,7 +36,7 @@ FROM python:3-slim
 WORKDIR /opt/warp
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends libpq5 mime-support libpcre3 && \
+    apt-get install -y --no-install-recommends libpq5 media-types libpcre2-8-0 && \
     rm  -rf /var/lib/apt/lists/*
 
 RUN \
