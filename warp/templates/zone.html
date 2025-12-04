@@ -9,6 +9,7 @@
         window.warpGlobals.URLs['seatSprite'] = "{{ url_for('static',filename='images/seat_icons.png') }}";
 
         window.warpGlobals['defaultSelectedDates'] = {{ defaultSelectedDates | tojson }};
+        window.warpGlobals['restoreSelectedDates'] = {{ restoreSelectedDates }};
 
         {% if isZoneAdmin %}
         window.warpGlobals.isZoneAdmin = true;
@@ -143,14 +144,15 @@
 
             <div class="zone_sidepanel_topcontainer">
 
-                <div class="input-field book-as_container">
-                    <input type="text" id="book-as" class="autocomplete book-as_input" autocomplete="off">
-                    <label for="book-as" class="active TR">Book as</label>
-                </div>
+                    <div class="input-field book-as_container">
+                        <input type="text" id="book-as" class="autocomplete book-as_input" autocomplete="off">
+                        <label for="book-as" class="active TR">Book as</label>
+                    </div>
 
-                <div class="zone_sidepanel_close sidenav-close" data-target="zone_sidepanel">
-                    <i class="material-icons">close</i>
-                </div>
+                    <div class="zone_sidepanel_close sidenav-close" data-target="zone_sidepanel">
+                        <i class="material-icons">close</i>
+                    </div>
+
             </div>
 
             <div class="zone_datetime_container">
@@ -177,15 +179,26 @@
 
         </div>
 
-
-        <div class="zone_map" id="zonemap">
+        <div class="zonemap_menu_left_bottom">
             <div class="zonemap_help">
                 <img src="{{ url_for('static', filename='images/help_icon.png') }}">
             </div>
+        </div>
+        <div class="zonemap_menu_right_bottom">
+            <div class="zonemap_toggle_preview">
+                <label>
+                    <input class="filled-in preview_checkbox" type="checkbox" id="preview-checkbox"/>
+                    <span>Seat previews</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="zone_map" id="zonemap">
             <div class="zonemap_datetime_trigger sidenav-trigger" data-target="zone_sidepanel">
                 <img src="{{ url_for('static', filename='images/schedule_icon_side.png') }}">
             </div>
             <img src="{{ url_for('view.zoneImage', zid=zid) }}">
+            <div class="zonemap-seats" id="zonemap-seats"></div>
         </div>
 
 {% endblock %}
