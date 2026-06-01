@@ -145,7 +145,9 @@ function initSeatPreview(seatFactory) {
             var table =  previewDiv.appendChild(document.createElement("table"));
             for (let a of assignments) {
                 var tr = table.appendChild( document.createElement("tr"));
-                tr.appendChild( document.createElement("td")).appendChild( document.createTextNode(a));
+                tr.appendChild( document.createElement("td")).appendChild( document.createTextNode(a.name));
+                var diaText = a.days_in_advance !== null ? "(" + a.days_in_advance + "d)" : "";
+                tr.appendChild( document.createElement("td")).appendChild( document.createTextNode(diaText));
             }
         }
 
@@ -189,67 +191,6 @@ function initSeatPreview(seatFactory) {
 
 }
 
-function initAssignedSeatsModal(seat) {
-
-    var assignModalEl = document.getElementById("assigned_seat_modal");
-    if (!assignModalEl || typeof(ZoneUserData) === 'undefined')
-        return null;
-
-    var assignModal = M.Modal.getInstance(assignModalEl);
-    if (!assignModal) {
-        assignModal = M.Modal.init(assignModalEl, {});
-    }
-
-    var zoneUserData = ZoneUserData.getInstance();
-
-    var chipsEl = document.getElementById('assigned_seat_chips');
-
-    var chipsOptions;
-    var chips = M.Chips.getInstance(chipsEl);
-    if (chips) {
-        chipsOptions = chips.options;
-        chips.destroy(); // we have to recreate chips instance to clean up all chips inside
-    }
-    else {
-
-        var onChipApp = function(chip) {
-
-            var i = this.chipsData.length - 1;  // chips are always pushed
-            var t = this.chipsData[i].tag;
-
-            if (!(t in this.autocomplete.options.data)) {
-                this.deleteChip(i);
-            }
-        }
-
-        var chipsAutocompleteData = {};
-        for (let d of zoneUserData.formatedIterator()) {
-            chipsAutocompleteData[ d] = null;
-        }
-
-        chipsOptions = {
-            autocompleteOptions: {
-                data: chipsAutocompleteData,
-                minLength: 1,
-                dropdownOptions: {
-                    container: document.body,
-                    constrainWidth: false
-                }
-            },
-            limit: Infinity,
-            onChipAdd: onChipApp
-        };
-    }
-
-    chips = M.Chips.init(chipsEl, chipsOptions);
-
-    var assignments = seat.getAssignments();
-    for (let login in assignments) {
-        chips.addChip({tag: ZoneUserData.makeUserStr(login,assignments[login])})
-    }
-
-    return assignModal;
-}
 
 
 function initActionMenu(seatFactory) {
@@ -258,9 +199,129 @@ function initActionMenu(seatFactory) {
         return;
 
     var seat = null;    // used for passing seat to btn click events (closure)
-                        // it is set at the end of seatFactory.on('click'
-                        // it is used in actionBtn click event
-                        // and it is reset (to release reference) in actionModal onCloseEnd event
+    var assignedData = [];
+
+    function initAssignedSeatsModal(seatArg) {
+
+        var assignModalEl = document.getElementById("assigned_seat_modal");
+        if (!assignModalEl || typeof(ZoneUserData) === 'undefined')
+            return null;
+
+        var assignModal = M.Modal.getInstance(assignModalEl);
+        if (!assignModal)
+            assignModal = M.Modal.init(assignModalEl, {});
+
+        var zoneUserData = ZoneUserData.getInstance();
+        var userData = zoneUserData.getData();
+        var maxDays = window.warpGlobals.daysInAdvance;
+
+        // Reset list from current seat's assignments
+        assignedData.length = 0;
+        var assignments = seatArg.getAssignments();
+        for (let [login, a] of Object.entries(assignments))
+            assignedData.push({ login: login, name: a.name, days_in_advance: a.days_in_advance });
+
+        function buildDaysSelect(current) {
+            var sel = document.createElement('select');
+            sel.className = 'browser-default';
+            sel.style.cssText = 'width:140px;margin-left:8px;display:inline-block;';
+
+            var todayOpt = document.createElement('option');
+            todayOpt.value = '0';
+            todayOpt.textContent = "0 (" + TR("Same day") + ")";
+            sel.appendChild(todayOpt);
+
+            for (var d = 1; d < maxDays; d++) {
+                var opt = document.createElement('option');
+                opt.value = String(d);
+                opt.textContent = String(d);
+                sel.appendChild(opt);
+            }
+
+            var unlOpt = document.createElement('option');
+            unlOpt.value = '';
+            unlOpt.textContent = String(maxDays) + " (" + TR("Unlimited") + ")";
+            sel.appendChild(unlOpt);
+
+            sel.value = (current !== null && current !== undefined) ? String(current) : '';
+            return sel;
+        }
+
+        function renderList() {
+            var ul = document.getElementById('assigned_seat_list');
+            ul.innerHTML = '';
+            for (let item of assignedData) {
+                var li = document.createElement('li');
+                li.className = 'collection-item';
+                li.style.cssText = 'display:flex;align-items:center;justify-content:space-between;';
+
+                var nameSpan = document.createElement('span');
+                nameSpan.textContent = item.name;
+
+                var sel = buildDaysSelect(item.days_in_advance);
+                sel.addEventListener('change', function() {
+                    var entry = assignedData.find(d => d.login === item.login);
+                    if (entry) entry.days_in_advance = this.value ? parseInt(this.value) : null;
+                });
+
+                var delBtn = document.createElement('a');
+                delBtn.href = '#!';
+                delBtn.className = 'btn-flat';
+                delBtn.style.cssText = 'padding:0;margin-left:4px;';
+                delBtn.innerHTML = '<i class="material-icons small red-text text-darken-3">delete</i>';
+                delBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    assignedData = assignedData.filter(d => d.login !== item.login);
+                    renderList();
+                });
+
+                var right = document.createElement('span');
+                right.style.cssText = 'display:flex;align-items:center;';
+                right.appendChild(sel);
+                right.appendChild(delBtn);
+
+                li.appendChild(nameSpan);
+                li.appendChild(right);
+                ul.appendChild(li);
+            }
+        }
+
+        // Re-initialize autocomplete (destroy previous instance to avoid stale data)
+        var addInputEl = document.getElementById('assigned_seat_add_input');
+        var acInstance = M.Autocomplete.getInstance(addInputEl);
+        if (acInstance) acInstance.destroy();
+
+        var autocompleteData = {};
+        for (let login in userData)
+            autocompleteData[ ZoneUserData.makeUserStr(login, userData[login]) ] = null;
+
+        M.Autocomplete.init(addInputEl, {
+            data: autocompleteData,
+            dropdownOptions: { constrainWidth: false, container: document.body },
+            minLength: 2,
+            limit: 10,
+            onAutocomplete: function(selectedText) {
+                var login = zoneUserData.makeUserStrRev(selectedText);
+                if (!login) {
+                    M.toast({ text: TR("Unknown user") });
+                    addInputEl.value = '';
+                    return;
+                }
+                if (assignedData.some(d => d.login === login)) {
+                    M.toast({ text: TR("User already assigned") });
+                    addInputEl.value = '';
+                    return;
+                }
+                assignedData.push({ login: login, name: userData[login], days_in_advance: null });
+                renderList();
+                addInputEl.value = '';
+                addInputEl.focus();
+            }
+        });
+
+        renderList();
+        return assignModal;
+    }
 
     // init modal
     var actionEl = document.getElementById('action_modal');
@@ -372,7 +433,7 @@ function initActionMenu(seatFactory) {
         // real action button is inside modal
         if (this.dataset.action == 'assign-modal') {
             var assignModal = initAssignedSeatsModal(seat);
-            document.getElementById('assigned_seat_chips').focus();
+            document.getElementById('assigned_seat_add_input').focus();
             assignModal.open();
             return;
         }
@@ -380,19 +441,13 @@ function initActionMenu(seatFactory) {
         var applyData = {};
 
         if (this.dataset.action == "assign" && typeof(ZoneUserData) !== 'undefined') {
-
-            var chipsEl = document.getElementById('assigned_seat_chips');
-            var chips = M.Chips.getInstance(chipsEl);
-
-            var logins = [];
-            for (var c of chips.getData()) {
-                logins.push(ZoneUserData.makeUserStrRev(c.tag));
-            }
-
             applyData['assign'] = {
                 sid: seat.getSid(),
-                logins: logins
-            }
+                logins: assignedData.map(d => ({
+                    login: d.login,
+                    days_in_advance: d.days_in_advance
+                }))
+            };
         }
 
         if (this.dataset.action == 'enable' || this.dataset.action == 'disable') {
@@ -440,6 +495,17 @@ function initActionMenu(seatFactory) {
                       "Existing reservations are not automatically removed, it has to be done manually.<br><br>");
                 let rList = [];
                 for (let r of value.response.conflicts_in_assign) {
+                    let dateStr = WarpSeatFactory._formatDatePair(r);
+                    rList.push( r.username + "&nbsp;on&nbsp;" + dateStr.datetime1 + "&nbsp;" + dateStr.datetime2);
+                }
+                msg += rList.join('<br>');
+            }
+
+            if (value.response.conflicts_in_window) {
+                if (msg) msg += "<br><br>";
+                msg += TR("Some reservations are outside the new booking window and must be removed manually.") + "<br>";
+                let rList = [];
+                for (let r of value.response.conflicts_in_window) {
                     let dateStr = WarpSeatFactory._formatDatePair(r);
                     rList.push( r.username + "&nbsp;on&nbsp;" + dateStr.datetime1 + "&nbsp;" + dateStr.datetime2);
                 }

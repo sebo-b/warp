@@ -213,4 +213,9 @@ warpGlobals.i18n.phrases = {
         "More than one row is selected. Report will be limited to that number of rows.||||"+
         "More than %{smart_count} rows are selected. Report will be limited to that number of rows.",
     "Add to group": "Add to group",
+    "Unknown user": "Unknown user",
+    "User already assigned": "User already assigned",
+    "Unlimited": "Unlimited",
+    "Some reservations are outside the new booking window and must be removed manually.": "Some reservations are outside the new booking window and must be removed manually.",
+    "Same day": "Same day",
 };

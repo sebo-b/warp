@@ -68,14 +68,13 @@ def getSeats(zid):
 
     if flask.request.args.get('onlyOtherZone') not in {'1','True','true'}:
 
-        assignCursor = SeatAssign.select(SeatAssign.sid, Users.login) \
-                                .join(Users,on=(SeatAssign.login == Users.login)) \
+        assignCursor = SeatAssign.select(SeatAssign.sid, SeatAssign.login, SeatAssign.days_in_advance) \
                                 .join(Seat, on=(SeatAssign.sid == Seat.id)) \
                                 .where(Seat.zid == zid)
 
-        assignments = defaultdict(set)
+        assignments = defaultdict(list)
         for r in assignCursor:
-            assignments[r['sid']].add(r['login'])
+            assignments[r['sid']].append({'login': r['login'], 'days_in_advance': r['days_in_advance']})
             usedUsers.add(r['login'])
 
         seatsCursor = Seat.select(Seat.id, Seat.name, Seat.x, Seat.y, Seat.zid, Seat.enabled) \
@@ -193,7 +192,12 @@ applySchema = {
                 "logins": {
                     "type": "array",
                     "items": {
-                        "type": "string",
+                        "type": "object",
+                        "properties": {
+                            "login": {"type": "string"},
+                            "days_in_advance": {"type": ["integer", "null"]}
+                        },
+                        "required": ["login"]
                     },
                 },
             },
@@ -240,7 +244,7 @@ applySchema = {
 #   disable: [ sid, sid, ...],
 #   assign: {
 #       sid: sid,
-#       logins: [ login, login, ... ]
+#       logins: [ { login: login, days_in_advance: N|null }, ... ]
 #   },
 #   book: {
 #       login: login,       #optional, requires ZONE_ROLE_ADMIN and login assigned to the zone
@@ -317,12 +321,32 @@ def apply():
         if not seat['enabled']:
             return {"msg": "Forbidden", "code": 105}, 403
 
-        # check if user is assigned to the seat
+        # check if user is assigned to the seat and compute most-permissive days_in_advance
         assignedQ = SeatAssign.select(SQL_ONE).where(SeatAssign.sid == sid)
-        assignedToMeQ = assignedQ.where(SeatAssign.login == login)
 
-        if (assignedQ.scalar() is not None and assignedToMeQ.scalar() is None):
-            return {"msg": "Forbidden", "code": 106}, 403
+        if assignedQ.scalar() is not None:
+
+            myAssignments = list(SeatAssign.select(SeatAssign.days_in_advance) \
+                                           .where((SeatAssign.sid == sid) & (SeatAssign.login == login)) \
+                                           .iterator())
+
+            if not myAssignments:
+                return {"msg": "Forbidden", "code": 106}, 403
+
+            # NULL means MAX (full window); pick most permissive across all matching assignments
+            best_days = None
+            for a in myAssignments:
+                if a['days_in_advance'] is None:
+                    best_days = None
+                    break
+                if best_days is None or a['days_in_advance'] > best_days:
+                    best_days = a['days_in_advance']
+
+            if best_days is not None:
+                cutoffTS = utils.today() + (best_days + 1) * 24 * 3600
+                for b in apply_data['book']['dates']:
+                    if b['fromTS'] >= cutoffTS:
+                        return {"msg": "Forbidden", "code": 110}, 403
 
     # -------------------------------------
     # APPLY CHANGES
@@ -351,7 +375,8 @@ def apply():
 
                     insertData = [{
                         SeatAssign.sid: apply_data['assign']['sid'],
-                        SeatAssign.login: l
+                        SeatAssign.login: l['login'],
+                        SeatAssign.days_in_advance: l.get('days_in_advance')
                         } for l in apply_data['assign']['logins']]
 
                     rowCount = SeatAssign.insert(insertData).as_rowcount().execute()
@@ -420,11 +445,12 @@ def apply():
 
     if 'assign' in apply_data and len(apply_data['assign']['logins']) > 0:
 
+        new_logins = [l['login'] for l in apply_data['assign']['logins']]
         query = Book.select(Book.sid, Book.fromts, Book.tots, Users.login, Users.name) \
                     .join(Users, on=(Book.login == Users.login)) \
                     .where((Book.fromts < ts['toTS']) & (Book.tots > ts['fromTS'])) \
                     .where(Book.sid == apply_data['assign']['sid']) \
-                    .where(Users.login.not_in(apply_data['assign']['logins']))
+                    .where(Users.login.not_in(new_logins))
 
         conflicts_in_assign = [
             {"sid": row['sid'],
@@ -435,6 +461,30 @@ def apply():
 
         if conflicts_in_assign:
             ret["conflicts_in_assign"] = conflicts_in_assign
+
+    if 'assign' in apply_data:
+
+        sid = apply_data['assign']['sid']
+        for l in apply_data['assign']['logins']:
+            dia = l.get('days_in_advance')
+            if dia is not None:
+                cutoff = utils.today() + (dia + 1) * 24 * 3600
+                window_conflicts = [
+                    {"sid": row['sid'],
+                     "fromTS": row['fromts'],
+                     "toTS": row['tots'],
+                     "login": row['login'],
+                     "username": row['name']}
+                    for row in Book.select(Book.sid, Book.fromts, Book.tots, Users.login, Users.name)
+                                   .join(Users, on=(Book.login == Users.login))
+                                   .where(Book.sid == sid)
+                                   .where(Book.login == l['login'])
+                                   .where(Book.fromts >= cutoff)
+                ]
+                if window_conflicts:
+                    if 'conflicts_in_window' not in ret:
+                        ret['conflicts_in_window'] = []
+                    ret['conflicts_in_window'].extend(window_conflicts)
 
     return ret, 200
 

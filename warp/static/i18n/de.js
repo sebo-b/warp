@@ -213,4 +213,9 @@ warpGlobals.i18n.phrases = {
         "Es wurde mehr als eine Zeile ausgewählt. Der Bericht wird auf diese Anzahl von Zeilen beschränkt.||||"+
         "Es sind mehr als %{smart_count} Zeilen ausgewählt. Der Bericht wird auf diese Anzahl von Zeilen beschränkt.",
     "Add to group": "Zur Gruppe hinzufügen",
+    "Unknown user": "Unbekannter Benutzer",
+    "User already assigned": "Benutzer bereits zugewiesen",
+    "Unlimited": "Unbegrenzt",
+    "Some reservations are outside the new booking window and must be removed manually.": "Einige Reservierungen liegen außerhalb des neuen Buchungsfensters und müssen manuell entfernt werden.",
+    "Same day": "Gleicher Tag",
 };

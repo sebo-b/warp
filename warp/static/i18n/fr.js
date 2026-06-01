@@ -211,4 +211,9 @@ warpGlobals.i18n.phrases = {
         "Plus d'une ligne est sélectionnée. Le rapport sera limité à ce nombre de lignes.||||"+
         "Plus de %{smart_count} lignes sont sélectionnées. Le rapport sera limité à ce nombre de lignes..",
     "Add to group": "Ajouter au groupe",
+    "Unknown user": "Utilisateur inconnu",
+    "User already assigned": "Utilisateur déjà assigné",
+    "Unlimited": "Illimité",
+    "Some reservations are outside the new booking window and must be removed manually.": "Certaines réservations sont en dehors de la nouvelle fenêtre de réservation et doivent être supprimées manuellement.",
+    "Same day": "Le jour même",
 };

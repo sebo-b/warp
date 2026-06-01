@@ -218,4 +218,9 @@ warpGlobals.i18n.phrases = {
         "Wybrano więcej niż %{smart_count} wiersze. Raport będzie ograniczony do tej liczby wierszów.||||"+
         "Wybrano więcej niż %{smart_count} wierszów. Raport będzie ograniczony do tej liczby wierszów.",
     "Add to group": "Dodaj do grupy",
+    "Unknown user": "Nieznany użytkownik",
+    "User already assigned": "Użytkownik już przypisany",
+    "Unlimited": "Nieograniczone",
+    "Some reservations are outside the new booking window and must be removed manually.": "Niektóre rezerwacje są poza nowym oknem rezerwacji i muszą zostać usunięte ręcznie.",
+    "Same day": "Tego samego dnia",
 };

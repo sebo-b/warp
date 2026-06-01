@@ -13,6 +13,7 @@
         {% if isZoneAdmin %}
         window.warpGlobals.isZoneAdmin = true;
         window.warpGlobals.URLs['zoneGetUsers'] = "{{ url_for('xhr.zone.getUsers',zid=zid)}}";
+        window.warpGlobals.daysInAdvance = {{ ((config['WEEKS_IN_ADVANCE'] + 1) * 7) | int }};
         {% elif isZoneViewer %}
         window.warpGlobals.isZoneViewer = true;
         {% endif %}
@@ -55,14 +56,17 @@
     {% if isZoneAdmin %}
     <div id="assigned_seat_modal" class="modal">
         <div class="modal-content">
-            <h4 id="assigned_seat_header"></h4>
-            <p class="TR">Select users to which the seat will be assigned:</p>
-            <div class="chips chips-autocomplete" id="assigned_seat_chips"></div>
-          </div>
-          <div class="modal-footer">
+            <h4 class="TR">Seat assignment</h4>
+            <div class="input-field">
+                <input type="text" id="assigned_seat_add_input" class="autocomplete" autocomplete="off">
+                <label for="assigned_seat_add_input" class="TR">Select user</label>
+            </div>
+            <ul id="assigned_seat_list" class="collection" style="max-height:200px;overflow-y:auto;"></ul>
+        </div>
+        <div class="modal-footer">
             <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn TR" data-action="assign">btn.Set</a>
             <a href="#!" class="modal-close waves-effect waves-light btn-flat TR">btn.Cancel</a>
-          </div>
+        </div>
     </div>
     {% endif %}
 

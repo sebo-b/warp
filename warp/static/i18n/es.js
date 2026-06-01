@@ -211,4 +211,9 @@ warpGlobals.i18n.phrases = {
         "Se seleccionaron más de una fila. El informe se limitará a ese número de filas.||||"+
         "Se seleccionaron {smart_count} filas. El informe se limitará a ese número de filas.",
     "Add to group": "Agregar al grupo",
+    "Unknown user": "Usuario desconocido",
+    "User already assigned": "Usuario ya asignado",
+    "Unlimited": "Ilimitado",
+    "Some reservations are outside the new booking window and must be removed manually.": "Algunas reservas están fuera de la nueva ventana de reserva y deben eliminarse manualmente.",
+    "Same day": "El mismo día",
 };

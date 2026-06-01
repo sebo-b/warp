@@ -58,6 +58,7 @@ CREATE TABLE seat (
 CREATE TABLE seat_assign (
     sid integer NOT NULL,
     login text NOT NULL,
+    days_in_advance integer,
     PRIMARY KEY (sid,login),
     FOREIGN KEY (sid) REFERENCES seat(id) ON DELETE CASCADE,
     FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE

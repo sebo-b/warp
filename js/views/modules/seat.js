@@ -332,9 +332,22 @@ WarpSeat.prototype._updateState = function() {
         return this.state;
     }
 
-    if (Object.keys(this.assignments).length > 0 && !(this.factory.login in this.assignments)) {
-        this.state = WarpSeat.SeatStates.ASSIGNED;
-        return this.state;
+    if (Object.keys(this.assignments).length > 0) {
+
+        if (!(this.factory.login in this.assignments)) {
+            this.state = WarpSeat.SeatStates.ASSIGNED;
+            return this.state;
+        }
+
+        var bestDays = this.assignments[this.factory.login].days_in_advance;
+        if (bestDays !== null) {
+            var todayTs = Math.floor(new Date().setHours(0,0,0,0) / 1000);
+            var cutoffTs = todayTs + (bestDays + 1) * 24 * 3600;
+            if (this.factory.selectedDates.some(d => d.fromTS >= cutoffTs)) {
+                this.state = WarpSeat.SeatStates.ASSIGNED;
+                return this.state;
+            }
+        }
     }
 
     var bookings = this.book;
@@ -482,8 +495,8 @@ WarpSeat.prototype._setData = function(seatData,usersNames) {
             this.book[b].username = usersNames[this.book[b].login];
         }
         if ('assignments' in seatData) {
-            for (let login of seatData.assignments)
-                this.assignments[login] = usersNames[login]
+            for (let a of seatData.assignments)
+                this.assignments[a.login] = { name: usersNames[a.login], days_in_advance: a.days_in_advance ?? null }
         }
     }
 }
