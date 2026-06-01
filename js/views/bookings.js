@@ -262,7 +262,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 });
             };
 
-            let noOfRows = table.modules.page.size*table.modules.page.max;
+            let noOfRows = table.getPageSize()*table.getPageMax();
             let maxRows = window.warpGlobals['maxReportRows'];
             if (noOfRows > maxRows) {
                 WarpModal.getInstance().open(
