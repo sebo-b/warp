@@ -76,7 +76,7 @@ class DefaultSettings(object):
 
 class DevelopmentSettings(DefaultSettings):
 
-    DATABASE = "postgresql://postgres:postgres_password@127.0.0.1:5432/postgres"
+    DATABASE = "psycopg3://postgres:postgres_password@127.0.0.1:5432/postgres"
 
     #DATABASE = "sqlite:///warp/db.sqlite"
     #DATABASE_ARGS = {"pragmas": {"foreign_keys": "ON"}}
@@ -100,6 +100,8 @@ class ProductionSettings(DefaultSettings):
     # this is intentionally empty, as in production
     # DATABASE and SECRET_KEY should be passed via ENV
     # as WARP_SECRET_KEY and WARP_DATABASE
+    # DATABASE must use the psycopg3:// scheme, e.g.:
+    #   WARP_DATABASE=psycopg3://user:pass@host:5432/dbname
     pass
 
 def readEnvironmentSettings(app):
@@ -121,7 +123,7 @@ def readEnvironmentSettings(app):
 
 def initConfig(app):
 
-    if app.env != 'production':
+    if os.environ.get('FLASK_ENV', 'production') != 'production':
         app.config.from_object(DevelopmentSettings)
     else:
         app.config.from_object(ProductionSettings)

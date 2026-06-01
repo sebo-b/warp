@@ -9,7 +9,7 @@ services:
     depends_on:
     - warp-demo-db
     environment:
-      WARP_DATABASE: "postgresql://postgres:postgres_password@warp-demo-db:5432/postgres"
+      WARP_DATABASE: "psycopg3://postgres:postgres_password@warp-demo-db:5432/postgres"
       WARP_SECRET_KEY: 'mysecretkey'
       WARP_DATABASE_INIT_SCRIPT: '["sql/schema.sql","sql/sample_data.sql"]'
       WARP_LANGUAGE_FILE: 'i18n/en.js'
