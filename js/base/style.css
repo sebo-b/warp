@@ -240,6 +240,40 @@ NAV {
     vertical-align: middle;
 }
 
+.assigned_seat_list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.assigned_seat_row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.assigned_seat_controls {
+    display: flex;
+    align-items: center;
+}
+
+.assigned_seat_days_select {
+    width: 140px;
+    margin-left: 8px;
+    display: inline-block;
+}
+
+.assigned_seat_delete_btn {
+    padding: 0;
+    margin-left: 4px;
+}
+
+.tabulator-header-filter SELECT.warp_header_filter_select {
+    width: 100%;
+    box-sizing: border-box;
+    opacity: 1 !important;
+    position: relative !important;
+}
+
 #action_modal .modal-content {
     font-size: 10px;
 }

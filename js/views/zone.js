@@ -223,8 +223,7 @@ function initActionMenu(seatFactory) {
 
         function buildDaysSelect(current) {
             var sel = document.createElement('select');
-            sel.className = 'browser-default';
-            sel.style.cssText = 'width:140px;margin-left:8px;display:inline-block;';
+            sel.className = 'browser-default assigned_seat_days_select';
 
             var todayOpt = document.createElement('option');
             todayOpt.value = '0';
@@ -252,8 +251,7 @@ function initActionMenu(seatFactory) {
             ul.innerHTML = '';
             for (let item of assignedData) {
                 var li = document.createElement('li');
-                li.className = 'collection-item';
-                li.style.cssText = 'display:flex;align-items:center;justify-content:space-between;';
+                li.className = 'collection-item assigned_seat_row';
 
                 var nameSpan = document.createElement('span');
                 nameSpan.textContent = item.name;
@@ -266,8 +264,7 @@ function initActionMenu(seatFactory) {
 
                 var delBtn = document.createElement('a');
                 delBtn.href = '#!';
-                delBtn.className = 'btn-flat';
-                delBtn.style.cssText = 'padding:0;margin-left:4px;';
+                delBtn.className = 'btn-flat assigned_seat_delete_btn';
                 delBtn.innerHTML = '<i class="material-icons small red-text text-darken-3">delete</i>';
                 delBtn.addEventListener('click', function(e) {
                     e.preventDefault();
@@ -276,7 +273,7 @@ function initActionMenu(seatFactory) {
                 });
 
                 var right = document.createElement('span');
-                right.style.cssText = 'display:flex;align-items:center;';
+                right.className = 'assigned_seat_controls';
                 right.appendChild(sel);
                 right.appendChild(delBtn);
 

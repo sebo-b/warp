@@ -148,9 +148,7 @@ Utils.xhr = {
 Utils.makeSelectHeaderFilter = function(values) {
     return function(cell, onRendered, success, cancel, editorParams) {
         var select = document.createElement("select");
-        select.style.cssText = "width:100%;box-sizing:border-box;";
-        select.style.setProperty("opacity", "1", "important");
-        select.style.setProperty("position", "relative", "important");
+        select.className = "warp_header_filter_select";
         for (let v of values) {
             var opt = document.createElement("option");
             opt.value = v.value !== undefined ? v.value : "";
