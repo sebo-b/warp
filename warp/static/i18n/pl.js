@@ -191,6 +191,7 @@ warpGlobals.i18n.phrases = {
         "105": "Brak wymaganych uprawnień w strefie. (%{code})",
         "106": "Miejsce przypisane do innej osoby. (%{code})",
         "109": "Nie można zarezerwować, miejsce zostało już zarezerwowane przez kogoś innego. (%{code})",
+        "110": "Nie można zarezerwować tego miejsca tak wcześnie. (%{code})",
     },
     "Are you sure to update the zone?": "Czy na pewno chcesz wprowadzić zmiany?",
     "The following changes will be applied:<br>": "Następujące zmiany zostaną wprowadzone:<br>",
@@ -218,6 +219,7 @@ warpGlobals.i18n.phrases = {
         "Wybrano więcej niż %{smart_count} wiersze. Raport będzie ograniczony do tej liczby wierszów.||||"+
         "Wybrano więcej niż %{smart_count} wierszów. Raport będzie ograniczony do tej liczby wierszów.",
     "Add to group": "Dodaj do grupy",
+    "Seat assignment": "Przypisanie miejsca",
     "Unknown user": "Nieznany użytkownik",
     "User already assigned": "Użytkownik już przypisany",
     "Unlimited": "Nieograniczone",

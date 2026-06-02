@@ -9,6 +9,7 @@
         window.warpGlobals.URLs['seatSprite'] = "{{ url_for('static',filename='images/seat_icons.png') }}";
 
         window.warpGlobals['defaultSelectedDates'] = {{ defaultSelectedDates | tojson }};
+        window.warpGlobals.today = {{ today | int }};
 
         {% if isZoneAdmin %}
         window.warpGlobals.isZoneAdmin = true;

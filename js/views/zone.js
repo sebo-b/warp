@@ -290,6 +290,8 @@ function initActionMenu(seatFactory) {
         var addInputEl = document.getElementById('assigned_seat_add_input');
         var acInstance = M.Autocomplete.getInstance(addInputEl);
         if (acInstance) acInstance.destroy();
+        addInputEl.value = '';
+        M.updateTextFields();
 
         var autocompleteData = {};
         for (let login in userData)

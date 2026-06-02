@@ -95,6 +95,7 @@ def zone(zid):
         **zoneRole,
         zid = zid,
         nextWeek=nextWeek,
+        today=utils.today(),
         defaultSelectedDates=defaultSelectedDates)
 
 @bp.route("/zone/image/<zid>")

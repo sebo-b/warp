@@ -188,6 +188,7 @@ warpGlobals.i18n.phrases = {
         "105": "Vous n'avez pas les droits requis pour cette zone. (%{code})",
         "106": "Ce siège ne vous est pas attribué. (%{code})",
         "109": "Impossible de réserver, le siège est déjà réservé par quelqu'un d'autre. (%{code})",
+        "110": "Impossible de réserver ce siège aussi longtemps à l'avance. (%{code})",
     },
     "Are you sure to update the zone?": "Souhaitez vous vraiment  mettre à jour la zone?",
     "The following changes will be applied:<br>": "Les changements suivants seront appliqués:<br>",
@@ -211,6 +212,7 @@ warpGlobals.i18n.phrases = {
         "Plus d'une ligne est sélectionnée. Le rapport sera limité à ce nombre de lignes.||||"+
         "Plus de %{smart_count} lignes sont sélectionnées. Le rapport sera limité à ce nombre de lignes..",
     "Add to group": "Ajouter au groupe",
+    "Seat assignment": "Attribution du siège",
     "Unknown user": "Utilisateur inconnu",
     "User already assigned": "Utilisateur déjà assigné",
     "Unlimited": "Illimité",

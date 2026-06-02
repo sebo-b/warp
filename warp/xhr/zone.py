@@ -23,7 +23,7 @@ bp = flask.Blueprint('zone', __name__, url_prefix='zone')
 #          enabled: true|false,
 #          book: [
 #              { bid: 10, login: "sebo", fromTS: 1, toTS: 2 }
-#          assignments: [ login1, login2, ... ]
+#          assignments: [ { login: login, days_in_advance: N|null }, ... ]
 #       sidM: {                     # FOR SEAT NOT IN THE CURRENT ZONE
 #          name: "name",
 #          zid: zid,
@@ -195,7 +195,7 @@ applySchema = {
                         "type": "object",
                         "properties": {
                             "login": {"type": "string"},
-                            "days_in_advance": {"type": ["integer", "null"]}
+                            "days_in_advance": {"type": ["integer", "null"], "minimum": 0}
                         },
                         "required": ["login"]
                     },

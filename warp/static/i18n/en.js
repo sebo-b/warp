@@ -190,6 +190,7 @@ warpGlobals.i18n.phrases = {
         "105": "You don't have required permissions in the zone. (%{code})",
         "106": "Seat is not assigned to you. (%{code})",
         "109": "Cannot book, the seat was already booked by someone else. (%{code})",
+        "110": "Cannot book this seat that far in advance. (%{code})",
     },
     "Are you sure to update the zone?": "Are you sure to update the zone?",
     "The following changes will be applied:<br>": "The following changes will be applied:<br>",
@@ -213,6 +214,7 @@ warpGlobals.i18n.phrases = {
         "More than one row is selected. Report will be limited to that number of rows.||||"+
         "More than %{smart_count} rows are selected. Report will be limited to that number of rows.",
     "Add to group": "Add to group",
+    "Seat assignment": "Seat assignment",
     "Unknown user": "Unknown user",
     "User already assigned": "User already assigned",
     "Unlimited": "Unlimited",

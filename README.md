@@ -50,6 +50,22 @@ During the first run on an empty database, WARP will populate the database schem
 
 Default admin credentials are: `admin:noneshallpass`
 
+## Upgrading
+
+There is no automatic schema migration. When upgrading an existing deployment, apply any new migration scripts from `warp/sql/` manually before starting the new version. Migration files are named `migration_NNN_<description>.sql` and should be applied in order.
+
+Currently shipped migrations:
+
+| File | Required when upgrading from |
+|:---|:---|
+| `migration_001_days_in_advance.sql` | a version before the `days_in_advance` per-assignment booking window |
+
+Example (PostgreSQL):
+
+```
+$ psql -U warp -d warp -f warp/sql/migration_001_days_in_advance.sql
+```
+
 ## Demo quickstart
 
 The preferred way to deploy is to run it via Docker. You need a working docker, and I won't cover it here.

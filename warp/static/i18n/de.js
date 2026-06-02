@@ -190,6 +190,7 @@ warpGlobals.i18n.phrases = {
         "105": "Du hast nicht die verlangten Berechtigungen für diese Zone. (%{code})",
         "106": "Dieser Sitz ist dir nicht zugewiesen . (%{code})",
         "109": "Dieser Sitz wurde schon von jemand anderem gebucht. (%{code})",
+        "110": "Dieser Sitz kann nicht so weit im Voraus gebucht werden. (%{code})",
     },
     "Are you sure to update the zone?": "Möchtest du die Zone aktualisieren??",
     "The following changes will be applied:<br>": "Die folgenden Änderungen werden gemacht:<br>",
@@ -213,6 +214,7 @@ warpGlobals.i18n.phrases = {
         "Es wurde mehr als eine Zeile ausgewählt. Der Bericht wird auf diese Anzahl von Zeilen beschränkt.||||"+
         "Es sind mehr als %{smart_count} Zeilen ausgewählt. Der Bericht wird auf diese Anzahl von Zeilen beschränkt.",
     "Add to group": "Zur Gruppe hinzufügen",
+    "Seat assignment": "Sitzplatz-Zuweisung",
     "Unknown user": "Unbekannter Benutzer",
     "User already assigned": "Benutzer bereits zugewiesen",
     "Unlimited": "Unbegrenzt",

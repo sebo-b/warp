@@ -341,8 +341,8 @@ WarpSeat.prototype._updateState = function() {
 
         var bestDays = this.assignments[this.factory.login].days_in_advance;
         if (bestDays !== null) {
-            var todayTs = Math.floor(new Date().setHours(0,0,0,0) / 1000);
-            var cutoffTs = todayTs + (bestDays + 1) * 24 * 3600;
+            // server-anchored: service timezone may differ from the client's
+            var cutoffTs = window.warpGlobals.today + (bestDays + 1) * 24 * 3600;
             if (this.factory.selectedDates.some(d => d.fromTS >= cutoffTs)) {
                 this.state = WarpSeat.SeatStates.ASSIGNED;
                 return this.state;
@@ -496,7 +496,7 @@ WarpSeat.prototype._setData = function(seatData,usersNames) {
         }
         if ('assignments' in seatData) {
             for (let a of seatData.assignments)
-                this.assignments[a.login] = { name: usersNames[a.login], days_in_advance: a.days_in_advance ?? null }
+                this.assignments[a.login] = { name: usersNames[a.login] ?? a.login, days_in_advance: a.days_in_advance ?? null }
         }
     }
 }
