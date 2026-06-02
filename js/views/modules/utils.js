@@ -143,6 +143,30 @@ Utils.xhr = {
 };
 
 
+// Returns a Tabulator 6 header-filter function that renders a native <select> dropdown.
+// Pass the full values array (including the leading {label:"---"} placeholder if present).
+Utils.makeSelectHeaderFilter = function(values) {
+    return function(cell, onRendered, success, cancel, editorParams) {
+        var select = document.createElement("select");
+        select.style.cssText = "width:100%;box-sizing:border-box;";
+        select.style.setProperty("opacity", "1", "important");
+        select.style.setProperty("position", "relative", "important");
+        for (let v of values) {
+            var opt = document.createElement("option");
+            opt.value = v.value !== undefined ? v.value : "";
+            opt.textContent = v.label;
+            select.appendChild(opt);
+        }
+        select.addEventListener("change", function() {
+            var raw = select.value;
+            if (raw === "") { success(""); return; }
+            var matched = values.find(v => String(v.value) === raw);
+            success(matched ? matched.value : raw);
+        });
+        return select;
+    };
+};
+
 Utils.Listeners = function(types, async = true) {
 
     this.async = async;

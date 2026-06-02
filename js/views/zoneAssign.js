@@ -118,8 +118,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
             {
                 title:TR("Zone role"),
                 field: "zone_role",
-                headerFilter:"select", headerFilterFunc:"=", headerFilterParams:{ values: zoneRoles },
-                editor:"select", editorParams:{ values: zoneRoles.slice(1) },
+                headerFilter:Utils.makeSelectHeaderFilter(zoneRoles), headerFilterFunc:"=",
+                editor:"list", editorParams:{ values: zoneRoles.slice(1) },
                 formatter:zoneRoleFormatter
             },
             {formatter:userTypeFormater, width:40, hozAlign:"center", headerSort:false},
@@ -177,7 +177,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 columns: [
                     {formatter:iconFormater, formatterParams:{icon:"disabled_by_default",colorClass:"red-text text-darken-3"}, width:40, hozAlign:"center", cellClick:assignToZoneTableRemoveClicked},
                     {field: "name"},
-                    {field: "zone_role", editor:"select", editorParams:{ values: zoneRoles.slice(1) }, formatter:zoneRoleFormatter},
+                    {field: "zone_role", editor:"list", editorParams:{ values: zoneRoles.slice(1) }, formatter:zoneRoleFormatter},
                 ],
                 initialSort: [
                     {column:"name", dir:"asc"}
