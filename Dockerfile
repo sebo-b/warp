@@ -36,7 +36,7 @@ FROM python:3.13-slim
 WORKDIR /opt/warp
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends libpq5 media-types libpcre2-8-0 && \
+    apt-get install -y --no-install-recommends media-types libpcre2-8-0 && \
     rm  -rf /var/lib/apt/lists/*
 
 RUN \
