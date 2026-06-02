@@ -2,7 +2,7 @@
 
 import Utils from './modules/utils.js';
 import WarpModal from './modules/modal.js';
-import {WarpSeatFactory,WarpSeat} from './modules/seat.js';
+import {WarpSeatFactory,WarpSeat,EVERYONE_KEY} from './modules/seat.js';
 import ZoneUserData from './modules/zoneuserdata.js';
 import BookAs from './modules/bookas.js';
 
@@ -135,20 +135,32 @@ function initSeatPreview(seatFactory) {
         }
 
         // content of the frame
-        var assignments = Object.values(this.getAssignments());
-        if (assignments.length) {
+        var allAssignments = Object.values(this.getAssignments());
+        var visibleAssignments = allAssignments.filter(a => !a.isEveryone);
+        var everyoneAssignment = allAssignments.find(a => a.isEveryone);
+
+        if (visibleAssignments.length) {
 
             var header = previewDiv.appendChild(document.createElement("span"));
             header.appendChild(document.createTextNode(TR("Assigned to:")));
             header.className = "seat_preview_header";
 
             var table =  previewDiv.appendChild(document.createElement("table"));
-            for (let a of assignments) {
+            for (let a of visibleAssignments) {
                 var tr = table.appendChild( document.createElement("tr"));
                 tr.appendChild( document.createElement("td")).appendChild( document.createTextNode(a.name));
                 var diaText = a.days_in_advance !== null ? "(" + a.days_in_advance + "d)" : "";
                 tr.appendChild( document.createElement("td")).appendChild( document.createTextNode(diaText));
             }
+        }
+
+        if (everyoneAssignment) {
+            var evHeader = previewDiv.appendChild(document.createElement("span"));
+            var diaText = everyoneAssignment.days_in_advance !== null
+                ? TR("Available to everyone (up to %{n}d in advance)", {n: everyoneAssignment.days_in_advance})
+                : TR("Available to everyone");
+            evHeader.appendChild(document.createTextNode(diaText));
+            evHeader.className = "seat_preview_header";
         }
 
         var bookings = this.getBookings();
@@ -218,8 +230,8 @@ function initActionMenu(seatFactory) {
         // Reset list from current seat's assignments
         assignedData.length = 0;
         var assignments = seatArg.getAssignments();
-        for (let [login, a] of Object.entries(assignments))
-            assignedData.push({ login: login, name: a.name, days_in_advance: a.days_in_advance });
+        for (let [key, a] of Object.entries(assignments))
+            assignedData.push({ login: key === EVERYONE_KEY ? null : key, name: a.name, days_in_advance: a.days_in_advance });
 
         function buildDaysSelect(current) {
             var sel = document.createElement('select');
@@ -254,7 +266,17 @@ function initActionMenu(seatFactory) {
                 li.className = 'collection-item assigned_seat_row';
 
                 var nameSpan = document.createElement('span');
-                nameSpan.textContent = item.name;
+                if (item.login === null) {
+                    var icon = document.createElement('i');
+                    icon.className = 'material-icons small';
+                    icon.textContent = 'public';
+                    icon.style.verticalAlign = 'middle';
+                    icon.style.marginRight = '4px';
+                    nameSpan.appendChild(icon);
+                    nameSpan.appendChild(document.createTextNode(item.name));
+                } else {
+                    nameSpan.textContent = item.name;
+                }
 
                 var sel = buildDaysSelect(item.days_in_advance);
                 sel.addEventListener('change', function() {
@@ -290,7 +312,9 @@ function initActionMenu(seatFactory) {
         addInputEl.value = '';
         M.updateTextFields();
 
+        var everyoneStr = TR('Everyone');
         var autocompleteData = {};
+        autocompleteData[everyoneStr] = null;
         for (let login in userData)
             autocompleteData[ ZoneUserData.makeUserStr(login, userData[login]) ] = null;
 
@@ -300,6 +324,18 @@ function initActionMenu(seatFactory) {
             minLength: 2,
             limit: 10,
             onAutocomplete: function(selectedText) {
+                if (selectedText === everyoneStr) {
+                    if (assignedData.some(d => d.login === null)) {
+                        M.toast({ text: TR("User already assigned") });
+                        addInputEl.value = '';
+                        return;
+                    }
+                    assignedData.push({ login: null, name: everyoneStr, days_in_advance: null });
+                    renderList();
+                    addInputEl.value = '';
+                    addInputEl.focus();
+                    return;
+                }
                 var login = zoneUserData.makeUserStrRev(selectedText);
                 if (!login) {
                     M.toast({ text: TR("Unknown user") });

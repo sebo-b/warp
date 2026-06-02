@@ -218,4 +218,14 @@ warpGlobals.i18n.phrases = {
     "Unlimited": "Ilimitado",
     "Some reservations are outside the new booking window and must be removed manually.": "Algunas reservas están fuera de la nueva ventana de reserva y deben eliminarse manualmente.",
     "Same day": "El mismo día",
+    "Zone type": "Tipo de zona",
+    "Everyone": "Todos",
+    "Available to everyone": "Disponible para todos",
+    "Available to everyone (up to %{n}d in advance)": "Disponible para todos (hasta %{n} d de antelación)",
+    zoneType: {
+        "Disabled": "Desactivada",
+        "Enabled": "Activada",
+        "PublicView": "Pública — solo visualización",
+        "PublicBook": "Pública — reservas permitidas",
+    },
 };

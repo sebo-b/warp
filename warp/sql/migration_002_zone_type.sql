@@ -1,0 +1,1 @@
+ALTER TABLE zone ADD COLUMN zone_type integer NOT NULL DEFAULT 20;

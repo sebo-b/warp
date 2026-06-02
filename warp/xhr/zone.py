@@ -23,7 +23,7 @@ bp = flask.Blueprint('zone', __name__, url_prefix='zone')
 #          enabled: true|false,
 #          book: [
 #              { bid: 10, login: "sebo", fromTS: 1, toTS: 2 }
-#          assignments: [ { login: login, days_in_advance: N|null }, ... ]
+#          assignments: [ { login: login|null, days_in_advance: N|null, isEveryone: true? }, ... ]
 #       sidM: {                     # FOR SEAT NOT IN THE CURRENT ZONE
 #          name: "name",
 #          zid: zid,
@@ -42,25 +42,37 @@ def getSeats(zid):
         "seats": {}
     }
 
-    zoneRole = UserToZoneRoles.select(UserToZoneRoles.zone_role) \
-                              .where( (UserToZoneRoles.zid == zid) & (UserToZoneRoles.login == flask.g.login) ) \
-                              .scalar()
+    zone = Zone.select(Zone.zone_type).where(Zone.id == zid).first()
+    if zone is None:
+        return {"msg": "Forbidden", "code": 130}, 403
 
+    zone_type = zone['zone_type']
+    specificRole = UserToZoneRoles.select(UserToZoneRoles.zone_role) \
+                                  .where((UserToZoneRoles.zid == zid) & (UserToZoneRoles.login == flask.g.login)) \
+                                  .scalar()
+
+    zoneRole = effectiveZoneRole(zone_type, specificRole)
     if zoneRole is None:
-        return {"msg": "Forbidden", "code": 130 }, 403
+        return {"msg": "Forbidden", "code": 130}, 403
 
     if ('login' in flask.request.args or 'onlyOtherZone' in flask.request.args):
 
         if zoneRole > ZONE_ROLE_ADMIN:
             return {"msg": "Forbidden", "code": 131 }, 403
 
-        isLoginInZone = UserToZoneRoles.select(UserToZoneRoles.zone_role) \
-                              .where(UserToZoneRoles.zid == zid) \
-                              .where(UserToZoneRoles.login == flask.request.args.get('login') ) \
-                              .scalar()
-
-        if isLoginInZone is None:
-            return {"msg": "Forbidden", "code": 132 }, 403
+        targetLogin = flask.request.args.get('login')
+        if zone_type in (ZONE_TYPE_PUBLIC_VIEW, ZONE_TYPE_PUBLIC_BOOK):
+            if targetLogin is not None:
+                userExists = Users.select(SQL_ONE).where(Users.login == targetLogin).scalar()
+                if userExists is None:
+                    return {"msg": "Forbidden", "code": 132}, 403
+        else:
+            isLoginInZone = UserToZoneRoles.select(UserToZoneRoles.zone_role) \
+                                  .where(UserToZoneRoles.zid == zid) \
+                                  .where(UserToZoneRoles.login == targetLogin) \
+                                  .scalar()
+            if isLoginInZone is None:
+                return {"msg": "Forbidden", "code": 132 }, 403
 
     tr = utils.getTimeRange()
     usedZones = set()
@@ -74,8 +86,12 @@ def getSeats(zid):
 
         assignments = defaultdict(list)
         for r in assignCursor:
-            assignments[r['sid']].append({'login': r['login'], 'days_in_advance': r['days_in_advance']})
-            usedUsers.add(r['login'])
+            entry = {'login': r['login'], 'days_in_advance': r['days_in_advance']}
+            if r['login'] is None:
+                entry['isEveryone'] = True
+            else:
+                usedUsers.add(r['login'])
+            assignments[r['sid']].append(entry)
 
         seatsCursor = Seat.select(Seat.id, Seat.name, Seat.x, Seat.y, Seat.zid, Seat.enabled) \
                             .where(Seat.zid == zid)
@@ -194,7 +210,7 @@ applySchema = {
                     "items": {
                         "type": "object",
                         "properties": {
-                            "login": {"type": "string"},
+                            "login": {"type": ["string", "null"]},
                             "days_in_advance": {"type": ["integer", "null"], "minimum": 0}
                         },
                         "required": ["login"]
@@ -244,7 +260,7 @@ applySchema = {
 #   disable: [ sid, sid, ...],
 #   assign: {
 #       sid: sid,
-#       logins: [ { login: login, days_in_advance: N|null }, ... ]
+#       logins: [ { login: login|null, days_in_advance: N|null }, ... ]
 #   },
 #   book: {
 #       login: login,       #optional, requires ZONE_ROLE_ADMIN and login assigned to the zone
@@ -297,6 +313,12 @@ def apply():
         if count != len(seatsReqZoneAdmin):
             return {"msg": "Forbidden", "code": 102 }, 403
 
+    if 'assign' in apply_data:
+        # Enforce at most one null-login (everyone) row per seat
+        null_count = sum(1 for l in apply_data['assign']['logins'] if l.get('login') is None)
+        if null_count > 1:
+            return {"msg": "At most one 'everyone' assignment allowed per seat", "code": 111}, 400
+
     if 'book' in apply_data:
 
         if not flask.g.isAdmin:     # TODO: should admin be allowed to do that?
@@ -308,17 +330,28 @@ def apply():
         sid = apply_data['book']['sid']
         login = apply_data['book'].get('login', flask.g.login)
 
-        seat = Seat.select(Seat.enabled) \
-                    .join(UserToZoneRoles, on=(Seat.zid == UserToZoneRoles.zid)) \
-                    .where( (Seat.id == sid) & (UserToZoneRoles.login == login)) \
-                    .first()
+        # Check seat exists and get zone type
+        seatZone = Seat.select(Seat.enabled, Seat.zid, Zone.zone_type.alias('zone_type')) \
+                       .join(Zone, on=(Seat.zid == Zone.id)) \
+                       .where(Seat.id == sid) \
+                       .first()
 
-        # login not in the zone
-        if seat is None:
+        if seatZone is None:
+            return {"msg": "Forbidden", "code": 104}, 403
+
+        # Effective zone role determines whether `login` can book here.
+        # PUBLIC_VIEW users without an explicit USER+ role get VIEWER and are rejected.
+        # DISABLED zones only allow ZONE_ROLE_ADMIN.
+        bookerRole = UserToZoneRoles.select(UserToZoneRoles.zone_role) \
+                                    .where((UserToZoneRoles.zid == seatZone['zid']) & (UserToZoneRoles.login == login)) \
+                                    .scalar()
+
+        effectiveRole = effectiveZoneRole(seatZone['zone_type'], bookerRole)
+        if effectiveRole is None or effectiveRole > ZONE_ROLE_USER:
             return {"msg": "Forbidden", "code": 104}, 403
 
         # seat is disabled
-        if not seat['enabled']:
+        if not seatZone['enabled']:
             return {"msg": "Forbidden", "code": 105}, 403
 
         # check if user is assigned to the seat and compute most-permissive days_in_advance
@@ -327,7 +360,8 @@ def apply():
         if assignedQ.scalar() is not None:
 
             myAssignments = list(SeatAssign.select(SeatAssign.days_in_advance) \
-                                           .where((SeatAssign.sid == sid) & (SeatAssign.login == login)) \
+                                           .where((SeatAssign.sid == sid) &
+                                                  ((SeatAssign.login == login) | SeatAssign.login.is_null())) \
                                            .iterator())
 
             if not myAssignments:
@@ -445,27 +479,36 @@ def apply():
 
     if 'assign' in apply_data and len(apply_data['assign']['logins']) > 0:
 
-        new_logins = [l['login'] for l in apply_data['assign']['logins']]
-        query = Book.select(Book.sid, Book.fromts, Book.tots, Users.login, Users.name) \
-                    .join(Users, on=(Book.login == Users.login)) \
-                    .where((Book.fromts < ts['toTS']) & (Book.tots > ts['fromTS'])) \
-                    .where(Book.sid == apply_data['assign']['sid']) \
-                    .where(Users.login.not_in(new_logins))
+        # If an everyone (null-login) row is present, anyone can still book — no conflicts
+        has_everyone = any(l.get('login') is None for l in apply_data['assign']['logins'])
 
-        conflicts_in_assign = [
-            {"sid": row['sid'],
-                "fromTS": row['fromts'],
-                "toTS": row['tots'],
-                "login": row['login'],
-                "username": row['name']} for row in query]
+        if not has_everyone:
+            new_logins = [l['login'] for l in apply_data['assign']['logins'] if l['login'] is not None]
+            query = Book.select(Book.sid, Book.fromts, Book.tots, Users.login, Users.name) \
+                        .join(Users, on=(Book.login == Users.login)) \
+                        .where((Book.fromts < ts['toTS']) & (Book.tots > ts['fromTS'])) \
+                        .where(Book.sid == apply_data['assign']['sid']) \
+                        .where(Users.login.not_in(new_logins))
 
-        if conflicts_in_assign:
-            ret["conflicts_in_assign"] = conflicts_in_assign
+            conflicts_in_assign = [
+                {"sid": row['sid'],
+                    "fromTS": row['fromts'],
+                    "toTS": row['tots'],
+                    "login": row['login'],
+                    "username": row['name']} for row in query]
+
+            if conflicts_in_assign:
+                ret["conflicts_in_assign"] = conflicts_in_assign
 
     if 'assign' in apply_data:
 
         sid = apply_data['assign']['sid']
+        everyone_row = next((l for l in apply_data['assign']['logins'] if l.get('login') is None), None)
+        specific_logins = [l['login'] for l in apply_data['assign']['logins'] if l.get('login') is not None]
+
         for l in apply_data['assign']['logins']:
+            if l.get('login') is None:
+                continue  # everyone row handled below — applies to non-assignees
             dia = l.get('days_in_advance')
             if dia is not None:
                 cutoff = utils.today() + (dia + 1) * 24 * 3600
@@ -486,39 +529,66 @@ def apply():
                         ret['conflicts_in_window'] = []
                     ret['conflicts_in_window'].extend(window_conflicts)
 
+        # Everyone-row window applies to bookings by users without their own (more permissive) row.
+        # Most-permissive rule means users with a specific row are bound by their own days_in_advance.
+        if everyone_row is not None:
+            dia = everyone_row.get('days_in_advance')
+            if dia is not None:
+                cutoff = utils.today() + (dia + 1) * 24 * 3600
+                q = Book.select(Book.sid, Book.fromts, Book.tots, Users.login, Users.name) \
+                        .join(Users, on=(Book.login == Users.login)) \
+                        .where(Book.sid == sid) \
+                        .where(Book.fromts >= cutoff)
+                if specific_logins:
+                    q = q.where(Book.login.not_in(specific_logins))
+
+                window_conflicts = [
+                    {"sid": row['sid'],
+                     "fromTS": row['fromts'],
+                     "toTS": row['tots'],
+                     "login": row['login'],
+                     "username": row['name']} for row in q]
+                if window_conflicts:
+                    if 'conflicts_in_window' not in ret:
+                        ret['conflicts_in_window'] = []
+                    ret['conflicts_in_window'].extend(window_conflicts)
+
     return ret, 200
 
 
 #Format
 # {
 #   data: {
-#         login1: { name: "User 1", role: 1 }
-#         login2: { name: "User 2", role: 2 }
+#         login1: "User 1"
+#         login2: "User 2"
 #         ...
-#       },
-#   login: user1
-#   real_login: user2
-#   role: 2
+#       }
 # }
 @bp.route("getUsers/<zid>")
 def getUsers(zid):
 
-    zoneUsers = UserToZoneRoles.select(Users.login, Users.name, UserToZoneRoles.zone_role) \
-                               .join(Users, on=(UserToZoneRoles.login == Users.login) ) \
-                               .where(UserToZoneRoles.zid == zid)
+    zone = Zone.select(Zone.zone_type).where(Zone.id == zid).first()
+    if zone is None:
+        return {"msg": "Forbidden", "code": 120}, 403
 
-    res = {}
+    zone_type = zone['zone_type']
 
-    for u in zoneUsers.iterator():
+    specificRole = UserToZoneRoles.select(UserToZoneRoles.zone_role) \
+                                  .where((UserToZoneRoles.zid == zid) & (UserToZoneRoles.login == flask.g.login)) \
+                                  .scalar()
 
-        if u['login'] == flask.g.login:
-            if u['zone_role'] > ZONE_ROLE_ADMIN:
-                return {"msg": "Forbidden", "code": 120 }, 403
+    if specificRole != ZONE_ROLE_ADMIN:
+        return {"msg": "Forbidden", "code": 120}, 403
 
-        res[ u['login'] ] = u['name']
+    if zone_type in (ZONE_TYPE_PUBLIC_VIEW, ZONE_TYPE_PUBLIC_BOOK):
+        userQuery = Users.select(Users.login, Users.name) \
+                        .where(Users.account_type < ACCOUNT_TYPE_BLOCKED)
+    else:
+        userQuery = UserToZoneRoles.select(Users.login, Users.name) \
+                                   .join(Users, on=(UserToZoneRoles.login == Users.login)) \
+                                   .where(UserToZoneRoles.zid == zid)
 
-    if flask.g.login not in res:
-        return {"msg": "Forbidden", "code": 121 }, 403
+    res = {u['login']: u['name'] for u in userQuery.iterator()}
 
     return flask.current_app.response_class(
         response=orjson.dumps(res),

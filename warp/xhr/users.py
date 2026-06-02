@@ -59,6 +59,9 @@ def edit():
 
     action_data = flask.request.get_json()
 
+    if action_data['login'] == EVERYONE_KEY:
+        return {"msg": "Reserved login", "code": 157}, 400
+
     class ApplyError(Exception):
         pass
 

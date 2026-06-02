@@ -15,15 +15,30 @@ document.addEventListener("DOMContentLoaded", function(e) {
         return '<i class="'+iconClass+' '+colorClass+'">'+icon+'</i>';
     }
 
+    var zoneTypeLabels = [
+        { label: "---" },
+        { value: 10, label: TR("zoneType.Disabled") },
+        { value: 20, label: TR("zoneType.Enabled") },
+        { value: 30, label: TR("zoneType.PublicView") },
+        { value: 40, label: TR("zoneType.PublicBook") },
+    ];
+
+    var zoneTypeFormatter = function(cell) {
+        var v = cell.getValue();
+        for (var t of zoneTypeLabels)
+            if (t.value == v) return t.label;
+        return "";
+    };
+
     var showEditDialog;
     var table;
 
     var addEditClicked = function(e,cell) {
-        let args = [null,"",""];
+        let args = [null,"","","10"];
 
         if (typeof(cell) === 'object') {
             let data = cell.getRow().getData();
-            args = [ data['id'],data['name'],data['zone_group'] ];
+            args = [ data['id'],data['name'],data['zone_group'],data['zone_type'] ];
         }
 
         showEditDialog.apply(null,args)
@@ -73,6 +88,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
             {formatter:iconFormater, formatterParams:{icon:"map",colorClass:"green-text text-darken-4",iconClass:"material-icons"}, width:40, hozAlign:"center", cellClick:clickFuncFactory('zoneModify'), headerSort:false, tooltip: TR('Edit map')},
             {title:TR("Zone name"), field: "name", headerFilter:"input", headerFilterFunc:"starts"},
             {title:TR("Zone group"), field: "zone_group", headerFilter:"number", headerFilterFunc:"="},
+            {title:TR("Zone type"), field: "zone_type", formatter: zoneTypeFormatter,
+                headerFilter: Utils.makeSelectHeaderFilter(zoneTypeLabels), headerFilterFunc:"="},
             {title:TR("Num of admins"), field: "admins" },
             {title:TR("Num of users"), field: "users" },
             {title:TR("Num of viewers"), field: "viewers" },
@@ -86,12 +103,13 @@ document.addEventListener("DOMContentLoaded", function(e) {
     var editModalEl = document.getElementById('edit_modal');
     var zoneNameEl = document.getElementById("zone_name");
     var zoneGroupEl = document.getElementById("zone_group");
+    var zoneTypeEl = document.getElementById("zone_type");
     var errorDiv = document.getElementById('error_div');
     var errorMsg = document.getElementById('error_message');
     var saveBtn = document.getElementById('edit_modal_save_btn');
     var deleteBtn = document.getElementById('edit_modal_delete_btn');
 
-    showEditDialog = function(id,name,zoneGroup) {
+    showEditDialog = function(id,name,zoneGroup,zoneType) {
 
         var editModal = M.Modal.getInstance(editModalEl);
         if (typeof(editModal) === 'undefined') {
@@ -101,6 +119,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         var zoneName = name || "";
         zoneNameEl.value = zoneName;
         zoneGroupEl.value = zoneGroup || "";
+        zoneTypeEl.value = zoneType != null ? String(zoneType) : "10";
         errorDiv.style.display = "none";
         errorMsg.innerText = "";
 
@@ -127,7 +146,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
                         resolved = true;
                         editModal.close();
-                        resolve({action:'save', id: id, name: zoneNameEl.value, zone_group: parseInt(zoneGroupEl.value) });
+                        resolve({action:'save', id: id, name: zoneNameEl.value, zone_group: parseInt(zoneGroupEl.value), zone_type: parseInt(zoneTypeEl.value) });
                         break;
                     case deleteBtn:
 

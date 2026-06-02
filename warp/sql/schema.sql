@@ -32,6 +32,7 @@ CREATE TABLE zone (
     zone_group integer NOT NULL,
     name text NOT NULL,
     iid integer,
+    zone_type integer NOT NULL DEFAULT 20,
     FOREIGN KEY (iid) REFERENCES blobs(id) ON DELETE SET NULL
     );
 
@@ -57,12 +58,14 @@ CREATE TABLE seat (
 
 CREATE TABLE seat_assign (
     sid integer NOT NULL,
-    login text NOT NULL,
+    login text,
     days_in_advance integer,
-    PRIMARY KEY (sid,login),
     FOREIGN KEY (sid) REFERENCES seat(id) ON DELETE CASCADE,
     FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE
     );
+
+CREATE UNIQUE INDEX seat_assign_uq          ON seat_assign(sid, login) WHERE login IS NOT NULL;
+CREATE UNIQUE INDEX seat_assign_everyone_uq ON seat_assign(sid)         WHERE login IS NULL;
 
 CREATE INDEX seat_zid
 ON seat(zid);

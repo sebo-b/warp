@@ -14,7 +14,7 @@ Blobs = Table('blobs',('id','mimetype','data','etag'),primary_key='id')
 Users = Table('users',('login','password','name','account_type'))
 Groups = Table('groups',('group','login'))
 Seat = Table('seat',('id','zid','name','x','y','enabled'))
-Zone = Table('zone',('id','zone_group','name','iid'))
+Zone = Table('zone',('id','zone_group','name','iid','zone_type'))
 ZoneAssign = Table('zone_assign',('zid','login','zone_role'))
 Book = Table('book',('id','login','sid','fromts','tots'))
 SeatAssign = Table('seat_assign',('sid','login','days_in_advance'))
@@ -35,10 +35,41 @@ ZONE_ROLE_ADMIN = 10
 ZONE_ROLE_USER = 20
 ZONE_ROLE_VIEWER = 30
 
+ZONE_TYPE_DISABLED    = 10
+ZONE_TYPE_ENABLED     = 20
+ZONE_TYPE_PUBLIC_VIEW = 30
+ZONE_TYPE_PUBLIC_BOOK = 40
+
+# Reserved sentinel login used as the in-memory key for the "everyone" (NULL-login)
+# seat assignment row on the frontend. Must never exist as a real user login —
+# rejected by users.edit. Mirror this value in js/views/modules/seat.js EVERYONE_KEY.
+EVERYONE_KEY = '__everyone__:550e8400-e29b-41d4-a716-446655440000'
+
+def effectiveZoneRole(zone_type, specificRole):
+    """Compute effective zone role from zone_type and the user's specific role.
+
+    Returns the role (lowest number = most permissive), or None if no access.
+    DISABLED zones only grant access to ZONE_ROLE_ADMIN.
+    """
+    if zone_type == ZONE_TYPE_DISABLED:
+        return specificRole if specificRole == ZONE_ROLE_ADMIN else None
+
+    if zone_type == ZONE_TYPE_PUBLIC_BOOK:
+        everyoneRole = ZONE_ROLE_USER
+    elif zone_type == ZONE_TYPE_PUBLIC_VIEW:
+        everyoneRole = ZONE_ROLE_VIEWER
+    else:
+        everyoneRole = None
+
+    candidates = [r for r in (specificRole, everyoneRole) if r is not None]
+    return min(candidates) if candidates else None
+
 __all__ = ["DB", "Blobs", "Users", "Groups","Seat", "Zone", "ZoneAssign", "Book","SeatAssign","UserToZoneRoles",
            "IntegrityError", "COUNT_STAR", "SQL_ONE",
            'ACCOUNT_TYPE_ADMIN','ACCOUNT_TYPE_USER','ACCOUNT_TYPE_BLOCKED','ACCOUNT_TYPE_GROUP',
-           'ZONE_ROLE_ADMIN', 'ZONE_ROLE_USER', 'ZONE_ROLE_VIEWER']
+           'ZONE_ROLE_ADMIN', 'ZONE_ROLE_USER', 'ZONE_ROLE_VIEWER',
+           'ZONE_TYPE_DISABLED', 'ZONE_TYPE_ENABLED', 'ZONE_TYPE_PUBLIC_VIEW', 'ZONE_TYPE_PUBLIC_BOOK',
+           'EVERYONE_KEY', 'effectiveZoneRole']
 
 _INITIALIZED_TABLE = 'db_initialized'
 

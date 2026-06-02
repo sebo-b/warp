@@ -1,4 +1,5 @@
 import flask
+from peewee import JOIN
 
 from warp.db import *
 from . import utils
@@ -12,8 +13,13 @@ def headerDataInit():
     headerDataL = []
 
     zoneCursor = Zone.select(Zone.id, Zone.name) \
-                     .join(UserToZoneRoles, on=(Zone.id == UserToZoneRoles.zid)) \
-                     .where(UserToZoneRoles.login == flask.g.login) \
+                     .join(UserToZoneRoles, join_type=JOIN.LEFT_OUTER,
+                           on=((Zone.id == UserToZoneRoles.zid) & (UserToZoneRoles.login == flask.g.login))) \
+                     .where(
+                         Zone.zone_type.in_([ZONE_TYPE_PUBLIC_VIEW, ZONE_TYPE_PUBLIC_BOOK]) |
+                         ((Zone.zone_type == ZONE_TYPE_ENABLED) & (UserToZoneRoles.zone_role <= ZONE_ROLE_VIEWER)) |
+                         (UserToZoneRoles.zone_role == ZONE_ROLE_ADMIN)
+                     ) \
                      .order_by(Zone.name)
 
     for z in zoneCursor:
@@ -64,10 +70,15 @@ def bookings(report):
 @bp.route("/zone/<zid>")
 def zone(zid):
 
-    zoneRole = UserToZoneRoles.select(UserToZoneRoles.zone_role) \
-                              .where( (UserToZoneRoles.zid == zid) & (UserToZoneRoles.login == flask.g.login) ) \
-                              .scalar()
+    zoneRow = Zone.select(Zone.zone_type).where(Zone.id == zid).first()
+    if zoneRow is None:
+        flask.abort(403)
 
+    specificRole = UserToZoneRoles.select(UserToZoneRoles.zone_role) \
+                                  .where((UserToZoneRoles.zid == zid) & (UserToZoneRoles.login == flask.g.login)) \
+                                  .scalar()
+
+    zoneRole = effectiveZoneRole(zoneRow['zone_type'], specificRole)
     if zoneRole is None:
         flask.abort(403)
 
@@ -103,10 +114,15 @@ def zoneImage(zid):
 
     if not flask.g.isAdmin:
 
-        zoneRole = UserToZoneRoles.select(UserToZoneRoles.zone_role) \
-                                .where( (UserToZoneRoles.zid == zid) & (UserToZoneRoles.login == flask.g.login) ) \
-                                .scalar()
-        if zoneRole is None:
+        zoneRow = Zone.select(Zone.zone_type).where(Zone.id == zid).first()
+        if zoneRow is None:
+            flask.abort(403)
+
+        specificRole = UserToZoneRoles.select(UserToZoneRoles.zone_role) \
+                                    .where((UserToZoneRoles.zid == zid) & (UserToZoneRoles.login == flask.g.login)) \
+                                    .scalar()
+
+        if effectiveZoneRole(zoneRow['zone_type'], specificRole) is None:
             flask.abort(403)
 
     blobIdQuery = Zone.select(Zone.iid.alias('id')).where(Zone.id == zid)
