@@ -16,6 +16,7 @@ async function generateConfig() {
 
     let p = [];
     try {
+      await fsp.mkdir(dir, {recursive: true});
       const files = await fsp.readdir(dir,{withFileTypes:true});
       for (const f of files) {
         if (f.isFile()) {

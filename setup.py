@@ -29,6 +29,7 @@ setup(
     name='warp',
     packages=find_packages(),
     version='2.0.dev1',
+    package_data={'warp': ['sql/*.sql']},
     include_package_data=True,
     install_requires=getRequirements(),
 )
