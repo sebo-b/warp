@@ -89,7 +89,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
             {title:TR("Zone name"), field: "name", headerFilter:"input", headerFilterFunc:"starts"},
             {title:TR("Zone group"), field: "zone_group", headerFilter:"number", headerFilterFunc:"="},
             {title:TR("Zone type"), field: "zone_type", formatter: zoneTypeFormatter,
-                headerFilter: Utils.makeSelectHeaderFilter(zoneTypeLabels), headerFilterFunc:"="},
+                headerFilter: Utils.makeSelect(zoneTypeLabels), headerFilterFunc:"="},
             {title:TR("Num of admins"), field: "admins" },
             {title:TR("Num of users"), field: "users" },
             {title:TR("Num of viewers"), field: "viewers" },

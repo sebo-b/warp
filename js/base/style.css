@@ -267,11 +267,15 @@ NAV {
     margin-left: 4px;
 }
 
-.tabulator-header-filter SELECT.warp_header_filter_select {
+SELECT.warp_select {
     width: 100%;
     box-sizing: border-box;
     opacity: 1 !important;
     position: relative !important;
+}
+
+.tabulator-cell SELECT.warp_select {
+    height: 100%;
 }
 
 #action_modal .modal-content {
