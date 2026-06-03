@@ -174,7 +174,9 @@ Utils.makeSelect = function(values) {
         });
 
         if (!isFilter) {
-            select.addEventListener("blur", function() { cancel(); });
+            var resolved = false;
+            select.addEventListener("change", function() { resolved = true; });
+            select.addEventListener("blur", function() { if (!resolved) cancel(); });
             onRendered(function() { select.focus(); });
         }
 

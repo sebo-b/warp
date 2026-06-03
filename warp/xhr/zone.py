@@ -577,7 +577,7 @@ def getUsers(zid):
                                   .where((UserToZoneRoles.zid == zid) & (UserToZoneRoles.login == flask.g.login)) \
                                   .scalar()
 
-    if specificRole != ZONE_ROLE_ADMIN:
+    if not flask.g.isAdmin and specificRole != ZONE_ROLE_ADMIN:
         return {"msg": "Forbidden", "code": 120}, 403
 
     if zone_type in (ZONE_TYPE_PUBLIC_VIEW, ZONE_TYPE_PUBLIC_BOOK):
