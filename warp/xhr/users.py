@@ -94,7 +94,7 @@ def edit():
 
             elif action_data['action'] == "add":
 
-                updColumns[Users.login] = action_data['login'],
+                updColumns[Users.login] = action_data['login']
                 Users.insert(updColumns).execute()
 
             if 'groups' in action_data:
