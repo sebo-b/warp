@@ -412,6 +412,59 @@ INPUT[type="text"] ~ .show_password_btn::after {
     flex: none !important;
 }
 
+.switch-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 0;
+}
+
+.zone_modify_marquee_box {
+    position: absolute;
+    border: 2px dashed #3949ab;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.zone_modify_marquee_handle {
+    position: absolute;
+    border: 2px solid #3949ab;
+    background: white;
+    pointer-events: all;
+    z-index: 11;
+}
+
+.zone_modify_marquee_corner {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+}
+
+.zone_modify_marquee_edge_h {
+    width: 18px;
+    height: 10px;
+    border-radius: 3px;
+}
+
+.zone_modify_marquee_edge_v {
+    width: 10px;
+    height: 18px;
+    border-radius: 3px;
+}
+
+.zone_modify_marquee_rotate {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    cursor: grab;
+    z-index: 11;
+    pointer-events: all;
+}
+
+.zone_modify_marquee_rotate:active {
+    cursor: grabbing;
+}
+
 .zone_modify_map {
     flex: 0 1 auto;
     min-width: 0px;

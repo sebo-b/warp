@@ -41,4 +41,10 @@ window.TR.inline = function() {
 
 document.addEventListener("DOMContentLoaded", function(e) {
   window.TR.updateDOM();
+
+  let pendingToast = window.sessionStorage.getItem('pendingToast');
+  if (pendingToast) {
+    window.sessionStorage.removeItem('pendingToast');
+    M.toast({text: pendingToast});
+  }
 });
