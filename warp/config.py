@@ -31,6 +31,8 @@ class DefaultSettings(object):
 
     MAX_REPORT_ROWS = 5000
 
+    MIN_PASSWORD_LENGTH = 6
+
     DATABASE_INIT_SCRIPT = "sql/schema.sql"
 
     # number of connection retries to DB on initialization

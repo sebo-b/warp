@@ -19,6 +19,8 @@ ZoneAssign = Table('zone_assign',('zid','login','zone_role'))
 Book = Table('book',('id','login','sid','fromts','tots'))
 SeatAssign = Table('seat_assign',('sid','login','days_in_advance'))
 
+UserPrefs = Table('user_prefs',('login','default_zone','default_day','default_time_from','default_time_to'), primary_key='login')
+
 UserToZoneRoles = Table('user_to_zone_roles',('login','zid','zone_role'))
 
 COUNT_STAR = fn.COUNT(SQL('*'))
@@ -64,7 +66,7 @@ def effectiveZoneRole(zone_type, specificRole):
     candidates = [r for r in (specificRole, everyoneRole) if r is not None]
     return min(candidates) if candidates else None
 
-__all__ = ["DB", "Blobs", "Users", "Groups","Seat", "Zone", "ZoneAssign", "Book","SeatAssign","UserToZoneRoles",
+__all__ = ["DB", "Blobs", "Users", "Groups","Seat", "Zone", "ZoneAssign", "Book","SeatAssign", "UserPrefs", "UserToZoneRoles",
            "IntegrityError", "COUNT_STAR", "SQL_ONE",
            'ACCOUNT_TYPE_ADMIN','ACCOUNT_TYPE_USER','ACCOUNT_TYPE_BLOCKED','ACCOUNT_TYPE_GROUP',
            'ZONE_ROLE_ADMIN', 'ZONE_ROLE_USER', 'ZONE_ROLE_VIEWER',
@@ -96,6 +98,7 @@ def init(app):
     ZoneAssign.bind(DB)
     Book.bind(DB)
     SeatAssign.bind(DB)
+    UserPrefs.bind(DB)
     UserToZoneRoles.bind(DB)
 
     app.before_request(_connect)

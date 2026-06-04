@@ -1,5 +1,5 @@
 import flask
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 from warp.db import *
 from . import utils
 
@@ -54,6 +54,48 @@ def logout():
     return flask.redirect(flask.url_for('auth.login'))
 
 bp.route('/logout')(logout)
+
+changePasswordSchema = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "old_password": {"type": "string"},
+        "new_password": {"type": "string"}
+    },
+    "required": ["old_password", "new_password"]
+}
+
+def change_password():
+    login = flask.session.get('login')
+    if login is None:
+        return {"msg": "Unauthorized", "code": 22}, 401
+
+    user = Users.select(Users.password, Users.account_type) \
+                .where((Users.login == login) & (Users.account_type != ACCOUNT_TYPE_GROUP)) \
+                .first()
+
+    if not user or user['account_type'] >= ACCOUNT_TYPE_BLOCKED:
+        return {"msg": "Unauthorized", "code": 22}, 401
+
+    jsonData = flask.request.get_json()
+    old_password = jsonData['old_password']
+    new_password = jsonData['new_password']
+
+    if user['password'] is None \
+       or not check_password_hash(user['password'], old_password):
+        return {"msg": "Wrong current password", "code": 20}, 400
+
+    min_length = flask.current_app.config.get('MIN_PASSWORD_LENGTH', 6)
+    if len(new_password) < min_length:
+        return {"msg": "Password must be at least %d characters" % min_length, "code": 21}, 400
+
+    Users.update({Users.password: generate_password_hash(new_password)}) \
+         .where(Users.login == login) \
+         .execute()
+
+    return {"msg": "Password changed successfully"}, 200
+
+bp.route('/change_password', methods=['POST'])(utils.validateJSONInput(changePasswordSchema)(change_password))
 
 def session():
 

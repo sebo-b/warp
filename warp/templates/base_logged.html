@@ -5,6 +5,10 @@
 
     <script>
         window.warpGlobals.login = "{{ g.login }}";
+        window.warpGlobals.minPasswordLength = {{ minPasswordLength }};
+{% if hasChangePassword %}
+        window.warpGlobals.URLs['changePassword'] = "{{ url_for('auth.change_password') }}";
+{% endif %}
     </script>
 
 {% endblock %}
@@ -20,6 +24,14 @@
     <div id="spinner"></div>
 
     <ul class="sidenav" id="mobile-nav">
+        <li><a href="#pref_modal" class="modal-trigger TR">Preferences</a></li>
+        {% if hasChangePassword %}
+        <li><a href="#change_password_modal" class="modal-trigger TR">Change password</a></li>
+        {% endif %}
+        {% if hasLogout %}
+        <li><a href="{{ url_for('auth.logout') }}" class="TR">Logout</a></li>
+        {% endif %}
+        <li class="divider"></li>
         {% for i in headerDataL %}
         <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}" class="TR">{{i['text']}}</a></li>
         {% endfor %}
@@ -29,11 +41,80 @@
         <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}" class="TR">{{i['text']}}</a></li>
         {% endfor %}
         {% endif %}
-        {% if hasLogout %}
-        <li class="divider"></li>
-        <li><a href="{{ url_for('auth.logout') }}" class="TR">Logout</a></li>
-        {% endif %}
     </ul>
+
+    <div id="pref_modal" class="modal">
+        <div class="modal-content">
+            <h4 class="TR">Preferences</h4>
+            <div class="row">
+                <div class="input-field col s12">
+                    <select id="pref_default_zone">
+                        <option value="">--</option>
+                        {% for i in headerDataL %}
+                        {% if 'zid' in i['view_args'] %}
+                        <option value="{{ i['view_args']['zid'] }}">{{ i['text'] }}</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                    <label class="TR">Default zone</label>
+                </div>
+            </div>
+            <div class="row">
+                <div class="input-field col s12">
+                    <select id="pref_default_day">
+                        <option value="same" class="TR">Today</option>
+                        <option value="tomorrow" class="TR">Tomorrow</option>
+                        <option value="boundary" class="TR">Today if before start time, otherwise tomorrow</option>
+                    </select>
+                    <label class="TR">Default day</label>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col s12">
+                    <label class="TR">Default time</label>
+                    <div class="pref_timeslider_container">
+                        <div id="pref_timeslider-min" class="timeslider-hint">12:00</div>
+                        <div id="pref_timeslider" class="timeslider" data-min="{{ config['BOOK_OPEN'] }}" data-max="{{ config['BOOK_CLOSE'] }}"></div>
+                        <div id="pref_timeslider-max" class="timeslider-hint">12:00</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <a href="#!" id="pref_save_btn" class="modal-close waves-effect waves-light btn TR">btn.Save</a>
+            <a href="#!" class="modal-close waves-effect waves-light btn-flat TR">btn.Cancel</a>
+        </div>
+    </div>
+
+    {% if hasChangePassword %}
+    <div id="change_password_modal" class="modal">
+        <div class="modal-content">
+            <h4 class="TR">Change password</h4>
+            <div class="row">
+                <div class="input-field col s12">
+                    <input type="password" id="cp_old_password" autocomplete="current-password">
+                    <label for="cp_old_password" class="TR">Current password</label>
+                </div>
+            </div>
+            <div class="row">
+                <div class="input-field col s12">
+                    <input type="password" id="cp_new_password" autocomplete="new-password">
+                    <label for="cp_new_password" class="TR">New password</label>
+                </div>
+            </div>
+            <div class="row">
+                <div class="input-field col s12">
+                    <input type="password" id="cp_repeat_password" autocomplete="new-password">
+                    <label for="cp_repeat_password" class="TR">Repeat new password</label>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <a href="#!" id="cp_save_btn" class="waves-effect waves-light btn TR">btn.Save</a>
+            <a href="#!" class="modal-close waves-effect waves-light btn-flat TR">btn.Cancel</a>
+        </div>
+    </div>
+    {% endif %}
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -53,6 +134,9 @@
             <div class='right'>
                 <a href="{{ url_for('view.index')}}" class="right"><img class="logo" src="{{ url_for('static', filename='images/logo.png') }}"></a>
             </div>
+            <ul class="right hide-on-med-and-down">
+                <li><a class="dropdown-trigger" href="#!" data-target="user_menu_dropdown"><i class="material-icons">person</i></a></li>
+            </ul>
             {% if g.isAdmin %}
             <ul class="right hide-on-med-and-down">
                 {% for i in headerDataR %}
@@ -66,12 +150,20 @@
                 {% for i in headerDataL %}
                 <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}" class="TR">{{i['text']}}</a></li>
                 {% endfor %}
-                {% if hasLogout %}
-                <li><a href="{{ url_for('auth.logout') }}"><i class="material-icons">logout</i></a></li>
-                {% endif %}
             </ul>
         </div>
     </nav>
+
+    <ul id="user_menu_dropdown" class="dropdown-content">
+        <li><a href="#pref_modal" class="modal-trigger TR">Preferences</a></li>
+        {% if hasChangePassword %}
+        <li><a href="#change_password_modal" class="modal-trigger TR">Change password</a></li>
+        {% endif %}
+        {% if hasLogout %}
+        <li class="divider" tabindex="-1"></li>
+        <li><a href="{{ url_for('auth.logout') }}" class="TR">Logout</a></li>
+        {% endif %}
+    </ul>
 
 {% endblock %}
 
@@ -83,4 +175,3 @@
 </div>
 {% endif %}
 #}
-
