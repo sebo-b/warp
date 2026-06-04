@@ -725,6 +725,8 @@ function initAutoBook(seatFactory) {
     if (!fabBtn)
         return;
 
+    fabBtn.title = TR("Find me a seat");
+
     function updateFabState() {
         fabBtn.classList.toggle('disabled', getSelectedDates().length === 0);
     }
@@ -741,9 +743,16 @@ function initAutoBook(seatFactory) {
         if (!dates.length)
             return;
 
+        var payload = { dates: dates };
+        if (window.warpGlobals.isZoneAdmin) {
+            let login = BookAs.getInstance().getSelectedLogin(true);
+            if (login !== null)
+                payload['login'] = login;
+        }
+
         Utils.xhr.post(
             window.warpGlobals.URLs['zoneAutoBook'],
-            { dates: dates },
+            payload,
             { toastOnSuccess: false, toastOnError: true })
         .then(function(v) {
             showAutoBookResult(v.response);
@@ -761,6 +770,7 @@ function showAutoBookResult(resp) {
     var booked = resp.booked || [];
     var elsewhere = resp.already_booked_elsewhere || [];
     var unbookable = resp.unbookable || [];
+    var notExtended = resp.not_extended || [];
 
     var container = document.createElement('div');
 
@@ -795,6 +805,12 @@ function showAutoBookResult(resp) {
         tr.appendChild(document.createElement('td')).innerText = f.datetime1;
         tr.appendChild(document.createElement('td')).innerText = f.datetime2;
     }, elsewhere);
+
+    appendSection(TR("Could not extend or rebook:"), function(tr, u) {
+        let f = WarpSeatFactory._formatDatePair(u);
+        tr.appendChild(document.createElement('td')).innerText = f.datetime1;
+        tr.appendChild(document.createElement('td')).innerText = f.datetime2;
+    }, notExtended);
 
     appendSection(TR("Could not book the following dates:"), function(tr, u) {
         let f = WarpSeatFactory._formatDatePair(u);
