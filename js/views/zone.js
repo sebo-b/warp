@@ -716,6 +716,109 @@ function initBookAs(seatFactory) {
 
 }
 
+function initAutoBook(seatFactory) {
+
+    if (window.warpGlobals.isZoneViewer)
+        return;
+
+    var fabBtn = document.getElementById('auto_book_btn');
+    if (!fabBtn)
+        return;
+
+    function updateFabState() {
+        fabBtn.classList.toggle('disabled', getSelectedDates().length === 0);
+    }
+
+    var slider = document.getElementById('timeslider');
+    slider.noUiSlider.on('update', updateFabState);
+
+    for (var e of document.getElementsByClassName('date_checkbox')) {
+        e.addEventListener('change', updateFabState);
+    }
+
+    fabBtn.addEventListener('click', function() {
+        var dates = getSelectedDates();
+        if (!dates.length)
+            return;
+
+        Utils.xhr.post(
+            window.warpGlobals.URLs['zoneAutoBook'],
+            { dates: dates },
+            { toastOnSuccess: false, toastOnError: true })
+        .then(function(v) {
+            showAutoBookResult(v.response);
+            downloadSeatData(seatFactory);
+        }).catch(function() {
+            downloadSeatData(seatFactory);
+        });
+    });
+
+    updateFabState();
+}
+
+function showAutoBookResult(resp) {
+
+    var booked = resp.booked || [];
+    var elsewhere = resp.already_booked_elsewhere || [];
+    var unbookable = resp.unbookable || [];
+
+    var container = document.createElement('div');
+
+    function appendSection(headerText, rowBuilder, items) {
+        if (!items.length)
+            return;
+
+        if (container.children.length)
+            container.appendChild(document.createElement('br'));
+
+        var header = container.appendChild(document.createElement('b'));
+        header.innerText = headerText;
+
+        var table = container.appendChild(document.createElement('table'));
+        for (let it of items) {
+            let tr = table.appendChild(document.createElement('tr'));
+            rowBuilder(tr, it);
+        }
+    }
+
+    appendSection(TR("Booked:"), function(tr, b) {
+        let f = WarpSeatFactory._formatDatePair(b);
+        tr.appendChild(document.createElement('td')).innerText = b.seat_name;
+        tr.appendChild(document.createElement('td')).innerText = f.datetime1;
+        tr.appendChild(document.createElement('td')).innerText = f.datetime2;
+    }, booked);
+
+    appendSection(TR("Already booked in another zone:"), function(tr, b) {
+        let f = WarpSeatFactory._formatDatePair(b);
+        tr.appendChild(document.createElement('td')).innerText = b.zone_name;
+        tr.appendChild(document.createElement('td')).innerText = b.seat_name;
+        tr.appendChild(document.createElement('td')).innerText = f.datetime1;
+        tr.appendChild(document.createElement('td')).innerText = f.datetime2;
+    }, elsewhere);
+
+    appendSection(TR("Could not book the following dates:"), function(tr, u) {
+        let f = WarpSeatFactory._formatDatePair(u);
+        tr.appendChild(document.createElement('td')).innerText = f.datetime1;
+        let timeTd = tr.appendChild(document.createElement('td'));
+        timeTd.innerText = f.datetime2;
+        if (u.future_options && u.future_options.length) {
+            for (let o of u.future_options) {
+                let dateStr = new Date(o.available_from_ts * 1000).toISOString().substring(0, 10);
+                timeTd.appendChild(document.createElement('br'));
+                timeTd.appendChild(document.createTextNode(
+                    TR("Seat %{seat_name} becomes available on %{date}",
+                        {seat_name: o.seat_name, date: dateStr})));
+            }
+        }
+    }, unbookable);
+
+    if (!container.children.length) {
+        container.appendChild(document.createTextNode(TR("No seat could be booked.")));
+    }
+
+    WarpModal.getInstance().open(TR("Auto book"), container.innerHTML);
+}
+
 document.addEventListener("DOMContentLoaded", function() {
 
     initSlider();
@@ -729,6 +832,8 @@ document.addEventListener("DOMContentLoaded", function() {
     initZoneSidepanel();
 
     downloadSeatData(seatFactory);
+
+    initAutoBook(seatFactory);
 
     if (window.warpGlobals.isZoneAdmin) {
         ZoneUserData.init();

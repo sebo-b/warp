@@ -11,6 +11,8 @@
         window.warpGlobals['defaultSelectedDates'] = {{ defaultSelectedDates | tojson }};
         window.warpGlobals.today = {{ today | int }};
 
+        window.warpGlobals.URLs['zoneAutoBook'] = "{{ url_for('xhr.zone.autoBook', zid=zid) }}";
+
         {% if isZoneAdmin %}
         window.warpGlobals.isZoneAdmin = true;
         window.warpGlobals.URLs['zoneGetUsers'] = "{{ url_for('xhr.zone.getUsers',zid=zid)}}";
@@ -193,6 +195,16 @@
             </div>
             <img src="{{ url_for('view.zoneImage', zid=zid) }}">
         </div>
+
+        {% if not isZoneViewer %}
+        <div class="fixed-action-btn auto_book_fab">
+            <a id="auto_book_btn" class="btn-floating btn-large waves-effect waves-light disabled">
+                <i class="material-icons">add</i>
+            </a>
+        </div>
+        {% endif %}
+
+    </div>
 
 {% endblock %}
 

@@ -556,6 +556,379 @@ def apply():
     return ret, 200
 
 
+autoBookSchema = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+        "dates": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "fromTS": {"type": "integer"},
+                    "toTS": {"type": "integer"}
+                },
+                "required": ["fromTS", "toTS"]
+            }
+        }
+    },
+    "required": ["dates"]
+}
+
+
+# Format:
+# {
+#   "booked": [{sid, seat_name, fromTS, toTS}, ...],
+#   "already_booked_elsewhere": [{sid, seat_name, zone_name, fromTS, toTS}, ...],
+#   "unbookable": [{fromTS, toTS, future_options: [{sid, seat_name, available_from_ts, assignment_kind}, ...]}]
+# }
+@bp.route("autoBook/<int:zid>", methods=["POST"])
+@utils.validateJSONInput(autoBookSchema)
+def autoBook(zid):
+
+    dates = flask.request.get_json()['dates']
+    login = flask.g.login
+
+    zone = Zone.select(Zone.zone_type, Zone.zone_group).where(Zone.id == zid).first()
+    if zone is None:
+        return {"msg": "Forbidden", "code": 130}, 403
+
+    specificRole = UserToZoneRoles.select(UserToZoneRoles.zone_role) \
+                                  .where((UserToZoneRoles.zid == zid) & (UserToZoneRoles.login == login)) \
+                                  .scalar()
+
+    effectiveRole = effectiveZoneRole(zone['zone_type'], specificRole)
+    if effectiveRole is None or effectiveRole > ZONE_ROLE_USER:
+        return {"msg": "Forbidden", "code": 104}, 403
+
+    ts = utils.getTimeRange()
+    if not flask.g.isAdmin:
+        for b in dates:
+            if b['fromTS'] < ts["fromTS"] or b['fromTS'] > ts["toTS"] \
+                or b['toTS'] < ts["fromTS"] or b['toTS'] > ts["toTS"]:
+                return {"msg": "Forbidden", "code": 103}, 403
+
+    # Reject inter-slot overlaps in the request — the book_overlap_insert
+    # trigger would reject the bulk insert, wiping all otherwise-valid bookings.
+    sortedDates = sorted(dates, key=lambda d: d['fromTS'])
+    for i in range(len(sortedDates) - 1):
+        if sortedDates[i]['toTS'] > sortedDates[i+1]['fromTS']:
+            return {"msg": "Overlapping dates in request", "code": 140}, 400
+
+    zoneGroup = zone['zone_group']
+    today = utils.today()
+    usageWindow = flask.current_app.config['AUTOBOOK_USAGE_WINDOW_DAYS']
+    usageStart = today - usageWindow * 86400
+    usageEnd = today + usageWindow * 86400
+
+    # User's existing bookings in the zone_group overlapping any selected slot.
+    # If found, the user is already covered for that slot — skip booking there:
+    #  - same-zone:  silently (the booking is already visible on the map)
+    #  - other-zone: report under already_booked_elsewhere so the UI can explain
+    #                why no new booking was made for that slot.
+    slotMin = min(b['fromTS'] for b in dates)
+    slotMax = max(b['toTS'] for b in dates)
+
+    existingQ = Book.select(Book.sid, Book.fromts, Book.tots, Seat.zid,
+                            Seat.name.alias('seat_name'), Zone.name.alias('zone_name')) \
+                    .join(Seat, on=(Book.sid == Seat.id)) \
+                    .join(Zone, on=(Seat.zid == Zone.id)) \
+                    .where(Zone.zone_group == zoneGroup) \
+                    .where(Book.login == login) \
+                    .where((Book.fromts < slotMax) & (Book.tots > slotMin))
+
+    alreadyBookedElsewhere = []
+    skipIdx = set()
+    for eb in existingQ.iterator():
+        for i, slot in enumerate(dates):
+            if i in skipIdx:
+                continue
+            if eb['fromts'] < slot['toTS'] and eb['tots'] > slot['fromTS']:
+                if eb['zid'] != zid:
+                    alreadyBookedElsewhere.append({
+                        "sid": eb['sid'],
+                        "seat_name": eb['seat_name'],
+                        "zone_name": eb['zone_name'],
+                        "fromTS": slot['fromTS'],
+                        "toTS": slot['toTS']
+                    })
+                skipIdx.add(i)
+
+    remainingSlots = [dates[i] for i in range(len(dates)) if i not in skipIdx]
+
+    assignments = {}
+    unbookable = []
+    if remainingSlots:
+        assignments, unbookable = _autoBookAlgorithm(
+            zid, zoneGroup, login, remainingSlots, today, usageStart, usageEnd)
+
+    booked = []
+    if assignments:
+        insertData = []
+        for ri, (sid, seatName) in assignments.items():
+            slot = remainingSlots[ri]
+            insertData.append({
+                Book.login: login,
+                Book.sid: sid,
+                Book.fromts: slot['fromTS'],
+                Book.tots: slot['toTS']
+            })
+            booked.append({
+                "sid": sid,
+                "seat_name": seatName,
+                "fromTS": slot['fromTS'],
+                "toTS": slot['toTS']
+            })
+
+        try:
+            with DB.atomic():
+                Book.insert(insertData).execute()
+        except peewee.IntegrityError:
+            return {"msg": "Overlapping time", "code": 109}, 400
+
+    result = {
+        "booked": booked,
+        "already_booked_elsewhere": alreadyBookedElsewhere,
+        "unbookable": unbookable
+    }
+
+    return flask.current_app.response_class(
+        response=orjson.dumps(result),
+        status=200,
+        mimetype='application/json')
+
+
+# Priority for choosing the user's strongest relation to a seat.
+# Higher value wins — direct > group > everyone > none (no assignments) > blocked.
+_KIND_PRIORITY = {'blocked': 0, 'none': 1, 'everyone': 2, 'group': 3, 'direct': 4}
+
+
+def _bestKind(current, new):
+    return new if _KIND_PRIORITY[new] > _KIND_PRIORITY[current] else current
+
+
+def _autoBookAlgorithm(zid, zoneGroup, login, slots, today, usageStart, usageEnd):
+    """
+    Core auto-book selection algorithm.
+    Returns (assignments, unbookable) where:
+      assignments: {slot_index: (sid, seat_name)}  for slots that the caller should book
+      unbookable:  [{fromTS, toTS, future_options}] for slots that could not be filled
+    """
+
+    # Enabled seats in zone
+    seats = {s['id']: s['name'] for s in
+             Seat.select(Seat.id, Seat.name)
+                 .where((Seat.zid == zid) & (Seat.enabled == True)).iterator()}
+
+    if not seats:
+        return {}, [{"fromTS": s['fromTS'], "toTS": s['toTS'], "future_options": []} for s in slots]
+
+    seatIds = list(seats.keys())
+
+    # All seat_assign rows for these seats
+    seatAssigns = defaultdict(list)
+    for r in SeatAssign.select(SeatAssign.sid, SeatAssign.login, SeatAssign.days_in_advance) \
+                       .where(SeatAssign.sid.in_(seatIds)).iterator():
+        seatAssigns[r['sid']].append((r['login'], r['days_in_advance']))
+
+    userGroups = _resolveUserGroups(login)
+
+    # For each seat, classify the user's relation and compute the most-permissive
+    # days_in_advance across direct, all matching group rows, and the everyone row.
+    # This mirrors the most-permissive merge done in `apply`.
+    #   kind: 'direct' | 'group' | 'everyone' | 'none' (no rows at all) | 'blocked' (only foreign)
+    #   dia : None means unlimited (wins); otherwise MAX across applicable rows.
+    seatInfo = {}
+    for sid in seatIds:
+        rows = seatAssigns.get(sid)
+        if not rows:
+            seatInfo[sid] = ('none', None)
+            continue
+        kind = 'blocked'
+        applicableDias = []
+        for rlogin, rdia in rows:
+            if rlogin == login:
+                kind = _bestKind(kind, 'direct')
+                applicableDias.append(rdia)
+            elif rlogin is None:
+                kind = _bestKind(kind, 'everyone')
+                applicableDias.append(rdia)
+            elif rlogin in userGroups:
+                kind = _bestKind(kind, 'group')
+                applicableDias.append(rdia)
+        if kind == 'blocked':
+            continue   # user can't book this seat — excluded from every tier
+        if any(d is None for d in applicableDias):
+            dia = None
+        else:
+            dia = max(applicableDias)
+        seatInfo[sid] = (kind, dia)
+
+    tierA = {sid: dia for sid, (k, dia) in seatInfo.items() if k == 'direct'}
+    tierB = {sid: dia for sid, (k, dia) in seatInfo.items() if k == 'group'}
+    tierD = {sid: dia for sid, (k, dia) in seatInfo.items() if k in ('everyone', 'none')}
+
+    hasAssignment = bool(tierA or tierB)
+
+    # Tier C — only when no user-specific assignment exists; ranked by user's
+    # booking count desc, ties broken by least-booked overall (lower total wins).
+    tierC = {}
+    userBookCounts = {}
+    totalBookCounts = {}
+    if not hasAssignment:
+        userBookCounts = _seatBookCount(zid, usageStart, usageEnd, login=login)
+        totalBookCounts = _seatBookCount(zid, usageStart, usageEnd, login=None)
+        for sid in userBookCounts:
+            if sid in seatInfo:    # seatInfo excludes 'blocked'
+                tierC[sid] = seatInfo[sid][1]
+
+    tierSeq = [('A', tierA), ('B', tierB), ('D', tierD)] if hasAssignment \
+              else [('C', tierC), ('D', tierD)]
+
+    # All bookings in zone_group overlapping the slot range — used for conflict checks
+    slotMin = min(s['fromTS'] for s in slots)
+    slotMax = max(s['toTS'] for s in slots)
+    allBookings = list(Book.select(Book.sid, Book.login, Book.fromts, Book.tots)
+                           .join(Seat, on=(Book.sid == Seat.id))
+                           .join(Zone, on=(Seat.zid == Zone.id))
+                           .where(Zone.zone_group == zoneGroup)
+                           .where((Book.fromts < slotMax) & (Book.tots > slotMin))
+                           .iterator())
+
+    def seatHasOverlap(sid, slot, ignoreLogin=None):
+        for bk in allBookings:
+            if bk['sid'] != sid:
+                continue
+            if ignoreLogin is not None and bk['login'] == ignoreLogin:
+                continue
+            if bk['fromts'] < slot['toTS'] and bk['tots'] > slot['fromTS']:
+                return True
+        return False
+
+    def userHasOverlap(slot):
+        for bk in allBookings:
+            if bk['login'] == login and bk['fromts'] < slot['toTS'] and bk['tots'] > slot['fromTS']:
+                return True
+        return False
+
+    def withinWindow(dia, slot):
+        return dia is None or slot['fromTS'] < today + (dia + 1) * 86400
+
+    def covers(sid, dia, slot):
+        return withinWindow(dia, slot) and not seatHasOverlap(sid, slot) and not userHasOverlap(slot)
+
+    def rankTier(tag, seatsMap):
+        ids = list(seatsMap.keys())
+        if tag == 'C':
+            ids.sort(key=lambda sid: (-userBookCounts.get(sid, 0),
+                                       totalBookCounts.get(sid, 0),
+                                       sid))
+        else:
+            ids.sort()
+        return ids
+
+    remaining = list(range(len(slots)))
+    assignments = {}
+
+    for tag, seatsMap in tierSeq:
+
+        if not remaining or not seatsMap:
+            continue
+
+        ranked = rankTier(tag, seatsMap)
+
+        # Phase 1 — same-seat preference: try a single seat that covers ALL remaining.
+        # The strict tier ordering ensures an assigned-tier seat that covers only some
+        # slots beats a non-assigned seat that covers all (assigned-overrides-same-seat).
+        for sid in ranked:
+            dia = seatsMap[sid]
+            if all(covers(sid, dia, slots[i]) for i in remaining):
+                for i in remaining:
+                    assignments[i] = (sid, seats[sid])
+                remaining = []
+                break
+
+        if not remaining:
+            break
+
+        # Phase 2 — per-slot fallback within this tier
+        for i in list(remaining):
+            for sid in ranked:
+                dia = seatsMap[sid]
+                if covers(sid, dia, slots[i]):
+                    assignments[i] = (sid, seats[sid])
+                    remaining.remove(i)
+                    break
+
+    # Unbookable slots + "come back later" hints
+    unbookable = []
+    for i in range(len(slots)):
+        if i in assignments:
+            continue
+        slot = slots[i]
+        futureOpts = []
+
+        # Future hints are only meaningful for seats the user is allowed to book
+        # AND that have a finite days_in_advance window (otherwise no future date
+        # changes availability). 'none'-kind seats have no window; 'blocked' is excluded.
+        for sid, (kind, dia) in seatInfo.items():
+            if kind in ('none', 'blocked') or dia is None:
+                continue
+            cutoff = today + (dia + 1) * 86400
+            if slot['fromTS'] < cutoff:
+                continue   # currently in window — unbookable for another reason, not dia
+            # Ignore the user's own bookings (those would be re-bookable in a separate call)
+            # but a seat taken by someone else for that slot is not actually a future option.
+            if seatHasOverlap(sid, slot, ignoreLogin=login):
+                continue
+            availableFromTs = ((slot['fromTS'] // 86400) - dia) * 86400
+            futureOpts.append({
+                "sid": sid,
+                "seat_name": seats[sid],
+                "available_from_ts": availableFromTs,
+                "assignment_kind": kind
+            })
+
+        futureOpts.sort(key=lambda o: (o['available_from_ts'], o['sid']))
+        unbookable.append({
+            "fromTS": slot['fromTS'],
+            "toTS": slot['toTS'],
+            "future_options": futureOpts
+        })
+
+    return assignments, unbookable
+
+
+def _resolveUserGroups(login):
+    """All groups the user is a transitive member of.
+    Mirrors the recursive expansion used by the user_to_zone_roles view."""
+    res = set()
+    cur = DB.execute_sql("""
+        WITH RECURSIVE ug(grp) AS (
+            SELECT g."group" FROM groups g WHERE g.login = %s
+            UNION
+            SELECT g."group" FROM groups g JOIN ug ON g.login = ug.grp
+        )
+        SELECT grp FROM ug
+    """, (login,))
+    for (g,) in cur:
+        res.add(g)
+    return res
+
+
+def _seatBookCount(zid, fromTS, toTS, login=None):
+    """Count bookings per seat in the given range, for enabled seats in zid.
+    If login is None, counts across all users."""
+    q = Book.select(Book.sid, COUNT_STAR.alias('cnt')) \
+            .join(Seat, on=(Book.sid == Seat.id)) \
+            .where((Seat.zid == zid) & (Seat.enabled == True)) \
+            .where((Book.fromts < toTS) & (Book.tots > fromTS))
+    if login is not None:
+        q = q.where(Book.login == login)
+    q = q.group_by(Book.sid)
+    return {r['sid']: r['cnt'] for r in q.iterator()}
+
+
 #Format
 # {
 #   data: {

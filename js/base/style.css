@@ -195,6 +195,19 @@ NAV {
     position: relative;
 }
 
+.auto_book_fab {
+    position: fixed;
+    bottom: 80px;
+    right: 23px;
+    z-index: 10;
+}
+
+.auto_book_fab .btn-floating.disabled {
+    pointer-events: none;
+    background-color: #DFDFDF !important;
+    box-shadow: none;
+}
+
 .zonemap_help {
     position: fixed;
     right: 0px;

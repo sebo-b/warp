@@ -222,6 +222,13 @@ warpGlobals.i18n.phrases = {
     "Everyone": "Alle",
     "Available to everyone": "Für alle verfügbar",
     "Available to everyone (up to %{n}d in advance)": "Für alle verfügbar (bis zu %{n} Tage im Voraus)",
+    "Find me a seat": "Platz suchen",
+    "Auto book": "Automatische Buchung",
+    "Booked:": "Gebucht:",
+    "Already booked in another zone:": "Bereits in einer anderen Zone gebucht:",
+    "Could not book the following dates:": "Die folgenden Daten konnten nicht gebucht werden:",
+    "Seat %{seat_name} becomes available on %{date}": "Platz %{seat_name} wird verfügbar ab %{date}",
+    "No seat could be booked.": "Es konnte kein Platz gebucht werden.",
     zoneType: {
         "Disabled": "Deaktiviert",
         "Enabled": "Aktiviert",
