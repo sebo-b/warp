@@ -35,6 +35,14 @@ class DefaultSettings(object):
 
     DATABASE_INIT_SCRIPT = "sql/schema.sql"
 
+    DATABASE_MIGRATION_SCRIPTS = [
+        (1, "sql/migration_001_days_in_advance.sql"),
+        (2, "sql/migration_002_zone_type.sql"),
+        (3, "sql/migration_003_seat_assign_everyone.sql"),
+        (4, "sql/migration_004_user_prefs.sql"),
+        (5, "sql/migration_005_ical.sql"),
+    ]
+
     # number of connection retries to DB on initialization
     DATABASE_INIT_RETRIES = 10
     # delay between retries

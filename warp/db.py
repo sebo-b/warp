@@ -1,8 +1,6 @@
 from functools import partial
 from time import sleep
 import sys
-import os
-import re
 
 from peewee import Table, SQL, fn, IntegrityError, DatabaseError, OperationalError
 import playhouse.db_url
@@ -116,26 +114,6 @@ def init(app):
         with app.app_context():
             initDB()
 
-def _runMigrations(initScripts):
-
-    sql_dir = os.path.dirname(initScripts[0])
-    full_sql_dir = os.path.join(current_app.root_path, sql_dir)
-
-    migrations = []
-    try:
-        for filename in os.listdir(full_sql_dir):
-            if filename.endswith('.sql') and 'migration' in filename.lower():
-                migrations.append(os.path.join(sql_dir, filename))
-    except OSError:
-        pass
-
-    migrations.sort()
-
-    for script in migrations:
-        print(f'Executing migration script: {script}')
-        with current_app.open_resource(script) as f:
-            DB.execute(SQL(f.read().decode('utf8')))
-
 def initDB(force = False):
 
     initScripts = current_app.config.get('DATABASE_INIT_SCRIPT')
@@ -162,27 +140,29 @@ def initDB(force = False):
                 DB.execute_sql(f"SELECT pg_advisory_xact_lock({_ADVISORY_LOCK_KEY})")
 
                 table_exists = False
+                column_exists = False
                 if not force:
-                    table_exists = DB.execute_sql(
-                        "SELECT EXISTS(SELECT FROM information_schema.tables"
-                        " WHERE table_name = 'db_initialized' AND table_schema = current_schema())"
-                    ).fetchone()[0]
+                    table_exists, column_exists = DB.execute_sql(
+                        "SELECT "
+                        "EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = 'db_initialized' AND table_schema = current_schema()), "
+                        "EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name = 'db_initialized' AND column_name = 'version' AND table_schema = current_schema())"
+                    ).fetchone()
 
                 if table_exists:
-                    DB.execute_sql("ALTER TABLE db_initialized ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 0")
-                    current_version_row = DB.execute_sql("SELECT version FROM db_initialized LIMIT 1").fetchone()
-                    current_version = current_version_row[0] if current_version_row else 0
+                    if not column_exists:
+                        DB.execute_sql("ALTER TABLE db_initialized ADD COLUMN version INTEGER NOT NULL DEFAULT 0")
+                        DB.execute_sql("INSERT INTO db_initialized (version) VALUES (0)")
+                        current_version = 0
+                    else:
+                        current_version = DB.execute_sql("SELECT version FROM db_initialized LIMIT 1").fetchone()[0]
 
-                    schema_version = 0
-                    for file in initScripts:
-                        with current_app.open_resource(file) as f:
-                            file_content = f.read().decode('utf8')
-                            match = re.search(r'schema_version\s.*:=\s*(\d+)', file_content, re.IGNORECASE)
-                            if match:
-                                schema_version = max(schema_version, int(match.group(1)))
-
-                    if current_version < schema_version:
-                        _runMigrations(initScripts)
+                    migration_scripts = current_app.config.get('DATABASE_MIGRATION_SCRIPTS', [])
+                    for target_version, script in sorted(migration_scripts):
+                        if target_version > current_version:
+                            print(f'Executing migration script: {script}')
+                            with current_app.open_resource(script) as f:
+                                DB.execute(SQL(f.read().decode('utf8')))
+                            DB.execute_sql("UPDATE db_initialized SET version = %s", (target_version,))
 
                     break
 

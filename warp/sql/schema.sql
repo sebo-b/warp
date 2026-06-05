@@ -207,9 +207,4 @@ EXECUTE PROCEDURE book_overlap_insert();
 
 CREATE TABLE db_initialized (version INTEGER NOT NULL);
 
-DO $$
-DECLARE
-  schema_version integer := 5;
-BEGIN
-INSERT INTO db_initialized(version) VALUES(schema_version);
-END $$
+INSERT INTO db_initialized(version) VALUES(5);
