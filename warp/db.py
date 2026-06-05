@@ -1,6 +1,8 @@
 from functools import partial
 from time import sleep
 import sys
+import os
+import re
 
 from peewee import Table, SQL, fn, IntegrityError, DatabaseError, OperationalError
 import playhouse.db_url
@@ -73,7 +75,7 @@ __all__ = ["DB", "Blobs", "Users", "Groups","Seat", "Zone", "ZoneAssign", "Book"
            'ZONE_TYPE_DISABLED', 'ZONE_TYPE_ENABLED', 'ZONE_TYPE_PUBLIC_VIEW', 'ZONE_TYPE_PUBLIC_BOOK',
            'EVERYONE_KEY', 'effectiveZoneRole']
 
-_INITIALIZED_TABLE = 'db_initialized'
+_ADVISORY_LOCK_KEY = 7484381
 
 def _connect():
     DB.connect()
@@ -114,6 +116,26 @@ def init(app):
         with app.app_context():
             initDB()
 
+def _runMigrations(initScripts):
+
+    sql_dir = os.path.dirname(initScripts[0])
+    full_sql_dir = os.path.join(current_app.root_path, sql_dir)
+
+    migrations = []
+    try:
+        for filename in os.listdir(full_sql_dir):
+            if filename.endswith('.sql') and 'migration' in filename.lower():
+                migrations.append(os.path.join(sql_dir, filename))
+    except OSError:
+        pass
+
+    migrations.sort()
+
+    for script in migrations:
+        print(f'Executing migration script: {script}')
+        with current_app.open_resource(script) as f:
+            DB.execute(SQL(f.read().decode('utf8')))
+
 def initDB(force = False):
 
     initScripts = current_app.config.get('DATABASE_INIT_SCRIPT')
@@ -137,13 +159,32 @@ def initDB(force = False):
 
             with DB:
 
-                if not force:
+                DB.execute_sql(f"SELECT pg_advisory_xact_lock({_ADVISORY_LOCK_KEY})")
 
-                    try:
-                        DB.execute_sql(f"CREATE TABLE {_INITIALIZED_TABLE}();")
-                    except DatabaseError:
-                        # database already initialized
-                        return
+                table_exists = False
+                if not force:
+                    table_exists = DB.execute_sql(
+                        "SELECT EXISTS(SELECT FROM information_schema.tables"
+                        " WHERE table_name = 'db_initialized' AND table_schema = current_schema())"
+                    ).fetchone()[0]
+
+                if table_exists:
+                    DB.execute_sql("ALTER TABLE db_initialized ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 0")
+                    current_version_row = DB.execute_sql("SELECT version FROM db_initialized LIMIT 1").fetchone()
+                    current_version = current_version_row[0] if current_version_row else 0
+
+                    schema_version = 0
+                    for file in initScripts:
+                        with current_app.open_resource(file) as f:
+                            file_content = f.read().decode('utf8')
+                            match = re.search(r'schema_version\s.*:=\s*(\d+)', file_content, re.IGNORECASE)
+                            if match:
+                                schema_version = max(schema_version, int(match.group(1)))
+
+                    if current_version < schema_version:
+                        _runMigrations(initScripts)
+
+                    break
 
                 print(f'Initializing DB force={force}')
 
@@ -154,9 +195,6 @@ def initDB(force = False):
                     with current_app.open_resource(file) as f:
                         sql = f.read().decode('utf8')
                         DB.execute(SQL(sql))
-
-                # in case it is cleaned up in the above scripts (or force == True)
-                DB.execute_sql(f"CREATE TABLE IF NOT EXISTS {_INITIALIZED_TABLE}();")
 
             print('The database initialized.')
             break
