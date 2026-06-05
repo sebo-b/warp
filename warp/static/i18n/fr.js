@@ -1,5 +1,5 @@
 
-warpGlobals.i18n = { locale: 'en' }
+warpGlobals.i18n = { locale: 'fr' }
 
 warpGlobals.i18n.weekdaysShort = [ 'Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam' ];
 
@@ -234,4 +234,20 @@ warpGlobals.i18n.phrases = {
         "PublicView": "Publique — consultation uniquement",
         "PublicBook": "Publique — réservation autorisée",
     },
+    'Preferences': 'Préférences',
+    'Default zone': 'Zone par défaut',
+    'Today': "Aujourd'hui",
+    'Tomorrow': 'Demain',
+    'Today if before start time, otherwise tomorrow': "Aujourd'hui si avant l'heure de début, sinon demain",
+    'Default day': 'Jour par défaut',
+    'Default time': 'Heure par défaut',
+    'Calendar integration': 'Intégration du calendrier',
+    'Calendar subscription URL': "URL d'abonnement au calendrier",
+    'Error saving preferences': "Erreur lors de l'enregistrement des préférences",
+    'Preferences saved': 'Préférences enregistrées',
+    'Regenerating the URL will invalidate your current calendar subscription link. Continue?': "Régénérer l'URL invalidera votre lien d'abonnement au calendrier actuel. Continuer ?",
+    'Error regenerating URL': "Erreur lors de la régénération de l'URL",
+    'Calendar URL regenerated': 'URL du calendrier régénérée',
+    'URL copied to clipboard': 'URL copiée dans le presse-papiers',
+    'Failed to copy': 'Échec de la copie',
 };
