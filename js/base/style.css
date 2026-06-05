@@ -159,6 +159,28 @@ NAV {
     flex: 0 0 auto;
 }
 
+#pref_modal .modal-content label {
+    font-size: 1rem;
+}
+
+.pref-feature-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-top: 8px;
+    padding-bottom: 4px;
+}
+
+.pref-feature-row > span {
+    flex: 1;
+    font-size: 1rem;
+    color: #9e9e9e;
+}
+
+.pref-feature-row .switch label {
+    margin: 0;
+}
+
 #bookingsTable {
     margin-top: 5px;
 }

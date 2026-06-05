@@ -57,6 +57,11 @@ function initPrefs() {
   var sliderEl = document.getElementById('pref_timeslider');
   var minDiv = document.getElementById('pref_timeslider-min');
   var maxDiv = document.getElementById('pref_timeslider-max');
+  var icalToggle = document.getElementById('pref_ical_enabled');
+  var icalUrlRow = document.getElementById('ical_url_row');
+  var icalUrlInput = document.getElementById('pref_ical_url');
+  var icalCopyBtn = document.getElementById('pref_ical_copy');
+  var icalRegenBtn = document.getElementById('pref_ical_regenerate');
 
   if (!prefModalEl || !zoneSelectEl || !daySelectEl || !saveBtn || !sliderEl)
     return;
@@ -64,6 +69,24 @@ function initPrefs() {
   var DEFAULT_TIME = [9 * 3600, 17 * 3600];
   var loadedPrefs = null;
   var slider = null;
+  var icalEnabled = false;
+  var icalToken = null;
+
+  function buildIcalUrl(token) {
+    if (!token) return '';
+    return window.location.protocol + '//' + window.location.host + '/ical/' + token + '.ics';
+  }
+
+  function updateIcalUI() {
+    if (!icalUrlRow || !icalUrlInput) return;
+    if (icalEnabled && icalToken) {
+      icalUrlRow.style.display = '';
+      icalUrlInput.value = buildIcalUrl(icalToken);
+      M.updateTextFields();
+    } else {
+      icalUrlRow.style.display = 'none';
+    }
+  }
 
   function formatHHMM(seconds) {
     if (seconds >= 24 * 3600) return "23:59";
@@ -77,6 +100,11 @@ function initPrefs() {
     M.FormSelect.init(zoneSelectEl);
     M.FormSelect.init(daySelectEl);
     if (slider) slider.set(time);
+
+    icalEnabled = loadedPrefs ? !!loadedPrefs.ical_enabled : false;
+    icalToken = loadedPrefs ? loadedPrefs.ical_token || null : null;
+    if (icalToggle) icalToggle.checked = icalEnabled;
+    updateIcalUI();
   }
 
   function ensureSlider() {
@@ -107,7 +135,8 @@ function initPrefs() {
   M.FormSelect.init(daySelectEl);
 
   M.Modal.init(prefModalEl, {
-    onOpenStart: ensureSlider
+    onOpenStart: ensureSlider,
+    dismissible: false
   });
 
   fetch('/xhr/prefs')
@@ -121,14 +150,14 @@ function initPrefs() {
     })
     .catch(function() {});
 
-  saveBtn.addEventListener('click', function() {
+  function postPrefs(extraPayload, callback) {
     if (!slider) return;
-
     var payload = {
       default_zone: zoneSelectEl.value || undefined,
       default_day: daySelectEl.value,
       default_time: slider.get(true).map(function(v) { return Math.round(v); })
     };
+    if (extraPayload) Object.assign(payload, extraPayload);
 
     fetch('/xhr/prefs', {
       method: 'POST',
@@ -141,12 +170,69 @@ function initPrefs() {
     })
     .then(function(prefs) {
       loadedPrefs = prefs;
-      M.toast({ text: TR('Preferences saved') });
+      applyPrefsToUI();
+      if (callback) callback(null, prefs);
     })
-    .catch(function() {
-      M.toast({ text: TR('Error saving preferences') });
+    .catch(function(err) {
+      if (callback) callback(err);
+    });
+  }
+
+  saveBtn.addEventListener('click', function() {
+    postPrefs({ ical_enabled: icalToggle ? icalToggle.checked : false }, function(err) {
+      if (err) {
+        M.toast({ text: TR('Error saving preferences') });
+      } else {
+        M.toast({ text: TR('Preferences saved') });
+      }
     });
   });
+
+  if (icalToggle) {
+    icalToggle.addEventListener('change', function() {
+      icalEnabled = this.checked;
+      if (icalEnabled && !icalToken) {
+        postPrefs({ ical_enabled: true }, function(err) {
+          if (err) M.toast({ text: TR('Error saving preferences') });
+        });
+      } else {
+        updateIcalUI();
+      }
+    });
+  }
+
+  if (icalRegenBtn) {
+    icalRegenBtn.addEventListener('click', function() {
+      if (!confirm(TR('Regenerating the URL will invalidate your current calendar subscription link. Continue?')))
+        return;
+      postPrefs({ ical_regenerate_token: true }, function(err) {
+        if (err) {
+          M.toast({ text: TR('Error regenerating URL') });
+        } else {
+          M.toast({ text: TR('Calendar URL regenerated') });
+        }
+      });
+    });
+  }
+
+  if (icalCopyBtn && icalUrlInput) {
+    icalCopyBtn.addEventListener('click', function() {
+      var url = icalUrlInput.value;
+      if (!url) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(function() {
+          M.toast({ text: TR('URL copied to clipboard') });
+        }).catch(function() {
+          M.toast({ text: TR('Failed to copy') });
+        });
+      } else {
+        icalUrlInput.select();
+        icalUrlInput.setSelectionRange(0, 99999);
+        document.execCommand('copy');
+        M.toast({ text: TR('URL copied to clipboard') });
+      }
+    });
+  }
 }
 
 function initChangePassword() {

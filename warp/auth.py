@@ -99,7 +99,7 @@ bp.route('/change_password', methods=['POST'])(utils.validateJSONInput(changePas
 
 def session():
 
-    if flask.request.blueprint == 'auth':
+    if flask.request.blueprint in ('auth', 'ical'):
         return
 
     if flask.request.endpoint == 'static':

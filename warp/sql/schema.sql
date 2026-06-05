@@ -76,6 +76,8 @@ CREATE TABLE user_prefs (
     default_day text NOT NULL DEFAULT 'same',
     default_time_from integer NOT NULL DEFAULT 32400,
     default_time_to integer NOT NULL DEFAULT 61200,
+    ical_enabled boolean NOT NULL DEFAULT FALSE,
+    ical_token text,
     FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE,
     FOREIGN KEY (default_zone) REFERENCES zone(id) ON DELETE SET NULL
 );
@@ -207,7 +209,7 @@ CREATE TABLE db_initialized (version INTEGER NOT NULL);
 
 DO $$
 DECLARE
-  schema_version integer := 4;
+  schema_version integer := 5;
 BEGIN
 INSERT INTO db_initialized(version) VALUES(schema_version);
 END $$
