@@ -78,9 +78,16 @@ CREATE TABLE user_prefs (
     default_time_to integer NOT NULL DEFAULT 61200,
     ical_enabled boolean NOT NULL DEFAULT FALSE,
     ical_token text,
+    reminder_weekdays integer NOT NULL DEFAULT 0,
+    reminder_ahead_days integer NOT NULL DEFAULT 0,
+    reminder_time integer NOT NULL DEFAULT 79200,
+    reminder_release_ahead_days integer NOT NULL DEFAULT 0,
+    reminder_zones integer[] NOT NULL DEFAULT '{}',
     FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE,
     FOREIGN KEY (default_zone) REFERENCES zone(id) ON DELETE SET NULL
 );
+
+CREATE UNIQUE INDEX user_prefs_ical_token_idx ON user_prefs(ical_token) WHERE ical_token IS NOT NULL;
 
 CREATE TABLE book (
     id SERIAL PRIMARY KEY,
@@ -207,4 +214,4 @@ EXECUTE PROCEDURE book_overlap_insert();
 
 CREATE TABLE db_initialized (version INTEGER NOT NULL);
 
-INSERT INTO db_initialized(version) VALUES(5);
+INSERT INTO db_initialized(version) VALUES(6);

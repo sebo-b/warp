@@ -1,6 +1,5 @@
 import flask
 from jsonschema import validate, ValidationError
-import uuid
 
 from warp.db import UserPrefs
 
@@ -21,8 +20,6 @@ prefsSchema = {
             "minItems": 2,
             "maxItems": 2
         },
-        "ical_enabled": {"type": "boolean"},
-        "ical_regenerate_token": {"type": "boolean"}
     },
     "required": ["default_day", "default_time"]
 }
@@ -33,8 +30,6 @@ def _row_to_prefs(row):
         "default_zone": row['default_zone'],
         "default_day": row['default_day'],
         "default_time": [row['default_time_from'], row['default_time_to']],
-        "ical_enabled": row.get('ical_enabled', False),
-        "ical_token": row.get('ical_token')
     }
 
 
@@ -53,8 +48,6 @@ def get_user_prefs(login):
         UserPrefs.default_day,
         UserPrefs.default_time_from,
         UserPrefs.default_time_to,
-        UserPrefs.ical_enabled,
-        UserPrefs.ical_token
     ).where(UserPrefs.login == login).first()
 
     if row:
@@ -64,8 +57,6 @@ def get_user_prefs(login):
         "default_zone": None,
         "default_day": "same",
         "default_time": [DEFAULT_TIME_FROM, DEFAULT_TIME_TO],
-        "ical_enabled": False,
-        "ical_token": None
     }
 
 
@@ -97,12 +88,6 @@ def prefs_set():
         UserPrefs.default_time_to: time_to
     }
 
-    if 'ical_enabled' in jsonData:
-        values[UserPrefs.ical_enabled] = jsonData['ical_enabled']
-
-    if jsonData.get('ical_regenerate_token'):
-        values[UserPrefs.ical_token] = uuid.uuid4().hex
-
     update = {
         UserPrefs.default_zone: values[UserPrefs.default_zone],
         UserPrefs.default_day: values[UserPrefs.default_day],
@@ -110,24 +95,9 @@ def prefs_set():
         UserPrefs.default_time_to: values[UserPrefs.default_time_to]
     }
 
-    if 'ical_enabled' in jsonData:
-        update[UserPrefs.ical_enabled] = values[UserPrefs.ical_enabled]
-
-    if UserPrefs.ical_token in values:
-        update[UserPrefs.ical_token] = values[UserPrefs.ical_token]
-
     UserPrefs.insert(values).on_conflict(
         conflict_target=[UserPrefs.login],
         update=update
     ).execute()
 
-    prefs = get_user_prefs(flask.g.login)
-
-    if jsonData.get('ical_enabled') and not prefs.get('ical_token'):
-        token = uuid.uuid4().hex
-        UserPrefs.update({UserPrefs.ical_token: token}) \
-            .where(UserPrefs.login == flask.g.login) \
-            .execute()
-        prefs['ical_token'] = token
-
-    return prefs
+    return get_user_prefs(flask.g.login)

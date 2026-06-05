@@ -19,7 +19,7 @@ ZoneAssign = Table('zone_assign',('zid','login','zone_role'))
 Book = Table('book',('id','login','sid','fromts','tots'))
 SeatAssign = Table('seat_assign',('sid','login','days_in_advance'))
 
-UserPrefs = Table('user_prefs',('login','default_zone','default_day','default_time_from','default_time_to','ical_enabled','ical_token'), primary_key='login')
+UserPrefs = Table('user_prefs',('login','default_zone','default_day','default_time_from','default_time_to','ical_enabled','ical_token','reminder_weekdays','reminder_ahead_days','reminder_time','reminder_release_ahead_days','reminder_zones'), primary_key='login')
 
 UserToZoneRoles = Table('user_to_zone_roles',('login','zid','zone_role'))
 

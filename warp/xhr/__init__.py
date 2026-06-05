@@ -6,6 +6,7 @@ from . import users
 from . import groups
 from . import zones
 from . import prefs
+from . import calendar
 
 bp = flask.Blueprint('xhr', __name__)
 
@@ -15,3 +16,4 @@ bp.register_blueprint(users.bp)
 bp.register_blueprint(groups.bp)
 bp.register_blueprint(zones.bp)
 bp.register_blueprint(prefs.bp)
+bp.register_blueprint(calendar.bp)

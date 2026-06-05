@@ -41,6 +41,7 @@ class DefaultSettings(object):
         (3, "sql/migration_003_seat_assign_everyone.sql"),
         (4, "sql/migration_004_user_prefs.sql"),
         (5, "sql/migration_005_ical.sql"),
+        (6, "sql/migration_006_calendar_reminders.sql"),
     ]
 
     # number of connection retries to DB on initialization

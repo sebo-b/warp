@@ -49,6 +49,11 @@ function initDropdowns() {
   }
 }
 
+function formatHHMM(seconds) {
+  if (seconds >= 24 * 3600) return "23:59";
+  return new Date(seconds * 1000).toISOString().substring(11, 16);
+}
+
 function initPrefs() {
   var prefModalEl = document.getElementById('pref_modal');
   var zoneSelectEl = document.getElementById('pref_default_zone');
@@ -57,11 +62,6 @@ function initPrefs() {
   var sliderEl = document.getElementById('pref_timeslider');
   var minDiv = document.getElementById('pref_timeslider-min');
   var maxDiv = document.getElementById('pref_timeslider-max');
-  var icalToggle = document.getElementById('pref_ical_enabled');
-  var icalUrlRow = document.getElementById('ical_url_row');
-  var icalUrlInput = document.getElementById('pref_ical_url');
-  var icalCopyBtn = document.getElementById('pref_ical_copy');
-  var icalRegenBtn = document.getElementById('pref_ical_regenerate');
 
   if (!prefModalEl || !zoneSelectEl || !daySelectEl || !saveBtn || !sliderEl)
     return;
@@ -69,29 +69,6 @@ function initPrefs() {
   var DEFAULT_TIME = [9 * 3600, 17 * 3600];
   var loadedPrefs = null;
   var slider = null;
-  var icalEnabled = false;
-  var icalToken = null;
-
-  function buildIcalUrl(token) {
-    if (!token) return '';
-    return window.location.protocol + '//' + window.location.host + '/ical/' + token + '.ics';
-  }
-
-  function updateIcalUI() {
-    if (!icalUrlRow || !icalUrlInput) return;
-    if (icalEnabled && icalToken) {
-      icalUrlRow.style.display = '';
-      icalUrlInput.value = buildIcalUrl(icalToken);
-      M.updateTextFields();
-    } else {
-      icalUrlRow.style.display = 'none';
-    }
-  }
-
-  function formatHHMM(seconds) {
-    if (seconds >= 24 * 3600) return "23:59";
-    return new Date(seconds * 1000).toISOString().substring(11, 16);
-  }
 
   function applyPrefsToUI() {
     var time = (loadedPrefs && loadedPrefs.default_time) ? loadedPrefs.default_time : DEFAULT_TIME;
@@ -100,11 +77,6 @@ function initPrefs() {
     M.FormSelect.init(zoneSelectEl);
     M.FormSelect.init(daySelectEl);
     if (slider) slider.set(time);
-
-    icalEnabled = loadedPrefs ? !!loadedPrefs.ical_enabled : false;
-    icalToken = loadedPrefs ? loadedPrefs.ical_token || null : null;
-    if (icalToggle) icalToggle.checked = icalEnabled;
-    updateIcalUI();
   }
 
   function ensureSlider() {
@@ -179,7 +151,7 @@ function initPrefs() {
   }
 
   saveBtn.addEventListener('click', function() {
-    postPrefs({ ical_enabled: icalToggle ? icalToggle.checked : false }, function(err) {
+    postPrefs(null, function(err) {
       if (err) {
         M.toast({ text: TR('Error saving preferences') });
       } else {
@@ -187,25 +159,283 @@ function initPrefs() {
       }
     });
   });
+}
 
-  if (icalToggle) {
-    icalToggle.addEventListener('change', function() {
-      icalEnabled = this.checked;
-      if (icalEnabled && !icalToken) {
-        postPrefs({ ical_enabled: true }, function(err) {
-          if (err) M.toast({ text: TR('Error saving preferences') });
+function initCalendar() {
+  var calModalEl = document.getElementById('calendar_modal');
+  if (!calModalEl) return;
+
+  var calEnabledEl = document.getElementById('cal_enabled');
+  var calUrlInput = document.getElementById('cal_url');
+  var calUrlBtns = document.getElementById('cal_url_btns');
+  var calRegenBtn = document.getElementById('cal_regenerate');
+  var calCopyBtn = document.getElementById('cal_copy');
+  var calUrlEyeBtn = document.getElementById('cal_url_eye_btn');
+  var calUrlEye = document.getElementById('cal_url_eye');
+  var calReminderSection = document.getElementById('cal_reminder_section');
+  var calSharedSection = document.getElementById('cal_shared_section');
+  var calZonesEl = document.getElementById('cal_zones');
+  var calMissingAheadEl = document.getElementById('cal_missing_ahead');
+  var calReleaseAheadEl = document.getElementById('cal_release_ahead');
+  var calTimeInputEl = document.getElementById('cal_time_input');
+  var saveBtn = document.getElementById('cal_save_btn');
+  var calCancelBtn = document.getElementById('cal_cancel_btn');
+
+  var SELECT_OPTS = { dropdownOptions: { container: document.body } };
+
+  // Sun=64, Mon=1, Tue=2, Wed=4, Thu=8, Fri=16, Sat=32
+  var WEEKDAY_BITS = [64, 1, 2, 4, 8, 16, 32];
+
+  var calToken = null;
+  var weekdayMask = 0;
+  var timepicker = null;
+
+  // Build weekday chip buttons
+  var weekdayContainer = document.getElementById('cal_weekday_chips');
+  weekdaysShort.forEach(function(day) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'weekday-chip waves-effect';
+    btn.textContent = day;
+    weekdayContainer.appendChild(btn);
+  });
+
+  var weekdayChips = calModalEl.querySelectorAll('.weekday-chip');
+  weekdayChips.forEach(function(chip, i) {
+    chip.addEventListener('click', function() {
+      weekdayMask ^= WEEKDAY_BITS[i];
+      chip.classList.toggle('active');
+    });
+  });
+
+  function populateAheadSelect(el) {
+    if (!el) return;
+    el.innerHTML = '';
+    var opt0 = document.createElement('option');
+    opt0.value = '0';
+    opt0.textContent = TR("Don't remind");
+    el.appendChild(opt0);
+    for (var n = 1; n <= 7; n++) {
+      var opt = document.createElement('option');
+      opt.value = String(n);
+      opt.textContent = TR('Remind me %{smart_count} days before', { smart_count: n });
+      el.appendChild(opt);
+    }
+  }
+
+  populateAheadSelect(calMissingAheadEl);
+  populateAheadSelect(calReleaseAheadEl);
+
+  if (calMissingAheadEl) M.FormSelect.init(calMissingAheadEl, SELECT_OPTS);
+  if (calReleaseAheadEl) M.FormSelect.init(calReleaseAheadEl, SELECT_OPTS);
+
+  if (calMissingAheadEl) calMissingAheadEl.addEventListener('change', function() { updateSharedSectionState(); });
+  if (calReleaseAheadEl) calReleaseAheadEl.addEventListener('change', function() { updateSharedSectionState(); });
+
+  function buildCalIcalUrl(token) {
+    if (!token) return '';
+    return window.location.protocol + '//' + window.location.host + '/ical/' + token + '.ics';
+  }
+
+  function updateSharedSectionState() {
+    if (!calSharedSection) return;
+    var masterEnabled = calEnabledEl && calEnabledEl.checked;
+    if (!masterEnabled) {
+      calSharedSection.classList.remove('cal-section-disabled');
+      return;
+    }
+    var missingVal = calMissingAheadEl ? parseInt(calMissingAheadEl.value) || 0 : 0;
+    var releaseVal = calReleaseAheadEl ? parseInt(calReleaseAheadEl.value) || 0 : 0;
+    calSharedSection.classList.toggle('cal-section-disabled', !(missingVal > 0 || releaseVal > 0));
+  }
+
+  function validateReminders() {
+    // When the master switch is off the iCal endpoint is inactive and no reminders
+    // fire, so don't block the save on incomplete reminder settings.
+    if (!calEnabledEl || !calEnabledEl.checked) return true;
+
+    var missingVal = calMissingAheadEl ? parseInt(calMissingAheadEl.value) || 0 : 0;
+    var releaseVal = calReleaseAheadEl ? parseInt(calReleaseAheadEl.value) || 0 : 0;
+    if (missingVal > 0 || releaseVal > 0) {
+      if (!weekdayMask) {
+        M.toast({ text: TR('Active reminders require at least one weekday.') });
+        return false;
+      }
+      var hasZone = calZonesEl && Array.from(calZonesEl.options).some(function(o) { return o.selected; });
+      if (!hasZone) {
+        M.toast({ text: TR('Active reminders require at least one zone to monitor.') });
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function updateCalEnabledUI() {
+    var enabled = calEnabledEl && calEnabledEl.checked;
+    if (calReminderSection) calReminderSection.classList.toggle('cal-section-disabled', !enabled);
+    // URL action buttons require a token, which only exists after a save with iCal on.
+    if (calUrlBtns) calUrlBtns.classList.toggle('cal-section-disabled', !(enabled && calToken));
+    if (calUrlInput) {
+      calUrlInput.value = enabled && calToken ? buildCalIcalUrl(calToken) : '';
+      M.updateTextFields();
+    }
+    updateSharedSectionState();
+  }
+
+  function updateWeekdayChips() {
+    weekdayChips.forEach(function(chip, i) {
+      chip.classList.toggle('active', !!(weekdayMask & WEEKDAY_BITS[i]));
+    });
+  }
+
+  function getTimepickerSeconds() {
+    if (!calTimeInputEl || !calTimeInputEl.value) return 79200;
+    var parts = calTimeInputEl.value.split(':');
+    if (parts.length < 2) return 79200;
+    return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60;
+  }
+
+  function setTimepickerValue(seconds) {
+    if (!calTimeInputEl) return;
+    calTimeInputEl.value = formatHHMM(seconds);
+    M.updateTextFields();
+  }
+
+  function applyToUI(data) {
+    calToken = data.ical_token || null;
+    if (calEnabledEl) calEnabledEl.checked = !!data.ical_enabled;
+    updateCalEnabledUI();
+
+    weekdayMask = data.reminder_weekdays || 0;
+    updateWeekdayChips();
+
+    setTimepickerValue(data.reminder_time != null ? data.reminder_time : 79200);
+
+    if (calMissingAheadEl) {
+      var aVal = data.reminder_ahead_days != null ? data.reminder_ahead_days : 0;
+      calMissingAheadEl.value = String(aVal);
+      M.FormSelect.init(calMissingAheadEl, SELECT_OPTS);
+    }
+
+    if (calReleaseAheadEl) {
+      var rVal = data.reminder_release_ahead_days != null ? data.reminder_release_ahead_days : 0;
+      calReleaseAheadEl.value = String(rVal);
+      M.FormSelect.init(calReleaseAheadEl, SELECT_OPTS);
+    }
+
+    if (calZonesEl) {
+      var zids = data.reminder_zones || [];
+      Array.from(calZonesEl.options).forEach(function(o) {
+        o.selected = zids.indexOf(parseInt(o.value)) !== -1;
+      });
+      M.FormSelect.init(calZonesEl, SELECT_OPTS);
+    }
+
+    updateSharedSectionState();
+  }
+
+  function ensureTimepicker() {
+    if (!calTimeInputEl || timepicker) return;
+    timepicker = M.Timepicker.init(calTimeInputEl, {
+      twelveHour: false,
+      container: document.body
+    });
+  }
+
+  function resetUrlVisibility() {
+    if (calUrlInput) calUrlInput.type = 'password';
+    if (calUrlEye) calUrlEye.textContent = 'visibility';
+  }
+
+  M.Modal.init(calModalEl, {
+    dismissible: false,
+    onOpenStart: function() {
+      ensureTimepicker();
+      resetUrlVisibility();
+      fetch('/xhr/calendar')
+        .then(function(r) {
+          if (!r.ok) throw new Error('Failed to load calendar settings');
+          return r.json();
+        })
+        .then(function(data) { applyToUI(data); })
+        .catch(function() { updateCalEnabledUI(); });
+    },
+    onCloseEnd: resetUrlVisibility
+  });
+
+  function saveCalendar(payload, callback) {
+    fetch('/xhr/calendar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    .then(function(r) {
+      if (!r.ok) return r.json().then(function(e) { throw e; });
+      return r.json();
+    })
+    .then(function(data) {
+      applyToUI(data);
+      if (callback) callback(null, data);
+    })
+    .catch(function(err) {
+      if (callback) callback(err);
+    });
+  }
+
+  // Token-only request: reserves or rotates the iCal token without committing the
+  // user's toggle position. ical_enabled in the DB only flips on Save, so Cancel
+  // after a first-time toggle leaves the integration disabled (the token may stay).
+  function postTokenRequest(payload, callback) {
+    fetch('/xhr/calendar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    .then(function(r) {
+      if (!r.ok) return r.json().then(function(e) { throw e; });
+      return r.json();
+    })
+    .then(function(data) {
+      calToken = data.ical_token || null;
+      updateCalEnabledUI();
+      if (callback) callback(null, data);
+    })
+    .catch(function(err) {
+      if (callback) callback(err);
+    });
+  }
+
+  if (calCancelBtn) {
+    calCancelBtn.addEventListener('click', function() {
+      M.Modal.getInstance(calModalEl).close();
+    });
+  }
+
+  if (calEnabledEl) {
+    calEnabledEl.addEventListener('change', function() {
+      if (this.checked && !calToken) {
+        postTokenRequest({ ensure_token: true }, function(err) {
+          if (err) M.toast({ text: TR('Error saving calendar settings') });
         });
       } else {
-        updateIcalUI();
+        updateCalEnabledUI();
       }
     });
   }
 
-  if (icalRegenBtn) {
-    icalRegenBtn.addEventListener('click', function() {
+  if (calUrlEyeBtn && calUrlInput && calUrlEye) {
+    calUrlEyeBtn.addEventListener('click', function() {
+      var isPassword = calUrlInput.type === 'password';
+      calUrlInput.type = isPassword ? 'text' : 'password';
+      calUrlEye.textContent = isPassword ? 'visibility_off' : 'visibility';
+    });
+  }
+
+  if (calRegenBtn) {
+    calRegenBtn.addEventListener('click', function() {
       if (!confirm(TR('Regenerating the URL will invalidate your current calendar subscription link. Continue?')))
         return;
-      postPrefs({ ical_regenerate_token: true }, function(err) {
+      postTokenRequest({ ical_regenerate_token: true }, function(err) {
         if (err) {
           M.toast({ text: TR('Error regenerating URL') });
         } else {
@@ -215,9 +445,9 @@ function initPrefs() {
     });
   }
 
-  if (icalCopyBtn && icalUrlInput) {
-    icalCopyBtn.addEventListener('click', function() {
-      var url = icalUrlInput.value;
+  if (calCopyBtn) {
+    calCopyBtn.addEventListener('click', function() {
+      var url = buildCalIcalUrl(calToken);
       if (!url) return;
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(url).then(function() {
@@ -226,11 +456,43 @@ function initPrefs() {
           M.toast({ text: TR('Failed to copy') });
         });
       } else {
-        icalUrlInput.select();
-        icalUrlInput.setSelectionRange(0, 99999);
+        var tmp = document.createElement('textarea');
+        tmp.value = url;
+        document.body.appendChild(tmp);
+        tmp.select();
         document.execCommand('copy');
+        document.body.removeChild(tmp);
         M.toast({ text: TR('URL copied to clipboard') });
       }
+    });
+  }
+
+  if (saveBtn) {
+    saveBtn.addEventListener('click', function() {
+      if (!validateReminders()) return;
+
+      var zones = calZonesEl
+        ? Array.from(calZonesEl.options).filter(function(o) { return o.selected; }).map(function(o) { return parseInt(o.value); })
+        : [];
+
+      var payload = {
+        ical_enabled: calEnabledEl ? !!calEnabledEl.checked : false,
+        reminder_weekdays: weekdayMask,
+        reminder_ahead_days: calMissingAheadEl ? parseInt(calMissingAheadEl.value) || 0 : 0,
+        reminder_time: getTimepickerSeconds(),
+        reminder_release_ahead_days: calReleaseAheadEl ? parseInt(calReleaseAheadEl.value) || 0 : 0,
+        reminder_zones: zones
+      };
+
+      saveCalendar(payload, function(err) {
+        if (err) {
+          M.toast({ text: TR('Error saving calendar settings') });
+        } else {
+          M.toast({ text: TR('Calendar settings saved') });
+          M.Modal.getInstance(calModalEl).close();
+        }
+      });
+
     });
   }
 }
@@ -314,5 +576,6 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
   initDropdowns();
   initPrefs();
+  initCalendar();
   initChangePassword();
 });
