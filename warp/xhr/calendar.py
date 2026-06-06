@@ -126,4 +126,7 @@ def calendar_post():
                 update=update
             ).execute()
 
+        from warp.ical import invalidate_calendar_cache
+        invalidate_calendar_cache(login)
+
     return _get_calendar_data(login)

@@ -234,7 +234,7 @@ function initCalendar() {
 
   function buildCalIcalUrl(token) {
     if (!token) return '';
-    return window.location.protocol + '//' + window.location.host + '/ical/' + token + '.ics';
+    return window.location.protocol + '//' + window.location.host + '/calendar/' + encodeURIComponent(window.warpGlobals.login) + '/events.ics?t=' + encodeURIComponent(token);
   }
 
   function updateSharedSectionState() {

@@ -23,6 +23,8 @@ UserPrefs = Table('user_prefs',('login','default_zone','default_day','default_ti
 
 UserToZoneRoles = Table('user_to_zone_roles',('login','zid','zone_role'))
 
+CalendarCache = Table('calendar_cache',('login','ics','day','generated_at'),primary_key='login')
+
 COUNT_STAR = fn.COUNT(SQL('*'))
 SQL_ONE = SQL('1')
 
@@ -66,7 +68,7 @@ def effectiveZoneRole(zone_type, specificRole):
     candidates = [r for r in (specificRole, everyoneRole) if r is not None]
     return min(candidates) if candidates else None
 
-__all__ = ["DB", "Blobs", "Users", "Groups","Seat", "Zone", "ZoneAssign", "Book","SeatAssign", "UserPrefs", "UserToZoneRoles",
+__all__ = ["DB", "Blobs", "Users", "Groups","Seat", "Zone", "ZoneAssign", "Book","SeatAssign", "UserPrefs", "UserToZoneRoles", "CalendarCache",
            "IntegrityError", "COUNT_STAR", "SQL_ONE",
            'ACCOUNT_TYPE_ADMIN','ACCOUNT_TYPE_USER','ACCOUNT_TYPE_BLOCKED','ACCOUNT_TYPE_GROUP',
            'ZONE_ROLE_ADMIN', 'ZONE_ROLE_USER', 'ZONE_ROLE_VIEWER',
@@ -100,6 +102,7 @@ def init(app):
     SeatAssign.bind(DB)
     UserPrefs.bind(DB)
     UserToZoneRoles.bind(DB)
+    CalendarCache.bind(DB)
 
     app.before_request(_connect)
     app.teardown_request(_disconnect)

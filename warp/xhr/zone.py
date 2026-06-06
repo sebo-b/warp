@@ -389,6 +389,8 @@ def apply():
     class ApplyError(Exception):
         pass
 
+    removed_owners = set()
+
     try:
 
         with DB.atomic():
@@ -421,6 +423,11 @@ def apply():
             # remove must be executed before book
             if 'remove' in apply_data:
 
+                removed_owners = {row[0] for row in
+                                  Book.select(Book.login)
+                                      .where(Book.id.in_(apply_data['remove']))
+                                      .tuples()}
+
                 stmt = Book.delete().where(Book.id.in_(apply_data['remove']))
                 rowCount = stmt.execute()
 
@@ -450,6 +457,13 @@ def apply():
 
     except ApplyError as err:
         return {"msg": "Error", "code": err.args[1] }, 400
+
+    # Invalidate calendar caches for all affected logins
+    from warp.ical import invalidate_calendar_cache
+    logins_to_invalidate = {flask.g.login} | removed_owners
+    if 'book' in apply_data:
+        logins_to_invalidate.add(apply_data['book'].get('login', flask.g.login))
+    invalidate_calendar_cache(logins_to_invalidate)
 
     ret = { "msg": "ok" }
 
@@ -579,43 +593,35 @@ autoBookSchema = {
 }
 
 
-@bp.route("autoBook/<int:zid>", methods=["POST"])
-@utils.validateJSONInput(autoBookSchema)
-def autoBook(zid):
+def runAutoBook(login, zid, dates):
+    """Core autobook algorithm decoupled from the HTTP layer.
 
-    payload = flask.request.get_json()
-    dates = payload['dates']
-    requested_login = payload.get('login', flask.g.login)
+    Fetches zone_group itself, validates the booking-window (code 103) and
+    intra-request overlap (code 140), runs seat selection, and persists
+    the DB changes.
 
-    zone = Zone.select(Zone.zone_type, Zone.zone_group).where(Zone.id == zid).first()
+    Returns:
+        (result_dict, None)   on success
+        (None, error_code)    on failure – codes: 103, 140, 109, 130
+    """
+
+    zone = Zone.select(Zone.zone_group).where(Zone.id == zid).first()
     if zone is None:
-        return {"msg": "Forbidden", "code": 130}, 403
+        return None, 130
 
-    if requested_login != flask.g.login and not flask.g.isAdmin:
-        return {"msg": "Forbidden", "code": 104}, 403
-
-    login = requested_login
-
-    specificRole = UserToZoneRoles.select(UserToZoneRoles.zone_role) \
-                                  .where((UserToZoneRoles.zid == zid) & (UserToZoneRoles.login == flask.g.login)) \
-                                  .scalar()
-
-    effectiveRole = effectiveZoneRole(zone['zone_type'], specificRole)
-    if effectiveRole is None or effectiveRole > ZONE_ROLE_USER:
-        return {"msg": "Forbidden", "code": 104}, 403
+    zoneGroup = zone['zone_group']
 
     ts = utils.getTimeRange()
     for b in dates:
         if b['fromTS'] < ts["fromTS"] or b['fromTS'] > ts["toTS"] \
             or b['toTS'] < ts["fromTS"] or b['toTS'] > ts["toTS"]:
-            return {"msg": "Forbidden", "code": 103}, 403
+            return None, 103
 
     sortedDates = sorted(dates, key=lambda d: d['fromTS'])
     for i in range(len(sortedDates) - 1):
         if sortedDates[i]['toTS'] > sortedDates[i+1]['fromTS']:
-            return {"msg": "Overlapping dates in request", "code": 140}, 400
+            return None, 140
 
-    zoneGroup = zone['zone_group']
     today = utils.today()
     usageWindow = flask.current_app.config['AUTOBOOK_USAGE_WINDOW_DAYS']
     usageStart = today - usageWindow * 86400
@@ -633,7 +639,6 @@ def autoBook(zid):
                     .where((Book.fromts < slotMax) & (Book.tots > slotMin)).dicts())
 
     from datetime import datetime
-    from collections import defaultdict
     slots_by_day = defaultdict(list)
     for d in dates:
         day_key = datetime.fromtimestamp(d['fromTS']).date()
@@ -802,7 +807,7 @@ def autoBook(zid):
                 if to_insert_data:
                     Book.insert(to_insert_data).execute()
         except peewee.IntegrityError:
-            return {"msg": "Overlapping time", "code": 109}, 400
+            return None, 109
 
     result = {
         "booked": booked,
@@ -810,6 +815,48 @@ def autoBook(zid):
         "not_extended": not_extended,
         "unbookable": unbookable
     }
+
+    return result, None
+
+
+@bp.route("autoBook/<int:zid>", methods=["POST"])
+@utils.validateJSONInput(autoBookSchema)
+def autoBook(zid):
+
+    payload = flask.request.get_json()
+    dates = payload['dates']
+    requested_login = payload.get('login', flask.g.login)
+
+    zone = Zone.select(Zone.zone_type, Zone.zone_group).where(Zone.id == zid).first()
+    if zone is None:
+        return {"msg": "Forbidden", "code": 130}, 403
+
+    if requested_login != flask.g.login and not flask.g.isAdmin:
+        return {"msg": "Forbidden", "code": 104}, 403
+
+    login = requested_login
+
+    specificRole = UserToZoneRoles.select(UserToZoneRoles.zone_role) \
+                                  .where((UserToZoneRoles.zid == zid) & (UserToZoneRoles.login == flask.g.login)) \
+                                  .scalar()
+
+    effectiveRole = effectiveZoneRole(zone['zone_type'], specificRole)
+    if effectiveRole is None or effectiveRole > ZONE_ROLE_USER:
+        return {"msg": "Forbidden", "code": 104}, 403
+
+    result, err = runAutoBook(login, zid, dates)
+
+    if err == 103:
+        return {"msg": "Forbidden", "code": 103}, 403
+    elif err == 140:
+        return {"msg": "Overlapping dates in request", "code": 140}, 400
+    elif err == 109:
+        return {"msg": "Overlapping time", "code": 109}, 400
+    elif err is not None:
+        return {"msg": "Forbidden", "code": err}, 403
+
+    from warp.ical import invalidate_calendar_cache
+    invalidate_calendar_cache(login)
 
     return flask.current_app.response_class(
         response=orjson.dumps(result),

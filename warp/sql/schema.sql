@@ -212,6 +212,14 @@ BEFORE INSERT ON book
 FOR EACH ROW
 EXECUTE PROCEDURE book_overlap_insert();
 
+CREATE UNLOGGED TABLE calendar_cache (
+    login text PRIMARY KEY,
+    ics text NOT NULL,
+    day integer NOT NULL,
+    generated_at integer NOT NULL,
+    FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE
+);
+
 CREATE TABLE db_initialized (version INTEGER NOT NULL);
 
-INSERT INTO db_initialized(version) VALUES(6);
+INSERT INTO db_initialized(version) VALUES(7);
