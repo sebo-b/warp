@@ -16,6 +16,9 @@ I've quickly evaluated a couple of existing solutions, but they were either too 
 - It works on mobile.
 - All is done in an easy, visual way.
 - Generate a report of past bookings and export it to Excel file
+- Generate and subscribe to interactive iCal feeds for automatic booking reminders in any calendar app
+- Change password and manage calendar preferences from the user menu
+- Receive automatic notifications for upcoming bookings and when seats become available
 
 ## More advanced features
 
@@ -27,7 +30,12 @@ I've quickly evaluated a couple of existing solutions, but they were either too 
 - Full admin interface to add/remove/edit maps, zones, groups, and users.
 - SAML2.0 support - via Apache [mod_auth_mellon](https://github.com/latchset/mod_auth_mellon) module.
 - LDAP and Active Directory - via LDAP3 library.
-- Translations - currently, English and Polish are supported.
+- Translations - currently, English, German, French, Spanish, and Polish are supported.
+- **Calendar Integration**: Subscribe to iCal feeds in Google Calendar, Outlook, Apple Calendar, or any other calendar app. The feed includes all your bookings with one-click actions to release seats.
+- **Per-Zone Reminders**: Configure automatic booking and seat-release reminder notifications for each zone independently.
+- **Auto-Book Feature**: Use the floating "+" button to quickly book an available seat with one click.
+- **Days-in-Advance Booking Window**: Per-assignment configurable limits on how far in advance users can book seats.
+- **Virtual "Everyone" Access**: Seats and zones can be configured with virtual "everyone" access for flexible seat management.
 
 ## What I'm not even planning to do
 
@@ -59,6 +67,12 @@ Currently shipped migrations:
 | File | Required when upgrading from |
 |:---|:---|
 | `migration_001_days_in_advance.sql` | a version before the `days_in_advance` per-assignment booking window |
+| `migration_002_zone_type.sql` | a version before zone type feature |
+| `migration_003_seat_assign_everyone.sql` | a version before virtual "everyone" access |
+| `migration_004_user_prefs.sql` | a version before user preferences feature |
+| `migration_005_ical.sql` | a version before iCal calendar integration |
+| `migration_006_calendar_reminders.sql` | a version before per-zone booking reminders |
+| `migration_007_calendar_cache.sql` | a version before iCal caching optimization |
 
 Example (PostgreSQL):
 
@@ -158,6 +172,13 @@ After that, open http://127.0.0.1:5000 in your browser and log in as `admin` wit
 
 For the production environment, I recommend running Nginx and PostgreSQL on separate VMs. Then (even multiple) WARP image can be simply started via Docker and rev-proxed from Nginx.
 
+**Database Driver**: WARP now uses the `psycopg3://` driver (psycopg 3). Make sure your database URLs use this scheme.
+
+Example database configuration:
+```
+WARP_DATABASE=psycopg3://user:password@hostname:5432/warp_db
+```
+
 Each configuration parameter (check config.py) can be passed via the envirnoment as `WARP_varname`.
 As environment variables as passed as strings, they need to be parsed into Python types and data structures.
 To do that values are first converted to lower case and then `json.loads` is used. If that fails variable is treaten as string.
@@ -188,6 +209,42 @@ $ python -c 'from subprocess import run; print(run(["openssl","rand","16"],captu
 ### Language
 
 Change `LANGUAGE_FILE` variable in `config.py` or set `WARP_LANGUAGE_FILE` environment variable. Currently, language is global for the instance.
+
+## User Preferences and Calendar Integration
+
+WARP provides a user preferences system accessible from the user menu, allowing users to manage their calendar integration settings and change their password.
+
+### Calendar Feed Integration
+
+WARP generates an iCal feed for each user that includes all their current and future bookings. Users can subscribe to this feed in their preferred calendar application (Google Calendar, Outlook, Apple Calendar, Mozilla Thunderbird, etc.) to automatically receive calendar events for their bookings.
+
+**One-Click Actions in Calendar**: Each event in the iCal feed includes action buttons that allow users to release seats directly from their calendar without opening the WARP application.
+
+**Feed URL**: Each user has a unique, secure iCal feed URL generated based on a user-specific token. The URL is accessible from the user preferences menu.
+
+### Booking Reminders
+
+When subscribed to the iCal feed, users automatically receive:
+- **Booking Reminders**: Calendar events for each upcoming booking showing the seat location and booking date
+- **Seat Release Notifications**: Calendar events when previously booked seats become available for re-booking
+
+### Password Management
+
+Users can change their password from the user menu. The minimum password length is configurable via the `MIN_PASSWORD_LENGTH` setting (default: 6 characters).
+
+### Configuration Variables for Calendar and User Preferences
+
+|variable:|`AUTOBOOK_USAGE_WINDOW_DAYS`|
+|:---|:---|
+|type:|`integer`|
+|default value:|`30`|
+|description:|Number of days in the future for which the auto-book feature can suggest and book seats. Limits the window for the floating "+" button functionality.|
+
+|variable:|`MIN_PASSWORD_LENGTH`|
+|:---|:---|
+|type:|`integer`|
+|default value:|`6`|
+|description:|Minimum required length for user passwords when changed via the user preferences menu.|
 
 # Advanced configuration
 

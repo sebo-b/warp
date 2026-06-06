@@ -24,26 +24,36 @@ _SUMMARY_TRANSLATIONS = {
         'booking': 'Seat {name}',
         'missing': 'Book a desk in {zone}',
         'release': 'Seat {name} becomes available',
+        'booking_desc': 'Release seat: {url}',
+        'missing_desc': 'Book a desk: {url}',
     },
     'pl': {
         'booking': 'Miejsce {name}',
         'missing': 'Zarezerwuj miejsce w {zone}',
         'release': 'Miejsce {name} staje się dostępne',
+        'booking_desc': 'Zwolnij miejsce: {url}',
+        'missing_desc': 'Zarezerwuj miejsce: {url}',
     },
     'de': {
         'booking': 'Platz {name}',
         'missing': 'Platz in {zone} buchen',
         'release': 'Platz {name} wird verfügbar',
+        'booking_desc': 'Platz freigeben: {url}',
+        'missing_desc': 'Platz buchen: {url}',
     },
     'fr': {
         'booking': 'Place {name}',
         'missing': 'Réserver une place dans {zone}',
         'release': 'Place {name} devient disponible',
+        'booking_desc': 'Libérer la place : {url}',
+        'missing_desc': 'Réserver une place : {url}',
     },
     'es': {
         'booking': 'Asiento {name}',
         'missing': 'Reservar un asiento en {zone}',
         'release': 'Asiento {name} se vuelve disponible',
+        'booking_desc': 'Liberar asiento: {url}',
+        'missing_desc': 'Reservar un asiento: {url}',
     },
 }
 
@@ -57,6 +67,10 @@ _ACTION_TRANSLATIONS = {
         'Error': 'Error',
         'Seat released': 'Seat released',
         'Reservation in the past': 'Reservation in the past',
+        'Release seat?': 'Release seat?',
+        'Confirm': 'Confirm',
+        'Cancel': 'Cancel',
+        'Action cancelled': 'Action cancelled',
     },
     'pl': {
         'Seat Booked': 'Miejsce zarezerwowane',
@@ -67,6 +81,10 @@ _ACTION_TRANSLATIONS = {
         'Error': 'Błąd',
         'Seat released': 'Miejsce zwolnione',
         'Reservation in the past': 'Rezerwacja w przeszłości',
+        'Release seat?': 'Zwolnić miejsce?',
+        'Confirm': 'Potwierdź',
+        'Cancel': 'Anuluj',
+        'Action cancelled': 'Akcja anulowana',
     },
     'de': {
         'Seat Booked': 'Platz reserviert',
@@ -77,6 +95,10 @@ _ACTION_TRANSLATIONS = {
         'Error': 'Fehler',
         'Seat released': 'Platz freigegeben',
         'Reservation in the past': 'Reservierung in der Vergangenheit',
+        'Release seat?': 'Platz freigeben?',
+        'Confirm': 'Bestätigen',
+        'Cancel': 'Abbrechen',
+        'Action cancelled': 'Aktion abgebrochen',
     },
     'fr': {
         'Seat Booked': 'Place réservée',
@@ -87,6 +109,10 @@ _ACTION_TRANSLATIONS = {
         'Error': 'Erreur',
         'Seat released': 'Place libérée',
         'Reservation in the past': 'Réservation dans le passé',
+        'Release seat?': 'Libérer la place ?',
+        'Confirm': 'Confirmer',
+        'Cancel': 'Annuler',
+        'Action cancelled': 'Action annulée',
     },
     'es': {
         'Seat Booked': 'Asiento reservado',
@@ -97,6 +123,10 @@ _ACTION_TRANSLATIONS = {
         'Error': 'Error',
         'Seat released': 'Asiento liberado',
         'Reservation in the past': 'Reserva en el pasado',
+        'Release seat?': '¿Liberar asiento?',
+        'Confirm': 'Confirmar',
+        'Cancel': 'Cancelar',
+        'Action cancelled': 'Acción cancelada',
     },
 }
 
@@ -119,6 +149,16 @@ def _action_t(key):
 
 def _render_action(title, details=None, status=200):
     return flask.render_template('ical_action.html', title=title, details=details), status
+
+
+def _render_confirm(title, details, confirm_url, cancel_url, status=200):
+    return flask.render_template(
+        'ical_confirm.html',
+        title=title, details=details,
+        confirm_url=confirm_url, cancel_url=cancel_url,
+        confirm_label=_action_t('Confirm'),
+        cancel_label=_action_t('Cancel'),
+    ), status
 
 
 def _ts_to_ical_dt(ts):
@@ -161,6 +201,11 @@ def booking_token(ical_token, zid, date_str, nonce):
 def delete_token(ical_token, rid, nonce):
     """HMAC token authorising one release-booking action link."""
     return _compute_hmac(ical_token, 'delete', rid, nonce)
+
+
+def confirm_delete_token(ical_token, rid, nonce):
+    """HMAC token authorising the confirmed release action."""
+    return _compute_hmac(ical_token, 'delete_confirmed', rid, nonce)
 
 
 # ---------------------------------------------------------------------------
@@ -297,7 +342,8 @@ def _reminder_vevents(login, ical_token, now_ts, today_ts, summaries):
                 z=zid, d=action_day_str, n=nonce, t=tok,
                 _external=True,
             )
-            description = summary  # reuse summary text as description
+            url_escaped = _escape_ical_text(url)
+            description = _escape_ical_text(summaries['missing_desc']).replace('{url}', url_escaped)
 
         lines.append(_format_vevent(uid, dtstamp, dtstart, dtend, summary,
                                     url=url, description=description))
@@ -328,6 +374,7 @@ def _generate_ical(login, ical_token, now_ts, today_ts):
             i=book_id, n=nonce, t=tok,
             _external=True,
         )
+        url_escaped = _escape_ical_text(del_url)
         lines.append(_format_vevent(
             uid=f"{book_id}@warp",
             dtstamp=dtstamp,
@@ -335,7 +382,7 @@ def _generate_ical(login, ical_token, now_ts, today_ts):
             dtend=_ts_to_ical_dt(tots),
             summary=_escape_ical_text(summaries['booking'].format(name=seat_name)),
             url=del_url,
-            description=_escape_ical_text(summaries['booking'].format(name=seat_name)),
+            description=_escape_ical_text(summaries['booking_desc']).replace('{url}', url_escaped),
         ))
 
     lines.extend(_reminder_vevents(login, ical_token, now_ts, today_ts, summaries))
@@ -507,6 +554,8 @@ def book_seat(login):
 
 @bp.route("/calendar/<login>/delete")
 def delete_seat(login):
+    confirmed = flask.request.args.get('confirmed')
+
     i = flask.request.args.get('i')
     n = flask.request.args.get('n')
     t = flask.request.args.get('t')
@@ -519,7 +568,6 @@ def delete_seat(login):
     except (ValueError, TypeError):
         return _render_action(_action_t('Error'), status=400)
 
-    # Validate user and token
     up = (UserPrefs.select(UserPrefs.ical_token, UserPrefs.ical_enabled)
                    .where(UserPrefs.login == login)
                    .first())
@@ -527,11 +575,15 @@ def delete_seat(login):
         return _render_action(_action_t('Forbidden'), status=403)
 
     ical_token = up['ical_token']
-    expected = delete_token(ical_token, rid, n)
+
+    if confirmed is not None:
+        expected = confirm_delete_token(ical_token, rid, n)
+    else:
+        expected = delete_token(ical_token, rid, n)
+
     if not hmac.compare_digest(expected, t):
         return _render_action(_action_t('Forbidden'), status=403)
 
-    # Find the booking (must belong to this login)
     book = (Book.select(Book.id, Book.fromts, Seat.name.alias('seat_name'))
                 .join(Seat, on=(Book.sid == Seat.id))
                 .where((Book.id == rid) & (Book.login == login))
@@ -543,7 +595,29 @@ def delete_seat(login):
         return _render_action(_action_t('Reservation in the past'))
 
     seat_name = book['seat_name']
-    Book.delete().where(Book.id == rid).execute()
-    invalidate_calendar_cache(login)
 
-    return _render_action(_action_t('Seat released'), details=seat_name)
+    if confirmed is not None:
+        Book.delete().where(Book.id == rid).execute()
+        invalidate_calendar_cache(login)
+        return _render_action(_action_t('Seat released'), details=seat_name)
+
+    nonce2 = secrets.token_hex(8)
+    tok2 = confirm_delete_token(ical_token, rid, nonce2)
+
+    confirm_url = flask.url_for(
+        'ical.delete_seat', login=login,
+        i=rid, n=nonce2, t=tok2, confirmed=1,
+    )
+    cancel_url = flask.url_for('ical.cancelled')
+
+    return _render_confirm(
+        _action_t('Release seat?'),
+        seat_name,
+        confirm_url,
+        cancel_url,
+    )
+
+
+@bp.route("/calendar/cancelled")
+def cancelled():
+    return _render_action(_action_t('Action cancelled'))
