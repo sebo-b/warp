@@ -120,7 +120,7 @@ $ export WARP_DEMO_DB_IP=`docker inspect  -f '{{range.NetworkSettings.Networks}}
 $ docker run --name warp-demo-wsgi \
 > --env 'WARP_DATABASE=postgresql://postgres:postgres_password@warp-demo-db:5432/postgres' \
 > --env WARP_SECRET_KEY=mysecretkey \
-> --env WARP_DATABASE_INIT_SCRIPT='["sql/schema.sql","sql/sample_data.sql"]' \
+> --env WARP_DATABASE_POST_INIT_SCRIPTS='["sql/sample_data.sql"]' \
 > --add-host=warp-demo-db:${WARP_DEMO_DB_IP} -d warp:latest
 $ export WARP_DEMO_WSGI_IP=`docker inspect  -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' warp-demo-wsgi`
 
@@ -183,6 +183,26 @@ Each configuration parameter (check config.py) can be passed via the envirnoment
 As environment variables as passed as strings, they need to be parsed into Python types and data structures.
 To do that values are first converted to lower case and then `json.loads` is used. If that fails variable is treaten as string.
 This makes possible to pass integers, floats, booleans as well as dicts, arrays and None value (as JSON null).
+
+### Database initialization variables
+
+|variable:|`DATABASE_PRE_INIT_SCRIPTS`|
+|:---|:---|
+|type:|`array` of `strings`|
+|default value:|`[]`|
+|description:|JSON array of SQL file paths to execute before the schema whenever the database is initialized (both on first run and force-reinit). Typically used for teardown/cleanup scripts in development.|
+
+|variable:|`DATABASE_SCHEMA`|
+|:---|:---|
+|type:|`string`|
+|default value:|`"sql/schema.sql"`|
+|description:|Path to the canonical schema file. Rarely needs overriding.|
+
+|variable:|`DATABASE_POST_INIT_SCRIPTS`|
+|:---|:---|
+|type:|`array` of `strings`|
+|default value:|`[]`|
+|description:|JSON array of SQL file paths to execute after the schema on first init (e.g. seed data).|
 
 ### SECRET_KEY
 

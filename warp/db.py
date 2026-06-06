@@ -107,7 +107,7 @@ def init(app):
     app.before_request(_connect)
     app.teardown_request(_disconnect)
 
-    if 'DATABASE_INIT_SCRIPT' in app.config:
+    if 'DATABASE_SCHEMA' in app.config:
 
         commandParams = {"help": "Create and initialize database.", 'callback': with_appcontext(partial(initDB,True)) }
         cmd = click.Command('init-db', **commandParams)
@@ -119,14 +119,14 @@ def init(app):
 
 def initDB(force = False):
 
-    initScripts = current_app.config.get('DATABASE_INIT_SCRIPT')
+    schema = current_app.config.get('DATABASE_SCHEMA')
 
-    if not initScripts:
-        print("DATABASE_INIT_SCRIPT not defined ")
+    if not schema:
+        print("DATABASE_SCHEMA not defined")
         return
 
-    if isinstance(initScripts,str):
-        initScripts = [ initScripts ]
+    preScripts = current_app.config.get('DATABASE_PRE_INIT_SCRIPTS', [])
+    postScripts = current_app.config.get('DATABASE_POST_INIT_SCRIPTS', [])
 
     retries = current_app.config['DATABASE_INIT_RETRIES']
     retDelay = current_app.config['DATABASE_INIT_RETRIES_DELAY']
@@ -171,11 +171,25 @@ def initDB(force = False):
 
                 print(f'Initializing DB force={force}')
 
-                for file in initScripts:
+                for script in preScripts:
 
-                    print(f'Executing SQL: {file}')
+                    print(f'Executing SQL (pre-init): {script}')
 
-                    with current_app.open_resource(file) as f:
+                    with current_app.open_resource(script) as f:
+                        sql = f.read().decode('utf8')
+                        DB.execute(SQL(sql))
+
+                print(f'Executing SQL (schema): {schema}')
+
+                with current_app.open_resource(schema) as f:
+                    sql = f.read().decode('utf8')
+                    DB.execute(SQL(sql))
+
+                for script in postScripts:
+
+                    print(f'Executing SQL (post-init): {script}')
+
+                    with current_app.open_resource(script) as f:
                         sql = f.read().decode('utf8')
                         DB.execute(SQL(sql))
 

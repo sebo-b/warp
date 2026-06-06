@@ -11,7 +11,7 @@ services:
     environment:
       WARP_DATABASE: "psycopg3://postgres:postgres_password@warp-demo-db:5432/postgres"
       WARP_SECRET_KEY: 'mysecretkey'
-      WARP_DATABASE_INIT_SCRIPT: '["sql/schema.sql","sql/sample_data.sql"]'
+      WARP_DATABASE_POST_INIT_SCRIPTS: '["sql/sample_data.sql"]'
       WARP_LANGUAGE_FILE: 'i18n/en.js'
   warp-demo-nginx:
     image: nginx

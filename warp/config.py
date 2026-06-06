@@ -33,7 +33,9 @@ class DefaultSettings(object):
 
     MIN_PASSWORD_LENGTH = 6
 
-    DATABASE_INIT_SCRIPT = "sql/schema.sql"
+    DATABASE_PRE_INIT_SCRIPTS = []
+    DATABASE_SCHEMA = "sql/schema.sql"
+    DATABASE_POST_INIT_SCRIPTS = []
 
     DATABASE_MIGRATION_SCRIPTS = [
         (1, "sql/migration_001_days_in_advance.sql"),
@@ -95,9 +97,10 @@ class DevelopmentSettings(DefaultSettings):
     #DATABASE = "sqlite:///warp/db.sqlite"
     #DATABASE_ARGS = {"pragmas": {"foreign_keys": "ON"}}
 
-    DATABASE_INIT_SCRIPT = [
+    DATABASE_PRE_INIT_SCRIPTS = [
         "sql/clean_db.sql",
-        "sql/schema.sql",
+    ]
+    DATABASE_POST_INIT_SCRIPTS = [
         "sql/sample_data.sql"
     ]
 
