@@ -99,7 +99,7 @@ warpGlobals.i18n.phrases = {
     'Action successfull.': 'Action successfull.',
     'Error': 'Error',
     'Something went wrong (status=%{status}).': 'Something went wrong (status=%{status}).',
-    'Other error.': 'Inny błąd',
+    'Other error.': 'Other error.',
     'Are you sure to delete this booking?': 'Are you sure to delete this booking?',
     "Are you sure?": "Are you sure?",
     "Account type": "Account type",
@@ -109,10 +109,10 @@ warpGlobals.i18n.phrases = {
         "User": "User",
         "BLOCKED": "BLOCKED",
     },
-    "Passwords don't match": "Hasła się nie zgadzają",
-    "Name cannot be empty.": "Nazwisko nie może być puste",
-    "All fields are mandatory": "Wszystkie pola są wymagane",
-    "ARE YOU SURE TO DELETE USER: %{user}?": "CZY JESTEŚ PEWIEN, ŻE CHCESZ USUNĄĆ UŻYTKOWNIKA: %{user}?",
+    "Passwords don't match": "Passwords don't match",
+    "Name cannot be empty.": "Name cannot be empty.",
+    "All fields are mandatory": "All fields are mandatory",
+    "ARE YOU SURE TO DELETE USER: %{user}?": "ARE YOU SURE TO DELETE USER: %{user}?",
     "User has XXX bookin(s) ... ":
         "User has a booking in the past. Deleting the user will delete the past booking from the report.||||"+
         "User has %{smart_count} bookings in the past. Deleting the user will delete past bookings from the report.",
@@ -265,4 +265,7 @@ warpGlobals.i18n.phrases = {
     'Reminder time': 'Reminder time',
     'Calendar settings saved': 'Calendar settings saved',
     'Error saving calendar settings': 'Error saving calendar settings',
+    'Password must be at least %{n} characters': 'Password must be at least %{n} characters',
+    'Password changed successfully': 'Password changed successfully',
+    'Error changing password': 'Error changing password',
 };

@@ -265,4 +265,7 @@ warpGlobals.i18n.phrases = {
     'Reminder time': 'Erinnerungszeit',
     'Calendar settings saved': 'Kalender-Einstellungen gespeichert',
     'Error saving calendar settings': 'Fehler beim Speichern der Kalender-Einstellungen',
+    'Password must be at least %{n} characters': 'Das Passwort muss mindestens %{n} Zeichen lang sein',
+    'Password changed successfully': 'Passwort erfolgreich geändert',
+    'Error changing password': 'Fehler beim Ändern des Passworts',
 };

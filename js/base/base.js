@@ -527,7 +527,7 @@ function initChangePassword() {
     var repeatPassword = repeatPwEl.value;
 
     if (!oldPassword || !newPassword || !repeatPassword) {
-      M.toast({ text: TR('All fields are required') });
+      M.toast({ text: TR('All fields are mandatory') });
       return;
     }
 
@@ -537,7 +537,7 @@ function initChangePassword() {
     }
 
     if (newPassword !== repeatPassword) {
-      M.toast({ text: TR('Passwords do not match') });
+      M.toast({ text: TR("Passwords don't match") });
       return;
     }
 
