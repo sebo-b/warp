@@ -78,7 +78,6 @@ function initSeats() {
         "zonemap",
         window.warpGlobals.login);
 
-    // register WarpSeats for updates
     var updateSeatsView = function() {
         var dates = getSelectedDates();
         seatFactory.updateAllStates(dates);
@@ -94,11 +93,209 @@ function initSeats() {
     return seatFactory;
 }
 
-function initSeatPreview(seatFactory) {
+function initSeatLabels(seatFactory) {
+
+    var labelsContainer = document.getElementById("zonemap-labels");
+    if (!labelsContainer) return;
+
+    var prefs = window.warpGlobals['zonePreviewPrefs'] || {};
+    var labelData = {};
+    var labelSignatures = {};
+    var needsFullRender = true;
+    var hoveredSid = null;
+    var suppressTooltip = false;
+
+    var TITLE_HEIGHT = 14;
+    var SPRITE_CENTER_X = WarpSeat.Sprites.spriteSize / 2;
+
+    function positionLabel(div, pands) {
+        div.style.left = (pands.x + SPRITE_CENTER_X) + "px";
+        div.style.top = (pands.y + WarpSeat.Sprites.spriteSize - TITLE_HEIGHT) + "px";
+    }
+
+    function computeSignature(seat, showSeatNames, showBookingPreview) {
+        var bookings = showBookingPreview ? seat.getBookings() : [];
+        var users = [];
+        var seen = new Set();
+        for (var b of bookings) {
+            if (seen.has(b.username)) continue;
+            seen.add(b.username);
+            users.push(b.username);
+        }
+        return (showSeatNames ? seat.getName() : '') + '\x00' + users.join('\x01');
+    }
+
+    function buildContentDiv(seat, showSeatNames, showBookingPreview) {
+
+        var bookings = showBookingPreview ? seat.getBookings() : [];
+
+        if (!showSeatNames && !bookings.length) return null;
+
+        var div = document.createElement("div");
+        div.className = "seat_label";
+
+        if (showSeatNames) {
+            var title = div.appendChild(document.createElement("div"));
+            title.className = "seat_label_title";
+            title.textContent = seat.getName();
+        }
+
+        if (showBookingPreview && bookings.length) {
+            var content = div.appendChild(document.createElement("div"));
+            content.className = "seat_label_content";
+
+            var seen = new Set();
+            for (var b of bookings) {
+                if (seen.has(b.username)) continue;
+                seen.add(b.username);
+                var row = content.appendChild(document.createElement("div"));
+                row.className = "seat_label_booking";
+                row.textContent = b.username;
+            }
+        }
+
+        return div;
+    }
+
+    function renderLabels() {
+
+        for (var sid in labelData) {
+            if (labelData[sid]) labelData[sid].remove();
+        }
+        labelData = {};
+        labelSignatures = {};
+
+        var showSeatNames = prefs.show_seat_names;
+        var showBookingPreview = prefs.show_booking_preview;
+
+        if (!showSeatNames && !showBookingPreview) {
+            needsFullRender = false;
+            return;
+        }
+
+        for (var sid in seatFactory.instances) {
+            var seat = seatFactory.instances[sid];
+            if (seat.isOtherZone()) continue;
+
+            var div = buildContentDiv(seat, showSeatNames, showBookingPreview);
+            if (!div) continue;
+
+            positionLabel(div, seat.getPositionAndSize());
+            if (sid == hoveredSid) div.classList.add("seat_label_hidden");
+
+            labelsContainer.appendChild(div);
+            labelData[sid] = div;
+            labelSignatures[sid] = computeSignature(seat, showSeatNames, showBookingPreview);
+        }
+
+        needsFullRender = false;
+    }
+
+    function updateBookingLabels() {
+
+        if (needsFullRender) {
+            renderLabels();
+            return;
+        }
+
+        var showSeatNames = prefs.show_seat_names;
+        var showBookingPreview = prefs.show_booking_preview;
+
+        for (var sid in seatFactory.instances) {
+            var seat = seatFactory.instances[sid];
+            if (seat.isOtherZone()) continue;
+
+            var bookings = showBookingPreview ? seat.getBookings() : [];
+            var existingDiv = labelData[sid];
+
+            if (!showSeatNames && !bookings.length) {
+                if (existingDiv) {
+                    existingDiv.remove();
+                    delete labelData[sid];
+                    delete labelSignatures[sid];
+                }
+                continue;
+            }
+
+            var newSig = computeSignature(seat, showSeatNames, showBookingPreview);
+            if (existingDiv && labelSignatures[sid] === newSig) continue;
+
+            var div = buildContentDiv(seat, showSeatNames, showBookingPreview);
+            if (!div) {
+                if (existingDiv) {
+                    existingDiv.remove();
+                    delete labelData[sid];
+                    delete labelSignatures[sid];
+                }
+                continue;
+            }
+
+            positionLabel(div, seat.getPositionAndSize());
+            if (sid == hoveredSid) div.classList.add("seat_label_hidden");
+
+            labelsContainer.appendChild(div);
+            labelData[sid] = div;
+            labelSignatures[sid] = newSig;
+
+            if (existingDiv) existingDiv.remove();
+        }
+    }
+
+    function refreshAllLabels() {
+        needsFullRender = true;
+        renderLabels();
+    }
+
+    seatFactory.on('setSeatsData', function() {
+        needsFullRender = true;
+        hoveredSid = null;
+        suppressTooltip = false;
+    });
+
+    seatFactory.on('updateAllStates', updateBookingLabels);
+
+    seatFactory.on('mouseover', function() {
+        var sid = String(this.getSid());
+        hoveredSid = sid;
+
+        var hasAssignments = Object.keys(this.getAssignments()).length > 0;
+        var hasBookings = this.getBookings().length > 0;
+
+        if (prefs.show_seat_names && !hasAssignments && !hasBookings) {
+            suppressTooltip = true;
+        } else {
+            suppressTooltip = false;
+            if (labelData[sid]) labelData[sid].classList.add("seat_label_hidden");
+        }
+    });
+
+    seatFactory.on('mouseout', function() {
+        if (hoveredSid && labelData[hoveredSid]) labelData[hoveredSid].classList.remove("seat_label_hidden");
+        hoveredSid = null;
+        suppressTooltip = false;
+    });
+
+    document.addEventListener('warp:prefsSaved', function(e) {
+        var newPrefs = e.detail && e.detail.zonePreviewPrefs;
+        if (!newPrefs) return;
+        prefs.show_seat_names = !!newPrefs.show_seat_names;
+        prefs.show_booking_preview = !!newPrefs.show_booking_preview;
+        refreshAllLabels();
+    });
+
+    return {
+        refreshAllLabels: refreshAllLabels,
+        shouldSuppressTooltip: function() { return suppressTooltip; }
+    };
+}
+
+function initSeatPreview(seatFactory, seatLabels) {
 
     var zoneMap = document.getElementById("zonemap");
 
     seatFactory.on( 'mouseover', function() {
+
+        if (seatLabels && seatLabels.shouldSuppressTooltip()) return;
 
         var previewDiv = document.createElement("div");
         previewDiv.className = 'seat_preview';
@@ -842,7 +1039,8 @@ document.addEventListener("DOMContentLoaded", function() {
     initShiftSelectDates();
 
     var seatFactory = initSeats();
-    initSeatPreview(seatFactory);
+    var seatLabels = initSeatLabels(seatFactory);
+    initSeatPreview(seatFactory, seatLabels);
     initActionMenu(seatFactory);
     initZoneHelp();
     initZoneSidepanel();

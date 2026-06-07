@@ -84,6 +84,8 @@ CREATE TABLE user_prefs (
     reminder_time integer NOT NULL DEFAULT 79200,
     reminder_release_ahead_days integer NOT NULL DEFAULT 0,
     reminder_zones integer[] NOT NULL DEFAULT '{}',
+    zone_show_seat_names boolean NOT NULL DEFAULT FALSE,
+    zone_show_booking_preview boolean NOT NULL DEFAULT FALSE,
     FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE,
     FOREIGN KEY (default_zone) REFERENCES zone(id) ON DELETE SET NULL
 );
@@ -223,4 +225,4 @@ CREATE UNLOGGED TABLE calendar_cache (
 
 CREATE TABLE db_initialized (version INTEGER NOT NULL);
 
-INSERT INTO db_initialized(version) VALUES(8);
+INSERT INTO db_initialized(version) VALUES(9);

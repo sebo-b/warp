@@ -21,8 +21,10 @@ prefsSchema = {
             "minItems": 2,
             "maxItems": 2
         },
+        "zone_show_seat_names": {"type": "boolean"},
+        "zone_show_booking_preview": {"type": "boolean"},
     },
-    "required": ["default_day", "default_time"],
+    "required": ["default_day", "default_time", "zone_show_seat_names", "zone_show_booking_preview"],
     "additionalProperties": False
 }
 
@@ -32,6 +34,8 @@ def _row_to_prefs(row):
         "default_zone": row['default_zone'],
         "default_day": row['default_day'],
         "default_time": [row['default_time_from'], row['default_time_to']],
+        "zone_show_seat_names": row['zone_show_seat_names'],
+        "zone_show_booking_preview": row['zone_show_booking_preview'],
     }
 
 
@@ -50,6 +54,8 @@ def get_user_prefs(login):
         UserPrefs.default_day,
         UserPrefs.default_time_from,
         UserPrefs.default_time_to,
+        UserPrefs.zone_show_seat_names,
+        UserPrefs.zone_show_booking_preview,
     ).where(UserPrefs.login == login).first()
 
     if row:
@@ -59,6 +65,8 @@ def get_user_prefs(login):
         "default_zone": None,
         "default_day": "same",
         "default_time": [DEFAULT_TIME_FROM, DEFAULT_TIME_TO],
+        "zone_show_seat_names": False,
+        "zone_show_booking_preview": False,
     }
 
 
@@ -80,14 +88,18 @@ def prefs_set():
         UserPrefs.default_zone: _coerce_default_zone(jsonData.get('default_zone')),
         UserPrefs.default_day: jsonData['default_day'],
         UserPrefs.default_time_from: time_from,
-        UserPrefs.default_time_to: time_to
+        UserPrefs.default_time_to: time_to,
+        UserPrefs.zone_show_seat_names: jsonData['zone_show_seat_names'],
+        UserPrefs.zone_show_booking_preview: jsonData['zone_show_booking_preview'],
     }
 
     update = {
         UserPrefs.default_zone: values[UserPrefs.default_zone],
         UserPrefs.default_day: values[UserPrefs.default_day],
         UserPrefs.default_time_from: values[UserPrefs.default_time_from],
-        UserPrefs.default_time_to: values[UserPrefs.default_time_to]
+        UserPrefs.default_time_to: values[UserPrefs.default_time_to],
+        UserPrefs.zone_show_seat_names: values[UserPrefs.zone_show_seat_names],
+        UserPrefs.zone_show_booking_preview: values[UserPrefs.zone_show_booking_preview],
     }
 
     UserPrefs.insert(values).on_conflict(

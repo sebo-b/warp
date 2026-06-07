@@ -46,6 +46,7 @@ class DefaultSettings(object):
         (6, "sql/migration_006_calendar_reminders.sql"),
         (7, "sql/migration_007_calendar_cache.sql"),
         (8, "sql/migration_008_zone_default_type.sql"),
+        (9, "sql/migration_009_zone_preview_prefs.sql"),
     ]
 
     # number of connection retries to DB on initialization

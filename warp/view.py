@@ -103,6 +103,11 @@ def zone(zid):
     default_time = prefs.get('default_time', [9 * 3600, 17 * 3600])
     default_day = prefs.get('default_day', 'same')
 
+    zonePreviewPrefs = {
+        'show_seat_names': prefs.get('zone_show_seat_names', False),
+        'show_booking_preview': prefs.get('zone_show_booking_preview', False),
+    }
+
     defaultSelectedDates = {
         "slider": default_time
     }
@@ -138,7 +143,8 @@ def zone(zid):
         zid = zid,
         nextWeek=nextWeek,
         today=utils.today(),
-        defaultSelectedDates=defaultSelectedDates)
+        defaultSelectedDates=defaultSelectedDates,
+        zonePreviewPrefs=zonePreviewPrefs)
 
 @bp.route("/zone/image/<zid>")
 def zoneImage(zid):
