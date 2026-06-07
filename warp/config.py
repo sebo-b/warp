@@ -140,7 +140,7 @@ def readEnvironmentSettings(app):
 
 def initConfig(app):
 
-    if os.environ.get('FLASK_ENV', 'production') != 'production':
+    if os.environ.get('FLASK_DEBUG', '').lower() in ('1', 'true', 'yes', 'on'):
         app.config.from_object(DevelopmentSettings)
     else:
         app.config.from_object(ProductionSettings)

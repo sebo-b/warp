@@ -157,13 +157,11 @@ $ npm ci
 $ npm run build
 $ popd
 
-# setup Flask and database URL
-$ export FLASK_APP=warp
-$ export FLASK_ENV=development
-$ export WARP_DATABASE=postgresql://warp:warp@localhost:5432/warp
+# setup database URL, if it is different than the default for debug (specified below)
+$ export WARP_DATABASE=psycopg3://postgres:postgres_password@127.0.0.1:5432/postgres
 
 # run the app
-$ flash run
+$ flask --app warp --debug run
 ```
 
 After that, open http://127.0.0.1:5000 in your browser and log in as `admin` with password `noneshallpass`.
