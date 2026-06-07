@@ -1,5 +1,6 @@
 import flask
-from jsonschema import validate, ValidationError
+
+from warp import utils
 
 from warp.db import UserPrefs
 
@@ -21,7 +22,8 @@ prefsSchema = {
             "maxItems": 2
         },
     },
-    "required": ["default_day", "default_time"]
+    "required": ["default_day", "default_time"],
+    "additionalProperties": False
 }
 
 
@@ -66,16 +68,9 @@ def prefs_get():
 
 
 @bp.route("/prefs", methods=['POST'])
+@utils.validateJSONInput(prefsSchema)
 def prefs_set():
-    if not flask.request.is_json:
-        return {"msg": "Non-JSON request", "code": 10}, 404
-
-    try:
-        jsonData = flask.request.get_json()
-        validate(jsonData, prefsSchema)
-    except ValidationError:
-        return {"msg": "Data error", "code": 13}, 400
-
+    jsonData = flask.request.get_json()
     time_from, time_to = jsonData['default_time']
     if time_from >= time_to:
         return {"msg": "Data error", "code": 13}, 400

@@ -1,7 +1,8 @@
 import flask
-from jsonschema import validate, ValidationError
 from peewee import JOIN
 import uuid
+
+from warp import utils
 
 from warp.db import (DB, UserPrefs, UserToZoneRoles, Zone,
                      ZONE_ROLE_ADMIN, ZONE_ROLE_VIEWER,
@@ -21,7 +22,8 @@ calendarSchema = {
         "reminder_time": {"type": "integer", "minimum": 0, "maximum": 86399},
         "reminder_release_ahead_days": {"type": "integer", "minimum": 0, "maximum": 7},
         "reminder_zones": {"type": "array", "items": {"type": "integer"}}
-    }
+    },
+    "additionalProperties": False
 }
 
 _PREFS_FIELDS = ('ical_enabled',
@@ -79,16 +81,9 @@ def calendar_get():
 
 
 @bp.route("/calendar", methods=['POST'])
+@utils.validateJSONInput(calendarSchema)
 def calendar_post():
-    if not flask.request.is_json:
-        return {"msg": "Non-JSON request", "code": 10}, 404
-
-    try:
-        jsonData = flask.request.get_json()
-        validate(jsonData, calendarSchema)
-    except ValidationError:
-        return {"msg": "Data error", "code": 13}, 400
-
+    jsonData = flask.request.get_json()
     login = flask.g.login
 
     if 'reminder_zones' in jsonData:
