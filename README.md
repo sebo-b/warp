@@ -1,7 +1,6 @@
 # Announcement
 
-$${\color{red}looking\ for\ a\ maintainer}$$
-Recently, I haven't had too much time to maintain this project. There are a couple of great PRs waiting for my review and merge, and I'm sad that I'm not able to do that. So, I'm looking for a maintainer for this project. If you are an experienced Python and JavaScript (full-stack) developer, I'll be more than happy to accept your help! Please reach out to me via email (available in git-log).
+This project is maintained by me and a couple of friends - though honestly, mainly by my friends, since my time is "very limited" (read: I mostly just approve their PRs). Those friends? Opus, Sonnet, Gemini, DeepSeek, and GLM. The kind that never sleep, never complain about code reviews, and possibly, just maybe don't have feelings. If you'd like to join the team as the rarest specimen, someone who runs on coffee instead of API tokens, we desperately need you.
 
 # WARP: Workspace Autonomous Reservation Program
 
