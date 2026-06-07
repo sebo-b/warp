@@ -10,6 +10,7 @@
 
         window.warpGlobals['defaultSelectedDates'] = {{ defaultSelectedDates | tojson }};
         window.warpGlobals.today = {{ today | int }};
+        window.warpGlobals['zonePreviewPrefs'] = {{ zonePreviewPrefs | tojson }};
 
         window.warpGlobals.URLs['zoneAutoBook'] = "{{ url_for('xhr.zone.autoBook', zid=zid) }}";
 
@@ -194,6 +195,7 @@
                 <img src="{{ url_for('static', filename='images/schedule_icon_side.png') }}">
             </div>
             <img src="{{ url_for('view.zoneImage', zid=zid) }}">
+            <div class="zonemap-labels" id="zonemap-labels"></div>
         </div>
 
         {% if not isZoneViewer %}

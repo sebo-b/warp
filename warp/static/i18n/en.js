@@ -268,4 +268,6 @@ warpGlobals.i18n.phrases = {
     'Password must be at least %{n} characters': 'Password must be at least %{n} characters',
     'Password changed successfully': 'Password changed successfully',
     'Error changing password': 'Error changing password',
+    'Show seat names on zone map': 'Show seat names on zone map',
+    'Show booking preview on zone map': 'Show booking preview on zone map',
 };

@@ -66,10 +66,14 @@ function WarpSeatFactory(spriteURL,rootDivId,login) {
     this.selectedDates = [];
 
     this.instances = {};
+    // click/mouseover/mouseout listeners are invoked with `this === WarpSeat instance` (via handleEvent).
+    // setSeatsData/updateAllStates listeners are factory-level and invoked with `this === factory`.
     this.listeners = {
         click: new Set(),
         mouseover: new Set(),
-        mouseout: new Set()
+        mouseout: new Set(),
+        setSeatsData: new Set(),
+        updateAllStates: new Set()
     };
 
     this.myConflictingBookings = new Set();
@@ -101,6 +105,11 @@ WarpSeatFactory.prototype.getLogin = function() {
     for (var seat of Object.values(this.instances))
         seat._updateView();
 
+    // Factory-level dispatch: this === factory
+    for (var l of this.listeners['updateAllStates']) {
+        l.call(this);
+    }
+
  }
 
 // NOTE: seatsData is not cloned
@@ -123,6 +132,11 @@ WarpSeatFactory.prototype.setSeatsData = function(seatsData = {}) {
     for (var sid of oldSeatsIds) {
         this.instances[sid]._destroy();
         delete this.instances[sid];
+    }
+
+    // Factory-level dispatch: this === factory
+    for (var l of this.listeners['setSeatsData']) {
+        l.call(this);
     }
 };
 

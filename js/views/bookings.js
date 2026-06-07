@@ -73,8 +73,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
             format: "yyyy-mm-dd",
             onClose: function() {
                 success({
-                    fromTS: fromDatePicker.value? Math.round(Date.parse(fromDatePicker.value)/1000): null,
-                    toTS: toDatePicker.value? Math.round(Date.parse(toDatePicker.value)/1000)+24*3600-1: null
+                    fromTS: fromDatePicker.value ? Math.round(Date.parse(fromDatePicker.value)/1000) : null,
+                    toTS: toDatePicker.value ? Math.round(Date.parse(toDatePicker.value)/1000)+24*3600-1 : null
                 });
              }
         };
