@@ -27,12 +27,13 @@ CREATE TABLE groups (
     FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE
     );
 
+-- zone_type: 10 == ZONE_TYPE_DISABLED
 CREATE TABLE zone (
     id SERIAL PRIMARY KEY,
     zone_group integer NOT NULL,
     name text NOT NULL,
     iid integer,
-    zone_type integer NOT NULL DEFAULT 20,
+    zone_type integer NOT NULL DEFAULT 10,
     FOREIGN KEY (iid) REFERENCES blobs(id) ON DELETE SET NULL
     );
 
@@ -222,4 +223,4 @@ CREATE UNLOGGED TABLE calendar_cache (
 
 CREATE TABLE db_initialized (version INTEGER NOT NULL);
 
-INSERT INTO db_initialized(version) VALUES(7);
+INSERT INTO db_initialized(version) VALUES(8);

@@ -19,7 +19,7 @@ class DefaultSettings(object):
     # Weekdays to hide for reservation, 0 for monday to 6 for sunday
     # Set to [5,6] to omit weekends
     OMITTED_WEEKDAYS = []
-        
+
     # opening and closing time in seconds from 00:00
     BOOK_OPEN = 0
     BOOK_CLOSE = 24 * 3600
@@ -45,6 +45,7 @@ class DefaultSettings(object):
         (5, "sql/migration_005_ical.sql"),
         (6, "sql/migration_006_calendar_reminders.sql"),
         (7, "sql/migration_007_calendar_cache.sql"),
+        (8, "sql/migration_008_zone_default_type.sql"),
     ]
 
     # number of connection retries to DB on initialization
