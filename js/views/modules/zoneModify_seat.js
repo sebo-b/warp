@@ -10,7 +10,6 @@ function Seat(id, data, overlay, parentDiv) {
     this.overlay = overlay;
 
     this.__select = false;
-    this.__transformOrigin = false;
 
     this.listeners = new Utils.Listeners(['change'],true);
     this.on = this.listeners.on.bind(this.listeners);
@@ -99,8 +98,6 @@ Seat.prototype._updateDiv = function() {
 
     if (this.__select)
         this.seatDiv.style.outline = "2px solid #b71c1c";
-    else if (this.__transformOrigin)
-        this.seatDiv.style.outline = "2px solid #1b5e20";
     else
         this.seatDiv.style.outline = "";
 }
@@ -132,18 +129,6 @@ Object.defineProperty(Seat.prototype, "select", {
     set: function(v) {
         if (this.__select != v) {
             this.__select = v;
-            this._updateDiv();
-        }
-    }
-});
-
-Object.defineProperty(Seat.prototype, "transformOrigin", {
-    get: function() {
-        return this.__transformOrigin;
-    },
-    set: function(v) {
-        if (this.__transformOrigin != v) {
-            this.__transformOrigin = v;
             this._updateDiv();
         }
     }
@@ -196,9 +181,9 @@ function SeatFactory(url,parentDiv,zoneMapImg) {
         offsetY: 0,
     };
 
-    this.endTransform(false); // initialize this.transfer structure
+    this.suppressDeselect = false;
 
-    this.listeners = new Utils.Listeners(['select','unselect','drag','change']);
+    this.listeners = new Utils.Listeners(['select','unselect','drag','change','init']);
     this.on = this.listeners.on.bind(this.listeners);
 
     this.parentDiv.addEventListener("mouseout", this._zoneMouseOut.bind(this));
@@ -222,7 +207,6 @@ SeatFactory.prototype._resetSelectionState = function() {
 SeatFactory.prototype.updateData = function() {
 
     this._resetSelectionState();
-    this.endTransform(false);
 
     Utils.xhr.get(
         this.url,
@@ -247,6 +231,7 @@ SeatFactory.prototype.updateData = function() {
             delete this.overlay[sid];
         }
 
+        this.listeners.fireEvent('init',this,null);
         this.listeners.fireEvent('change',this,null);
     });
 }
@@ -338,9 +323,6 @@ SeatFactory.prototype.deleteRestoreSeat = function(seat) {
 
         if (sid.startsWith(Seat.CONFIG.newSidPrefix)) {
 
-            if (this.transform.state && this.transform.originSeat == seat)
-                throw Error("Cannot delete origin seat");
-
             seat._destroy();
             delete this.instances[sid];
             delete this.overlay[sid];
@@ -360,95 +342,38 @@ SeatFactory.prototype.getSelectedSeat = function() {
     return this.selectedSeat;
 }
 
-SeatFactory.prototype.transformState = function() {
-    return this.transform.state;
+SeatFactory.prototype.clearSelection = function() {
+    this._resetSelectionState();
 }
 
-SeatFactory.prototype.beginTransform = function() {
+SeatFactory.prototype.seatAt = function(px, py) {
 
-    if (this.transform.state)
-        throw Error("Already in transform state");
-
-    if (!this.selectedSeat)
-        throw Error("A seat must be selected.");
-
-    if (this.selectedSeat.isNew())
-        throw Error("New seats cannot be transformed.");
-
-    this.transform.state = true;
-    this.transform.originSeat = this.selectedSeat;
-
-    let ox = this.selectedSeat.x;
-    let oy = this.selectedSeat.y;
-
-    for (let s in this.instances) {
-        if (!this.instances[s].isNew() && this.instances[s] != this.transform.originSeat)
-            this.transform.initialVectors[s] = [
-                this.instances[s].x - ox,
-                this.instances[s].y - oy
-            ]
-    }
-    this.transform.originSeat.transformOrigin = true;
-}
-
-SeatFactory.prototype.endTransform = function() {
-
-    if (this.transform && this.transform.state) {
-        this.transform.originSeat.transformOrigin = false;
-    }
-
-    this.transform = {
-        state: false,
-        originSeat: null,
-        matrix: [ 1, 0 ],   //just the first column
-        initialVectors: {},
-    };
-
-}
-
-
-SeatFactory.prototype._transform = function(seat) {
-
-    if (!this.transform.state || seat.isNew())
-        return;
-
-    let origin = [
-        this.transform.originSeat.x,
-        this.transform.originSeat.y,
-    ];
-
-    if (this.transform.originSeat != seat) {
-
-        let a = this.transform.initialVectors[seat.id];
-
-        let b = [
-            seat.x - origin[0],
-            seat.y - origin[1],
-        ];
-
-        let magnASq = (a[0]*a[0]) + (a[1]*a[1]);
-        let sCosTheta = (a[0] * b[0] + a[1] * b[1]) / magnASq;
-        let sSinTheta = (a[0] * b[1] - a[1] * b[0]) / magnASq;
-
-        this.transform.matrix = [ sCosTheta, sSinTheta];
-    }
-
-    for (let sid in this.transform.initialVectors) {
-
-        if (sid == seat.id)
+    for (let sid in this.instances) {
+        var s = this.instances[sid];
+        if (s.deleted)
             continue;
-
-        let initialVector = this.transform.initialVectors[sid];
-
-        this.instances[sid].silentSetXY(
-            this.transform.matrix[0] * initialVector[0] - this.transform.matrix[1] * initialVector[1] + origin[0],
-            this.transform.matrix[1] * initialVector[0] + this.transform.matrix[0] * initialVector[1] + origin[1] );
+        if (px >= s.x && px <= s.x + Seat.CONFIG.spriteSize &&
+            py >= s.y && py <= s.y + Seat.CONFIG.spriteSize)
+            return s;
     }
+
+    return null;
+}
+
+SeatFactory.prototype.getTransformSeats = function() {
+
+    let result = [];
+
+    for (let sid in this.instances) {
+        if (!this.instances[sid].deleted)
+            result.push(this.instances[sid]);
+    }
+
+    return result;
 }
 
 SeatFactory.prototype._seatOnChange = function(seat) {
 
-    this._transform(seat);
     this.listeners.fireEvent('change',this,seat);
 }
 
@@ -481,6 +406,10 @@ SeatFactory.prototype._zoneMouseOut = function(e) {
 }
 
 SeatFactory.prototype._zoneMouseDown = function(e) {
+    if (this.suppressDeselect) {
+        this.suppressDeselect = false;
+        return;
+    }
     if (this.selectedSeat) {
         let s = this.selectedSeat;
         this.selectedSeat.select = false;

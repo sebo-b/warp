@@ -3,6 +3,8 @@
 import Utils from './modules/utils.js';
 import WarpModal from './modules/modal.js';
 import { SeatFactory, spriteSize} from './modules/zoneModify_seat.js';
+import { MarqueeController } from './modules/zoneModify_marquee.js';
+import { TransformController } from './modules/zoneModify_transform.js';
 
 document.addEventListener("DOMContentLoaded", function(e) {
 
@@ -13,40 +15,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
     let zoneMapImg = document.getElementById('zone_map');
     let zoneMapContainer = document.getElementById('zone_map_container');
 
-    let addSeatState = false;
-    let addSeatBtn = document.getElementById('addSeatBtn');
-
-    let updateAddSeatState = function() {
-        if (addSeatState) {
-            addSeatBtn.classList.add('green');
-            addSeatBtn.innerText = TR("btn.Done adding");
-        }
-        else {
-            addSeatBtn.classList.remove('green');
-            addSeatBtn.innerText = TR("btn.Add seats");
-        }
-    };
-
-    updateAddSeatState();
-
-    document.getElementById('addSeatBtn').addEventListener('click', function(e) {
-        addSeatState = !addSeatState;
-        updateAddSeatState();
-    });
-
-
-    chooseImgBtn.addEventListener('click', function(e) {
-        mapUploadInput.click();
-    });
-
-    mapUploadInput.addEventListener('change', function(e) {
-
-        if (mapUploadInput.files.length != 1)
-            return;
-
-        zoneMapImg.src = URL.createObjectURL(mapUploadInput.files[0]);
-        saveBtn.classList.remove('disabled');
-    });
+    let modeSwitch = document.getElementById('modeSwitch');
+    let editMode = true;
 
     let seatEditPanel = document.getElementById("seat_edit_panel");
     let seatNameEl = document.getElementById("seat_name");
@@ -55,15 +25,46 @@ document.addEventListener("DOMContentLoaded", function(e) {
     let seatDeleteBtn = document.getElementById('seat_delete_btn');
 
     let seatFactory = new SeatFactory(window.warpGlobals.URLs['zonesGetSeats'],zoneMapContainer,zoneMapImg);
+    let marquee = new MarqueeController(zoneMapContainer, spriteSize);
+    let transform = null;
+
+    let showMarquee = () => {
+        if (!editMode)
+            return;
+        let transformSeats = seatFactory.getTransformSeats();
+        if (transformSeats.length > 0)
+            marquee.show(transformSeats);
+    };
+
+    let resetCursor = () => {
+        zoneMapContainer.style.cursor = '';
+    };
+
+    modeSwitch.addEventListener('change', function(e) {
+        editMode = !modeSwitch.checked;
+
+        if (!editMode) {
+            marquee.hide();
+            seatFactory.clearSelection();
+            seatEditPanel.style.visibility = "hidden";
+        }
+        else {
+            showMarquee();
+        }
+        resetCursor();
+    });
+
+    modeSwitch.checked = !editMode;
+    resetCursor();
 
     zoneMapImg.addEventListener('mousedown', function(e) {
 
-        if (!addSeatState)
+        if (editMode)
             return;
 
-        var rect = zoneMapImg.getBoundingClientRect();
-        var x = e.clientX - rect.left;
-        var y = e.clientY - rect.top;
+        let rect = zoneMapImg.getBoundingClientRect();
+        let x = e.clientX - rect.left;
+        let y = e.clientY - rect.top;
         seatFactory.createNewSeat(null,x,y);
 
         e.stopPropagation();
@@ -88,38 +89,18 @@ document.addEventListener("DOMContentLoaded", function(e) {
         seatDeleteBtnUpdate(seat);
     });
 
-
-
-    let transformBtn = document.getElementById('transform_btn');
-
-    let transformBtnUpdate = function(seat) {
-        if (seatFactory.transformState()) {
-            transformBtn.classList.remove('disabled');
-            transformBtn.classList.add('green');
-            transformBtn.innerText = TR('btn.Finish alignment');
-
-
-        }
-        else {
-            transformBtn.classList.remove('green');
-            transformBtn.innerText = TR('btn.Align all');
-            if (seat.isNew())
-                transformBtn.classList.add('disabled');
-            else
-                transformBtn.classList.remove('disabled');
-        }
-    }
-
-    transformBtn.addEventListener('click', function(e) {
-
-        if (seatFactory.transformState())
-            seatFactory.endTransform(false);
-        else
-            seatFactory.beginTransform(true);
-
-        transformBtnUpdate(seatFactory.getSelectedSeat());
+    chooseImgBtn.addEventListener('click', function(e) {
+        mapUploadInput.click();
     });
 
+    mapUploadInput.addEventListener('change', function(e) {
+
+        if (mapUploadInput.files.length != 1)
+            return;
+
+        zoneMapImg.src = URL.createObjectURL(mapUploadInput.files[0]);
+        saveBtn.classList.remove('disabled');
+    });
 
     saveBtn.addEventListener('click', function(e) {
 
@@ -179,10 +160,12 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
                     Utils.xhr.post(
                         window.warpGlobals.URLs['zonesModifyXHR'],
-                        data)
+                        data,
+                        {toastOnSuccess: false})
                     .then( () => {
-                        mapUploadInput.value = null;
-                        seatFactory.updateData();
+                        window.sessionStorage.setItem('pendingToast', TR('Action successfull.'));
+                        window.removeEventListener('beforeunload', onBeforeUnload);
+                        window.location.href = window.warpGlobals['returnURL'];
                     })
                 },
             });
@@ -190,8 +173,13 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     seatFactory.on('select', (seat) => {
 
+        if (transform) {
+            transform.end();
+            transform = null;
+        }
+        if (editMode)
+            showMarquee();
         seatDeleteBtnUpdate(seat);
-        transformBtnUpdate(seat);
         seatNameEl.value = seat.name;
         seatXEl.value = seat.x;
         seatYEl.value = seat.y;
@@ -201,11 +189,16 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     seatFactory.on('unselect', (seat) => {
         seatEditPanel.style.visibility = "hidden";
+        if (editMode)
+            showMarquee();
     });
 
     seatFactory.on('drag', (seat) => {
         seatXEl.value = seat.x;
         seatYEl.value = seat.y;
+
+        if (marquee.active)
+            marquee.update(seatFactory.getTransformSeats());
     });
 
     seatFactory.on('change', (seat) => {
@@ -213,8 +206,115 @@ document.addEventListener("DOMContentLoaded", function(e) {
             saveBtn.classList.remove('disabled');
         else
             saveBtn.classList.add('disabled');
+
+        if (marquee.active)
+            marquee.update(seatFactory.getTransformSeats());
     });
 
+    seatFactory.on('init', () => {
+        showMarquee();
+    });
+
+    let beginTransform = (handle, x, y) => {
+
+        if (!editMode || !marquee.active)
+            return;
+
+        let rect = zoneMapImg.getBoundingClientRect();
+        let transformSeats = seatFactory.getTransformSeats();
+        if (transformSeats.length === 0)
+            return;
+
+        transform = new TransformController(rect.width, rect.height, spriteSize);
+        transform.begin(handle, transformSeats, seatFactory.getSelectedSeat(), x, y);
+    };
+
+    let isSeatAt = (x, y) => seatFactory.seatAt(x, y) !== null;
+
+    // Capture-phase: must run before SeatFactory's mousedown so we can suppress
+    // the deselect when the user grabs the marquee box (which sits over seats).
+    let containerMousedownCapture = (e) => {
+
+        seatFactory.suppressDeselect = false;
+
+        if (!editMode || !marquee.active)
+            return;
+
+        let rect = zoneMapImg.getBoundingClientRect();
+        let x = e.clientX - rect.left;
+        let y = e.clientY - rect.top;
+
+        if (marquee.getHandleAt(x, y) === 'box')
+            seatFactory.suppressDeselect = true;
+    };
+
+    // Bubble-phase: handle/rotate clicks come through marquee.onHandleMouseDown
+    // (those stopPropagation), so only the 'box' hit reaches us here.
+    let containerMousedown = (e) => {
+
+        if (!editMode || !marquee.active)
+            return;
+
+        let rect = zoneMapImg.getBoundingClientRect();
+        let x = e.clientX - rect.left;
+        let y = e.clientY - rect.top;
+
+        if (marquee.getHandleAt(x, y) === 'box') {
+            e.preventDefault();
+            beginTransform('box', x, y);
+        }
+    };
+
+    let updateHoverCursor = (e) => {
+
+        if (transform)
+            return;
+
+        let rect = zoneMapImg.getBoundingClientRect();
+        let x = e.clientX - rect.left;
+        let y = e.clientY - rect.top;
+
+        if (!editMode) {
+            zoneMapContainer.style.cursor = isSeatAt(x, y) ? 'cell' : 'copy';
+            return;
+        }
+
+        if (isSeatAt(x, y))
+            zoneMapContainer.style.cursor = 'cell';
+        else if (marquee.active && marquee.getHandleAt(x, y) === 'box')
+            zoneMapContainer.style.cursor = 'move';
+        else
+            zoneMapContainer.style.cursor = '';
+    };
+
+    let containerMousemove = (e) => {
+
+        if (!transform)
+            return;
+
+        let rect = zoneMapImg.getBoundingClientRect();
+        let x = e.clientX - rect.left;
+        let y = e.clientY - rect.top;
+
+        transform.drag(x, y);
+        marquee.update(seatFactory.getTransformSeats());
+        saveBtn.classList.remove('disabled');
+    };
+
+    let containerMouseup = (e) => {
+        if (transform) {
+            transform.end();
+            transform = null;
+        }
+    };
+
+    marquee.onHandleMouseDown(beginTransform);
+
+    zoneMapContainer.addEventListener('mousedown', containerMousedownCapture, true);
+    zoneMapContainer.addEventListener('mousedown', containerMousedown);
+    zoneMapContainer.addEventListener('mousemove', updateHoverCursor);
+    window.addEventListener('mousemove', containerMousemove);
+    window.addEventListener('mouseup', containerMouseup);
 
     let onBeforeUnload = function(e) {
         if (mapUploadInput.files.length > 0 || seatFactory.isChanged()) {

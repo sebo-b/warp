@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block header %}
+    {{ super() }}
+
+    <style>
+        html, body {
+            height: 100%;
+            width: 100%;
+        }
+        .action-outer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 80vh;
+            padding: 16px;
+        }
+        .action-card {
+            width: 100%;
+            max-width: 480px;
+        }
+        .confirm-links {
+            margin-top: 24px;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    {{ super() }}
+
+    <nav>
+        <div class="nav-wrapper">
+            <div class="center"><img class="logo" src="{{ url_for('static', filename='images/logo.png') }}"></div>
+        </div>
+    </nav>
+
+    <div class="action-outer">
+        <div class="card action-card">
+            <div class="card-content">
+                <span class="card-title">{{ title }}</span>
+                {% if details %}
+                <p>{{ details }}</p>
+                {% endif %}
+                <div class="confirm-links">
+                    <a href="{{ confirm_url }}" class="waves-effect waves-light btn">{{ confirm_label }}</a>
+                    <a href="{{ cancel_url }}" class="waves-effect btn-flat">{{ cancel_label }}</a>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

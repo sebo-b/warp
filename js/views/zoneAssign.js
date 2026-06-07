@@ -75,23 +75,15 @@ document.addEventListener("DOMContentLoaded", function(e) {
         );
     }
 
-    var zoneRoleChanged = function(data) {
-
-        let editedCells = this.getEditedCells();
+    var zoneRoleChanged = function(cell) {
         let payload = {
             zid: window.warpGlobals.zid,
-            change: []
+            change: [{
+                login: cell.getData()['login'],
+                role: cell.getValue()
+            }]
         };
-
-        for (let c of editedCells) {
-            payload.change.push({
-                login: c.getData()['login'],
-                role: c.getValue()
-            });
-        }
-
-        Utils.xhr.post(window.warpGlobals.URLs['zoneAssign'],payload);
-        this.clearCellEdited();
+        Utils.xhr.post(window.warpGlobals.URLs['zoneAssign'], payload);
     }
 
     table = new Tabulator("#zone_assignees_table", {
@@ -118,8 +110,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
             {
                 title:TR("Zone role"),
                 field: "zone_role",
-                headerFilter:"select", headerFilterFunc:"=", headerFilterParams:{ values: zoneRoles },
-                editor:"select", editorParams:{ values: zoneRoles.slice(1) },
+                headerFilter:Utils.makeSelect(zoneRoles), headerFilterFunc:"=",
+                editor:Utils.makeSelect(zoneRoles),
                 formatter:zoneRoleFormatter
             },
             {formatter:userTypeFormater, width:40, hozAlign:"center", headerSort:false},
@@ -131,7 +123,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         ]
     });
 
-    table.on('dataChanged',zoneRoleChanged);
+    table.on('cellEdited', zoneRoleChanged);
 
     var assignToZoneBtn = document.getElementById('assign_to_zone_btn');
     var assignToZoneModalEl = document.getElementById('assign_to_zone_modal');
@@ -177,7 +169,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 columns: [
                     {formatter:iconFormater, formatterParams:{icon:"disabled_by_default",colorClass:"red-text text-darken-3"}, width:40, hozAlign:"center", cellClick:assignToZoneTableRemoveClicked},
                     {field: "name"},
-                    {field: "zone_role", editor:"select", editorParams:{ values: zoneRoles.slice(1) }, formatter:zoneRoleFormatter},
+                    {field: "zone_role", editor:Utils.makeSelect(zoneRoles), formatter:zoneRoleFormatter},
                 ],
                 initialSort: [
                     {column:"name", dir:"asc"}

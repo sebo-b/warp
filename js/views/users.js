@@ -56,7 +56,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
             {formatter:editFormater, width:40, hozAlign:"center", cellClick:editClicked, headerSort:false},
             {title:TR("Login"), field: "login", headerFilter:"input", headerFilterFunc:"starts"},
             {title:TR("User name"), field: "name", headerFilter:"input", headerFilterFunc:"starts"},
-            {title:TR("Account type"), field: "account_type", headerFilter:"select", headerFilterFunc:"=", headerFilterParams:{ values: accountTypes }, formatter:accountTypeFormatter  }
+            {title:TR("Account type"), field: "account_type", headerFilter:Utils.makeSelect(accountTypes), headerFilterFunc:"=", formatter:accountTypeFormatter  }
         ],
         initialSort: [
             {column:"login", dir:"asc"},

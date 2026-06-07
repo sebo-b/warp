@@ -27,11 +27,13 @@ CREATE TABLE groups (
     FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE
     );
 
+-- zone_type: 10 == ZONE_TYPE_DISABLED
 CREATE TABLE zone (
     id SERIAL PRIMARY KEY,
     zone_group integer NOT NULL,
     name text NOT NULL,
     iid integer,
+    zone_type integer NOT NULL DEFAULT 10,
     FOREIGN KEY (iid) REFERENCES blobs(id) ON DELETE SET NULL
     );
 
@@ -57,14 +59,36 @@ CREATE TABLE seat (
 
 CREATE TABLE seat_assign (
     sid integer NOT NULL,
-    login text NOT NULL,
-    PRIMARY KEY (sid,login),
+    login text,
+    days_in_advance integer,
     FOREIGN KEY (sid) REFERENCES seat(id) ON DELETE CASCADE,
     FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE
     );
 
+CREATE UNIQUE INDEX seat_assign_uq          ON seat_assign(sid, login) WHERE login IS NOT NULL;
+CREATE UNIQUE INDEX seat_assign_everyone_uq ON seat_assign(sid)         WHERE login IS NULL;
+
 CREATE INDEX seat_zid
 ON seat(zid);
+
+CREATE TABLE user_prefs (
+    login text PRIMARY KEY,
+    default_zone integer,
+    default_day text NOT NULL DEFAULT 'same',
+    default_time_from integer NOT NULL DEFAULT 32400,
+    default_time_to integer NOT NULL DEFAULT 61200,
+    ical_enabled boolean NOT NULL DEFAULT FALSE,
+    ical_token text,
+    reminder_weekdays integer NOT NULL DEFAULT 0,
+    reminder_ahead_days integer NOT NULL DEFAULT 0,
+    reminder_time integer NOT NULL DEFAULT 79200,
+    reminder_release_ahead_days integer NOT NULL DEFAULT 0,
+    reminder_zones integer[] NOT NULL DEFAULT '{}',
+    FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE,
+    FOREIGN KEY (default_zone) REFERENCES zone(id) ON DELETE SET NULL
+);
+
+CREATE UNIQUE INDEX user_prefs_ical_token_idx ON user_prefs(ical_token) WHERE ical_token IS NOT NULL;
 
 CREATE TABLE book (
     id SERIAL PRIMARY KEY,
@@ -188,3 +212,15 @@ CREATE TRIGGER book_overlap_insert_trig
 BEFORE INSERT ON book
 FOR EACH ROW
 EXECUTE PROCEDURE book_overlap_insert();
+
+CREATE UNLOGGED TABLE calendar_cache (
+    login text PRIMARY KEY,
+    ics text NOT NULL,
+    day integer NOT NULL,
+    generated_at integer NOT NULL,
+    FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE
+);
+
+CREATE TABLE db_initialized (version INTEGER NOT NULL);
+
+INSERT INTO db_initialized(version) VALUES(8);

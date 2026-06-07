@@ -143,6 +143,47 @@ Utils.xhr = {
 };
 
 
+// Returns a Tabulator 6 callback that renders a native <select> dropdown.
+// Usable as both `headerFilter:` and `editor:` — auto-detects context via cell.getType().
+// Replaces editor:"list" / headerFilter:"select" which don't interop with Materialize.
+// In header-filter mode, entries without a `value` (e.g. a leading {label:"---"} placeholder)
+// render as a "clear filter" option; in editor mode they are skipped.
+Utils.makeSelect = function(values) {
+    return function(cell, onRendered, success, cancel, editorParams) {
+        var isFilter = cell.getType() === "header";
+
+        var select = document.createElement("select");
+        select.className = "warp_select";
+
+        for (let v of values) {
+            if (v.value === undefined && !isFilter) continue;
+            var opt = document.createElement("option");
+            opt.value = v.value !== undefined ? v.value : "";
+            opt.textContent = v.label;
+            select.appendChild(opt);
+        }
+
+        if (!isFilter)
+            select.value = String(cell.getValue());
+
+        select.addEventListener("change", function() {
+            var raw = select.value;
+            if (isFilter && raw === "") { success(""); return; }
+            var matched = values.find(v => String(v.value) === raw);
+            success(matched ? matched.value : raw);
+        });
+
+        if (!isFilter) {
+            var resolved = false;
+            select.addEventListener("change", function() { resolved = true; });
+            select.addEventListener("blur", function() { if (!resolved) cancel(); });
+            onRendered(function() { select.focus(); });
+        }
+
+        return select;
+    };
+};
+
 Utils.Listeners = function(types, async = true) {
 
     this.async = async;

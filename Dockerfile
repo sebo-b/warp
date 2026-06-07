@@ -1,10 +1,10 @@
-FROM python:3-slim AS compile-image
+FROM python:3.13-slim AS compile-image
 
-ENV NODE_VER=16.3.0
+ENV NODE_VER=22.16.0
 
 WORKDIR /opt/warp
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends wget media-types build-essential libpq-dev libpcre2-dev
+    apt-get install -y --no-install-recommends wget media-types build-essential libpcre2-dev
 
 RUN NODE_ARCH=$(uname -m | sed 's/^x86_64\|amd64$/x64/;s/^i.*86$/x86/;s/^aarch64$/arm64/') && \
     NODE_URL="https://nodejs.org/dist/v${NODE_VER}/node-v${NODE_VER}-linux-${NODE_ARCH}.tar.gz" && \
@@ -32,11 +32,11 @@ COPY warp ./warp
 COPY setup.py MANIFEST.in ./
 RUN python setup.py bdist_wheel -d wheel
 
-FROM python:3-slim
+FROM python:3.13-slim
 WORKDIR /opt/warp
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends libpq5 media-types libpcre2-8-0 && \
+    apt-get install -y --no-install-recommends media-types libpcre2-8-0 && \
     rm  -rf /var/lib/apt/lists/*
 
 RUN \

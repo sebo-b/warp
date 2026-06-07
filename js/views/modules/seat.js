@@ -1,5 +1,9 @@
 "use strict";
 
+// In-memory key used for the NULL-login (everyone) assignment row.
+// Mirror this value in warp/db.py EVERYONE_KEY. Rejected as a user login on the backend.
+const EVERYONE_KEY = '__everyone__:550e8400-e29b-41d4-a716-446655440000';
+
 /**
  * WarpSeat
  * NOTE: book and assignments from seatData is not cloned, it is stored as reference
@@ -332,9 +336,43 @@ WarpSeat.prototype._updateState = function() {
         return this.state;
     }
 
-    if (Object.keys(this.assignments).length > 0 && !(this.factory.login in this.assignments)) {
-        this.state = WarpSeat.SeatStates.ASSIGNED;
-        return this.state;
+    if (Object.keys(this.assignments).length > 0) {
+
+        const everyoneData = this.assignments[EVERYONE_KEY];
+        const hasEveryone = everyoneData !== undefined;
+        const userAssignment = this.assignments[this.factory.login];
+        const hasUserAssignment = userAssignment !== undefined;
+
+        if (hasUserAssignment || hasEveryone) {
+            // Compute most-permissive days_in_advance across user's own row and everyone row
+            let bestDays;
+            if (hasUserAssignment) {
+                bestDays = userAssignment.days_in_advance; // null (unlimited) or integer
+            }
+            if (hasEveryone) {
+                const evDays = everyoneData.days_in_advance;
+                if (bestDays === undefined) {
+                    bestDays = evDays;
+                } else if (evDays === null || bestDays === null) {
+                    bestDays = null; // null wins (unlimited)
+                } else {
+                    bestDays = Math.max(bestDays, evDays);
+                }
+            }
+            if (bestDays !== null && bestDays !== undefined) {
+                // server-anchored: service timezone may differ from the client's
+                var cutoffTs = window.warpGlobals.today + (bestDays + 1) * 24 * 3600;
+                if (this.factory.selectedDates.some(d => d.fromTS >= cutoffTs)) {
+                    this.state = WarpSeat.SeatStates.ASSIGNED;
+                    return this.state;
+                }
+            }
+            // dates are within window — fall through to booking state
+        } else {
+            // Specific assignment(s) exist, but not for this user and no everyone row
+            this.state = WarpSeat.SeatStates.ASSIGNED;
+            return this.state;
+        }
     }
 
     var bookings = this.book;
@@ -482,8 +520,13 @@ WarpSeat.prototype._setData = function(seatData,usersNames) {
             this.book[b].username = usersNames[this.book[b].login];
         }
         if ('assignments' in seatData) {
-            for (let login of seatData.assignments)
-                this.assignments[login] = usersNames[login]
+            for (let a of seatData.assignments) {
+                if (a.isEveryone) {
+                    this.assignments[EVERYONE_KEY] = { name: TR('Everyone'), days_in_advance: a.days_in_advance ?? null, isEveryone: true };
+                } else {
+                    this.assignments[a.login] = { name: usersNames[a.login] ?? a.login, days_in_advance: a.days_in_advance ?? null };
+                }
+            }
         }
     }
 }
@@ -510,4 +553,4 @@ WarpSeat.prototype._createDiv = function(rootDiv, spriteURL) {
     rootDiv.appendChild(this.seatDiv);
 };
 
-export { WarpSeatFactory, WarpSeat };
+export { WarpSeatFactory, WarpSeat, EVERYONE_KEY };

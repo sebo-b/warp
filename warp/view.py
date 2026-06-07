@@ -1,8 +1,10 @@
 import flask
+from peewee import JOIN
 
 from warp.db import *
 from . import utils
 from . import blob_storage
+from warp.xhr.prefs import get_user_prefs
 
 bp = flask.Blueprint('view', __name__)
 
@@ -12,8 +14,13 @@ def headerDataInit():
     headerDataL = []
 
     zoneCursor = Zone.select(Zone.id, Zone.name) \
-                     .join(UserToZoneRoles, on=(Zone.id == UserToZoneRoles.zid)) \
-                     .where(UserToZoneRoles.login == flask.g.login) \
+                     .join(UserToZoneRoles, join_type=JOIN.LEFT_OUTER,
+                           on=((Zone.id == UserToZoneRoles.zid) & (UserToZoneRoles.login == flask.g.login))) \
+                     .where(
+                         Zone.zone_type.in_([ZONE_TYPE_PUBLIC_VIEW, ZONE_TYPE_PUBLIC_BOOK]) |
+                         ((Zone.zone_type == ZONE_TYPE_ENABLED) & (UserToZoneRoles.zone_role <= ZONE_ROLE_VIEWER)) |
+                         (UserToZoneRoles.zone_role == ZONE_ROLE_ADMIN)
+                     ) \
                      .order_by(Zone.name)
 
     for z in zoneCursor:
@@ -43,11 +50,24 @@ def headerDataInit():
 
     return { "headerDataL": headerDataL,
              "headerDataR": headerDataR,
-             'hasLogout': 'auth.logout' in flask.current_app.view_functions
+             'hasLogout': 'auth.logout' in flask.current_app.view_functions,
+             'hasChangePassword': 'auth.change_password' in flask.current_app.view_functions,
+             'minPasswordLength': flask.current_app.config.get('MIN_PASSWORD_LENGTH', 6)
     }
 
 @bp.route("/")
 def index():
+    default_zone = get_user_prefs(flask.g.login).get('default_zone')
+
+    if default_zone is not None:
+        zoneRow = Zone.select(Zone.zone_type).where(Zone.id == default_zone).first()
+        if zoneRow:
+            specificRole = UserToZoneRoles.select(UserToZoneRoles.zone_role) \
+                                          .where((UserToZoneRoles.zid == default_zone) & (UserToZoneRoles.login == flask.g.login)) \
+                                          .scalar()
+            if effectiveZoneRole(zoneRow['zone_type'], specificRole) is not None:
+                return flask.redirect(flask.url_for('view.zone', zid=default_zone))
+
     return flask.render_template('index.html')
 
 @bp.route("/bookings/<string:report>")
@@ -64,20 +84,42 @@ def bookings(report):
 @bp.route("/zone/<zid>")
 def zone(zid):
 
-    zoneRole = UserToZoneRoles.select(UserToZoneRoles.zone_role) \
-                              .where( (UserToZoneRoles.zid == zid) & (UserToZoneRoles.login == flask.g.login) ) \
-                              .scalar()
+    zoneRow = Zone.select(Zone.zone_type).where(Zone.id == zid).first()
+    if zoneRow is None:
+        flask.abort(403)
 
+    specificRole = UserToZoneRoles.select(UserToZoneRoles.zone_role) \
+                                  .where((UserToZoneRoles.zid == zid) & (UserToZoneRoles.login == flask.g.login)) \
+                                  .scalar()
+
+    zoneRole = effectiveZoneRole(zoneRow['zone_type'], specificRole)
     if zoneRole is None:
         flask.abort(403)
 
     nextWeek = utils.getNextWeek()
+
+    prefs = get_user_prefs(flask.g.login)
+
+    default_time = prefs.get('default_time', [9 * 3600, 17 * 3600])
+    default_day = prefs.get('default_day', 'same')
+
     defaultSelectedDates = {
-        "slider": [9*3600, 17*3600]
+        "slider": default_time
     }
 
-    for d in nextWeek[1:]:
-        if not d['isWeekend']:
+    now_ts = utils.now()
+    today_ts = utils.today()
+    seconds_into_day = now_ts - today_ts
+
+    if default_day == 'boundary':
+        target_ts = today_ts + (24 * 3600 if seconds_into_day >= default_time[0] else 0)
+    elif default_day == 'tomorrow':
+        target_ts = today_ts + (24 * 3600)
+    else:
+        target_ts = today_ts
+
+    for d in nextWeek:
+        if d['timestamp'] >= target_ts:
             defaultSelectedDates['cb'] = [d['timestamp']]
             break
 
@@ -95,6 +137,7 @@ def zone(zid):
         **zoneRole,
         zid = zid,
         nextWeek=nextWeek,
+        today=utils.today(),
         defaultSelectedDates=defaultSelectedDates)
 
 @bp.route("/zone/image/<zid>")
@@ -102,10 +145,15 @@ def zoneImage(zid):
 
     if not flask.g.isAdmin:
 
-        zoneRole = UserToZoneRoles.select(UserToZoneRoles.zone_role) \
-                                .where( (UserToZoneRoles.zid == zid) & (UserToZoneRoles.login == flask.g.login) ) \
-                                .scalar()
-        if zoneRole is None:
+        zoneRow = Zone.select(Zone.zone_type).where(Zone.id == zid).first()
+        if zoneRow is None:
+            flask.abort(403)
+
+        specificRole = UserToZoneRoles.select(UserToZoneRoles.zone_role) \
+                                    .where((UserToZoneRoles.zid == zid) & (UserToZoneRoles.login == flask.g.login)) \
+                                    .scalar()
+
+        if effectiveZoneRole(zoneRow['zone_type'], specificRole) is None:
             flask.abort(403)
 
     blobIdQuery = Zone.select(Zone.iid.alias('id')).where(Zone.id == zid)

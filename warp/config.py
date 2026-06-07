@@ -14,10 +14,12 @@ class DefaultSettings(object):
     # (after the current week)
     WEEKS_IN_ADVANCE = 1
 
+    AUTOBOOK_USAGE_WINDOW_DAYS = 30
+
     # Weekdays to hide for reservation, 0 for monday to 6 for sunday
     # Set to [5,6] to omit weekends
     OMITTED_WEEKDAYS = []
-        
+
     # opening and closing time in seconds from 00:00
     BOOK_OPEN = 0
     BOOK_CLOSE = 24 * 3600
@@ -29,7 +31,22 @@ class DefaultSettings(object):
 
     MAX_REPORT_ROWS = 5000
 
-    DATABASE_INIT_SCRIPT = "sql/schema.sql"
+    MIN_PASSWORD_LENGTH = 6
+
+    DATABASE_PRE_INIT_SCRIPTS = []
+    DATABASE_SCHEMA = "sql/schema.sql"
+    DATABASE_POST_INIT_SCRIPTS = []
+
+    DATABASE_MIGRATION_SCRIPTS = [
+        (1, "sql/migration_001_days_in_advance.sql"),
+        (2, "sql/migration_002_zone_type.sql"),
+        (3, "sql/migration_003_seat_assign_everyone.sql"),
+        (4, "sql/migration_004_user_prefs.sql"),
+        (5, "sql/migration_005_ical.sql"),
+        (6, "sql/migration_006_calendar_reminders.sql"),
+        (7, "sql/migration_007_calendar_cache.sql"),
+        (8, "sql/migration_008_zone_default_type.sql"),
+    ]
 
     # number of connection retries to DB on initialization
     DATABASE_INIT_RETRIES = 10
@@ -76,14 +93,15 @@ class DefaultSettings(object):
 
 class DevelopmentSettings(DefaultSettings):
 
-    DATABASE = "postgresql://postgres:postgres_password@127.0.0.1:5432/postgres"
+    DATABASE = "psycopg3://postgres:postgres_password@127.0.0.1:5432/postgres"
 
     #DATABASE = "sqlite:///warp/db.sqlite"
     #DATABASE_ARGS = {"pragmas": {"foreign_keys": "ON"}}
 
-    DATABASE_INIT_SCRIPT = [
+    DATABASE_PRE_INIT_SCRIPTS = [
         "sql/clean_db.sql",
-        "sql/schema.sql",
+    ]
+    DATABASE_POST_INIT_SCRIPTS = [
         "sql/sample_data.sql"
     ]
 
@@ -100,6 +118,8 @@ class ProductionSettings(DefaultSettings):
     # this is intentionally empty, as in production
     # DATABASE and SECRET_KEY should be passed via ENV
     # as WARP_SECRET_KEY and WARP_DATABASE
+    # DATABASE must use the psycopg3:// scheme, e.g.:
+    #   WARP_DATABASE=psycopg3://user:pass@host:5432/dbname
     pass
 
 def readEnvironmentSettings(app):
@@ -121,7 +141,7 @@ def readEnvironmentSettings(app):
 
 def initConfig(app):
 
-    if app.env != 'production':
+    if os.environ.get('FLASK_DEBUG', '').lower() in ('1', 'true', 'yes', 'on'):
         app.config.from_object(DevelopmentSettings)
     else:
         app.config.from_object(ProductionSettings)

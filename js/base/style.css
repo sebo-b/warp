@@ -87,19 +87,147 @@ NAV {
     0 3px 6px -3px #BBB;
   }
 
-  .timeslider {
-      height: 400px!important;
-      margin-left: auto;
-      margin-right: auto;
-  }
+.timeslider {
+    height: 400px!important;
+    margin-left: auto;
+    margin-right: auto;
+}
 
-  .timeslider-hint {
+.timeslider-hint {
     color: #9e9e9e;
     text-align: center;
     width: 60px;
-    border: 1px solid#3949ab;
+    border: 1px solid #3949ab;
     margin-top: 10px;
     margin-bottom: 10px;
+}
+
+.pref_timeslider_container {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    padding: 10px 16px 0 16px;
+}
+
+.pref_timeslider_container .timeslider {
+    height: 3px !important;
+    flex: 1 1 auto;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    background: #c5cae9;
+}
+
+.pref_timeslider_container .timeslider .noUi-connects {
+    position: absolute;
+    top: -1px;
+    left: 0;
+    width: 100%;
+    height: 5px;
+}
+
+.pref_timeslider_container .timeslider .noUi-connect {
+    background: #ff6d00;
+}
+
+.pref_timeslider_container .timeslider .noUi-origin {
+    top: 0;
+}
+
+.pref_timeslider_container .timeslider .noUi-handle {
+    box-shadow: none;
+    background-color: #ff6d00;
+    border: none;
+    border-radius: 50%;
+    width: 15px;
+    height: 15px;
+    top: -6px;
+    right: -7px;
+    cursor: pointer;
+    transform: none;
+}
+
+.pref_timeslider_container .timeslider .noUi-handle:before,
+.pref_timeslider_container .timeslider .noUi-handle:after {
+    content: none;
+}
+
+.pref_timeslider_container .timeslider-hint {
+    margin: 0;
+    flex: 0 0 auto;
+}
+
+#pref_modal .modal-content label {
+    font-size: 1rem;
+}
+
+.pref-feature-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-top: 8px;
+    padding-bottom: 4px;
+}
+
+.pref-feature-row > span {
+    flex: 1;
+    font-size: 1rem;
+    color: #9e9e9e;
+}
+
+.pref-feature-row .switch label {
+    margin: 0;
+}
+
+.weekday-chips-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+
+.weekday-chip {
+    border: 2px solid #9e9e9e;
+    border-radius: 50px;
+    padding: 0 12px;
+    height: 32px;
+    line-height: 28px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    background: transparent;
+    color: #616161;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.weekday-chip.active {
+    background-color: #3949ab;
+    border-color: #3949ab;
+    color: white;
+}
+
+.weekday-chip:hover:not(.active) {
+    background-color: #f5f5f5;
+    border-color: #616161;
+}
+
+.cal-section-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+    user-select: none;
+}
+
+#calendar_modal .modal-content label {
+    font-size: 1rem;
+}
+
+@media only screen and (max-width: 600px) {
+    #calendar_modal .valign-wrapper {
+        flex-direction: column;
+        align-items: stretch;
+    }
 }
 
 #bookingsTable {
@@ -195,6 +323,19 @@ NAV {
     position: relative;
 }
 
+.auto_book_fab {
+    position: fixed;
+    bottom: 80px;
+    right: 23px;
+    z-index: 10;
+}
+
+.auto_book_fab .btn-floating.disabled {
+    pointer-events: none;
+    background-color: #DFDFDF !important;
+    box-shadow: none;
+}
+
 .zonemap_help {
     position: fixed;
     right: 0px;
@@ -238,6 +379,44 @@ NAV {
     padding: 0px 4px;
     text-align: left;
     vertical-align: middle;
+}
+
+.assigned_seat_list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.assigned_seat_row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.assigned_seat_controls {
+    display: flex;
+    align-items: center;
+}
+
+.assigned_seat_days_select {
+    width: 140px;
+    margin-left: 8px;
+    display: inline-block;
+}
+
+.assigned_seat_delete_btn {
+    padding: 0;
+    margin-left: 4px;
+}
+
+SELECT.warp_select {
+    width: 100%;
+    box-sizing: border-box;
+    opacity: 1 !important;
+    position: relative !important;
+}
+
+.tabulator-cell SELECT.warp_select {
+    height: 100%;
 }
 
 #action_modal .modal-content {
@@ -372,6 +551,59 @@ INPUT[type="text"] ~ .show_password_btn::after {
 
 .zone_modify_sidepanel_bottom {
     flex: none !important;
+}
+
+.switch-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 0;
+}
+
+.zone_modify_marquee_box {
+    position: absolute;
+    border: 2px dashed #3949ab;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.zone_modify_marquee_handle {
+    position: absolute;
+    border: 2px solid #3949ab;
+    background: white;
+    pointer-events: all;
+    z-index: 11;
+}
+
+.zone_modify_marquee_corner {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+}
+
+.zone_modify_marquee_edge_h {
+    width: 18px;
+    height: 10px;
+    border-radius: 3px;
+}
+
+.zone_modify_marquee_edge_v {
+    width: 10px;
+    height: 18px;
+    border-radius: 3px;
+}
+
+.zone_modify_marquee_rotate {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    cursor: grab;
+    z-index: 11;
+    pointer-events: all;
+}
+
+.zone_modify_marquee_rotate:active {
+    cursor: grabbing;
 }
 
 .zone_modify_map {

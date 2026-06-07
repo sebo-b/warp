@@ -59,6 +59,9 @@ def edit():
 
     action_data = flask.request.get_json()
 
+    if action_data['login'] == EVERYONE_KEY:
+        return {"msg": "Reserved login", "code": 157}, 400
+
     class ApplyError(Exception):
         pass
 
@@ -91,7 +94,7 @@ def edit():
 
             elif action_data['action'] == "add":
 
-                updColumns[Users.login] = action_data['login'],
+                updColumns[Users.login] = action_data['login']
                 Users.insert(updColumns).execute()
 
             if 'groups' in action_data:

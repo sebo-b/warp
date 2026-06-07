@@ -11,6 +11,9 @@ def create_app():
     from . import db
     db.init(app)
 
+    from . import ical
+    app.register_blueprint(ical.bp)
+
     from . import view
     app.register_blueprint(view.bp)
 

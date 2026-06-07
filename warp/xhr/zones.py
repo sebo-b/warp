@@ -24,7 +24,7 @@ def listW():              #list is a built-in type
             COUNT_STAR.filter(UserToZoneRoles.zone_role == ZONE_ROLE_USER).alias("users"), \
             COUNT_STAR.filter(UserToZoneRoles.zone_role == ZONE_ROLE_VIEWER).alias("viewers")) \
         .group_by(UserToZoneRoles.zid)
-    query = Zone.select(Zone.id, Zone.name, Zone.zone_group,
+    query = Zone.select(Zone.id, Zone.name, Zone.zone_group, Zone.zone_type,
                         fn.COALESCE(countQuery.c.admins,0).alias('admins'),
                         fn.COALESCE(countQuery.c.users,0).alias('users'),
                         fn.COALESCE(countQuery.c.viewers,0).alias('viewers')) \
@@ -79,6 +79,7 @@ addOrEditSchema = {
         "id" : {"type" : "integer"},
         "name" : {"type" : "string"},
         "zone_group" : {"type" : "integer"},
+        "zone_type": {"type": "integer", "enum": [ZONE_TYPE_DISABLED, ZONE_TYPE_ENABLED, ZONE_TYPE_PUBLIC_VIEW, ZONE_TYPE_PUBLIC_BOOK]},
     },
     "required": ["name", "zone_group"]
 }
@@ -104,6 +105,9 @@ def addOrEdit():
                 Zone.zone_group: jsonData['zone_group'],
             }
 
+            if 'zone_type' in jsonData:
+                updColumns[Zone.zone_type] = jsonData['zone_type']
+
             if 'id' in jsonData:
 
                 rowCount = Zone.update(updColumns).where(Zone.id == jsonData['id']).execute()
@@ -112,6 +116,7 @@ def addOrEdit():
 
             else:
 
+                updColumns.setdefault(Zone.zone_type, ZONE_TYPE_DISABLED)
                 Zone.insert(updColumns).execute()
 
 
