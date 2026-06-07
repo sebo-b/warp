@@ -59,7 +59,7 @@ def _get_calendar_data(login):
 
 def _accessible_zone_ids(login, zids):
     # Mirrors view.headerDataInit zone visibility: public zones, or ENABLED zones
-    # with any role, or ADMIN role on any other zone_type (except DISABLED).
+    # with any role, or ADMIN role on any zone_type (including DISABLED).
     rows = (Zone.select(Zone.id)
                 .join(UserToZoneRoles, JOIN.LEFT_OUTER,
                       on=((Zone.id == UserToZoneRoles.zid) & (UserToZoneRoles.login == login)))
