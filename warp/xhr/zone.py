@@ -638,10 +638,9 @@ def runAutoBook(login, zid, dates):
                     .where(Book.login == login) \
                     .where((Book.fromts < slotMax) & (Book.tots > slotMin)).dicts())
 
-    from datetime import datetime
     slots_by_day = defaultdict(list)
     for d in dates:
-        day_key = datetime.fromtimestamp(d['fromTS']).date()
+        day_key = d['fromTS'] - d['fromTS'] % (24*3600)
         slots_by_day[day_key].append(d)
 
     seats = {s['id']: s['name'] for s in Seat.select(Seat.id, Seat.name).where((Seat.zid == zid) & (Seat.enabled == True)).dicts()}
