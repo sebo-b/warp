@@ -20,6 +20,12 @@ class DefaultSettings(object):
     # Set to [5,6] to omit weekends
     OMITTED_WEEKDAYS = []
 
+    # warp uses server wall-clock (timegm(localtime())) everywhere and is
+    # otherwise TZ-blind. This setting only labels iCal DTSTART/DTEND so
+    # external calendar clients render the right time. Empty = auto-detect
+    # from the system at startup.
+    TIMEZONE = ""
+
     # opening and closing time in seconds from 00:00
     BOOK_OPEN = 0
     BOOK_CLOSE = 24 * 3600
@@ -153,3 +159,16 @@ def initConfig(app):
         raise Exception('SECRET_KEY must be defined or passed via WARP_SECRET_KEY environment variable')
     if app.config.get('DATABASE',None) is None:
         raise Exception('DATABASE must be defined or passed via WARP_DATABASE environment variable')
+
+    if not app.config.get('TIMEZONE'):
+        try:
+            with open('/etc/timezone') as f:
+                app.config['TIMEZONE'] = f.read().strip()
+        except OSError:
+            try:
+                link = os.readlink('/etc/localtime')
+                idx = link.rfind('zoneinfo/')
+                if idx != -1:
+                    app.config['TIMEZONE'] = link[idx + len('zoneinfo/'):]
+            except OSError:
+                pass

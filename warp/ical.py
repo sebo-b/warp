@@ -161,7 +161,9 @@ def _render_confirm(title, details, confirm_url, cancel_url, status=200):
     ), status
 
 
-def _ts_to_ical_dt(ts):
+def _ts_to_ical_dt(ts, tz=None):
+    if tz:
+        return strftime("%Y%m%dT%H%M%S", gmtime(ts))
     return strftime("%Y%m%dT%H%M%SZ", gmtime(ts))
 
 
@@ -169,12 +171,13 @@ def _escape_ical_text(text):
     return text.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
 
 
-def _format_vevent(uid, dtstamp, dtstart, dtend, summary, url=None, description=None):
+def _format_vevent(uid, dtstamp, dtstart, dtend, summary, url=None, description=None, tz=None):
+    tzid = f";TZID={tz}" if tz else ""
     parts = ["BEGIN:VEVENT\r\n",
              f"UID:{uid}\r\n",
              f"DTSTAMP:{dtstamp}\r\n",
-             f"DTSTART:{dtstart}\r\n",
-             f"DTEND:{dtend}\r\n",
+             f"DTSTART{tzid}:{dtstart}\r\n",
+             f"DTEND{tzid}:{dtend}\r\n",
              f"SUMMARY:{summary}\r\n"]
     if url:
         parts.append(f"URL:{url}\r\n")
@@ -225,7 +228,7 @@ def invalidate_calendar_cache(logins):
 # iCal generation helpers
 # ---------------------------------------------------------------------------
 
-def _reminder_vevents(login, ical_token, now_ts, today_ts, summaries):
+def _reminder_vevents(login, ical_token, now_ts, today_ts, summaries, tz=None):
     """Return list of VEVENT strings for calendar reminder events."""
 
     row = UserPrefs.select(
@@ -329,8 +332,8 @@ def _reminder_vevents(login, ical_token, now_ts, today_ts, summaries):
     for reminder_ts, uid, summary, kind, zid, action_day_str in events:
         if kind == 'missing' and (reminder_ts, zid) in release_keys:
             continue
-        dtstart = _ts_to_ical_dt(reminder_ts)
-        dtend = _ts_to_ical_dt(reminder_ts + 900)
+        dtstart = _ts_to_ical_dt(reminder_ts, tz)
+        dtend = _ts_to_ical_dt(reminder_ts + 900, tz)
 
         url = None
         description = None
@@ -346,7 +349,7 @@ def _reminder_vevents(login, ical_token, now_ts, today_ts, summaries):
             description = _escape_ical_text(summaries['missing_desc']).replace('{url}', url_escaped)
 
         lines.append(_format_vevent(uid, dtstamp, dtstart, dtend, summary,
-                                    url=url, description=description))
+                                    url=url, description=description, tz=tz))
 
     return lines
 
@@ -362,6 +365,7 @@ def _generate_ical(login, ical_token, now_ts, today_ts):
                     .order_by(Book.fromts.asc())
                     .tuples())
 
+    tz = flask.current_app.config.get('TIMEZONE') or None
     dtstamp = _ts_to_ical_dt(now_ts)
     summaries = _summary_templates()
 
@@ -378,14 +382,15 @@ def _generate_ical(login, ical_token, now_ts, today_ts):
         lines.append(_format_vevent(
             uid=f"{book_id}@warp",
             dtstamp=dtstamp,
-            dtstart=_ts_to_ical_dt(fromts),
-            dtend=_ts_to_ical_dt(tots),
+            dtstart=_ts_to_ical_dt(fromts, tz),
+            dtend=_ts_to_ical_dt(tots, tz),
             summary=_escape_ical_text(summaries['booking'].format(name=seat_name)),
             url=del_url,
             description=_escape_ical_text(summaries['booking_desc']).replace('{url}', url_escaped),
+            tz=tz,
         ))
 
-    lines.extend(_reminder_vevents(login, ical_token, now_ts, today_ts, summaries))
+    lines.extend(_reminder_vevents(login, ical_token, now_ts, today_ts, summaries, tz))
 
     lines.append(ICAL_FOOTER)
     return "".join(lines)
