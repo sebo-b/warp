@@ -201,6 +201,15 @@ WarpSeatFactory.prototype.updateLogin = function(login, seatsData) {
     return res;
  }
 
+WarpSeatFactory.prototype.isExactMatch = function() {
+
+    for (var sid of this.myConflictingBookings) {
+        if (this.instances[sid].state === WarpSeat.SeatStates.CAN_DELETE_EXACT)
+            return true;
+    }
+    return false;
+}
+
 /**
  * Register callback on all seats
  * @param {string} type - event type, one of click, mouseover, mouseout

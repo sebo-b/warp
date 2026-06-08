@@ -925,7 +925,9 @@ function initAutoBook(seatFactory) {
     fabBtn.title = TR("Find me a seat");
 
     function updateFabState() {
-        fabBtn.classList.toggle('disabled', getSelectedDates().length === 0);
+        var noDates = getSelectedDates().length === 0;
+        var noChange = !noDates && seatFactory.isExactMatch();
+        fabBtn.classList.toggle('disabled', noDates || noChange);
     }
 
     var slider = document.getElementById('timeslider');
@@ -934,6 +936,8 @@ function initAutoBook(seatFactory) {
     for (var e of document.getElementsByClassName('date_checkbox')) {
         e.addEventListener('change', updateFabState);
     }
+
+    seatFactory.on('updateAllStates', updateFabState);
 
     fabBtn.addEventListener('click', function() {
         var dates = getSelectedDates();
