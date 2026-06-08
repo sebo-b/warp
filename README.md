@@ -17,24 +17,24 @@ I've quickly evaluated a couple of existing solutions, but they were either too 
 - Generate a report of past bookings and export it to Excel file
 - Generate and subscribe to interactive iCal feeds for automatic booking reminders in any calendar app
 - Change password and manage calendar preferences from the user menu
-- Receive automatic notifications for upcoming bookings and when seats become available
+- Receive automatic notifications for upcoming bookings
 
 ## More advanced features
 
-- Seats can be limited to certain people, so other people cannot book them (it is called assigned seats).
-- Seats can be disabled, so people don't see them at all.
-- Multiple zones (maps) can be created, for example, floors or parking.
-- Zones can be grouped. One person can have only one seat booked simultaneously in a zone group (so you can have one group for floors and another group for parking stalls).
-- Admin(s) can book / modify / unbook seat for any user.
-- Full admin interface to add/remove/edit maps, zones, groups, and users.
-- SAML2.0 support - via Apache [mod_auth_mellon](https://github.com/latchset/mod_auth_mellon) module.
-- LDAP and Active Directory - via LDAP3 library.
-- Translations - currently, English, German, French, Spanish, and Polish are supported.
+- **Admin Interface**: Full admin interface to add/remove/edit maps, zones, groups, and users.
+- **Admin Booking**: Admins can book, modify, or unbook seats for any user.
+- **Multiple Zones**: Create multiple zones (maps) for different areas like floors or parking.
+- **Zone Groups**: Group zones so that one person can have only one seat booked simultaneously within a group (e.g., one group for floors, another for parking).
+- **Assigned Seats**: Limit seats to certain people so others cannot book them.
+- **Disabled Seats**: Hide seats so people don't see them at all.
+- **Auto-Book**: Use the floating "+" button to quickly book an available seat with one click.
 - **Calendar Integration**: Subscribe to iCal feeds in Google Calendar, Outlook, Apple Calendar, or any other calendar app. The feed includes all your bookings with one-click actions to release seats.
 - **Per-Zone Reminders**: Configure automatic booking and seat-release reminder notifications for each zone independently.
-- **Auto-Book Feature**: Use the floating "+" button to quickly book an available seat with one click.
 - **Days-in-Advance Booking Window**: Per-assignment configurable limits on how far in advance users can book seats.
 - **Virtual "Everyone" Access**: Seats and zones can be configured with virtual "everyone" access for flexible seat management.
+- **Translations**: Currently supports English, German, French, Spanish, and Polish.
+- **SAML2.0**: Via Apache [mod_auth_mellon](https://github.com/latchset/mod_auth_mellon) module.
+- **LDAP/Active Directory**: Via LDAP3 library.
 
 ## What I'm not even planning to do
 
@@ -59,7 +59,7 @@ Default admin credentials are: `admin:noneshallpass`
 
 ## Upgrading
 
-There is no automatic schema migration. When upgrading an existing deployment, apply any new migration scripts from `warp/sql/` manually before starting the new version. Migration files are named `migration_NNN_<description>.sql` and should be applied in order.
+Schema migrations are applied automatically on startup. WARP tracks the current schema version in the database and applies any pending migration scripts from `warp/sql/` in order.
 
 Currently shipped migrations:
 
@@ -72,12 +72,8 @@ Currently shipped migrations:
 | `migration_005_ical.sql` | a version before iCal calendar integration |
 | `migration_006_calendar_reminders.sql` | a version before per-zone booking reminders |
 | `migration_007_calendar_cache.sql` | a version before iCal caching optimization |
-
-Example (PostgreSQL):
-
-```
-$ psql -U warp -d warp -f warp/sql/migration_001_days_in_advance.sql
-```
+| `migration_008_zone_default_type.sql` | a version before zone default type feature |
+| `migration_009_zone_preview_prefs.sql` | a version before zone preview preferences |
 
 ## Demo quickstart
 
@@ -117,7 +113,7 @@ $ export WARP_DEMO_DB_IP=`docker inspect  -f '{{range.NetworkSettings.Networks}}
 
 # start warp
 $ docker run --name warp-demo-wsgi \
-> --env 'WARP_DATABASE=postgresql://postgres:postgres_password@warp-demo-db:5432/postgres' \
+> --env 'WARP_DATABASE=psycopg3://postgres:postgres_password@warp-demo-db:5432/postgres' \
 > --env WARP_SECRET_KEY=mysecretkey \
 > --env WARP_DATABASE_POST_INIT_SCRIPTS='["sql/sample_data.sql"]' \
 > --add-host=warp-demo-db:${WARP_DEMO_DB_IP} -d warp:latest
@@ -200,6 +196,12 @@ This makes possible to pass integers, floats, booleans as well as dicts, arrays 
 |type:|`array` of `strings`|
 |default value:|`[]`|
 |description:|JSON array of SQL file paths to execute after the schema on first init (e.g. seed data).|
+
+|variable:|`DATABASE_MIGRATION_SCRIPTS`|
+|:---|:---|
+|type:|`array` of `(integer, string)` tuples|
+|default value:|see `config.py`|
+|description:|Ordered list of `(version, path)` tuples for automatic schema migrations. On startup, any migration with a version higher than the current database version is applied in order. Rarely needs overriding.|
 
 ### SECRET_KEY
 
