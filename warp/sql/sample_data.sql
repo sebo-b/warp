@@ -3,9 +3,9 @@ INSERT INTO users VALUES ('user1','pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65
 INSERT INTO users VALUES ('user2','pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Bar',20);
 INSERT INTO users VALUES ('user3','pbkdf2:sha256:260000$UEV4fnkO1Mtr5EBq$4624e65fae621ec38b6e6c47f49642a120dd91e2dc8c10477b5128b8de4b14dc','Baz',20);
 
-INSERT INTO zone (id,zone_group,name) VALUES (1,1,'Zone 1A');
-INSERT INTO zone (id,zone_group,name) VALUES (2,1,'Zone 1B');
-INSERT INTO zone (id,zone_group,name) VALUES (3,2,'Parking');
+INSERT INTO zone (id,zone_group,name) VALUES (1,'__default__:7f2b3c50-e8d1-4a9f-b6c3-2d8e7f1a4b09','Zone 1A');
+INSERT INTO zone (id,zone_group,name) VALUES (2,'__default__:7f2b3c50-e8d1-4a9f-b6c3-2d8e7f1a4b09','Zone 1B');
+INSERT INTO zone (id,zone_group,name) VALUES (3,'Parking','Parking');
 
 -- fix PK sequence
 SELECT pg_catalog.setval(pg_get_serial_sequence('zone', 'id'), (SELECT MAX(id) FROM zone));

@@ -189,7 +189,7 @@ def zones():
     if not flask.g.isAdmin:
         flask.abort(403)
 
-    return flask.render_template('zones.html')
+    return flask.render_template('zones.html', DEFAULT_ZONEGROUP_KEY=DEFAULT_ZONEGROUP_KEY)
 
 
 @bp.route("/groups/assign/<group_login>")

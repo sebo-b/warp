@@ -234,6 +234,10 @@ warpGlobals.i18n.phrases = {
         "PublicView": "Publique — consultation uniquement",
         "PublicBook": "Publique — réservation autorisée",
     },
+    zoneGroup: {
+        "Default": "Par défaut",
+        "NewGroupWillBeCreated": "Un nouveau groupe sera créé",
+    },
     'Preferences': 'Préférences',
     'Default zone': 'Zone par défaut',
     'Today': "Aujourd'hui",

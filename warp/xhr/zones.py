@@ -30,7 +30,7 @@ def listW():              #list is a built-in type
                         fn.COALESCE(countQuery.c.viewers,0).alias('viewers')) \
                 .join(countQuery, join_type=JOIN.LEFT_OUTER, on=(Zone.id == countQuery.c.zid))
 
-    (query, lastPage) = applyTabulatorToQuery(query,requestData)
+    (query, lastPage) = applyTabulatorToQuery(query, requestData)
 
     res = { "data": [ *query.iterator() ] }
 
@@ -78,7 +78,7 @@ addOrEditSchema = {
     "properties": {
         "id" : {"type" : "integer"},
         "name" : {"type" : "string"},
-        "zone_group" : {"type" : "integer"},
+        "zone_group" : {"type" : ["string", "null"], "minLength": 1},
         "zone_type": {"type": "integer", "enum": [ZONE_TYPE_DISABLED, ZONE_TYPE_ENABLED, ZONE_TYPE_PUBLIC_VIEW, ZONE_TYPE_PUBLIC_BOOK]},
     },
     "required": ["name", "zone_group"]
@@ -94,6 +94,15 @@ def addOrEdit():
 
     jsonData = flask.request.get_json()
 
+    if jsonData.get('zone_group') == DEFAULT_ZONEGROUP_KEY:
+        return {"msg": "Reserved group name", "code": 223}, 400
+
+    # Frontend sends null for the Default group; the column is NOT NULL so
+    # normalise to the sentinel before insert/update.
+    zone_group = jsonData.get('zone_group')
+    if zone_group is None:
+        zone_group = DEFAULT_ZONEGROUP_KEY
+
     class ApplyError(Exception):
         pass
 
@@ -102,7 +111,7 @@ def addOrEdit():
 
             updColumns = {
                 Zone.name: jsonData['name'],
-                Zone.zone_group: jsonData['zone_group'],
+                Zone.zone_group: zone_group,
             }
 
             if 'zone_type' in jsonData:
@@ -396,6 +405,15 @@ def modify():
         return {"msg": "Error", "code": err.args[1] }, 400
 
     return {"msg": "ok"}, 200
+
+
+@bp.route("groups", methods=["GET"])
+def groupsList():
+    if not flask.g.isAdmin:
+        flask.abort(403)
+    rows = Zone.select(Zone.zone_group).distinct().order_by(Zone.zone_group)
+    groups = [r['zone_group'] for r in rows.iterator() if r['zone_group'] != DEFAULT_ZONEGROUP_KEY]
+    return flask.jsonify(groups)
 
 
 @bp.route("getSeats/<int:zid>")

@@ -42,11 +42,12 @@ def getSeats(zid):
         "seats": {}
     }
 
-    zone = Zone.select(Zone.zone_type).where(Zone.id == zid).first()
+    zone = Zone.select(Zone.zone_type, Zone.zone_group).where(Zone.id == zid).first()
     if zone is None:
         return {"msg": "Forbidden", "code": 130}, 403
 
     zone_type = zone['zone_type']
+    zone_group = zone['zone_group']
     specificRole = UserToZoneRoles.select(UserToZoneRoles.zone_role) \
                                   .where((UserToZoneRoles.zid == zid) & (UserToZoneRoles.login == flask.g.login)) \
                                   .scalar()
@@ -149,8 +150,7 @@ def getSeats(zid):
                             .join(Seat, on=(Book.sid == Seat.id)) \
                             .join(Zone, on=(Seat.zid == Zone.id)) \
                             .where( (Seat.zid != zid) & (Seat.enabled == True) ) \
-                            .where(Zone.zone_group == ( \
-                                Zone.select(Zone.zone_group).where(Zone.id == zid)) ) \
+                            .where(Zone.zone_group == zone_group) \
                             .where(Book.login == login) \
                             .order_by(Book.fromts).tuples()
 

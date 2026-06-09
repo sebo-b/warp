@@ -7,8 +7,10 @@
     window.warpGlobals.URLs['zonesList'] = "{{ url_for('xhr.zones.list') }}";
     window.warpGlobals.URLs['zonesDelete'] = "{{ url_for('xhr.zones.delete') }}";
     window.warpGlobals.URLs['zonesAddOrEdit'] = "{{ url_for('xhr.zones.addOrEdit') }}";
+    window.warpGlobals.URLs['zonesGroups'] = "{{ url_for('xhr.zones.groupsList') }}";
     window.warpGlobals.URLs['zoneAssign'] = "{{ url_for('view.zoneAssign', zid='__ZID__', return=request.url) }}";
     window.warpGlobals.URLs['zoneModify'] = "{{ url_for('view.zoneModify', zid='__ZID__', return=request.url) }}";
+    window.warpGlobals.DEFAULT_ZONEGROUP_KEY = "{{ DEFAULT_ZONEGROUP_KEY }}";
 </script>
 
 {% endblock %}
@@ -24,8 +26,9 @@
                 <label for="zone_name" class="TR">Zone name</label>
             </div>
             <div class="input-field col s12 m4">
-                <input id="zone_group" type="number" required>
-                <label for="zone_group" class="TR">Zone group</label>
+                <input id="zone_group_input" type="text" class="autocomplete">
+                <label for="zone_group_input" class="TR active">Zone group</label>
+                <span id="zone_group_helper" class="helper-text grey-text" style="display:none;"></span>
             </div>
         </div>
         <div class="row">

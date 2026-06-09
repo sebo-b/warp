@@ -241,6 +241,10 @@ warpGlobals.i18n.phrases = {
         "PublicView": "Publiczna — tylko podgląd",
         "PublicBook": "Publiczna — rezerwacje dozwolone",
     },
+    zoneGroup: {
+        "Default": "Domyślna",
+        "NewGroupWillBeCreated": "Zostanie utworzona nowa grupa",
+    },
     'Preferences': 'Preferencje',
     'Default zone': 'Domyślna strefa',
     'Today': 'Dzisiaj',

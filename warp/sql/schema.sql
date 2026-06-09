@@ -30,7 +30,7 @@ CREATE TABLE groups (
 -- zone_type: 10 == ZONE_TYPE_DISABLED
 CREATE TABLE zone (
     id SERIAL PRIMARY KEY,
-    zone_group integer NOT NULL,
+    zone_group text NOT NULL DEFAULT '__default__:7f2b3c50-e8d1-4a9f-b6c3-2d8e7f1a4b09',
     name text NOT NULL,
     iid integer,
     zone_type integer NOT NULL DEFAULT 10,
@@ -225,4 +225,4 @@ CREATE UNLOGGED TABLE calendar_cache (
 
 CREATE TABLE db_initialized (version INTEGER NOT NULL);
 
-INSERT INTO db_initialized(version) VALUES(9);
+INSERT INTO db_initialized(version) VALUES(10);
