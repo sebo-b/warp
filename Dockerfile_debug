@@ -1,0 +1,50 @@
+FROM alpine:latest AS builder
+
+RUN apk add nodejs npm python3 py3-pip
+
+WORKDIR /warp
+COPY requirements.txt setup.py MANIFEST.in .
+COPY warp/ warp/
+
+WORKDIR /warp/js
+COPY js/package.json js/package-lock.json js/webpack.config.js .
+COPY js/views/ views/
+COPY js/base/ base/
+RUN npm ci && npm run build
+
+WORKDIR /warp
+RUN pip wheel -w wheel .
+
+FROM alpine:latest
+
+RUN apk add python3 py3-pip postgresql18
+RUN \
+    --mount=type=bind,from=builder,source=/warp/wheel,target=./wheel \
+    pip install --break-system-packages --no-index wheel/*.whl
+RUN \
+  install -d -m 700 -o postgres -g postgres /pgdata \
+  && install -d -m 755 -o postgres -g postgres /run/postgresql \
+  && echo "postgres_password" > /tmp/postgres_pass \
+  && su postgres -c "initdb \
+      -D /pgdata \
+      --locale=C.UTF-8 \
+      --encoding=UTF8 \
+      --data-checksums \
+      --auth-local=peer \
+      --auth-host=scram-sha-256 \ 
+      -c listen_addresses='*' \
+      --pwfile=/tmp/postgres_pass" \
+  && echo "host all all 0.0.0.0/0 scram-sha-256" >> /pgdata/pg_hba.conf \
+  && rm /tmp/postgres_pass
+ 
+COPY <<EOF /etc/inittab
+#::sysinit:/etc/rc.local
+::respawn:/bin/su - postgres -c "/usr/bin/postgres -D /pgdata"
+::respawn:/usr/bin/flask --app=warp --debug run --host=0.0.0.0
+::shutdown:/bin/echo "Shutting down..."
+EOF
+
+EXPOSE 5000/tcp 5432/tcp
+STOPSIGNAL SIGUSR2
+ENTRYPOINT ["/sbin/init"]
+
