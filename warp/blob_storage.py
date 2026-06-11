@@ -70,7 +70,7 @@ def createBlobResponse(blobId = None, blobIdQuery = None):
     blobEtag = str(blobEtag)
 
     r304 = Response()
-    r304.add_etag(blobEtag)
+    r304.set_etag(blobEtag)
     r304.make_conditional(flask.request)
 
     if r304.status_code != 200:
