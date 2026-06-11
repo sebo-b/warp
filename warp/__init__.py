@@ -37,4 +37,9 @@ def create_app():
     else:
         app.register_blueprint(auth.bp)
 
+    @app.route('/health')
+    def health():
+        # simple health check endpoint
+        return 'OK', 200
+
     return app

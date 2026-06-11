@@ -1,9 +1,9 @@
-flask == 2.2.*
-jsonschema
-xlsxwriter
-peewee>=3.17,<5
-psycopg[binary]
-orjson
-ldap3
-msal
-pycryptodome
+flask==2.2.*
+jsonschema==4.20.*
+xlsxwriter==3.1.*
+peewee==4.0.*
+psycopg[binary]==3.3.4
+orjson==3.9.*
+ldap3==2.9.*
+msal==1.25.*
+pycryptodome==3.19.*

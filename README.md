@@ -1,3 +1,10 @@
+### Known issues
+Runs only with Postgres 18. 
+Has interesting driver issues with version 16, 17 
+where Strings from database returned as binary. 
+Downgrading driver to 2.9.9 requires changes to configuration,
+skipped. 
+
 # Announcement
 
 This project is maintained by me and a couple of friends - though honestly, mainly by my friends, since my time is "very limited" (read: I mostly just approve their PRs). Those friends? Opus, Sonnet, Gemini, DeepSeek, and GLM. The kind that never sleep, never complain about code reviews, and possibly, just maybe don't have feelings. If you'd like to join the team as the rarest specimen, someone who runs on coffee instead of API tokens, we desperately need you.
