@@ -650,6 +650,40 @@ INPUT[type="text"] ~ .show_password_btn::after {
     cursor: grabbing;
 }
 
+.zone_modify_rotate_line {
+    position: absolute;
+    height: 0px;
+    border-top: 2px dashed #3949ab;
+    transform-origin: 0 0;
+    pointer-events: none;
+    z-index: 12;
+}
+
+.zone_modify_rotate_pivot {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border: 3px solid #3949ab;
+    border-radius: 50%;
+    background: white;
+    box-sizing: border-box;
+    pointer-events: none;
+    z-index: 12;
+}
+
+.zone_modify_rotate_label {
+    position: absolute;
+    padding: 2px 8px;
+    background: #3949ab;
+    color: white;
+    font-size: 12px;
+    line-height: 18px;
+    border-radius: 3px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 12;
+}
+
 .zone_modify_map {
     flex: 0 1 auto;
     min-width: 0px;

@@ -358,6 +358,173 @@ test.describe('combined changes and summary dialog', () => {
 
 });
 
+// ─── Marquee transform and rotation ───────────────────────────────────────────
+
+const SPRITE = 48;
+const ROTATE_GRIP = '.zone_modify_marquee_rotate';
+const GUIDE_LINE = '.zone_modify_rotate_line';
+const GUIDE_PIVOT = '.zone_modify_rotate_pivot';
+const GUIDE_LABEL = '.zone_modify_rotate_label';
+
+function seatBounds(seats: { x: number; y: number }[]) {
+  const minX = Math.min(...seats.map((s) => s.x));
+  const minY = Math.min(...seats.map((s) => s.y));
+  const maxX = Math.max(...seats.map((s) => s.x + SPRITE));
+  const maxY = Math.max(...seats.map((s) => s.y + SPRITE));
+  return { minX, minY, maxX, maxY, cx: (minX + maxX) / 2, cy: (minY + maxY) / 2 };
+}
+
+async function mapOrigin(page: import('@playwright/test').Page) {
+  const box = await page.locator('#zone_map').boundingBox();
+  expect(box).not.toBeNull();
+  return box!;
+}
+
+async function gripCenter(page: import('@playwright/test').Page) {
+  const box = await page.locator(ROTATE_GRIP).boundingBox();
+  expect(box).not.toBeNull();
+  return { x: box!.x + box!.width / 2, y: box!.y + box!.height / 2 };
+}
+
+test.describe('marquee transform and rotation', () => {
+
+  test('edit mode shows marquee box, resize handles, and rotate grip', async ({ page }) => {
+    await logIn(page, ADMIN);
+    await openEditor(page);
+
+    await expect(page.locator('.zone_modify_marquee_box')).toBeVisible();
+    await expect(page.locator('.zone_modify_marquee_handle:visible')).toHaveCount(8);
+    await expect(page.locator(ROTATE_GRIP)).toBeVisible();
+
+    // Rotate guide is not shown outside of a rotate drag
+    await expect(page.locator(GUIDE_LINE)).toBeHidden();
+    await expect(page.locator(GUIDE_PIVOT)).toBeHidden();
+    await expect(page.locator(GUIDE_LABEL)).toBeHidden();
+  });
+
+  test('dragging the marquee box moves all seats together', async ({ page }) => {
+    await logIn(page, ADMIN);
+    const seats = await getZoneSeats(ZID);
+    await openEditor(page);
+    const map = await mapOrigin(page);
+
+    // EMPTY_SPOT is inside the group bounds but not on any seat sprite
+    const from = { x: map.x + EMPTY_SPOT.x, y: map.y + EMPTY_SPOT.y };
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(from.x + 20, from.y + 15, { steps: 5 });
+    await page.mouse.up();
+
+    await saveAndConfirm(page);
+
+    const after = await getZoneSeats(ZID);
+    for (const s of seats) {
+      const a = after.find((t) => t.id === s.id)!;
+      expect(Math.abs(a.x - (s.x + 20))).toBeLessThanOrEqual(1);
+      expect(Math.abs(a.y - (s.y + 15))).toBeLessThanOrEqual(1);
+    }
+  });
+
+  test('rotate drag hides marquee and shows pivot, guide line, and angle readout', async ({ page }) => {
+    await logIn(page, ADMIN);
+    await openEditor(page);
+
+    const grip = await gripCenter(page);
+    await page.mouse.move(grip.x, grip.y);
+    await page.mouse.down();
+    await page.mouse.move(grip.x + 80, grip.y + 60, { steps: 5 });
+
+    // Selection chrome is hidden during the drag…
+    await expect(page.locator('.zone_modify_marquee_box')).toBeHidden();
+    await expect(page.locator('.zone_modify_marquee_handle:visible')).toHaveCount(0);
+    await expect(page.locator(ROTATE_GRIP)).toBeHidden();
+
+    // …replaced by the rotation guide
+    await expect(page.locator(GUIDE_LINE)).toBeVisible();
+    await expect(page.locator(GUIDE_PIVOT)).toBeVisible();
+    await expect(page.locator(GUIDE_LABEL)).toBeVisible();
+    await expect(page.locator(GUIDE_LABEL)).toHaveText(/^-?\d+°$/);
+
+    await page.mouse.up();
+
+    // Marquee returns, guide disappears
+    await expect(page.locator('.zone_modify_marquee_box')).toBeVisible();
+    await expect(page.locator(ROTATE_GRIP)).toBeVisible();
+    await expect(page.locator(GUIDE_LINE)).toBeHidden();
+    await expect(page.locator(GUIDE_PIVOT)).toBeHidden();
+    await expect(page.locator(GUIDE_LABEL)).toBeHidden();
+  });
+
+  test('rotating 180° mirrors all seats through the group center', async ({ page }) => {
+    await logIn(page, ADMIN);
+    const seats = await getZoneSeats(ZID);
+    const b = seatBounds(seats);
+    await openEditor(page);
+    const map = await mapOrigin(page);
+
+    // Drag the grip from above the group to the mirrored point below the
+    // pivot (same x) — exactly a half turn, which preserves the bounding box
+    // so no boundary clamping kicks in.
+    const grip = await gripCenter(page);
+    const endY = 2 * (map.y + b.cy) - grip.y;
+
+    await page.mouse.move(grip.x, grip.y);
+    await page.mouse.down();
+    await page.mouse.move(grip.x, endY, { steps: 10 });
+    await expect(page.locator(GUIDE_LABEL)).toHaveText(/^-?(179|180|181)°$/);
+    await page.mouse.up();
+
+    await saveAndConfirm(page);
+
+    const after = await getZoneSeats(ZID);
+    for (const s of seats) {
+      const a = after.find((t) => t.id === s.id)!;
+      expect(Math.abs(a.x - (2 * b.cx - s.x - SPRITE))).toBeLessThanOrEqual(3);
+      expect(Math.abs(a.y - (2 * b.cy - s.y - SPRITE))).toBeLessThanOrEqual(3);
+    }
+  });
+
+  test('rotation pivots around the selected seat, which stays locked', async ({ page }) => {
+    await logIn(page, ADMIN);
+    const seats = await getZoneSeats(ZID);
+    // A seat near the middle of the group, so a small rotation keeps most
+    // seats inside the map
+    const pivotSeat = seats.find((s) => s.name === '3.1')!;
+    await openEditor(page);
+    const map = await mapOrigin(page);
+
+    await selectSeat(page, pivotSeat);
+
+    const grip = await gripCenter(page);
+    await page.mouse.move(grip.x, grip.y);
+    await page.mouse.down();
+    await page.mouse.move(grip.x + 60, grip.y + 10, { steps: 5 });
+
+    // The pivot marker sits on the selected seat's center
+    const marker = await page.locator(GUIDE_PIVOT).boundingBox();
+    expect(marker).not.toBeNull();
+    const markerCx = marker!.x + marker!.width / 2 - map.x;
+    const markerCy = marker!.y + marker!.height / 2 - map.y;
+    expect(Math.abs(markerCx - (pivotSeat.x + SPRITE / 2))).toBeLessThanOrEqual(2);
+    expect(Math.abs(markerCy - (pivotSeat.y + SPRITE / 2))).toBeLessThanOrEqual(2);
+
+    await page.mouse.up();
+    await saveAndConfirm(page);
+
+    const after = await getZoneSeats(ZID);
+    const pivotAfter = after.find((t) => t.id === pivotSeat.id)!;
+    expect(pivotAfter.x).toBe(pivotSeat.x);
+    expect(pivotAfter.y).toBe(pivotSeat.y);
+
+    const someoneMoved = after.some((a) => {
+      const s = seats.find((t) => t.id === a.id)!;
+      return s.x !== a.x || s.y !== a.y;
+    });
+    expect(someoneMoved).toBe(true);
+  });
+
+});
+
 // ─── API error cases ──────────────────────────────────────────────────────────
 
 test.describe('zone editor API error cases', () => {

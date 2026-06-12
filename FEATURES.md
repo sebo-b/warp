@@ -149,6 +149,7 @@ Accessible via the map icon on the Zones management page.
 - Multi-seat selection with a marquee: drag to select multiple seats, then move or transform them together.
 - The selected group shows a transform box with **8 resize handles** (4 corners + 4 edges) and a **rotation handle**.
 - Scaling and rotation pivot around the group's center — unless the currently selected seat is part of the group, in which case it stays **locked in place** and acts as the pivot.
+- While rotating, the selection box and handles are hidden and replaced by a **rotation guide**: a marker on the pivot, a dashed line from the pivot to the cursor, and a live **angle readout** next to the cursor. Rotation is free (no angle snapping), so seats can be aligned to maps that are not axis-aligned.
 - All transformed seats are clamped to the map boundaries (a group move stops at the edges).
 
 ### 4.4 Editor Seat Icon States

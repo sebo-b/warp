@@ -16,6 +16,7 @@ function TransformController(mapWidth, mapHeight, spriteSize) {
     this.lockIndex = -1;
     this.startX = 0;
     this.startY = 0;
+    this.lastAngle = 0;
 }
 
 TransformController.prototype._maxX = function() {
@@ -279,6 +280,14 @@ TransformController.prototype._rotate = function(px, py) {
     var initAngle = Math.atan2(this.startY - this.pivot.y, this.startX - this.pivot.x);
     var curAngle = Math.atan2(py - this.pivot.y, px - this.pivot.x);
     var angle = curAngle - initAngle;
+
+    if (angle > Math.PI)
+        angle -= 2 * Math.PI;
+    else if (angle <= -Math.PI)
+        angle += 2 * Math.PI;
+
+    this.lastAngle = angle;
+
     var cosA = Math.cos(angle);
     var sinA = Math.sin(angle);
     var n = this.seats.length;

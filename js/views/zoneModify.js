@@ -176,6 +176,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         if (transform) {
             transform.end();
             transform = null;
+            marquee.hideRotateGuide();
         }
         if (editMode)
             showMarquee();
@@ -227,6 +228,11 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
         transform = new TransformController(rect.width, rect.height, spriteSize);
         transform.begin(handle, transformSeats, seatFactory.getSelectedSeat(), x, y);
+
+        if (handle === 'rotate') {
+            marquee.showRotateGuide(transform.pivot, x, y, 0);
+            zoneMapContainer.style.cursor = 'grabbing';
+        }
     };
 
     let isSeatAt = (x, y) => seatFactory.seatAt(x, y) !== null;
@@ -297,14 +303,25 @@ document.addEventListener("DOMContentLoaded", function(e) {
         let y = e.clientY - rect.top;
 
         transform.drag(x, y);
-        marquee.update(seatFactory.getTransformSeats());
+
+        if (transform.handle === 'rotate')
+            marquee.updateRotateGuide(transform.pivot, x, y, transform.lastAngle);
+        else
+            marquee.update(seatFactory.getTransformSeats());
+
         saveBtn.classList.remove('disabled');
     };
 
     let containerMouseup = (e) => {
         if (transform) {
+            let wasRotate = transform.handle === 'rotate';
             transform.end();
             transform = null;
+            if (wasRotate) {
+                marquee.hideRotateGuide();
+                showMarquee();
+                resetCursor();
+            }
         }
     };
 

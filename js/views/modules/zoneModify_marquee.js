@@ -92,6 +92,63 @@ MarqueeController.prototype._createElements = function() {
         '<polyline points="17,5 17,8 14,8" fill="none" stroke="#3949ab" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
         '</svg>';
     this.parentDiv.appendChild(this._rotateHandle);
+
+    this._rotateLine = document.createElement("div");
+    this._rotateLine.className = "zone_modify_rotate_line";
+    this._rotateLine.style.display = "none";
+    this.parentDiv.appendChild(this._rotateLine);
+
+    this._rotatePivot = document.createElement("div");
+    this._rotatePivot.className = "zone_modify_rotate_pivot";
+    this._rotatePivot.style.display = "none";
+    this.parentDiv.appendChild(this._rotatePivot);
+
+    this._rotateLabel = document.createElement("div");
+    this._rotateLabel.className = "zone_modify_rotate_label";
+    this._rotateLabel.style.display = "none";
+    this.parentDiv.appendChild(this._rotateLabel);
+};
+
+MarqueeController.PIVOT_SIZE = 12;
+
+MarqueeController.prototype.showRotateGuide = function(pivot, px, py, angleRad) {
+
+    this.hide();
+
+    var po = MarqueeController.PIVOT_SIZE / 2;
+    this._rotatePivot.style.left = (pivot.x - po) + "px";
+    this._rotatePivot.style.top = (pivot.y - po) + "px";
+    this._rotatePivot.style.display = "";
+
+    this._rotateLine.style.display = "";
+    this._rotateLabel.style.display = "";
+
+    this.updateRotateGuide(pivot, px, py, angleRad);
+};
+
+MarqueeController.prototype.updateRotateGuide = function(pivot, px, py, angleRad) {
+
+    var dx = px - pivot.x;
+    var dy = py - pivot.y;
+    var len = Math.sqrt(dx * dx + dy * dy);
+    var theta = Math.atan2(dy, dx);
+
+    this._rotateLine.style.left = pivot.x + "px";
+    this._rotateLine.style.top = pivot.y + "px";
+    this._rotateLine.style.width = len + "px";
+    this._rotateLine.style.transform = "rotate(" + theta + "rad)";
+
+    var deg = Math.round(angleRad * 180 / Math.PI);
+    this._rotateLabel.textContent = deg + "°";
+    this._rotateLabel.style.left = (px + 16) + "px";
+    this._rotateLabel.style.top = (py + 16) + "px";
+};
+
+MarqueeController.prototype.hideRotateGuide = function() {
+
+    this._rotateLine.style.display = "none";
+    this._rotatePivot.style.display = "none";
+    this._rotateLabel.style.display = "none";
 };
 
 MarqueeController.prototype.show = function(seats) {
