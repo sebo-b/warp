@@ -22,6 +22,12 @@ import { getZoneSeats } from '../../helpers/booking';
 
 const ZID = 1;
 
+// Where to click when adding a new seat. Must not overlap any sample-data
+// seat sprite (48×48 starting at the seat's x/y): sprites are siblings of the
+// map image, so a click landing on one never reaches the image's add-seat
+// handler. (600,150) is empty on the 1132×629 zone-1 map.
+const EMPTY_SPOT = { x: 600, y: 150 };
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 async function openEditor(page: import('@playwright/test').Page, zid = ZID): Promise<void> {
@@ -237,7 +243,7 @@ test.describe('adding a seat', () => {
     await openEditor(page);
 
     await toggleMode(page); // add mode
-    await page.locator('#zone_map').click({ position: { x: 500, y: 400 } });
+    await page.locator('#zone_map').click({ position: EMPTY_SPOT });
 
     const count = await page.locator('#zone_map_container > div[style*="background-image"]').count();
     expect(count).toBe(beforeCount + 1);
@@ -250,11 +256,11 @@ test.describe('adding a seat', () => {
 
     // Add mode → click map
     await toggleMode(page);
-    await page.locator('#zone_map').click({ position: { x: 500, y: 400 } });
+    await page.locator('#zone_map').click({ position: EMPTY_SPOT });
 
     // Switch back to edit mode to select the new seat (centred at click point)
     await toggleMode(page);
-    await page.locator('#zone_map_container').click({ position: { x: 500, y: 400 } });
+    await page.locator('#zone_map_container').click({ position: EMPTY_SPOT });
     await expect(page.locator('#seat_edit_panel')).toBeVisible();
 
     await page.locator('#seat_name').fill('TestSeatNew');
@@ -269,7 +275,7 @@ test.describe('adding a seat', () => {
     await openEditor(page);
 
     await toggleMode(page);
-    await page.locator('#zone_map').click({ position: { x: 500, y: 400 } });
+    await page.locator('#zone_map').click({ position: EMPTY_SPOT });
 
     await page.locator('#saveBtn').click();
     const modal = page.locator('.modal.open', { hasText: /update the zone/ });
@@ -298,7 +304,7 @@ test.describe('combined changes and summary dialog', () => {
 
     // 3. Add a new seat
     await toggleMode(page);
-    await page.locator('#zone_map').click({ position: { x: 500, y: 400 } });
+    await page.locator('#zone_map').click({ position: EMPTY_SPOT });
 
     await page.locator('#saveBtn').click();
     const modal = page.locator('.modal.open', { hasText: /update the zone/ });

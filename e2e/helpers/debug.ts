@@ -1,12 +1,19 @@
 import type { Page } from '@playwright/test';
 
 /** Shift utils.now() / utils.today() on the server by offsetSeconds.
- *  Requires the Flask debug blueprint (only active in DevelopmentSettings). */
+ *  Requires the Flask debug blueprint (only active in DevelopmentSettings).
+ *
+ *  Beware: shifting the clock forward by a day or more expires every login
+ *  session (SESSION_LIFETIME) — log in again after calling this. The pristineDb
+ *  fixture resets the offset before each test, so no manual cleanup is needed. */
 export async function setTimeOffset(page: Page, offsetSeconds: number): Promise<void> {
-  await page.request.post('/debug/set_time_offset', {
+  const resp = await page.request.post('/debug/set_time_offset', {
     data: { offset_seconds: offsetSeconds },
     headers: { 'Content-Type': 'application/json' },
   });
+  if (!resp.ok()) {
+    throw new Error(`set_time_offset failed: HTTP ${resp.status()}`);
+  }
 }
 
 /** Reset server time to real wall-clock time. */

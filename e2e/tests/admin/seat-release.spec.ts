@@ -147,19 +147,15 @@ test.describe('booking window with debug time offset', () => {
     expect(respBefore.status()).toBe(403);
     expect((await respBefore.json()).code).toBe(110);
 
-    // Advance time by 2 days: targetDay is now DAYS_IN_ADVANCE days from "today" → within window
+    // Advance time by 2 days: targetDay is now DAYS_IN_ADVANCE days from "today"
+    // → within window. The jump expires the session, so log in again.
     await advanceDays(page, 2);
+    await logIn(page, USER2);
 
-    const serverTime = await getServerTime(page);
-    // Today as seen by server is 2 days later, so cutoff is now 2 days further
-    // targetDay = futureDayTs(DAYS_IN_ADVANCE+2) from real now
-    //           = serverToday + DAYS_IN_ADVANCE days (within window)
     const respAfter = await apiApply(page, {
       book: { sid: seat.id, dates: [{ fromTS: targetDay + 9 * 3600, toTS: targetDay + 17 * 3600 }] },
     });
     expect(respAfter.status()).toBe(200);
-
-    await resetTimeOffset(page);
   });
 
   test('resetting time offset restores original cutoff', async ({ page }) => {
@@ -208,16 +204,16 @@ test.describe('booking window with debug time offset', () => {
     );
     await querySql('DELETE FROM book WHERE id = $1', [bookResult.rows[0].id]);
 
-    // Advance 5 days: target (day+3) is now 2 days in the past relative to fake-today
+    // Advance 5 days: target (day+3) is now 2 days in the past relative to
+    // fake-today. The jump expires the session, so log in again.
     await advanceDays(page, 5);
+    await logIn(page, USER1);
 
     const resp = await apiApply(page, {
       book: { sid: seat.id, dates: [{ fromTS: target + 9 * 3600, toTS: target + 17 * 3600 }] },
     });
     expect(resp.status()).toBe(403);
     expect((await resp.json()).code).toBe(103);
-
-    await resetTimeOffset(page);
   });
 
 });

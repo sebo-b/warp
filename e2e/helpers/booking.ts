@@ -116,7 +116,9 @@ export async function clickActionBtn(
   await page.waitForTimeout(200);
 }
 
-/** Direct XHR to /xhr/zone/apply using the current page session (cookies). */
+/** Direct XHR to /xhr/zone/apply using the current page session (cookies).
+ *  Redirects are not followed: an expired session answers with a 302 to /login,
+ *  and following it would turn that into a misleading 200 (the login page). */
 export async function apiApply(
   page: Page,
   body: object,
@@ -124,5 +126,6 @@ export async function apiApply(
   return page.request.post('/xhr/zone/apply', {
     data: body,
     headers: { 'Content-Type': 'application/json' },
+    maxRedirects: 0,
   });
 }

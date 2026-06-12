@@ -45,9 +45,16 @@ npm run report           # open last HTML report
   pristine state. `querySql()` is the escape hatch for custom setup or
   asserting persisted state.
 - **`fixtures.ts`**: exports `test`/`expect` with an `auto` fixture that calls
-  `resetDb()` before every test. **Always import `test` and `expect` from
-  `../fixtures`, never from `@playwright/test`**, or your test will inherit
-  whatever data the previous test left behind.
+  `resetDb()` and zeroes the debug time offset before every test. **Always
+  import `test` and `expect` from `../fixtures`, never from
+  `@playwright/test`**, or your test will inherit whatever data the previous
+  test left behind.
+- **Virtual time** (`helpers/debug.ts`): `setTimeOffset`/`advanceDays` shift
+  the server clock through the debug-only `/debug/set_time_offset` endpoint.
+  The offset is process-global flask state — the fixture resets it before each
+  test, so no manual cleanup is needed. Mind that jumping forward by a day or
+  more expires every login session (`SESSION_LIFETIME`): log in again after
+  advancing the clock, or `/xhr/*` calls silently redirect to `/login`.
 - Because all tests share one database, the config pins `workers: 1` and
   `fullyParallel: false`. Do not turn parallelism on without giving each
   worker its own database.

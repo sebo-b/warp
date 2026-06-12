@@ -161,31 +161,27 @@ test.describe('bookings appear in the iCal feed', () => {
     expect(events.some(e => e.summary.includes('Zone 1A') || e.summary.includes(seat.name))).toBeTruthy();
   });
 
-  test('past bookings are NOT included in the iCal feed', async ({ page }) => {
+  test('feed includes the 7-day lookback but not older bookings', async ({ page }) => {
+    // _generate_ical (warp/ical.py) keeps bookings from the last 7 days so
+    // calendar clients retain recent history, and drops anything older.
     const [seat] = await getZoneSeats(1);
     const yesterday = futureDayTs(-1);
+    const tooOld = futureDayTs(-10);
     await querySql(
-      'INSERT INTO book (login, sid, fromts, tots) VALUES ($1, $2, $3, $4)',
-      ['user1', seat.id, yesterday + 9 * 3600, yesterday + 17 * 3600],
+      'INSERT INTO book (login, sid, fromts, tots) VALUES ($1, $2, $3, $4), ($1, $2, $5, $6)',
+      ['user1', seat.id,
+       yesterday + 9 * 3600, yesterday + 17 * 3600,
+       tooOld + 9 * 3600, tooOld + 17 * 3600],
     );
 
     await logIn(page, USER1);
     const token = await enableIcal(page, 'user1');
     const events = await fetchIcal(page, 'user1', token);
 
-    // All DTSTART values should be today or in the future
-    const now = Date.now() / 1000;
-    for (const evt of events) {
-      // DTSTART is like "20260615T090000Z" or similar
-      const dtRaw = evt.dtstart.replace(/[TZ]/g, '').replace(/-/g, '');
-      // Just verify dtstart is not obviously in the past by checking the year/month
-      // Full UTC parsing would need more effort; just verify count is 0 for yesterday's booking
-    }
-    // More directly: no VEVENT should correspond to yesterday's booking
-    // The booking VEVENT summary typically contains seat/zone name
-    expect(events.every(e => !e.dtstart.includes(
-      new Date((yesterday + 9 * 3600) * 1000).toISOString().substring(0, 8).replace(/-/g, '')
-    ))).toBeTruthy();
+    const dayYMD = (ts: number) =>
+      new Date(ts * 1000).toISOString().slice(0, 10).replace(/-/g, '');
+    expect(events.some(e => e.dtstart.startsWith(dayYMD(yesterday)))).toBeTruthy();
+    expect(events.every(e => !e.dtstart.startsWith(dayYMD(tooOld)))).toBeTruthy();
   });
 
   test('only the authenticated user\'s bookings appear', async ({ page }) => {
