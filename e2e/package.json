@@ -1,0 +1,17 @@
+{
+  "name": "warp-e2e",
+  "private": true,
+  "description": "End-to-end browser tests for warp (Playwright)",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.11.0",
+    "pg": "^8.13.0"
+  }
+}

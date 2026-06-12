@@ -37,4 +37,8 @@ def create_app():
     else:
         app.register_blueprint(auth.bp)
 
+    if app.debug:
+        from . import debug as debug_mod
+        app.register_blueprint(debug_mod.bp)
+
     return app

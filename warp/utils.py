@@ -5,10 +5,15 @@ from time import localtime,strftime,gmtime
 from jsonschema import validate, ValidationError
 import functools
 
+# Debug-only time offset.  Set via POST /debug/set_time_offset (only in debug mode).
+# Never non-zero in production.
+_debug_time_offset: int = 0
+
+
 def now():
     """ Returns number of seconds since midnight 1970-1-1 in the current timezone until now"""
     """ It is timezone unaware version of unix timestamp """
-    return timegm(localtime())
+    return timegm(localtime()) + _debug_time_offset
 
 def today():
     """ Returns number of seconds since midnight 1970-1-1 in the current timezone until today's midnight"""

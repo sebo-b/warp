@@ -1,0 +1,105 @@
+# warp end-to-end tests
+
+Browser-driven e2e tests for warp using [Playwright](https://playwright.dev/).
+Tests interact with the real UI (click, type, navigate) against a self-contained
+container built from `Dockerfile_debug` — they must **not** call the XHR API
+directly. The only allowed backchannel is the database (test setup, reset,
+assertions on persisted state).
+
+## Quick start
+
+```sh
+cd e2e
+npm ci
+npx playwright install chromium
+npm test                 # builds + starts the podman container automatically
+```
+
+Useful variants:
+
+```sh
+npm run test:headed      # watch the browser
+npm run test:ui          # Playwright UI mode (best for writing tests)
+npx playwright test tests/login.spec.ts   # single file
+npm run report           # open last HTML report
+```
+
+## How the harness works
+
+- **App under test**: `Dockerfile_debug` builds a single Alpine image running
+  both PostgreSQL (port 5432) and `flask --app=warp --debug run` (port 5000).
+  Debug mode selects `DevelopmentSettings` in `warp/config.py`, which on every
+  flask start wipes the DB (`sql/clean_db.sql`), applies `sql/schema.sql`, and
+  loads `sql/sample_data.sql`.
+- **`global-setup.ts`**: if nothing answers on `http://127.0.0.1:5000/login`,
+  it runs `podman build -f Dockerfile_debug -t warp-e2e .` and starts a
+  container named `warp-e2e` publishing 5000 and 5432. If a server is already
+  up it reuses it (and teardown leaves it alone). Override the engine with
+  `E2E_CONTAINER_ENGINE=docker`, the target with `E2E_BASE_URL`.
+- **`global-teardown.ts`**: removes the container only if setup started it
+  (tracked via the `.container-started-by-setup` marker file).
+- **DB reset** (`helpers/db.ts`): `resetDb()` connects to
+  `postgres:postgres_password@127.0.0.1:5432/postgres` and replays
+  `clean_db.sql` + `schema.sql` + `sample_data.sql` — the exact same scripts
+  the app runs at startup, so app and tests can never disagree about the
+  pristine state. `querySql()` is the escape hatch for custom setup or
+  asserting persisted state.
+- **`fixtures.ts`**: exports `test`/`expect` with an `auto` fixture that calls
+  `resetDb()` before every test. **Always import `test` and `expect` from
+  `../fixtures`, never from `@playwright/test`**, or your test will inherit
+  whatever data the previous test left behind.
+- Because all tests share one database, the config pins `workers: 1` and
+  `fullyParallel: false`. Do not turn parallelism on without giving each
+  worker its own database.
+
+## Test accounts (from `warp/sql/schema.sql` + `sample_data.sql`)
+
+| login   | password        | role                       |
+|---------|-----------------|----------------------------|
+| `admin` | `noneshallpass` | admin (account_type 10)    |
+| `user1` | `password`      | regular user, display name Foo |
+| `user2` | `password`      | regular user, display name Bar |
+| `user3` | `password`      | regular user, display name Baz |
+
+`group_1a`, `group_1b`, `group_parking` are groups (account_type 100) and
+cannot log in. Sample data also defines zones 1–3 ("Zone 1", "Zone 2",
+"Parking") with seats and zone assignments — see `warp/sql/sample_data.sql`.
+
+## Conventions for writing new tests
+
+- One feature area per spec file in `tests/` (e.g. `login.spec.ts`,
+  `booking.spec.ts`, `users-admin.spec.ts`).
+- Put reusable page interactions in `helpers/` (or promote to page objects in
+  `pages/` once a flow is used by 3+ specs). `helpers/auth.ts` has
+  `logIn`/`logOut`/`expectLoggedIn`.
+- Test users live in `helpers/users.ts`; don't hardcode credentials in specs.
+- Prefer user-facing locators (`getByLabel`, `getByRole`, visible text) over
+  CSS selectors where possible.
+
+## UI quirks worth knowing (read before writing selectors)
+
+- **Client-side i18n**: elements carrying class `TR` get their text replaced
+  by JS at load time (`warp/static/i18n/en.js`). Raw template text like
+  `btn.Login` is a translation key — match the *translated* text, or use a
+  structural locator (e.g. `button[type=submit]`) when the key/translation is
+  ambiguous.
+- **Materialize CSS**: the UI uses Materialize. `<select>` elements are
+  replaced by JS dropdowns (the native select is hidden — click the rendered
+  `.select-wrapper input` instead), and modals animate (use auto-waiting
+  `expect(...).toBeVisible()` rather than fixed sleeps).
+- **Tabulator tables**: admin lists (Users, Groups, Zones) are rendered by
+  Tabulator. Rows are `.tabulator-row`, cells `.tabulator-cell`; inline cell
+  editing happens through dynamically created inputs.
+- **Logged-in marker**: `#mobile-nav` only exists in `base_logged.html`;
+  `expectLoggedIn()` relies on it.
+- The flask server runs with `--debug`; a request that raises shows the
+  Werkzeug debugger page instead of a plain 500 — screenshots in
+  `test-results/` will make that obvious.
+
+## Suggested next tests (not yet written)
+
+- Booking flow: select seat on zone map, book, verify in "My bookings".
+- Auto-book FAB behavior (see commit `edeba10`).
+- Admin user management (create user, block user → login refused).
+- Zone group autocomplete (migration 010, text-based zone_group).
+- Password change from the user menu (min length validation).
