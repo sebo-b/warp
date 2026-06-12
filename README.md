@@ -600,6 +600,34 @@ Please note that every variable can be set either in the config file or via the 
 |description:|Should user be removed from Warp groups if such mapping is not present in AAD.<br>Works like the LDAP part, see [LDAP group mapping section](#LDAP-group-mapping) for more details.|
 
 
+# Testing
+
+## Functionality guide
+
+[FEATURES.md](FEATURES.md) describes everything a user, tester, or administrator
+can do in WARP — authentication options, roles and zone types, booking rules,
+calendar integration, and all configuration variables. It is the reference for
+what behaviour is expected and is the basis for the end-to-end test suite.
+
+## End-to-end tests
+
+A browser-driven [Playwright](https://playwright.dev/) suite lives in
+[`e2e/`](e2e/). It exercises the real UI against a self-contained container
+built from `Dockerfile_debug` (PostgreSQL + flask in debug mode), with the
+database reset to a pristine sample state before every test.
+
+```sh
+cd e2e
+npm ci
+npx playwright install chromium
+npm test                 # builds + starts the container automatically (podman by default)
+```
+
+See [`e2e/README.md`](e2e/README.md) for how the harness works, useful
+variants (headed mode, UI mode, single file), test accounts, and conventions
+for writing new tests.
+
+
 # Other
 
 ## How can I support you

@@ -4,6 +4,13 @@
 > A hybrid-office desk (and parking) reservation system.  
 > This document describes everything a user, tester, or administrator can do in WARP.
 
+The behaviour described here is covered by the end-to-end Playwright suite in
+[`e2e/`](e2e/) (see [`e2e/README.md`](e2e/README.md) for how to run it).
+Exceptions that cannot be exercised in a self-contained container: the external
+authentication providers (LDAP §1.2, Azure AD §1.3, SAML §1.4), multi-language
+rendering (§20), mobile layouts (§21), and the map editor's multi-seat marquee
+transforms (§4.3).
+
 ---
 
 ## 1. Authentication & Login
