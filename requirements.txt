@@ -1,4 +1,4 @@
-flask == 2.2.*
+flask >= 3.1
 jsonschema
 xlsxwriter
 peewee>=3.17,<5

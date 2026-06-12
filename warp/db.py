@@ -5,7 +5,6 @@ import sys
 from peewee import Table, SQL, fn, IntegrityError, DatabaseError, OperationalError
 import playhouse.db_url
 import click
-from flask.cli import with_appcontext
 from flask import current_app
 
 DB = None
@@ -116,7 +115,7 @@ def init(app):
 
     if 'DATABASE_SCHEMA' in app.config:
 
-        commandParams = {"help": "Create and initialize database.", 'callback': with_appcontext(partial(initDB,True)) }
+        commandParams = {"help": "Create and initialize database.", 'callback': partial(initDB,True) }
         cmd = click.Command('init-db', **commandParams)
         app.cli.add_command(cmd)
 
