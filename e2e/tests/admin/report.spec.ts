@@ -92,3 +92,36 @@ test.describe('booking report', () => {
   });
 
 });
+
+test.describe('report Excel export', () => {
+
+  test('admin can export the report as an .xlsx file', async ({ page }) => {
+    const [seat] = await getZoneSeats(1);
+    const ts = futureDayTs(1);
+    await querySql(
+      'INSERT INTO book (login, sid, fromts, tots) VALUES ($1, $2, $3, $4)',
+      ['user1', seat.id, ts + 9 * 3600, ts + 17 * 3600],
+    );
+
+    await logIn(page, ADMIN);
+    const resp = await adminPost(page, '/xhr/bookings/report', { ...TAB, export: 'xlsx' });
+    expect(resp.status()).toBe(200);
+    expect(resp.headers()['content-disposition']).toContain('warp_export.xlsx');
+    // .xlsx files are zip archives — they start with the "PK" magic bytes.
+    const body = await resp.body();
+    expect(body.length).toBeGreaterThan(0);
+    expect(body.subarray(0, 2).toString('ascii')).toBe('PK');
+  });
+
+  test('non-admin cannot export the report (403)', async ({ page }) => {
+    await logIn(page, USER1);
+    const resp = await adminPost(page, '/xhr/bookings/report', { ...TAB, export: 'xlsx' });
+    expect(resp.status()).toBe(403);
+  });
+
+  test('export is rejected on the regular bookings list even for admins (403)', async ({ page }) => {
+    await logIn(page, ADMIN);
+    const resp = await adminPost(page, '/xhr/bookings/list', { ...TAB, export: 'xlsx' });
+    expect(resp.status()).toBe(403);
+  });
+});
