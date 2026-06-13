@@ -72,12 +72,14 @@ From the command line:
 ```
 # clone the repository
 $ git clone https://github.com/sebo-b/warp.git
-$ cd warp
+$ cd warp/containers
 
-$ docker compose -f demo_compose.yaml up
+$ docker compose up
 ```
 
 After that, open http://127.0.0.1:8080 in your browser and log in as `admin` with password `noneshallpass`.
+
+See [`containers/`](containers/) for all container files and customisation options.
 
 ### without docker compose (but why?)
 
@@ -90,7 +92,7 @@ $ cd warp
 
 # build docker image (you can skip hash if you don't want to track it)
 $ export GIT_HASH=`git log -1 --format=%h`
-$ docker build -t warp:latest -t warp:$GIT_HASH .
+$ docker build -f containers/Dockerfile -t warp:latest -t warp:$GIT_HASH .
 
 # install postrgres (what I cover here is a simplistic way just to run a demo)
 $ docker pull postgres

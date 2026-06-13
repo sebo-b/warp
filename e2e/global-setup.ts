@@ -54,7 +54,7 @@ export default async function globalSetup() {
   }
 
   console.log(`Building image '${IMAGE_TAG}' from Dockerfile_debug...`);
-  run(CONTAINER_ENGINE, ['build', '-f', 'Dockerfile_debug', '-t', IMAGE_TAG, '.']);
+  run(CONTAINER_ENGINE, ['build', '-f', 'containers/Dockerfile_debug', '-t', IMAGE_TAG, '.']);
 
   // Remove a stale (stopped) container from a previous aborted run.
   try {
