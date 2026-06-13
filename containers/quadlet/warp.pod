@@ -4,6 +4,12 @@ Description=WARP reservation system pod
 [Service]
 Restart=always
 
+# Optional: apply nftables firewall rules to the pod's network namespace after
+# the pod starts. Install nftables_init.sh to a permanent path first:
+#   sudo install -Dm755 containers/quadlet/nftables_init.sh /etc/warp/nftables_init.sh
+# Then uncomment the line below and configure ALLOWED_HTTP_SOURCE inside the script.
+# ExecStartPost=/etc/warp/nftables_init.sh
+
 [Install]
 WantedBy=multi-user.target default.target
 

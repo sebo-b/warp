@@ -1,0 +1,25 @@
+[Unit]
+Description=WARP PostgreSQL database
+PartOf=warp.service
+
+[Container]
+Pod=warp.pod
+StartWithPod=true
+ContainerName=warp-db
+
+Image=docker.io/library/postgres
+AutoUpdate=registry
+
+# Persist database files across container restarts.
+# Create the directory and ensure it is owned by the postgres UID (999) before
+# starting the pod: sudo install -d -o 999 -g 999 /var/lib/warp/pgdata
+Volume=/var/lib/warp/pgdata:/var/lib/postgresql/data
+
+# Must match the password in WARP_DATABASE in warp-app.container.
+Environment=POSTGRES_PASSWORD=<db-password>
+
+# Keep the container clock in sync with the host.
+Volume=/etc/localtime:/etc/localtime:ro
+
+[Install]
+WantedBy=multi-user.target default.target

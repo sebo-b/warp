@@ -1,7 +1,8 @@
 [Unit]
 Description=WARP reservation system application
-# Assumes PostgreSQL is running as a separate systemd service (warp-db.service).
-# Replace with your own database service name, or remove if using an external DB host.
+# warp-db.container runs PostgreSQL in the same pod; all containers share localhost.
+# If you prefer an external PostgreSQL instead, remove these two lines and update
+# WARP_DATABASE below with the external host address.
 Requires=warp-db.service
 After=warp-db.service
 

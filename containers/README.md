@@ -131,15 +131,16 @@ in `quadlet/` define a production deployment as a systemd-managed pod.
 ```
 [ systemd ]
      │
-     └─ warp.service  (pod)
-           ├─ warp-app.service    ← uWSGI on :8000 (internal)
-           └─ warp-nginx.service  ← nginx on :80, published as host :8080
+     └─ warp.service  (pod — all containers share one network namespace)
+           ├─ warp-db.service      ← PostgreSQL on :5432 (internal)
+           ├─ warp-app.service     ← uWSGI on :8000 (internal)
+           └─ warp-nginx.service   ← nginx on :80, published as host :8080
 ```
 
-PostgreSQL runs as a **separate service** (`warp-db.service`) outside the pod —
-use your own Quadlet `.container` file or an existing PostgreSQL installation.
-`warp-app.container` declares `Requires=warp-db.service` so systemd starts the
-database first.
+All three containers share `localhost`, so the app connects to the database at
+`localhost:5432` and nginx proxies to the app at `localhost:8000`.
+If you prefer an external PostgreSQL, remove `warp-db.container` and update
+`WARP_DATABASE` in `warp-app.container` with the external host.
 
 ### Quadlet files
 
@@ -147,55 +148,96 @@ database first.
 |---|---|---|
 | `warp.pod` | `.pod` | Pod definition — networking, port publishing, restart policy |
 | `warp-app.build` | `.build` | Builds the WARP image from `Dockerfile` |
+| `warp-db.container` | `.container` | PostgreSQL database container |
 | `warp-app.container` | `.container` | WARP application container (uWSGI) |
 | `warp-nginx.container` | `.container` | nginx reverse proxy container |
+| `nftables_init.sh` | shell script | Optional: pod-level firewall via nftables |
 
 ### Setup
 
-1. **Adjust paths and secrets** in the unit files before installing:
+1. **Adjust paths and secrets** in the unit files:
    - `warp-app.build` — set `File=` to the absolute path of `containers/Dockerfile`
      in your clone (e.g. `/opt/warp/containers/Dockerfile`).
-   - `warp-app.container` — replace `<db-password>` and `<change-to-a-random-secret>`
-     with real values. See [CONFIGURATION.md](../CONFIGURATION.md#secret-key) for
-     key-generation options.
-   - `warp-nginx.container` — copy `containers/nginx.conf` to the host path
-     referenced in the `Volume=` line (default: `/etc/warp/nginx.conf`):
+   - `warp-db.container` and `warp-app.container` — replace `<db-password>` with
+     the same strong password in both files.
+   - `warp-app.container` — replace `<change-to-a-random-secret>` with a generated
+     key. See [CONFIGURATION.md](../CONFIGURATION.md#secret-key).
+   - `warp-nginx.container` — copy `containers/nginx.conf` to the host path in
+     the `Volume=` line (default: `/etc/warp/nginx.conf`):
      ```sh
      sudo install -Dm644 containers/nginx.conf /etc/warp/nginx.conf
      ```
 
-2. **Copy unit files** to the Quadlet drop-in directory:
+2. **Create the database directory** and set ownership to the postgres UID (999):
    ```sh
-   # system-wide (root)
-   sudo cp containers/quadlet/* /etc/containers/systemd/
-
-   # or per-user (rootless Podman)
-   cp containers/quadlet/* ~/.config/containers/systemd/
+   sudo install -d -o 999 -g 999 /var/lib/warp/pgdata
    ```
 
-3. **Reload systemd** so it picks up the generated unit files:
+3. **Copy unit files** to the Quadlet drop-in directory:
+   ```sh
+   # system-wide (root) — copy only the .pod, .build, and .container files
+   sudo cp containers/quadlet/*.pod \
+            containers/quadlet/*.build \
+            containers/quadlet/*.container \
+            /etc/containers/systemd/
+
+   # or per-user (rootless Podman)
+   cp containers/quadlet/*.pod \
+      containers/quadlet/*.build \
+      containers/quadlet/*.container \
+      ~/.config/containers/systemd/
+   ```
+
+4. **Reload systemd** so it picks up the generated unit files:
    ```sh
    sudo systemctl daemon-reload        # system-wide
    systemctl --user daemon-reload      # rootless
    ```
 
-4. **Start the pod**:
+5. **Start the pod**:
    ```sh
    sudo systemctl start warp.service
    systemctl --user start warp.service   # rootless
    ```
 
-   On first start, `warp-app-build.service` builds the image automatically before
-   the container starts.
+   On first start, `warp-app-build.service` builds the WARP image automatically.
 
-5. **Enable on boot**:
+6. **Enable on boot**:
    ```sh
    sudo systemctl enable warp.service
    ```
 
-### Optional networking
+### Optional: pod-level firewall with nftables
 
-By default the pod uses the default Podman network. To isolate WARP on a named
+`nftables_init.sh` applies firewall rules directly inside the pod's network
+namespace after the pod starts. This lets you restrict which hosts can reach the
+pod on port 8080 — useful when the pod is attached to a network and you want only
+a trusted upstream (e.g. a load balancer) to connect.
+
+The script uses `nsenter` to enter the network namespace owned by the pod's infra
+container (`systemd-warp-infra`) and loads an nftables ruleset there, completely
+separate from the host firewall.
+
+To enable it:
+
+```sh
+# Install the script
+sudo install -Dm755 containers/quadlet/nftables_init.sh /etc/warp/nftables_init.sh
+
+# Edit /etc/warp/nftables_init.sh and set ALLOWED_HTTP_SOURCE to the IP or
+# CIDR of your upstream reverse proxy, or leave it as 0.0.0.0/0 to allow all.
+
+# Uncomment ExecStartPost= in containers/quadlet/warp.pod, then re-copy and reload:
+sudo cp containers/quadlet/warp.pod /etc/containers/systemd/
+sudo systemctl daemon-reload
+sudo systemctl restart warp.service
+```
+
+Dependencies: `jq` and `nftables` must be installed on the host.
+
+### Optional: networking
+
+By default the pod uses the default Podman network. To attach it to a named
 network, create a `warp.network` Quadlet file and uncomment the `Network=` line
 in `warp.pod`.
 
