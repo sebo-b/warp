@@ -29,11 +29,21 @@ RUN \
       -D /pgdata \
       --locale=C.UTF-8 \
       --encoding=UTF8 \
-      --data-checksums \
       --auth-local=peer \
-      --auth-host=scram-sha-256 \ 
+      --auth-host=scram-sha-256 \
+      --pwfile=/tmp/postgres_pass \
       -c listen_addresses='*' \
-      --pwfile=/tmp/postgres_pass" \
+      -c autovacuum=off \
+      -c max_worker_processes=2 \
+      -c max_parallel_workers=0 \
+      -c max_parallel_workers_per_gather=0 \
+      -c max_parallel_maintenance_workers=0 \
+      -c max_wal_senders=0 \
+      -c wal_level=minimal \
+      -c shared_buffers=16MB \
+      -c max_connections=20 \
+      -c fsync=off \
+      -c synchronous_commit=off" \
   && echo "host all all 0.0.0.0/0 scram-sha-256" >> /pgdata/pg_hba.conf \
   && rm /tmp/postgres_pass
  
