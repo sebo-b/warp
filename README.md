@@ -36,6 +36,8 @@ I've quickly evaluated a couple of existing solutions, but they were either too 
 - **SAML2.0**: Via Apache [mod_auth_mellon](https://github.com/latchset/mod_auth_mellon) module.
 - **LDAP/Active Directory**: Via LDAP3 library.
 
+See [FEATURES.md](FEATURES.md) for a detailed description of all functionality, roles, booking rules, and configuration options.
+
 ## What I'm not even planning to do
 
 - Approvals - the main goal of the system was to make it autonomous and management-free. So I don't intend to implement approval flows.
@@ -49,7 +51,37 @@ To be honest, I was not paying much attention to browser compatibility, nor was 
 
 ![demo animation](res/demo.gif)
 
-It is so easy to run it via docker compose that I have removed the demo, which was available some time ago.
+Or try it yourself in seconds — see [Quick start](#quick-start) below.
+
+# Quick start
+
+The fastest way to try WARP is with the all-in-one debug image — no database setup, no compose file, one command:
+
+```sh
+docker run --rm -p 5000:5000 ghcr.io/sebo-b/warp:debug
+```
+
+Then open http://127.0.0.1:5000 and log in. The demo is seeded with several accounts:
+
+| Login                     | Password        | Role                                      |
+| ------------------------- | --------------- | ----------------------------------------- |
+| `admin`                   | `noneshallpass` | Administrator — full management UI        |
+| `user1`, `user2`, `user3` | `password`      | Regular users — the everyday booking view |
+
+> **Note:** `warp:debug` bundles PostgreSQL and Flask's development server in a single container with a hard-coded password and auto-reset state. It is intended for demos and local exploration only — see [Container images](#container-images) below.
+
+# Container images
+
+Two images are published to the GitHub Container Registry on every push to `main` and on version tags:
+
+| Image                        | Based on                               | Purpose                                                               |
+| ---------------------------- | -------------------------------------- | --------------------------------------------------------------------- |
+| `ghcr.io/sebo-b/warp:latest` | `python:3.13-slim` + uWSGI             | Production — no database bundled, configure via environment variables |
+| `ghcr.io/sebo-b/warp:debug`  | Alpine + Flask dev server + PostgreSQL | Demo / e2e testing — self-contained, not for production               |
+
+Version tags (`v1.2.3`) produce additional `warp:1.2.3` and `warp:1.2` tags on the production image. Both images are published for `linux/amd64` and `linux/arm64`.
+
+See [`containers/README.md`](containers/README.md) for build instructions, all environment variables, Docker Compose, and Podman Quadlet deployment.
 
 # Deployment
 
@@ -61,76 +93,35 @@ Default admin credentials are: `admin:noneshallpass`
 
 Schema migrations are applied automatically on startup. WARP tracks the current schema version in the database and applies any pending migration scripts from `warp/sql/` in order.
 
-## Demo quickstart
+## Production environment
 
-The preferred way to deploy is to run it via Docker. You need a working docker, and I won't cover it here.
+For production, run the `warp:latest` image behind a reverse proxy (nginx) with PostgreSQL on a separate host.
 
-### docker compose
-
-From the command line:
+**Database Driver**: WARP uses the `psycopg3://` driver scheme (psycopg 3). Make sure your database URLs use this prefix.
 
 ```
-# clone the repository
-$ git clone https://github.com/sebo-b/warp.git
-$ cd warp/containers/compose
-
-$ docker compose up
+WARP_DATABASE=psycopg3://user:password@hostname:5432/warp_db
 ```
 
-After that, open http://127.0.0.1:8080 in your browser and log in as `admin` with password `noneshallpass`.
+For all configuration options — environment variables, secret key generation, language, and authentication providers (LDAP, Azure AD, SAML) — see [CONFIGURATION.md](CONFIGURATION.md).
 
-See [`containers/README.md`](containers/README.md) for all container files and customisation options.
+For ready-to-use deployment examples (Docker Compose, Podman Quadlet with systemd) see [`containers/README.md`](containers/README.md).
 
-### without docker compose (but why?)
+# Development
 
-From the command line:
+You need a working Python 3 environment, Node.js, and PostgreSQL. This section is intended for contributors, not for running WARP in production.
 
-```
-# clone the repository
-$ git clone https://github.com/sebo-b/warp.git
-$ cd warp
-
-# build docker image (you can skip hash if you don't want to track it)
-$ export GIT_HASH=`git log -1 --format=%h`
-$ docker build -f containers/Dockerfile -t warp:latest -t warp:$GIT_HASH .
-
-# install postrgres (what I cover here is a simplistic way just to run a demo)
-$ docker pull postgres
-$ docker run --name warp-demo-db -e POSTGRES_PASSWORD=postgres_password -d postgres
-$ export WARP_DEMO_DB_IP=`docker inspect  -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' warp-demo-db`
-
-# start warp
-$ docker run --name warp-demo-wsgi \
-> --env 'WARP_DATABASE=psycopg3://postgres:postgres_password@warp-demo-db:5432/postgres' \
-> --env WARP_SECRET_KEY=mysecretkey \
-> --env WARP_DATABASE_POST_INIT_SCRIPTS='["sql/sample_data.sql"]' \
-> --add-host=warp-demo-db:${WARP_DEMO_DB_IP} -d warp:latest
-$ export WARP_DEMO_WSGI_IP=`docker inspect  -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' warp-demo-wsgi`
-
-# install nginx as wsgi rewerse proxy
-$ docker pull nginx
-$ docker run --add-host=warp-demo-wsgi:${WARP_DEMO_WSGI_IP} --mount type=bind,source="$(pwd)"/containers/nginx.conf,target=/etc/nginx/conf.d/default.conf,readonly -d -p 127.0.0.1:8080:80 nginx
-```
-
-After that, open http://127.0.0.1:8080 in your browser and log in as `admin` with password `noneshallpass`.
-
-### without Docker - the old way
-
-You need a working Python3 environment, Node.js, and PostgreSQL, and I won't cover it here. This is not a preferred way, use it only for debugging or development purposes. Things may change, and this section can be outdated - but I assume that you know what you are doing.
-
-From the command line:
-
-```
+```sh
 # clone repo
 $ git clone https://github.com/sebo-b/warp.git
 $ cd warp
 
-# create virtual envirnoment and activate it
+# create virtual environment and activate it
 $ python3 -m venv --prompt warp .venv
 $ source .venv/bin/activate
 
 # install python requirements
-# if this raises an error in psycopg2, either install its all build dependencies
+# if this raises an error in psycopg2, either install its build dependencies
 # or change psycopg2 to psycopg2-binary in requirements.txt
 $ pip install -r requirements.txt
 
@@ -140,26 +131,14 @@ $ npm ci
 $ npm run build
 $ popd
 
-# setup database URL, if it is different than the default for debug (specified below)
+# set database URL if different from the debug default
 $ export WARP_DATABASE=psycopg3://postgres:postgres_password@127.0.0.1:5432/postgres
 
 # run the app
 $ flask --app warp --debug run
 ```
 
-After that, open http://127.0.0.1:5000 in your browser and log in as `admin` with password `noneshallpass`.
-
-## Production environment
-
-For the production environment, I recommend running Nginx and PostgreSQL on separate VMs. Then (even multiple) WARP image can be simply started via Docker and rev-proxed from Nginx.
-
-**Database Driver**: WARP uses the `psycopg3://` driver scheme (psycopg 3). Make sure your database URLs use this prefix.
-
-```
-WARP_DATABASE=psycopg3://user:password@hostname:5432/warp_db
-```
-
-For all configuration options — environment variables, database settings, secret key generation, language, and authentication providers (LDAP, Azure AD, SAML) — see [CONFIGURATION.md](CONFIGURATION.md).
+After that, open http://127.0.0.1:5000 in your browser and log in with the default credentials.
 
 # Testing
 
@@ -174,7 +153,7 @@ what behaviour is expected and is the basis for the end-to-end test suite.
 
 A browser-driven [Playwright](https://playwright.dev/) suite lives in
 [`e2e/`](e2e/). It exercises the real UI against a self-contained container
-built from `Dockerfile_debug` (PostgreSQL + flask in debug mode), with the
+built from `Dockerfile_debug` (PostgreSQL + Flask in debug mode), with the
 database reset to a pristine sample state before every test.
 
 ```sh
@@ -187,7 +166,6 @@ npm test                 # builds + starts the container automatically (podman b
 See [`e2e/README.md`](e2e/README.md) for how the harness works, useful
 variants (headed mode, UI mode, single file), test accounts, and conventions
 for writing new tests.
-
 
 # Other
 
