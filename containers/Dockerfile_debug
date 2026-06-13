@@ -32,7 +32,7 @@ RUN \
       --auth-local=peer \
       --auth-host=scram-sha-256 \
       --pwfile=/tmp/postgres_pass \
-      -c listen_addresses='*' \
+      -c listen_addresses='localhost' \
       -c autovacuum=off \
       -c max_worker_processes=2 \
       -c max_parallel_workers=0 \
@@ -46,10 +46,22 @@ RUN \
       -c synchronous_commit=off" \
   && echo "host all all 0.0.0.0/0 scram-sha-256" >> /pgdata/pg_hba.conf \
   && rm /tmp/postgres_pass
- 
+
+# Postgres listens on localhost only by default — even with `-p 5432:5432` the
+# docker/podman proxy connects to the container IP, so the database stays
+# unreachable from outside. Set EXPOSE_POSTGRES=1 (and publish 5432) to bind it
+# to all interfaces for interactive debugging.
+COPY <<'EOF' /usr/local/bin/start-postgres.sh
+#!/bin/sh
+addr=localhost
+[ -n "$EXPOSE_POSTGRES" ] && addr='*'
+exec /bin/su - postgres -c "/usr/bin/postgres -D /pgdata -c listen_addresses='$addr'"
+EOF
+RUN chmod +x /usr/local/bin/start-postgres.sh
+
 COPY <<EOF /etc/inittab
 #::sysinit:/etc/rc.local
-::respawn:/bin/su - postgres -c "/usr/bin/postgres -D /pgdata"
+::respawn:/usr/local/bin/start-postgres.sh
 ::respawn:/usr/bin/flask --app=warp --debug run --host=0.0.0.0
 ::shutdown:/bin/echo "Shutting down..."
 EOF

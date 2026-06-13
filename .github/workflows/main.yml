@@ -6,11 +6,19 @@ jobs:
     name: Build container with Docker
     steps:
     - name: Checkout
-      uses: actions/checkout@v1
+      uses: actions/checkout@v6
     - name: Build docker image and run a smoke test
       id: build_docker_image
       run: |
-        DOCKER_BUILDKIT=1 docker build -f Dockerfile -t warp:latest .
-        docker run -d -p 5000:5000 --name warp warp:latest
+        DOCKER_BUILDKIT=1 docker build -f containers/Dockerfile -t warp:latest .
+        docker run -d -p 8000:8000 --name warp warp:latest
         sleep 10
+        # uWSGI speaks the binary uwsgi protocol (not HTTP), so we cannot curl
+        # it directly; instead assert the container did not crash on boot.
+        if [ "$(docker inspect -f '{{.State.Running}}' warp)" != "true" ]; then
+          echo "::error::warp container exited during smoke test"
+          docker logs warp
+          docker rm -f warp
+          exit 1
+        fi
         docker rm -f warp

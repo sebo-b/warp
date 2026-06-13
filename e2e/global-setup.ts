@@ -69,6 +69,9 @@ export default async function globalSetup() {
     '--name', CONTAINER_NAME,
     '-p', '5000:5000',
     '-p', '5432:5432',
+    // The suite resets the database directly over TCP, so Postgres must bind
+    // all interfaces inside the container (off by default — see Dockerfile_debug).
+    '-e', 'EXPOSE_POSTGRES=1',
     IMAGE_TAG,
   ]);
   writeFileSync(MARKER_FILE, CONTAINER_NAME);

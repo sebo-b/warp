@@ -59,23 +59,38 @@ uWSGI listens on port 8000. Place nginx or another reverse proxy in front of it
 **Debug / end-to-end test image.** Single Alpine-based image that runs both
 PostgreSQL and Flask's development server in the same container:
 
-- PostgreSQL 18 on port 5432 — initialised with `postgres_password` as the
-  superuser password.
+- PostgreSQL 18 — initialised with `postgres_password` as the superuser
+  password. Listens on **localhost inside the container only** by default.
 - Flask debug server on port 5000 — resets the database to `sql/sample_data.sql`
   on every start.
 
-**Not for production use.** This image trades isolation and security for
-convenience: single container, auto-reset state, Werkzeug debugger enabled.
+> **Not for production use.** This image trades isolation and security for
+> convenience: a single container, auto-reset state, the Werkzeug debugger, a
+> hard-coded Postgres password, `fsync=off`, and the `/debug/*` blueprint with
+> its authentication bypass all enabled. The published `ghcr.io/<owner>/warp:debug`
+> tag exists purely for e2e/interactive debugging — deploy `warp:latest` (or a
+> versioned tag) instead.
 
 Used automatically by the e2e Playwright suite in `../e2e/`. You can also start
 it manually for interactive debugging:
 
 ```sh
 docker build -f containers/Dockerfile_debug -t warp-debug .
-docker run --rm -p 5000:5000 -p 5432:5432 warp-debug
+docker run --rm -p 5000:5000 warp-debug
 ```
 
 Then open http://127.0.0.1:5000 and log in as `admin` / `noneshallpass`.
+
+**Reaching PostgreSQL from the host.** By default the database is bound to the
+container's loopback interface, so `-p 5432:5432` alone will *not* expose it
+(the proxy connects to the container IP, which Postgres is not listening on). To
+inspect the database from the host, set `EXPOSE_POSTGRES=1` so Postgres binds all
+interfaces, and publish the port:
+
+```sh
+docker run --rm -p 5000:5000 -p 5432:5432 -e EXPOSE_POSTGRES=1 warp-debug
+# then: psql "postgresql://postgres:postgres_password@127.0.0.1:5432/postgres"
+```
 
 ---
 

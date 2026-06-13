@@ -29,3 +29,17 @@ def set_time_offset():
         'now': utils.now(),
         'today': utils.today(),
     }
+
+
+@bp.route('/debug/endpoints', methods=['GET'])
+def list_endpoints():
+    """Return all non-debug registered routes — used by the e2e coverage test."""
+    rules = [
+        {
+            'endpoint': r.endpoint,
+            'rule': r.rule,
+        }
+        for r in flask.current_app.url_map.iter_rules()
+        if r.endpoint != 'static' and not r.endpoint.startswith('debug.')
+    ]
+    return flask.jsonify(sorted(rules, key=lambda x: x['rule']))

@@ -1,0 +1,44 @@
+name: E2E tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  playwright:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Install e2e dependencies
+        run: npm ci
+        working-directory: e2e
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+        working-directory: e2e
+
+      # The Playwright global-setup (e2e/global-setup.ts) builds the warp-e2e
+      # image from containers/Dockerfile_debug and starts the container itself,
+      # so there is no separate build step here.
+      - name: Run Playwright tests
+        run: npm test
+        working-directory: e2e
+        env:
+          E2E_CONTAINER_ENGINE: docker
+
+      - name: Upload test report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/
+          retention-days: 7
