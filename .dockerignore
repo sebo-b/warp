@@ -1,0 +1,6 @@
+**/__pycache__
+**/*.pyc
+js/node_modules/
+.git/
+/warp/templates/headers/
+/warp/static/dist/

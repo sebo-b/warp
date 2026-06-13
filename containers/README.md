@@ -24,16 +24,9 @@ containers/
 
 ## `Dockerfile`
 
-**Production image.** Multi-stage build based on `python:3.13-slim`:
-
-1. **Compile stage** — installs Node.js, builds the JavaScript bundle with webpack,
-   compiles all Python dependencies into wheels, and packages WARP itself.
-2. **Runtime stage** — copies only the built wheels and static assets; runs WARP via
-   uWSGI on port 8000.
-
-This image contains **no database**. In production, run PostgreSQL separately and
-configure the connection via `WARP_DATABASE_ADDRESS`, `WARP_DATABASE_NAME`,
-`WARP_DATABASE_USER`, and `WARP_DATABASE_PASSWORD`.
+**Production image.** Runs WARP via uWSGI on port 8000. Contains **no database** —
+run PostgreSQL separately and configure the connection via `WARP_DATABASE_ADDRESS`,
+`WARP_DATABASE_NAME`, `WARP_DATABASE_USER`, and `WARP_DATABASE_PASSWORD`.
 
 Build from the repository root:
 ```sh

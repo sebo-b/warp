@@ -2,25 +2,33 @@ FROM alpine:latest AS builder
 
 RUN apk add nodejs npm python3 py3-pip
 
+# WARP Python dependencies
 WORKDIR /warp
-COPY requirements.txt setup.py MANIFEST.in .
-COPY warp/ warp/
+COPY requirements.txt .
+RUN pip wheel -w wheel -r requirements.txt
 
+# webpack dependencies
 WORKDIR /warp/js
 COPY js/package.json js/package-lock.json js/webpack.config.js .
+RUN npm ci
+
+# build
 COPY js/views/ views/
 COPY js/base/ base/
-RUN npm ci && npm run build
+RUN npm run build
 
+# copy warp and build it as a module
 WORKDIR /warp
-RUN pip wheel -w wheel .
+COPY setup.py MANIFEST.in .
+COPY warp/ warp/
+RUN pip wheel -w wheel --no-deps .
 
 FROM alpine:latest
 
 RUN apk add python3 py3-pip postgresql18
 RUN \
     --mount=type=bind,from=builder,source=/warp/wheel,target=./wheel \
-    pip install --break-system-packages --no-index wheel/*.whl
+    pip install --break-system-packages --no-index --no-deps wheel/*.whl
 RUN \
   install -d -m 700 -o postgres -g postgres /pgdata \
   && install -d -m 755 -o postgres -g postgres /run/postgresql \
@@ -69,4 +77,3 @@ EOF
 EXPOSE 5000/tcp 5432/tcp
 STOPSIGNAL SIGUSR2
 ENTRYPOINT ["/sbin/init"]
-
