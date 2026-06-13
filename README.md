@@ -61,20 +61,6 @@ Default admin credentials are: `admin:noneshallpass`
 
 Schema migrations are applied automatically on startup. WARP tracks the current schema version in the database and applies any pending migration scripts from `warp/sql/` in order.
 
-Currently shipped migrations:
-
-| File | Required when upgrading from |
-|:---|:---|
-| `migration_001_days_in_advance.sql` | a version before the `days_in_advance` per-assignment booking window |
-| `migration_002_zone_type.sql` | a version before zone type feature |
-| `migration_003_seat_assign_everyone.sql` | a version before virtual "everyone" access |
-| `migration_004_user_prefs.sql` | a version before user preferences feature |
-| `migration_005_ical.sql` | a version before iCal calendar integration |
-| `migration_006_calendar_reminders.sql` | a version before per-zone booking reminders |
-| `migration_007_calendar_cache.sql` | a version before iCal caching optimization |
-| `migration_008_zone_default_type.sql` | a version before zone default type feature |
-| `migration_009_zone_preview_prefs.sql` | a version before zone preview preferences |
-
 ## Demo quickstart
 
 The preferred way to deploy is to run it via Docker. You need a working docker, and I won't cover it here.
