@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: 'postgres_password'
   warp-demo-wsgi:
     build:
-      context: ..
+      context: ../..
       dockerfile: containers/Dockerfile
     depends_on:
     - warp-demo-db
@@ -20,6 +20,6 @@ services:
     depends_on:
     - warp-demo-wsgi
     volumes:
-      - ../res/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../nginx.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
       - "8080:80"

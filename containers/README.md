@@ -1,14 +1,28 @@
 # WARP Container Files
 
 This directory contains all container-related files for building and deploying WARP.
-Both Docker and Podman are supported — substitute `docker` with `podman` in any command
-below if that is your runtime.
+Both Docker and Podman are supported — substitute `docker` with `podman` in any
+command below if that is your runtime.
+
+## Directory layout
+
+```
+containers/
+  Dockerfile          — production image (uWSGI, no database)
+  Dockerfile_debug    — all-in-one debug/test image (Flask + PostgreSQL)
+  nginx.conf          — minimal nginx reverse-proxy configuration
+  compose/
+    compose.yaml      — example deployment via Docker / Podman Compose
+  quadlet/
+    warp.pod          — Podman Quadlet: pod definition
+    warp-app.build    — Podman Quadlet: build the production image
+    warp-app.container — Podman Quadlet: WARP application container
+    warp-nginx.container — Podman Quadlet: nginx reverse proxy container
+```
 
 ---
 
-## Files
-
-### `Dockerfile`
+## `Dockerfile`
 
 **Production image.** Multi-stage build based on `python:3.13-slim`:
 
@@ -35,32 +49,29 @@ docker run -d \
   warp:latest
 ```
 
-uWSGI listens on port 8000. Place an Nginx or other reverse proxy in front of it
-(see `../res/nginx.conf` for a minimal example).
+uWSGI listens on port 8000. Place nginx or another reverse proxy in front of it
+(see `nginx.conf` below).
 
 ---
 
-### `Dockerfile_debug`
+## `Dockerfile_debug`
 
 **Debug / end-to-end test image.** Single Alpine-based image that runs both
 PostgreSQL and Flask's development server in the same container:
 
-- PostgreSQL 18 on port 5432 — initialised with `postgres_password` as the superuser
-  password.
-- Flask debug server on port 5000 — resets the database to `sql/sample_data.sql` on
-  every start.
+- PostgreSQL 18 on port 5432 — initialised with `postgres_password` as the
+  superuser password.
+- Flask debug server on port 5000 — resets the database to `sql/sample_data.sql`
+  on every start.
 
-**Not for production use.** This image trades isolation and security for convenience:
-everything in one container, auto-reset state, Werkzeug debugger enabled.
+**Not for production use.** This image trades isolation and security for
+convenience: single container, auto-reset state, Werkzeug debugger enabled.
 
-Used automatically by the e2e Playwright suite in `../e2e/`. You can also start it
-manually for interactive debugging:
+Used automatically by the e2e Playwright suite in `../e2e/`. You can also start
+it manually for interactive debugging:
 
 ```sh
-# build
 docker build -f containers/Dockerfile_debug -t warp-debug .
-
-# run
 docker run --rm -p 5000:5000 -p 5432:5432 warp-debug
 ```
 
@@ -68,10 +79,19 @@ Then open http://127.0.0.1:5000 and log in as `admin` / `noneshallpass`.
 
 ---
 
-### `compose.yaml`
+## `nginx.conf`
 
-**Example production-style deployment** using Docker Compose. Brings up three
-services:
+Minimal nginx configuration that reverse-proxies HTTP traffic to the WARP uWSGI
+process on port 8000. Used by both `compose/compose.yaml` (mounted automatically)
+and the Quadlet deployment (copy to the host before starting the pod — see the
+[Quadlet setup](#setup) section below).
+
+---
+
+## `compose/compose.yaml`
+
+**Example production-style deployment** using Docker / Podman Compose. Brings up
+three services:
 
 | Service | Image | Role |
 |---|---|---|
@@ -79,8 +99,9 @@ services:
 | `warp-demo-wsgi` | built from `Dockerfile` | WARP application (uWSGI) |
 | `warp-demo-nginx` | `nginx` (official) | Reverse proxy, port 8080 |
 
-**Quick start** (from this directory):
+**Quick start** (from the `compose/` directory):
 ```sh
+cd containers/compose
 docker compose up
 ```
 
@@ -101,18 +122,9 @@ For all available settings see [CONFIGURATION.md](../CONFIGURATION.md).
 
 ## Podman Quadlet (systemd integration)
 
-[Quadlet](https://docs.podman.io/en/latest/markdown/podman-systemd.unit.5.html) lets
-Podman generate systemd services from declarative unit files. The four files below
-define a production deployment as a systemd-managed pod.
-
-### Files
-
-| File | Type | Role |
-|---|---|---|
-| `warp.pod` | `.pod` | Pod definition — networking, port publishing, restart policy |
-| `warp-app.build` | `.build` | Builds the WARP image from `Dockerfile` |
-| `warp-app.container` | `.container` | WARP application container (uWSGI) |
-| `warp-nginx.container` | `.container` | Nginx reverse proxy container |
+[Quadlet](https://docs.podman.io/en/latest/markdown/podman-systemd.unit.5.html)
+lets Podman generate systemd services from declarative unit files. The four files
+in `quadlet/` define a production deployment as a systemd-managed pod.
 
 ### Architecture
 
@@ -129,6 +141,15 @@ use your own Quadlet `.container` file or an existing PostgreSQL installation.
 `warp-app.container` declares `Requires=warp-db.service` so systemd starts the
 database first.
 
+### Quadlet files
+
+| File | Type | Role |
+|---|---|---|
+| `warp.pod` | `.pod` | Pod definition — networking, port publishing, restart policy |
+| `warp-app.build` | `.build` | Builds the WARP image from `Dockerfile` |
+| `warp-app.container` | `.container` | WARP application container (uWSGI) |
+| `warp-nginx.container` | `.container` | nginx reverse proxy container |
+
 ### Setup
 
 1. **Adjust paths and secrets** in the unit files before installing:
@@ -136,33 +157,32 @@ database first.
      in your clone (e.g. `/opt/warp/containers/Dockerfile`).
    - `warp-app.container` — replace `<db-password>` and `<change-to-a-random-secret>`
      with real values. See [CONFIGURATION.md](../CONFIGURATION.md#secret-key) for
-     key generation.
-   - `warp-nginx.container` — copy `../res/nginx.conf` to the host path referenced
-     in the `Volume=` line (default: `/etc/warp/nginx.conf`).
+     key-generation options.
+   - `warp-nginx.container` — copy `containers/nginx.conf` to the host path
+     referenced in the `Volume=` line (default: `/etc/warp/nginx.conf`):
+     ```sh
+     sudo install -Dm644 containers/nginx.conf /etc/warp/nginx.conf
+     ```
 
 2. **Copy unit files** to the Quadlet drop-in directory:
    ```sh
    # system-wide (root)
-   cp warp.pod warp-app.build warp-app.container warp-nginx.container \
-      /etc/containers/systemd/
+   sudo cp containers/quadlet/* /etc/containers/systemd/
 
    # or per-user (rootless Podman)
-   cp warp.pod warp-app.build warp-app.container warp-nginx.container \
-      ~/.config/containers/systemd/
+   cp containers/quadlet/* ~/.config/containers/systemd/
    ```
 
 3. **Reload systemd** so it picks up the generated unit files:
    ```sh
-   systemctl daemon-reload          # system-wide
-   # or
-   systemctl --user daemon-reload   # rootless
+   sudo systemctl daemon-reload        # system-wide
+   systemctl --user daemon-reload      # rootless
    ```
 
 4. **Start the pod**:
    ```sh
-   systemctl start warp.service
-   # or
-   systemctl --user start warp.service
+   sudo systemctl start warp.service
+   systemctl --user start warp.service   # rootless
    ```
 
    On first start, `warp-app-build.service` builds the image automatically before
@@ -170,14 +190,14 @@ database first.
 
 5. **Enable on boot**:
    ```sh
-   systemctl enable warp.service
+   sudo systemctl enable warp.service
    ```
 
 ### Optional networking
 
 By default the pod uses the default Podman network. To isolate WARP on a named
-network, create a `warp.network` Quadlet file and uncomment the `Network=` line in
-`warp.pod`.
+network, create a `warp.network` Quadlet file and uncomment the `Network=` line
+in `warp.pod`.
 
 For rootless deployments with custom UID/GID mappings, uncomment and adjust the
 `UserNS=` line in `warp.pod` to match your `/etc/subuid` and `/etc/subgid` entries.

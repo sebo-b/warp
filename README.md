@@ -72,14 +72,14 @@ From the command line:
 ```
 # clone the repository
 $ git clone https://github.com/sebo-b/warp.git
-$ cd warp/containers
+$ cd warp/containers/compose
 
 $ docker compose up
 ```
 
 After that, open http://127.0.0.1:8080 in your browser and log in as `admin` with password `noneshallpass`.
 
-See [`containers/`](containers/) for all container files and customisation options.
+See [`containers/README.md`](containers/README.md) for all container files and customisation options.
 
 ### without docker compose (but why?)
 
@@ -109,7 +109,7 @@ $ export WARP_DEMO_WSGI_IP=`docker inspect  -f '{{range.NetworkSettings.Networks
 
 # install nginx as wsgi rewerse proxy
 $ docker pull nginx
-$ docker run --add-host=warp-demo-wsgi:${WARP_DEMO_WSGI_IP} --mount type=bind,source="$(pwd)"/res/nginx.conf,target=/etc/nginx/conf.d/default.conf,readonly -d -p 127.0.0.1:8080:80 nginx
+$ docker run --add-host=warp-demo-wsgi:${WARP_DEMO_WSGI_IP} --mount type=bind,source="$(pwd)"/containers/nginx.conf,target=/etc/nginx/conf.d/default.conf,readonly -d -p 127.0.0.1:8080:80 nginx
 ```
 
 After that, open http://127.0.0.1:8080 in your browser and log in as `admin` with password `noneshallpass`.
