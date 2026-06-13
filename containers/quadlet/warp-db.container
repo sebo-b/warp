@@ -15,8 +15,12 @@ AutoUpdate=registry
 # starting the pod: sudo install -d -o 999 -g 999 /var/lib/warp/pgdata
 Volume=/var/lib/warp/pgdata:/var/lib/postgresql/data
 
-# Must match the password in WARP_DATABASE in warp-app.container.
-Environment=POSTGRES_PASSWORD=<db-password>
+# Database password is injected from the podman secret "warp-db-password".
+Secret=warp-db-password,type=env,target=POSTGRES_PASSWORD
+
+# Name of the database to create on first init. Must match WARP_DATABASE_NAME
+# in warp-app.container.
+Environment=POSTGRES_DB=warp
 
 # Keep the container clock in sync with the host.
 Volume=/etc/localtime:/etc/localtime:ro

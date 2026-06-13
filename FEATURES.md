@@ -650,10 +650,13 @@ All text on these pages is translated according to the deployment-wide language 
 | `TIMEZONE`                   | auto-detect    | Timezone label for iCal DTSTART/DTEND                |
 | `LANGUAGE_FILE`              | `i18n/en.js`   | UI language file                                     |
 | `SECRET_KEY`                 | — (required)   | Key for signing session cookies                      |
-| `DATABASE`                   | — (required)   | Database connection URL (`psycopg3://…`)             |
+| `DATABASE_ADDRESS`          | — (required)   | Database host or `host:port` (port defaults to 5432) |
+| `DATABASE_NAME`             | — (required)   | Database name                                         |
+| `DATABASE_USER`             | — (required)   | Database username                                     |
+| `DATABASE_PASSWORD`         | — (required)   | Database password                                     |
 | `DATABASE_ARGS`              | `{}`           | Extra arguments passed to the database driver        |
 
-Any setting can be provided as an environment variable with the `WARP_` prefix (e.g. `WARP_SECRET_KEY`, `WARP_WEEKS_IN_ADVANCE`); values are parsed as JSON where possible, otherwise taken as strings.
+Any setting can be provided as an environment variable with the `WARP_` prefix (e.g. `WARP_SECRET_KEY`, `WARP_WEEKS_IN_ADVANCE`); each value is parsed according to the type of the setting it maps to (string, integer, boolean, or JSON array/object). An unknown `WARP_` variable is ignored with a warning, and a value that does not match its setting's type aborts startup.
 
 ### 27.1 LDAP Settings (§1.2)
 

@@ -5,11 +5,13 @@ import { Client } from 'pg';
 // SQL scripts are taken straight from the application source so the reset
 // replays exactly what the app does on first start in debug mode
 // (DevelopmentSettings: DATABASE_PRE_INIT_SCRIPTS + schema + POST_INIT_SCRIPTS).
+// The component defaults (DATABASE_ADDRESS, DATABASE_NAME, etc.) in
+// DevelopmentSettings resolve to the same database.
 const SQL_DIR = path.resolve(__dirname, '../../warp/sql');
 const RESET_SCRIPTS = ['clean_db.sql', 'schema.sql', 'sample_data.sql'];
 
-// Credentials match DevelopmentSettings.DATABASE in warp/config.py and the
-// password baked into Dockerfile_debug.
+// Credentials match DevelopmentSettings component defaults in warp/config.py
+// and the password baked into Dockerfile_debug.
 function dbClient(): Client {
   return new Client({
     host: process.env.E2E_DB_HOST ?? '127.0.0.1',

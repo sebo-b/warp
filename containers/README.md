@@ -32,7 +32,8 @@ containers/
    uWSGI on port 8000.
 
 This image contains **no database**. In production, run PostgreSQL separately and
-point `WARP_DATABASE` at it.
+configure the connection via `WARP_DATABASE_ADDRESS`, `WARP_DATABASE_NAME`,
+`WARP_DATABASE_USER`, and `WARP_DATABASE_PASSWORD`.
 
 Build from the repository root:
 ```sh
@@ -44,7 +45,10 @@ Run (replace values as needed):
 docker run -d \
   --name warp \
   -p 8000:8000 \
-  -e WARP_DATABASE="psycopg3://user:password@db-host:5432/warp" \
+  -e WARP_DATABASE_ADDRESS="db-host:5432" \
+  -e WARP_DATABASE_NAME=warp \
+  -e WARP_DATABASE_USER=user \
+  -e WARP_DATABASE_PASSWORD=password \
   -e WARP_SECRET_KEY="<generated-secret>" \
   warp:latest
 ```
@@ -127,7 +131,7 @@ Open http://127.0.0.1:8080 and log in as `admin` / `noneshallpass`.
 | Variable | Current value | What to set |
 |---|---|---|
 | `WARP_SECRET_KEY` | `mysecretkey` | A random secret — see [CONFIGURATION.md](../CONFIGURATION.md#secret-key) |
-| `POSTGRES_PASSWORD` | `postgres_password` | A strong database password (update in both services) |
+| `POSTGRES_PASSWORD` | `postgres_password` (via shared secret) | A strong database password (set once in the secret file, used by both services) |
 | `WARP_DATABASE_POST_INIT_SCRIPTS` | loads sample data | Remove or replace with your own seed |
 | `WARP_LANGUAGE_FILE` | `i18n/en.js` | Your preferred language |
 
@@ -155,7 +159,8 @@ in `quadlet/` define a production deployment as a systemd-managed pod.
 All three containers share `localhost`, so the app connects to the database at
 `localhost:5432` and nginx proxies to the app at `localhost:8000`.
 If you prefer an external PostgreSQL, remove `warp-db.container` and update
-`WARP_DATABASE` in `warp-app.container` with the external host.
+`WARP_DATABASE_ADDRESS` (and `WARP_DATABASE_NAME`/`WARP_DATABASE_USER`/password)
+in `warp-app.container` with the external host.
 
 ### Quadlet files
 
@@ -170,13 +175,23 @@ If you prefer an external PostgreSQL, remove `warp-db.container` and update
 
 ### Setup
 
-1. **Adjust paths and secrets** in the unit files:
+1. **Create podman secrets and adjust paths** in the unit files:
+   - Create the database password secret (used by both the DB and app containers):
+     ```sh
+     # rootless
+     printf '%s' 'a-strong-db-password' | podman secret create warp-db-password -
+     # or system-wide
+     printf '%s' 'a-strong-db-password' | sudo podman secret create warp-db-password -
+     ```
+   - Create the Flask secret key:
+     ```sh
+     # rootless
+     python -c 'import os; print(os.urandom(16))' | podman secret create warp-secret-key -
+     # or system-wide
+     python -c 'import os; print(os.urandom(16))' | sudo podman secret create warp-secret-key -
+     ```
    - `warp-app.build` — set `File=` to the absolute path of `containers/Dockerfile`
      in your clone (e.g. `/opt/warp/containers/Dockerfile`).
-   - `warp-db.container` and `warp-app.container` — replace `<db-password>` with
-     the same strong password in both files.
-   - `warp-app.container` — replace `<change-to-a-random-secret>` with a generated
-     key. See [CONFIGURATION.md](../CONFIGURATION.md#secret-key).
    - `warp-nginx.container` — copy `containers/nginx.conf` to the host path in
      the `Volume=` line (default: `/etc/warp/nginx.conf`):
      ```sh

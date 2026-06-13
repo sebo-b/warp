@@ -1,10 +1,8 @@
-from functools import partial
 from time import sleep
 import sys
 
 from peewee import Table, SQL, fn, IntegrityError, DatabaseError, OperationalError
-import playhouse.db_url
-import click
+from playhouse.postgres_ext import Psycopg3Database
 from flask import current_app
 
 DB = None
@@ -81,7 +79,21 @@ __all__ = ["DB", "Blobs", "Users", "Groups","Seat", "Zone", "ZoneAssign", "Book"
            'ZONE_TYPE_DISABLED', 'ZONE_TYPE_ENABLED', 'ZONE_TYPE_PUBLIC_VIEW', 'ZONE_TYPE_PUBLIC_BOOK',
            'EVERYONE_KEY', 'effectiveZoneRole']
 
-_ADVISORY_LOCK_KEY = 7484381
+DB_SCHEMA_FILE = "sql/schema.sql"
+DB_MIGRATIONS = [
+    (1, "sql/migration_001_days_in_advance.sql"),
+    (2, "sql/migration_002_zone_type.sql"),
+    (3, "sql/migration_003_seat_assign_everyone.sql"),
+    (4, "sql/migration_004_user_prefs.sql"),
+    (5, "sql/migration_005_ical.sql"),
+    (6, "sql/migration_006_calendar_reminders.sql"),
+    (7, "sql/migration_007_calendar_cache.sql"),
+    (8, "sql/migration_008_zone_default_type.sql"),
+    (9, "sql/migration_009_zone_preview_prefs.sql"),
+    (10, "sql/migration_010_zone_group_text.sql"),
+]
+
+DB_ADVISORY_LOCK_KEY = 7484381
 
 def _connect():
     DB.connect()
@@ -93,10 +105,22 @@ def init(app):
 
     global DB
 
-    connStr = app.config['DATABASE']
-    connArgs = app.config['DATABASE_ARGS'] if 'DATABASE_ARGS' in app.config else {}
+    address = app.config['DATABASE_ADDRESS']
+    host, _, port = address.rpartition(':')
+    if not host:
+        host, port = address, '5432'
+    connArgs = app.config.get('DATABASE_ARGS', {})
 
-    DB = playhouse.db_url.connect(connStr, autoconnect=False, thread_safe=True, **connArgs)
+    DB = Psycopg3Database(
+        app.config['DATABASE_NAME'],
+        host=host,
+        port=int(port),
+        user=app.config['DATABASE_USER'],
+        password=app.config['DATABASE_PASSWORD'],
+        autoconnect=False,
+        thread_safe=True,
+        **connArgs,
+    )
 
     Blobs.bind(DB)
     Users.bind(DB)
@@ -113,23 +137,12 @@ def init(app):
     app.before_request(_connect)
     app.teardown_request(_disconnect)
 
-    if 'DATABASE_SCHEMA' in app.config:
+    with app.app_context():
+        initDB()
 
-        commandParams = {"help": "Create and initialize database.", 'callback': partial(initDB,True) }
-        cmd = click.Command('init-db', **commandParams)
-        app.cli.add_command(cmd)
+def initDB():
 
-    if '--help' not in sys.argv[1:] and 'init-db' not in sys.argv[1:]:
-        with app.app_context():
-            initDB()
-
-def initDB(force = False):
-
-    schema = current_app.config.get('DATABASE_SCHEMA')
-
-    if not schema:
-        print("DATABASE_SCHEMA not defined")
-        return
+    schema = DB_SCHEMA_FILE
 
     preScripts = current_app.config.get('DATABASE_PRE_INIT_SCRIPTS', [])
     postScripts = current_app.config.get('DATABASE_POST_INIT_SCRIPTS', [])
@@ -146,16 +159,15 @@ def initDB(force = False):
 
             with DB:
 
-                DB.execute_sql(f"SELECT pg_advisory_xact_lock({_ADVISORY_LOCK_KEY})")
+                DB.execute_sql(f"SELECT pg_advisory_xact_lock({DB_ADVISORY_LOCK_KEY})")
 
                 table_exists = False
                 column_exists = False
-                if not force:
-                    table_exists, column_exists = DB.execute_sql(
-                        "SELECT "
-                        "EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = 'db_initialized' AND table_schema = current_schema()), "
-                        "EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name = 'db_initialized' AND column_name = 'version' AND table_schema = current_schema())"
-                    ).fetchone()
+                table_exists, column_exists = DB.execute_sql(
+                    "SELECT "
+                    "EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = 'db_initialized' AND table_schema = current_schema()), "
+                    "EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name = 'db_initialized' AND column_name = 'version' AND table_schema = current_schema())"
+                ).fetchone()
 
                 if table_exists:
                     if not column_exists:
@@ -165,7 +177,7 @@ def initDB(force = False):
                     else:
                         current_version = DB.execute_sql("SELECT version FROM db_initialized LIMIT 1").fetchone()[0]
 
-                    migration_scripts = current_app.config.get('DATABASE_MIGRATION_SCRIPTS', [])
+                    migration_scripts = DB_MIGRATIONS
                     for target_version, script in sorted(migration_scripts):
                         if target_version > current_version:
                             print(f'Executing migration script: {script}')
@@ -175,7 +187,7 @@ def initDB(force = False):
 
                     break
 
-                print(f'Initializing DB force={force}')
+                print('Initializing DB')
 
                 for script in preScripts:
 

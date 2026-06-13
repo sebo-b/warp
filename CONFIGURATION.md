@@ -5,23 +5,29 @@ environment variable prefixed with `WARP_` (e.g. `WARP_SECRET_KEY`, `WARP_WEEKS_
 
 ## How environment variables work
 
-Environment variable values are always strings, so WARP parses them into the correct
-Python type automatically. Each value is lowercased and then fed through `json.loads`.
-If that fails, it is kept as a plain string. This lets you pass any Python type from
-the environment:
+Environment variable values are always strings; WARP parses each one according to
+the **type of the setting it maps to**. The type comes from the setting, not from
+guessing the value — so a string setting such as a numeric-looking password is never
+coerced to an integer.
 
-| Python type   | Example env var value                 |
-| ------------- | ------------------------------------- |
-| boolean       | `"true"` / `"false"`                  |
-| integer       | `"30"`                                |
-| null          | `"null"`                              |
-| array         | `'["sql/seed.sql", "sql/extra.sql"]'` |
-| object / dict | `'{"connect_timeout": 10}'`           |
+| Setting type   | Accepted env value                                              |
+| -------------- | -------------------------------------------------------------- |
+| string         | used verbatim (e.g. `WARP_DATABASE_PASSWORD=s3cret`)           |
+| integer        | `"30"`                                                         |
+| boolean        | `true` / `false` (also `yes`/`no`, `on`/`off`, `1`/`0`)        |
+| array / object | JSON, e.g. `'["sql/seed.sql"]'` or `'{"connect_timeout": 10}'` |
+
+An unrecognised `WARP_` variable is ignored with a warning; a value that does not
+match its setting's type aborts startup with an error naming the variable.
 
 **Passing values in docker run:**
 
 ```sh
 docker run --env WARP_SECRET_KEY=mysecretkey \
+           --env WARP_DATABASE_ADDRESS=db-host:5432 \
+           --env WARP_DATABASE_NAME=warp \
+           --env WARP_DATABASE_USER=user \
+           --env WARP_DATABASE_PASSWORD=password \
            --env WARP_WEEKS_IN_ADVANCE=2 \
            --env 'WARP_OMITTED_WEEKDAYS=[5, 6]' \
            warp:latest
@@ -32,6 +38,10 @@ docker run --env WARP_SECRET_KEY=mysecretkey \
 ```yaml
 environment:
   WARP_SECRET_KEY: mysecretkey
+  WARP_DATABASE_ADDRESS: "db-host:5432"
+  WARP_DATABASE_NAME: warp
+  WARP_DATABASE_USER: user
+  WARP_DATABASE_PASSWORD: password
   WARP_WEEKS_IN_ADVANCE: "2"
   WARP_OMITTED_WEEKDAYS: "[5, 6]"
 ```
@@ -42,7 +52,10 @@ environment:
 
 | Setting                      | Default      | Required | Description                                    |
 | ---------------------------- | ------------ | :------: | ---------------------------------------------- |
-| `DATABASE`                   | —            | **yes**  | Database connection URL                        |
+| `DATABASE_ADDRESS`          | —            | **yes**  | `host` or `host:port` (port defaults to 5432) |
+| `DATABASE_NAME`             | —            | **yes**  | Database name                                 |
+| `DATABASE_USER`             | —            | **yes**  | Database username                              |
+| `DATABASE_PASSWORD`         | —            | **yes**  | Database password                              |
 | `SECRET_KEY`                 | —            | **yes**¹ | Cookie signing key                             |
 | `DATABASE_ARGS`              | `{}`         |    no    | Extra args for the psycopg3 driver             |
 | `SESSION_LIFETIME`           | `1`          |    no    | Session duration in days                       |
@@ -64,15 +77,18 @@ environment:
 
 ## Database
 
-### Connection URL
+### Connection settings
 
-WARP uses the **psycopg3** driver. Connection URLs must start with `psycopg3://`:
+WARP uses the **psycopg3** driver. Connection is configured via discrete
+component settings rather than a URL — this avoids URL-encoding pitfalls with
+passwords containing special characters.
 
-```
-WARP_DATABASE=psycopg3://user:password@hostname:5432/warp_db
-```
-
-Older schemes (`postgresql://`, `psycopg2://`) are not supported.
+| Setting              | Required | Description                                           |
+| -------------------- | :------: | ----------------------------------------------------- |
+| `DATABASE_ADDRESS`   | **yes**  | `host` or `host:port`; port defaults to `5432`        |
+| `DATABASE_NAME`      | **yes**  | Database name                                         |
+| `DATABASE_USER`      | **yes**  | Database username                                     |
+| `DATABASE_PASSWORD`  | **yes**  | Database password                                     |
 
 Optional extra driver arguments (passed verbatim to psycopg3):
 
@@ -82,22 +98,43 @@ WARP_DATABASE_ARGS='{"connect_timeout": 10, "application_name": "warp"}'
 
 ### Initialization scripts
 
-These variables control what SQL WARP runs when it first creates the schema, and
-whenever a force-reinit is triggered. The execution order is:
-`PRE_INIT_SCRIPTS` → schema → `POST_INIT_SCRIPTS`.
+These variables control what SQL WARP runs when it first creates the schema.
+The execution order is: `PRE_INIT_SCRIPTS` → schema → `POST_INIT_SCRIPTS`.
 
-| Variable                     | Type                       | Default            | Description                                                                                                                                                                                        |
-| ---------------------------- | -------------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_PRE_INIT_SCRIPTS`  | `array` of `string`        | `[]`               | SQL files executed **before** the schema. Useful for teardown/cleanup in development.                                                                                                              |
-| `DATABASE_SCHEMA`            | `string`                   | `"sql/schema.sql"` | Path to the canonical schema file. Rarely needs overriding.                                                                                                                                        |
-| `DATABASE_POST_INIT_SCRIPTS` | `array` of `string`        | `[]`               | SQL files executed **after** the schema on first init (e.g. seed data).                                                                                                                            |
-| `DATABASE_MIGRATION_SCRIPTS` | `array` of `(int, string)` | see `config.py`    | Ordered `(version, path)` pairs for automatic schema migrations. Any migration whose version is higher than the recorded database version is applied in order on startup. Rarely needs overriding. |
+The schema path (`sql/schema.sql`) and migration registry are internal to
+`warp/db.py` and are not configurable.
+
+| Variable                     | Type                | Default | Description                                                                                                              |
+| ---------------------------- | ------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `DATABASE_PRE_INIT_SCRIPTS`  | `array` of `string` | `[]`    | SQL files executed **before** the schema. Useful for teardown/cleanup in development.                                    |
+| `DATABASE_POST_INIT_SCRIPTS` | `array` of `string` | `[]`   | SQL files executed **after** the schema on first init (e.g. seed data).                                                  |
 
 Example — load sample data on first run:
 
 ```
 WARP_DATABASE_POST_INIT_SCRIPTS='["sql/sample_data.sql"]'
 ```
+
+### Secrets / `_FILE` convention
+
+The two secrets — the database password and the secret key — can be read from a
+file instead of an environment variable by appending `_FILE` to the variable
+name. This suits Docker/Compose and Podman secrets:
+
+| Variable                      | Sets the value of   |
+| ----------------------------- | ------------------- |
+| `WARP_DATABASE_PASSWORD_FILE` | `DATABASE_PASSWORD` |
+| `WARP_SECRET_KEY_FILE`        | `SECRET_KEY`        |
+
+```
+WARP_DATABASE_PASSWORD_FILE=/run/secrets/db_password
+WARP_SECRET_KEY_FILE=/run/secrets/secret_key
+```
+
+The file contents (with one trailing newline stripped) become the value. `_FILE`
+is **not** a generic suffix — only the two variables above support it. Do not set
+both `WARP_<KEY>` and `WARP_<KEY>_FILE` for the same key; the result depends on
+environment order and is intentionally undefined.
 
 ---
 

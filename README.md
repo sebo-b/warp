@@ -97,10 +97,13 @@ Schema migrations are applied automatically on startup. WARP tracks the current 
 
 For production, run the `warp:latest` image behind a reverse proxy (nginx) with PostgreSQL on a separate host.
 
-**Database Driver**: WARP uses the `psycopg3://` driver scheme (psycopg 3). Make sure your database URLs use this prefix.
+**Database connection**: WARP connects to PostgreSQL via discrete component settings (no URL):
 
 ```
-WARP_DATABASE=psycopg3://user:password@hostname:5432/warp_db
+WARP_DATABASE_ADDRESS=hostname:5432
+WARP_DATABASE_NAME=warp_db
+WARP_DATABASE_USER=user
+WARP_DATABASE_PASSWORD=password
 ```
 
 For all configuration options — environment variables, secret key generation, language, and authentication providers (LDAP, Azure AD, SAML) — see [CONFIGURATION.md](CONFIGURATION.md).
@@ -121,8 +124,6 @@ $ python3 -m venv --prompt warp .venv
 $ source .venv/bin/activate
 
 # install python requirements
-# if this raises an error in psycopg2, either install its build dependencies
-# or change psycopg2 to psycopg2-binary in requirements.txt
 $ pip install -r requirements.txt
 
 # compile JavaScript files
@@ -131,8 +132,13 @@ $ npm ci
 $ npm run build
 $ popd
 
-# set database URL if different from the debug default
-$ export WARP_DATABASE=psycopg3://postgres:postgres_password@127.0.0.1:5432/postgres
+# set database connection if different from the debug defaults
+# (DevelopmentSettings already defaults to 127.0.0.1:5432, db=postgres,
+# user=postgres, password=postgres_password)
+# export WARP_DATABASE_ADDRESS=127.0.0.1:5432
+# export WARP_DATABASE_NAME=postgres
+# export WARP_DATABASE_USER=postgres
+# export WARP_DATABASE_PASSWORD=postgres_password
 
 # run the app
 $ flask --app warp --debug run

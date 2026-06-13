@@ -2,7 +2,7 @@
 Description=WARP reservation system application
 # warp-db.container runs PostgreSQL in the same pod; all containers share localhost.
 # If you prefer an external PostgreSQL instead, remove these two lines and update
-# WARP_DATABASE below with the external host address.
+# WARP_DATABASE_ADDRESS below with the external host address.
 Requires=warp-db.service
 After=warp-db.service
 
@@ -14,14 +14,15 @@ ContainerName=warp-app
 # Image is built by warp-app.build / warp-app-build.service.
 Image=warp-app.build
 
-# Database connection — must use the psycopg3:// scheme.
-# If PostgreSQL runs inside the same pod, use localhost.
-# If it runs on an external host, replace localhost with the hostname or IP.
-Environment=WARP_DATABASE=psycopg3://postgres:<db-password>@localhost:5432/warp
+# Database connection. If PostgreSQL runs in the same pod, use localhost.
+# For an external host, set DATABASE_ADDRESS to its host[:port].
+Environment=WARP_DATABASE_ADDRESS=localhost:5432
+Environment=WARP_DATABASE_NAME=warp
+Environment=WARP_DATABASE_USER=postgres
+Secret=warp-db-password,type=env,target=WARP_DATABASE_PASSWORD
 
-# Cookie signing key — generate with: python -c 'import os; print(os.urandom(16))'
-# See CONFIGURATION.md for more key-generation options.
-Environment=WARP_SECRET_KEY=<change-to-a-random-secret>
+# Cookie signing key — injected from the podman secret "warp-secret-key".
+Secret=warp-secret-key,type=env,target=WARP_SECRET_KEY
 
 # UI language. Available: en, de, fr, es, pl.
 Environment=WARP_LANGUAGE_FILE=i18n/en.js

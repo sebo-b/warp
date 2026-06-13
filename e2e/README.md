@@ -41,7 +41,9 @@ npm run report           # open last HTML report
 - **`global-teardown.ts`**: removes the container only if setup started it
   (tracked via the `.container-started-by-setup` marker file).
 - **DB reset** (`helpers/db.ts`): `resetDb()` connects to
-  `postgres:postgres_password@127.0.0.1:5432/postgres` and replays
+  `postgres:postgres_password@127.0.0.1:5432/postgres` (matching the
+  `DevelopmentSettings` component defaults — `DATABASE_ADDRESS`,
+  `DATABASE_NAME`, `DATABASE_USER`, `DATABASE_PASSWORD`) and replays
   `clean_db.sql` + `schema.sql` + `sample_data.sql` — the exact same scripts
   the app runs at startup, so app and tests can never disagree about the
   pristine state. `querySql()` is the escape hatch for custom setup or
