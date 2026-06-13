@@ -1,0 +1,9 @@
+[Unit]
+Description=Build the WARP application image
+
+[Build]
+ImageTag=localhost/warp
+
+# Absolute path to the production Dockerfile.
+# Adjust to wherever you have cloned / installed the repository.
+File=/opt/warp/containers/Dockerfile

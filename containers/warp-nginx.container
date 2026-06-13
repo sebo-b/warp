@@ -1,0 +1,20 @@
+[Unit]
+Description=WARP nginx reverse proxy
+Requires=warp-app.service
+After=warp-app.service
+
+[Container]
+Pod=warp.pod
+StartWithPod=true
+ContainerName=warp-nginx
+
+Image=docker.io/library/nginx
+AutoUpdate=registry
+
+# Mount the nginx configuration file.
+# Copy res/nginx.conf from the repository to a permanent location on the host
+# and adjust the path below.
+Volume=/etc/warp/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+
+[Install]
+WantedBy=multi-user.target default.target

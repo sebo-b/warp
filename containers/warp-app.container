@@ -1,0 +1,34 @@
+[Unit]
+Description=WARP reservation system application
+# Assumes PostgreSQL is running as a separate systemd service (warp-db.service).
+# Replace with your own database service name, or remove if using an external DB host.
+Requires=warp-db.service
+After=warp-db.service
+
+[Container]
+Pod=warp.pod
+StartWithPod=true
+ContainerName=warp-app
+
+# Image is built by warp-app.build / warp-app-build.service.
+Image=warp-app.build
+
+# Database connection — must use the psycopg3:// scheme.
+# If PostgreSQL runs inside the same pod, use localhost.
+# If it runs on an external host, replace localhost with the hostname or IP.
+Environment=WARP_DATABASE=psycopg3://postgres:<db-password>@localhost:5432/warp
+
+# Cookie signing key — generate with: python -c 'import os; print(os.urandom(16))'
+# See CONFIGURATION.md for more key-generation options.
+Environment=WARP_SECRET_KEY=<change-to-a-random-secret>
+
+# UI language. Available: en, de, fr, es, pl.
+Environment=WARP_LANGUAGE_FILE=i18n/en.js
+
+# Uncomment and adjust any additional settings from CONFIGURATION.md:
+# Environment=WARP_WEEKS_IN_ADVANCE=1
+# Environment=WARP_OMITTED_WEEKDAYS=[5, 6]
+# Environment=WARP_MIN_PASSWORD_LENGTH=8
+
+[Install]
+WantedBy=multi-user.target default.target

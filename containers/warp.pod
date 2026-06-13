@@ -1,0 +1,25 @@
+[Unit]
+Description=WARP reservation system pod
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target default.target
+
+[Pod]
+# Expose nginx to the host on port 8080.
+PublishPort=8080:80
+
+# Optional: attach to a specific Podman network.
+# Network=your-network.network
+
+# Optional: assign a fixed IP within that network.
+# IP=x.x.x.x
+
+# Optional: custom hostname visible inside the pod.
+PodmanArgs=--hostname=warp
+
+# Optional: rootless UID/GID mapping for user namespaces.
+# Adjust the host UID/GID ranges to match your /etc/subuid and /etc/subgid entries.
+# UserNS=auto:uidmapping=0:<host-uid-start>:<count>,gidmapping=0:<host-gid-start>:<count>
