@@ -1,8 +1,6 @@
 import { execFileSync } from 'child_process';
 import { existsSync, rmSync } from 'fs';
-import { CONTAINER_NAME, MARKER_FILE } from './global-setup';
-
-const CONTAINER_ENGINE = process.env.E2E_CONTAINER_ENGINE ?? 'podman';
+import { CONTAINER_ENGINE, CONTAINER_NAME, MARKER_FILE } from './global-setup';
 
 export default async function globalTeardown() {
   // Only stop the container if global-setup started it; a manually started

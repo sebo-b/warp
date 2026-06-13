@@ -8,7 +8,18 @@ export const IMAGE_TAG = 'warp-e2e';
 export const MARKER_FILE = path.join(__dirname, '.container-started-by-setup');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
-const CONTAINER_ENGINE = process.env.E2E_CONTAINER_ENGINE ?? 'podman';
+
+function detectContainerEngine(): string {
+  if (process.env.E2E_CONTAINER_ENGINE) return process.env.E2E_CONTAINER_ENGINE;
+  try {
+    execFileSync('podman', ['--version'], { stdio: 'ignore' });
+    return 'podman';
+  } catch {
+    return 'docker';
+  }
+}
+
+export const CONTAINER_ENGINE = detectContainerEngine();
 
 function run(cmd: string, args: string[]) {
   execFileSync(cmd, args, { stdio: 'inherit', cwd: REPO_ROOT });

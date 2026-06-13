@@ -32,10 +32,12 @@ npm run report           # open last HTML report
   flask start wipes the DB (`sql/clean_db.sql`), applies `sql/schema.sql`, and
   loads `sql/sample_data.sql`.
 - **`global-setup.ts`**: if nothing answers on `http://127.0.0.1:5000/login`,
-  it runs `podman build -f Dockerfile_debug -t warp-e2e .` and starts a
+  it runs `<engine> build -f Dockerfile_debug -t warp-e2e .` and starts a
   container named `warp-e2e` publishing 5000 and 5432. If a server is already
-  up it reuses it (and teardown leaves it alone). Override the engine with
-  `E2E_CONTAINER_ENGINE=docker`, the target with `E2E_BASE_URL`.
+  up it reuses it (and teardown leaves it alone). The container engine is
+  auto-detected: `podman` is used if it is on `$PATH`, otherwise `docker`.
+  Override with `E2E_CONTAINER_ENGINE=docker` (or any other engine); override
+  the target URL with `E2E_BASE_URL`.
 - **`global-teardown.ts`**: removes the container only if setup started it
   (tracked via the `.container-started-by-setup` marker file).
 - **DB reset** (`helpers/db.ts`): `resetDb()` connects to
