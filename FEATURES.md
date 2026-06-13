@@ -15,6 +15,8 @@ transforms (§4.3).
 
 ## 1. Authentication & Login
 
+Logins are matched case-insensitively by default (`LOGIN_IGNORECASE`): a name entered in any letter case resolves to the same stored account across every backend, so a case-insensitive directory (e.g. LDAP) cannot create duplicate accounts. The stored login keeps its original case.
+
 ### 1.1 Built-in Authentication (default)
 - Users log in with a **login** and **password** on the login page.
 - Wrong credentials display an error; no detail is given about which field is incorrect (prevents enumeration).
@@ -645,6 +647,7 @@ All text on these pages is translated according to the deployment-wide language 
 | `SESSION_LIFETIME`           | 1 (day)        | Force re-login after this many days                  |
 | `MAX_REPORT_ROWS`            | 5000           | Maximum rows in Excel export                         |
 | `MIN_PASSWORD_LENGTH`        | 6              | Minimum password length                              |
+| `LOGIN_IGNORECASE`           | true           | Match logins case-insensitively across all backends  |
 | `MAX_MAP_SIZE`               | 2 MB           | Maximum zone map image size                          |
 | `MAX_CONTENT_LENGTH`         | 5 MB           | Maximum request body size                            |
 | `TIMEZONE`                   | auto-detect    | Timezone label for iCal DTSTART/DTEND                |

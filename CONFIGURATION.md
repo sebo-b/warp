@@ -66,6 +66,7 @@ environment:
 | `OMITTED_WEEKDAYS`           | `[]`         |    no    | Weekday numbers to hide (0=Mon … 6=Sun)        |
 | `AUTOBOOK_USAGE_WINDOW_DAYS` | `30`         |    no    | Days window for auto-book seat ranking         |
 | `MIN_PASSWORD_LENGTH`        | `6`          |    no    | Minimum password length                        |
+| `LOGIN_IGNORECASE`           | `true`       |    no    | Match logins case-insensitively (all backends) |
 | `MAX_REPORT_ROWS`            | `5000`       |    no    | Maximum rows in Excel export                   |
 | `MAX_MAP_SIZE`               | `2 MB`       |    no    | Maximum zone map image size                    |
 | `MAX_CONTENT_LENGTH`         | `5 MB`       |    no    | Maximum request body size                      |
@@ -261,6 +262,20 @@ All SSO providers support:
 - **Auto-provisioning**: a WARP user account is created automatically on first login.
 - **Group mapping**: SSO groups can be mapped to WARP groups (see [Group mapping](#ldap-group-mapping)).
 - **Excluded users**: specific logins can be kept on local password auth even when SSO is active.
+
+### Case-insensitive logins
+
+| Setting            | Default | Description                                          |
+| ------------------ | ------- | ---------------------------------------------------- |
+| `LOGIN_IGNORECASE` | `true`  | Match logins regardless of letter case, all backends |
+
+With `LOGIN_IGNORECASE` enabled (the default), a login entered in any case
+(`jdoe`, `JDoe`, `JDOE`) resolves to the same stored account, and the session,
+bookings, and group membership stay keyed to the single login already stored.
+This prevents duplicate accounts when the identity provider treats names
+case-insensitively (common with LDAP/Active Directory). The stored login keeps
+its original case; only matching is case-insensitive. Disable it only if your
+directory genuinely distinguishes users by letter case.
 
 ---
 

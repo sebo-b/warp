@@ -1,9 +1,20 @@
 import flask
+from peewee import fn
 from werkzeug.security import check_password_hash, generate_password_hash
 from warp.db import *
 from . import utils
 
 bp = flask.Blueprint('auth', __name__)
+
+
+def loginMatch(login):
+    """A peewee predicate matching the stored ``Users.login`` against ``login``,
+    case-insensitively when ``LOGIN_IGNORECASE`` is enabled. Sign-in code uses the
+    matched row's stored login as the canonical identity, so bookings and group
+    membership stay keyed to a single account regardless of the entered case."""
+    if login is not None and flask.current_app.config.get('LOGIN_IGNORECASE'):
+        return fn.LOWER(Users.login) == login.lower()
+    return Users.login == login
 
 # NOTE:
 # In this module I don't use decorators (route and before_app_request) to register
@@ -27,7 +38,7 @@ def login():
         u = flask.request.form.get('login')
         p =  flask.request.form.get('password')
 
-        c = Users.select().where((Users.login == u) & (Users.account_type != ACCOUNT_TYPE_GROUP))
+        c = Users.select().where(loginMatch(u) & (Users.account_type != ACCOUNT_TYPE_GROUP))
 
         if len(c) == 1 \
            and c[0]['password'] is not None \

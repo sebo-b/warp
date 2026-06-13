@@ -140,16 +140,18 @@ def ldapApplyUserMetadata(login,userData):
 
     with DB.atomic():
 
-        c = Users.select(Users.name).where(Users.login == login).scalar()
-        if c is None:
+        existing = Users.select(Users.login, Users.name).where(warp.auth.loginMatch(login)).first()
+        if existing is None:
             Users.insert({
                 Users.login: login,
                 Users.name: userData["userName"],
                 Users.account_type: ACCOUNT_TYPE_USER,
                 Users.password: '*'
             }).execute()
-        elif c != userData["userName"]:
-            Users.update({Users.name: userData["userName"]}).where(Users.login == login).execute()
+        else:
+            login = existing['login']    # canonical stored login (case may differ)
+            if existing['name'] != userData["userName"]:
+                Users.update({Users.name: userData["userName"]}).where(Users.login == login).execute()
 
         existingGroups = Users.select( Users.login ) \
             .where( Users.account_type == ACCOUNT_TYPE_GROUP ) \
@@ -171,6 +173,8 @@ def ldapApplyUserMetadata(login,userData):
                 .where( Groups.group.not_in(existingGroups) ) \
                 .execute()
 
+    return login
+
 
 
 def ldapLogin(login, password):
@@ -186,7 +190,7 @@ def ldapLogin(login, password):
     if not userMetadata:
         return False
 
-    ldapApplyUserMetadata(login,userMetadata)
+    login = ldapApplyUserMetadata(login,userMetadata)
 
     flask.session['login'] = login
     flask.session['login_time'] = utils.now()

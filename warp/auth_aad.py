@@ -72,8 +72,7 @@ def signin_oidc():
 			return flask.render_template("auth_error.html", result=result, application_root_uri=app_root_uri)
 
 		userData = aadGetUserMetadata(result.get("id_token_claims"))
-		aadApplyUserMetadata(userData)
-		flask.session['login'] = userData['login']
+		flask.session['login'] = aadApplyUserMetadata(userData)
 		flask.session['login_time'] = utils.now()
 
 	return flask.redirect(app_root_uri)
@@ -97,16 +96,19 @@ def aadGetUserMetadata(userData):
 
 def aadApplyUserMetadata(userData):
 	with DB.atomic():
-		c = Users.select(Users.name).where(Users.login == userData['login']).scalar()
-		if c is None:
+		login = userData['login']
+		existing = Users.select(Users.login, Users.name).where(warp.auth.loginMatch(login)).first()
+		if existing is None:
 			Users.insert({
-				Users.login: userData['login'],
+				Users.login: login,
 				Users.name: userData["userName"],
 				Users.account_type: ACCOUNT_TYPE_USER,
 				Users.password: '*'
 			}).execute()
-		elif c != userData["userName"]:
-			Users.update({Users.name: userData["userName"]}).where(Users.login == userData['login']).execute()
+		else:
+			login = existing['login']    # canonical stored login (case may differ)
+			if existing['name'] != userData["userName"]:
+				Users.update({Users.name: userData["userName"]}).where(Users.login == login).execute()
 
 		existingGroups = Users.select( Users.login ) \
 			.where( Users.account_type == ACCOUNT_TYPE_GROUP ) \
@@ -117,7 +119,7 @@ def aadApplyUserMetadata(userData):
 		if len(existingGroups) != len(userData["groups"]):
 			print("AAD WARNING: some of the groups defined in AAD and mapped via AAD_GROUP_MAP doesn't exist in Warp")
 
-		insertData = [ {Groups.login: userData['login'], Groups.group: i} for i in existingGroups ]
+		insertData = [ {Groups.login: login, Groups.group: i} for i in existingGroups ]
 		Groups.insert(insertData).on_conflict_ignore().execute()
 
 		strictMapping = flask.current_app.config.get('AAD_GROUP_STRICT_MAPPING')
@@ -126,6 +128,8 @@ def aadApplyUserMetadata(userData):
 				.where( Groups.login == login ) \
 				.where( Groups.group.not_in(existingGroups) ) \
 				.execute()
+
+	return login
 
 bp.route('/logout')(warp.auth.logout)
 bp.before_app_request(warp.auth.session)

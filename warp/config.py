@@ -42,6 +42,12 @@ class DefaultSettings(object):
 
     MIN_PASSWORD_LENGTH = 6
 
+    # Treat logins case-insensitively across every auth backend: a user signs in
+    # regardless of letter case and always resolves to a single stored account.
+    # Prevents duplicate accounts when the identity provider (e.g. LDAP) is itself
+    # case-insensitive. Disable only if your directory has case-sensitive logins.
+    LOGIN_IGNORECASE = True
+
     DATABASE_PRE_INIT_SCRIPTS = []
     DATABASE_POST_INIT_SCRIPTS = []
 
@@ -191,6 +197,7 @@ _ENV_SETTINGS = {
     "MAX_MAP_SIZE":               _fmt_int,
     "MAX_REPORT_ROWS":            _fmt_int,
     "MIN_PASSWORD_LENGTH":        _fmt_int,
+    "LOGIN_IGNORECASE":           _fmt_bool,
     # database
     "DATABASE_ADDRESS":           _fmt_str,
     "DATABASE_NAME":              _fmt_str,

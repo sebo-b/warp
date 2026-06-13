@@ -1,6 +1,6 @@
 import flask
 from .db import *
-from warp.auth import session
+from warp.auth import session, loginMatch
 from . import utils
 
 bp = flask.Blueprint('auth', __name__)
@@ -27,9 +27,9 @@ def login():
 
     userName = bytes(userName,'ISO-8859-1').decode('utf-8')
 
-    c = Users.select(Users.name).where(Users.login == login).scalar()
+    existing = Users.select(Users.login, Users.name).where(loginMatch(login)).first()
 
-    if c is None:
+    if existing is None:
 
         with DB.atomic():
 
@@ -47,10 +47,12 @@ def login():
                     Groups.login: login
                 }).execute()
 
-    elif c != userName:
+    else:
 
-        with DB.atomic():
-            Users.update({Users.name: userName}).where(Users.login == login).execute()
+        login = existing['login']    # canonical stored login (case may differ)
+        if existing['name'] != userName:
+            with DB.atomic():
+                Users.update({Users.name: userName}).where(Users.login == login).execute()
 
 
     flask.session['login'] = login
