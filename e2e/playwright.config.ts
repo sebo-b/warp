@@ -1,7 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
 
-export const BASE_URL = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:5000';
-
 export default defineConfig({
   testDir: './tests',
 
@@ -17,8 +15,10 @@ export default defineConfig({
   globalSetup: './global-setup.ts',
   globalTeardown: './global-teardown.ts',
 
+  // baseURL is supplied per worker by the `baseURL` fixture override in
+  // fixtures.ts, since the host port is random and only known after global
+  // setup has started the container.
   use: {
-    baseURL: BASE_URL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },

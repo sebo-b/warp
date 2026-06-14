@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
 import path from 'path';
 import { Client } from 'pg';
+import { getRuntimeInfo } from './runtime';
 
 // SQL scripts are taken straight from the application source so the reset
 // replays exactly what the app does on first start in debug mode
@@ -11,11 +12,13 @@ const SQL_DIR = path.resolve(__dirname, '../../warp/sql');
 const RESET_SCRIPTS = ['clean_db.sql', 'schema.sql', 'sample_data.sql'];
 
 // Credentials match DevelopmentSettings component defaults in warp/config.py
-// and the password baked into Dockerfile_debug.
+// and the password baked into Dockerfile_debug. Host/port come from the
+// runtime info (the container's Postgres is published on a random host port).
 function dbClient(): Client {
+  const rt = getRuntimeInfo();
   return new Client({
-    host: process.env.E2E_DB_HOST ?? '127.0.0.1',
-    port: Number(process.env.E2E_DB_PORT ?? 5432),
+    host: rt.dbHost,
+    port: rt.dbPort,
     user: 'postgres',
     password: 'postgres_password',
     database: 'postgres',

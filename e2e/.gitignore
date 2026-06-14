@@ -1,4 +1,4 @@
 node_modules/
 test-results/
 playwright-report/
-.container-started-by-setup
+.e2e-runtime.json
