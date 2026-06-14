@@ -41,6 +41,18 @@
         {% for i in headerDataR %}
         <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}" class="TR">{{i['text']}}</a></li>
         {% endfor %}
+        <li class="divider"></li>
+        {% set ns = namespace(current_group = None) %}
+        {% for i in headerDataAdmin %}
+        {% if i['group'] != ns.current_group %}
+        {% if ns.current_group is not none %}
+        <li class="divider"></li>
+        {% endif %}
+        <li class="admin-menu-group-header"><span class="TR">admin_menu.{{ i['group'] }}</span></li>
+        {% set ns.current_group = i['group'] %}
+        {% endif %}
+        <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}" class="TR">{{i['text']}}</a></li>
+        {% endfor %}
         {% endif %}
     </ul>
 
@@ -230,6 +242,7 @@
                 {% for i in headerDataR %}
                 <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}" class="TR">{{i['text']}}</a></li>
                 {% endfor %}
+                <li><a class="dropdown-trigger" href="#!" data-target="admin_menu_dropdown"><i class="material-icons">settings</i></a></li>
             </ul>
             {% endif %}
 
@@ -253,6 +266,22 @@
         <li><a href="{{ url_for('auth.logout') }}" class="TR">Logout</a></li>
         {% endif %}
     </ul>
+
+    {% if g.isAdmin %}
+    <ul id="admin_menu_dropdown" class="dropdown-content">
+        {% set ns = namespace(current_group = None) %}
+        {% for i in headerDataAdmin %}
+        {% if i['group'] != ns.current_group %}
+        {% if ns.current_group is not none %}
+        <li class="divider" tabindex="-1"></li>
+        {% endif %}
+        <li class="admin-menu-group-header"><span class="TR">admin_menu.{{ i['group'] }}</span></li>
+        {% set ns.current_group = i['group'] %}
+        {% endif %}
+        <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}" class="TR">{{i['text']}}</a></li>
+        {% endfor %}
+    </ul>
+    {% endif %}
 
 {% endblock %}
 

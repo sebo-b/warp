@@ -128,6 +128,8 @@ warpGlobals.i18n.phrases = {
         "The seat is booked by another person or not available.",
     "The seat is in a view-only zone — you can see it but cannot book it.":
         "The seat is in a view-only zone — you can see it but cannot book it.",
+    "The seat is booked by someone in a view-only zone — you can see it but cannot book it.":
+        "The seat is booked by someone in a view-only zone — you can see it but cannot book it.",
     "The seat is booked by you on the selected date and time.":
         "The seat is booked by you on the selected date and time.",
     "The seat is booked by you, but not exactly on the selected date or time. You can update booking, all your other reservations at that time will be automatically updated.":
@@ -295,4 +297,7 @@ warpGlobals.i18n.phrases = {
     'You must create a zone before adding seats.': 'You must create a zone before adding seats.',
     'seatEdit.Zone for new seats': 'Zone for new seats',
     'This action cannot be undone.': 'This action cannot be undone.',
+    'admin_menu.user_management': 'User management',
+    'admin_menu.plan_management': 'Plan management',
+    'Plans': 'Plans',
 };

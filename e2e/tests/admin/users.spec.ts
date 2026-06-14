@@ -23,17 +23,21 @@ test.describe('admin page access control', () => {
     });
   }
 
-  test('admin sees admin nav links in the header', async ({ page }) => {
+  test('admin sees settings icon and admin nav links in the header', async ({ page }) => {
     await logIn(page, ADMIN);
     await page.goto('/');
-    await expect(page.locator('nav a', { hasText: 'Users' })).toBeVisible();
-    await expect(page.locator('nav a', { hasText: 'Zones' })).toBeVisible();
+    // The settings icon opens the admin dropdown
+    await expect(page.locator('nav .dropdown-trigger[data-target="admin_menu_dropdown"]')).toBeVisible();
+    // Open the dropdown and verify links inside
+    await page.locator('nav .dropdown-trigger[data-target="admin_menu_dropdown"]').click();
+    await expect(page.locator('#admin_menu_dropdown a', { hasText: 'Users' })).toBeVisible();
+    await expect(page.locator('#admin_menu_dropdown a', { hasText: 'Zones' })).toBeVisible();
   });
 
-  test('regular user does not see admin nav links', async ({ page }) => {
+  test('regular user does not see admin settings icon', async ({ page }) => {
     await logIn(page, USER2);
     await page.goto('/');
-    await expect(page.locator('nav a', { hasText: 'Users' })).toHaveCount(0);
+    await expect(page.locator('nav .dropdown-trigger[data-target="admin_menu_dropdown"]')).toHaveCount(0);
   });
 
 });

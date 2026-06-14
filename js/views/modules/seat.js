@@ -42,7 +42,8 @@ WarpSeat.SeatStates = {
     CAN_CHANGE: 6,      // seat is already booked by this user, but can be changed (extended, reduced, deleted)
     CAN_DELETE: 7,      // seat is already booked by this user, but cannot be changed
     CAN_DELETE_EXACT: 8, // seat is already booked by this user, cannot be changed and selected dated are exactly matching booking dates
-    VIEW_ONLY: 9        // seat is visible but cannot be booked (viewer access in a public-view or disabled zone)
+    VIEW_ONLY: 9,       // seat is visible but cannot be booked — free (grey empty circle)
+    VIEW_ONLY_TAKEN: 10 // seat is visible but taken by someone else (grey circle with person)
 }
 
 WarpSeat.Sprites = {
@@ -57,7 +58,8 @@ WarpSeat.Sprites = {
     bookAssignedOffset: "-336px",
     rebookAssignedOffset: "-384px",
     assignedOffset: "-432px",
-    viewOnlyOffset: "-480px"
+    viewOnlyOffset: "-480px",
+    viewOnlyTakenOffset: "-528px"
 };
 
 function WarpSeatFactory(spriteURL,rootDivId,login) {
@@ -398,13 +400,6 @@ WarpSeat.prototype._bookingsIterator = function*() {
     }
 }
 
-WarpSeat.prototype._isFreeForSelectedDates = function() {
-    for (var i of this._bookingsIterator()) {
-        return false;
-    }
-    return true;
-};
-
 WarpSeat.prototype._updateState = function() {
 
     if (!this.factory.selectedDates.length) {
@@ -438,7 +433,7 @@ WarpSeat.prototype._updateState = function() {
                 isFree = false;
                 break;
             }
-            this.state = isFree ? WarpSeat.SeatStates.VIEW_ONLY : WarpSeat.SeatStates.TAKEN;
+            this.state = isFree ? WarpSeat.SeatStates.VIEW_ONLY : WarpSeat.SeatStates.VIEW_ONLY_TAKEN;
             return this.state;
         }
     }
@@ -590,6 +585,9 @@ WarpSeat.prototype._updateView = function() {
         break;
         case WarpSeat.SeatStates.VIEW_ONLY:
             this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.viewOnlyOffset;
+            break;
+        case WarpSeat.SeatStates.VIEW_ONLY_TAKEN:
+            this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.viewOnlyTakenOffset;
             break;
         case WarpSeat.SeatStates.DISABLED:
             this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.disabledOffset;
