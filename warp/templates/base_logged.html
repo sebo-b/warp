@@ -38,9 +38,13 @@
         {% endfor %}
         {% if g.isAdmin %}
         <li class="divider"></li>
-        {% for i in headerDataR %}
-        <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}" class="TR">{{i['text']}}</a></li>
-        {% endfor %}
+        <li><a href="{{ url_for('view.bookings', report='report') }}" class="TR">Report</a></li>
+        <li class="divider"></li>
+        <li><a href="{{ url_for('view.users') }}" class="TR">Users</a></li>
+        <li><a href="{{ url_for('view.groups') }}" class="TR">Groups</a></li>
+        <li class="divider"></li>
+        <li><a href="{{ url_for('view.zones') }}" class="TR">Zones</a></li>
+        <li><a href="{{ url_for('view.plans') }}" class="TR">Plans</a></li>
         {% endif %}
     </ul>
 
@@ -51,10 +55,8 @@
                 <div class="input-field col s12">
                     <select id="pref_default_zone">
                         <option value="">--</option>
-                        {% for i in headerDataL %}
-                        {% if 'zid' in i['view_args'] %}
-                        <option value="{{ i['view_args']['zid'] }}">{{ i['text'] }}</option>
-                        {% endif %}
+                        {% for z in accessibleZones %}
+                        <option value="{{ z['id'] }}">{{ z['name'] }}</option>
                         {% endfor %}
                     </select>
                     <label class="TR">Default zone</label>
@@ -150,9 +152,9 @@
                     <div class="row">
                         <div class="input-field col s12">
                             <select id="cal_zones" multiple>
-                                {% for i in headerDataL %}{% if 'zid' in i['view_args'] %}
-                                <option value="{{ i['view_args']['zid'] }}">{{ i['text'] }}</option>
-                                {% endif %}{% endfor %}
+                                {% for z in accessibleZones %}
+                                <option value="{{ z['id'] }}">{{ z['name'] }}</option>
+                                {% endfor %}
                             </select>
                             <label class="TR">Zones to monitor</label>
                         </div>
@@ -229,9 +231,8 @@
             </ul>
             {% if g.isAdmin %}
             <ul class="right hide-on-med-and-down">
-                {% for i in headerDataR %}
-                <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}" class="TR">{{i['text']}}</a></li>
-                {% endfor %}
+                <li><a href="{{ url_for('view.bookings', report='report') }}" class="TR">Report</a></li>
+                <li><a class="dropdown-trigger" href="#!" data-target="admin_menu_dropdown"><i class="material-icons">settings</i></a></li>
             </ul>
             {% endif %}
 
@@ -254,6 +255,14 @@
         <li class="divider" tabindex="-1"></li>
         <li><a href="{{ url_for('auth.logout') }}" class="TR">Logout</a></li>
         {% endif %}
+    </ul>
+
+    <ul id="admin_menu_dropdown" class="dropdown-content">
+        <li><a href="{{ url_for('view.users') }}" class="TR">Users</a></li>
+        <li><a href="{{ url_for('view.groups') }}" class="TR">Groups</a></li>
+        <li class="divider" tabindex="-1"></li>
+        <li><a href="{{ url_for('view.zones') }}" class="TR">Zones</a></li>
+        <li><a href="{{ url_for('view.plans') }}" class="TR">Plans</a></li>
     </ul>
 
 {% endblock %}

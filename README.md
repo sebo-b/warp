@@ -23,8 +23,8 @@ I've quickly evaluated a couple of existing solutions, but they were either too 
 
 - **Admin Interface**: Full admin interface to add/remove/edit maps, zones, groups, and users.
 - **Admin Booking**: Admins can book, modify, or unbook seats for any user.
-- **Multiple Zones**: Create multiple zones (maps) for different areas like floors or parking.
-- **Zone Groups**: Group zones so that one person can have only one seat booked simultaneously within a group (e.g., one group for floors, another for parking).
+- **Plans & Zones**: Plans hold the floor-map image and seats; zones control access. A plan can contain seats from multiple zones, enabling mixed-zone floor maps. Each seat is assigned to a specific zone (no plan-level default zone). The plan map editor shows a zone picker when adding seats and pre-selects the zone with the most seats on the plan the first time "Add seats" is used. Deleting a zone that contains seats shows a reassignment modal to move those seats to another zone or to delete the seats (and their booking history) with a red button that requires an additional confirmation. Deleting a zone with no seats shows a simple confirmation dialog.
+- **Per-Zone Booking Constraint**: One seat per zone per time slot. Users can hold seats in different zones simultaneously (e.g., a desk in Zone A and a parking spot) but cannot double-book within the same zone.
 - **Assigned Seats**: Limit seats to certain people so others cannot book them.
 - **Disabled Seats**: Hide seats so people don't see them at all.
 - **Auto-Book**: Use the floating "+" button to quickly book an available seat with one click.
@@ -37,6 +37,9 @@ I've quickly evaluated a couple of existing solutions, but they were either too 
 - **LDAP/Active Directory**: Via LDAP3 library.
 
 See [FEATURES.md](FEATURES.md) for a detailed description of all functionality, roles, booking rules, and configuration options.
+New to the concepts? Start with the [GLOSSARY.md](GLOSSARY.md), and read
+[PERMISSIONS.md](PERMISSIONS.md) for the complete access model (account types,
+zones, plans, roles, and how they nest).
 
 ## What I'm not even planning to do
 

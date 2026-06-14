@@ -33,9 +33,9 @@ export async function getZoneSeats(zid: number): Promise<SeatRow[]> {
  * Navigate to the zone page and return the value of the first date checkbox
  * (as a seconds timestamp). Used to pick a date that the server actually renders.
  */
-export async function getFirstZoneDate(page: Page, zid: number): Promise<number> {
-  if (!page.url().includes(`/zone/${zid}`)) {
-    await page.goto(`/zone/${zid}`);
+export async function getFirstZoneDate(page: Page, pid: number): Promise<number> {
+  if (!page.url().includes(`/plan/${pid}`)) {
+    await page.goto(`/plan/${pid}`);
     await page.waitForLoadState('networkidle');
   }
   const val = await page.locator('.date_checkbox').first().inputValue();
@@ -78,11 +78,11 @@ export async function waitForSeatsLoaded(page: Page): Promise<void> {
  */
 export async function bookSeatUI(
   page: Page,
-  zid: number,
+  pid: number,
   seat: SeatRow,
   timestamps: number[],
 ): Promise<void> {
-  await page.goto(`/zone/${zid}`);
+  await page.goto(`/plan/${pid}`);
   await waitForSeatsLoaded(page);
   await selectOnlyDates(page, timestamps);
   // Brief settle so seat states recalculate after checkbox change

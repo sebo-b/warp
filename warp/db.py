@@ -10,8 +10,9 @@ DB = None
 Blobs = Table('blobs',('id','mimetype','data','etag'),primary_key='id')
 Users = Table('users',('login','password','name','account_type'))
 Groups = Table('groups',('group','login'))
-Seat = Table('seat',('id','zid','name','x','y','enabled'))
-Zone = Table('zone',('id','zone_group','name','iid','zone_type'))  # zone_group=NULL means the Default group
+Plan = Table('plan',('id','name','iid'))
+Seat = Table('seat',('id','pid','zid','name','x','y','enabled'))
+Zone = Table('zone',('id','name','zone_type','zone_group'))
 ZoneAssign = Table('zone_assign',('zid','login','zone_role'))
 Book = Table('book',('id','login','sid','fromts','tots'))
 SeatAssign = Table('seat_assign',('sid','login','days_in_advance'))
@@ -46,11 +47,12 @@ ZONE_TYPE_PUBLIC_BOOK = 40
 # rejected by users.edit. Mirror this value in js/views/modules/seat.js EVERYONE_KEY.
 EVERYONE_KEY = '__everyone__:550e8400-e29b-41d4-a716-446655440000'
 
-# Reserved sentinel for the Default zone group (NULL in DB) used in the header
-# filter dropdown and sent in remote filter requests. Must never collide with a
-# real group name — rejected by zones.addOrEdit.
-# Exposed to the frontend via template (window.warpGlobals.DEFAULT_ZONEGROUP_KEY).
-DEFAULT_ZONEGROUP_KEY = '__default__:7f2b3c50-e8d1-4a9f-b6c3-2d8e7f1a4b09'
+# Reserved sentinel the zone_group header filter sends to select "ungrouped"
+# (NULL) zones — Tabulator can't tell an empty value (no filter) from a request
+# to match NULL. zones.listW translates it to IS NULL. Must never be a real
+# group name. Exposed to the frontend via the template global
+# (window.warpGlobals.ungroupedFilterKey); never duplicated as a JS literal.
+UNGROUPED_FILTER_KEY = '__ungrouped__:088891f7-4de2-4b08-a8a7-fa2d0d035fa3'
 
 def effectiveZoneRole(zone_type, specificRole):
     """Compute effective zone role from zone_type and the user's specific role.
@@ -71,13 +73,13 @@ def effectiveZoneRole(zone_type, specificRole):
     candidates = [r for r in (specificRole, everyoneRole) if r is not None]
     return min(candidates) if candidates else None
 
-__all__ = ["DB", "Blobs", "Users", "Groups","Seat", "Zone", "ZoneAssign", "Book","SeatAssign", "UserPrefs", "UserToZoneRoles", "CalendarCache",
-    "EVERYONE_KEY", "DEFAULT_ZONEGROUP_KEY",
+__all__ = ["DB", "Blobs", "Users", "Groups", "Plan", "Seat", "Zone", "ZoneAssign", "Book", "SeatAssign", "UserPrefs", "UserToZoneRoles", "CalendarCache",
+           "EVERYONE_KEY", "UNGROUPED_FILTER_KEY",
            "IntegrityError", "COUNT_STAR", "SQL_ONE",
            'ACCOUNT_TYPE_ADMIN','ACCOUNT_TYPE_USER','ACCOUNT_TYPE_BLOCKED','ACCOUNT_TYPE_GROUP',
            'ZONE_ROLE_ADMIN', 'ZONE_ROLE_USER', 'ZONE_ROLE_VIEWER',
            'ZONE_TYPE_DISABLED', 'ZONE_TYPE_ENABLED', 'ZONE_TYPE_PUBLIC_VIEW', 'ZONE_TYPE_PUBLIC_BOOK',
-           'EVERYONE_KEY', 'effectiveZoneRole']
+           'effectiveZoneRole']
 
 DB_SCHEMA_FILE = "sql/schema.sql"
 DB_MIGRATIONS = [
@@ -91,6 +93,7 @@ DB_MIGRATIONS = [
     (8, "sql/migration_008_zone_default_type.sql"),
     (9, "sql/migration_009_zone_preview_prefs.sql"),
     (10, "sql/migration_010_zone_group_text.sql"),
+    (11, "sql/migration_011_plans.sql"),
 ]
 
 DB_ADVISORY_LOCK_KEY = 7484381
@@ -125,6 +128,7 @@ def init(app):
     Blobs.bind(DB)
     Users.bind(DB)
     Groups.bind(DB)
+    Plan.bind(DB)
     Seat.bind(DB)
     Zone.bind(DB)
     ZoneAssign.bind(DB)

@@ -189,18 +189,18 @@ test.describe('book seat via calendar link', () => {
     expect(rows.rowCount).toBe(1);
   });
 
-  test('book link reports "Seat Already Booked" when a zone-group booking exists', async ({ page }) => {
+  test('book link reports "Seat Already Booked" when same-zone booking exists', async ({ page }) => {
     await logIn(page, USER1);
     const token = await enableIcal(page);
     const { url, day } = await getBookLink(page, token);
 
-    // Zone 1B (zid 2) shares the Default zone group with Zone 1A.
-    const zone2Seats = await getZoneSeats(2);
-    await insertBooking(USER1.login, zone2Seats[0].id, daysUntil(day));
+    // Pre-book a seat in Zone 1A (same zone the link targets).
+    const zone1Seats = await getZoneSeats(1);
+    await insertBooking(USER1.login, zone1Seats[0].id, daysUntil(day));
 
     await page.goto(url);
     await expect(page.locator('.card-title')).toHaveText('Seat Already Booked');
-    await expect(page.locator('.card-content p')).toContainText('Zone 1B');
+    await expect(page.locator('.card-content p')).toContainText('Zone 1A');
 
     // No second booking was created.
     const rows = await querySql('SELECT sid FROM book WHERE login = $1', [USER1.login]);

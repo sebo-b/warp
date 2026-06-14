@@ -28,13 +28,12 @@ CREATE TABLE groups (
     );
 
 -- zone_type: 10 == ZONE_TYPE_DISABLED
+-- zone_group: when non-NULL, user may hold at most one seat across all zones sharing the same group name
 CREATE TABLE zone (
     id SERIAL PRIMARY KEY,
-    zone_group text NOT NULL DEFAULT '__default__:7f2b3c50-e8d1-4a9f-b6c3-2d8e7f1a4b09',
     name text NOT NULL,
-    iid integer,
     zone_type integer NOT NULL DEFAULT 10,
-    FOREIGN KEY (iid) REFERENCES blobs(id) ON DELETE SET NULL
+    zone_group text DEFAULT NULL
     );
 
 -- TODO_X zone_role limit
@@ -47,13 +46,21 @@ CREATE TABLE zone_assign (
     FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE
     );
 
+CREATE TABLE plan (
+    id SERIAL PRIMARY KEY,
+    name text NOT NULL,
+    iid integer REFERENCES blobs(id) ON DELETE SET NULL
+);
+
 CREATE TABLE seat (
     id SERIAL PRIMARY KEY,
+    pid integer NOT NULL,
     zid integer NOT NULL,
     name text NOT NULL,
     x integer NOT NULL,
     y integer NOT NULL,
     enabled boolean NOT NULL DEFAULT TRUE,
+    FOREIGN KEY (pid) REFERENCES plan(id) ON DELETE CASCADE,
     FOREIGN KEY (zid) REFERENCES zone(id) ON DELETE CASCADE
     );
 
@@ -68,8 +75,8 @@ CREATE TABLE seat_assign (
 CREATE UNIQUE INDEX seat_assign_uq          ON seat_assign(sid, login) WHERE login IS NOT NULL;
 CREATE UNIQUE INDEX seat_assign_everyone_uq ON seat_assign(sid)         WHERE login IS NULL;
 
-CREATE INDEX seat_zid
-ON seat(zid);
+CREATE INDEX seat_pid ON seat(pid);
+CREATE INDEX seat_zid ON seat(zid);
 
 CREATE TABLE user_prefs (
     login text PRIMARY KEY,
@@ -188,22 +195,49 @@ CREATE FUNCTION book_overlap_insert()
  RETURNS trigger
  LANGUAGE plpgsql
 AS $$
+DECLARE
+    booking_zid INTEGER;
+    zone_grp    TEXT;
 BEGIN
     IF NEW.fromTS >= NEW.toTS THEN
-        RAISE EXCEPTION 'Incorect time';
+        RAISE EXCEPTION 'Incorrect time';
     END IF;
 
-    IF
-        (SELECT 1 FROM book b
-         JOIN seat s on b.sid = s.id
-         JOIN zone z on s.zid = z.id
-         WHERE z.zone_group =
-            (SELECT zone_group FROM zone z JOIN seat s on z.id = s.zid WHERE s.id = NEW.sid LIMIT 1)
-         AND (b.sid = NEW.sid OR b.login = NEW.login)
-         AND b.fromTS < NEW.toTS
-         AND b.toTS > NEW.fromTS) IS NOT NULL
-    THEN
+    -- Always prevent double-booking the same seat
+    IF EXISTS (
+        SELECT 1 FROM book b
+        WHERE b.sid = NEW.sid
+          AND b.fromTS < NEW.toTS AND b.toTS > NEW.fromTS
+    ) THEN
         RAISE 'Overlapping time for this seat or users' USING ERRCODE = 'exclusion_violation';
+    END IF;
+
+    SELECT s.zid, z.zone_group INTO booking_zid, zone_grp
+    FROM seat s JOIN zone z ON z.id = s.zid WHERE s.id = NEW.sid;
+
+    IF zone_grp IS NOT NULL THEN
+        -- Zone-group mode: user cannot hold two seats in any zone of the same group simultaneously
+        IF EXISTS (
+            SELECT 1 FROM book b
+            JOIN seat s ON s.id = b.sid
+            JOIN zone z ON z.id = s.zid
+            WHERE b.login = NEW.login
+              AND z.zone_group = zone_grp
+              AND b.fromTS < NEW.toTS AND b.toTS > NEW.fromTS
+        ) THEN
+            RAISE 'Overlapping time for this seat or users' USING ERRCODE = 'exclusion_violation';
+        END IF;
+    ELSE
+        -- Per-zone mode: user cannot hold two seats in the same zone simultaneously
+        IF EXISTS (
+            SELECT 1 FROM book b
+            JOIN seat s ON s.id = b.sid
+            WHERE b.login = NEW.login
+              AND s.zid = booking_zid
+              AND b.fromTS < NEW.toTS AND b.toTS > NEW.fromTS
+        ) THEN
+            RAISE 'Overlapping time for this seat or users' USING ERRCODE = 'exclusion_violation';
+        END IF;
     END IF;
 
     RETURN NEW;
@@ -225,4 +259,4 @@ CREATE UNLOGGED TABLE calendar_cache (
 
 CREATE TABLE db_initialized (version INTEGER NOT NULL);
 
-INSERT INTO db_initialized(version) VALUES(10);
+INSERT INTO db_initialized(version) VALUES(11);

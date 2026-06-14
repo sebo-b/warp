@@ -41,7 +41,9 @@ WarpSeat.SeatStates = {
     CAN_REBOOK: 5,      // seat is available to be booked, but other seat is already booked (IMPLEMENTATION NOTE: this state is set in _updateView)
     CAN_CHANGE: 6,      // seat is already booked by this user, but can be changed (extended, reduced, deleted)
     CAN_DELETE: 7,      // seat is already booked by this user, but cannot be changed
-    CAN_DELETE_EXACT: 8 // seat is already booked by this user, cannot be changed and selected dated are exactly matching booking dates
+    CAN_DELETE_EXACT: 8, // seat is already booked by this user, cannot be changed and selected dated are exactly matching booking dates
+    VIEW_ONLY: 9,       // seat is visible but cannot be booked — free (grey empty circle)
+    VIEW_ONLY_TAKEN: 10 // seat is visible but taken by someone else (grey circle with person)
 }
 
 WarpSeat.Sprites = {
@@ -55,7 +57,9 @@ WarpSeat.Sprites = {
     disabledOffset: "-288px",
     bookAssignedOffset: "-336px",
     rebookAssignedOffset: "-384px",
-    assignedOffset: "-432px"
+    assignedOffset: "-432px",
+    viewOnlyOffset: "-480px",
+    viewOnlyTakenOffset: "-528px"
 };
 
 function WarpSeatFactory(spriteURL,rootDivId,login) {
@@ -76,7 +80,39 @@ function WarpSeatFactory(spriteURL,rootDivId,login) {
         updateAllStates: new Set()
     };
 
-    this.myConflictingBookings = new Set();
+    // Map: exclusivityKey -> Set(sid) of my bookings conflicting with the
+    // current selection. Conflicts are scoped per zone-group (or per single
+    // zone when ungrouped), mirroring the book_overlap_insert DB trigger, so
+    // bookings in unrelated zones of the same plan don't replace each other.
+    this.myConflictingBookings = new Map();
+    // zid -> zone_group (null = ungrouped), from getSeats.
+    this.zoneGroups = {};
+}
+
+// Booking-exclusivity key for a zone: shared across a named group, otherwise
+// unique per zone. Mirrors book_overlap_insert in schema.sql.
+WarpSeatFactory.prototype._exclusivityKey = function(zid) {
+    var g = this.zoneGroups[zid];
+    return (g !== null && g !== undefined && g !== "") ? ('g:' + g) : ('z:' + zid);
+}
+
+WarpSeatFactory.prototype._addConflict = function(key, sid) {
+    var s = this.myConflictingBookings.get(key);
+    if (!s) { s = new Set(); this.myConflictingBookings.set(key, s); }
+    s.add(sid);
+}
+
+WarpSeatFactory.prototype._removeConflict = function(key, sid) {
+    var s = this.myConflictingBookings.get(key);
+    if (s) {
+        s.delete(sid);
+        if (s.size === 0) this.myConflictingBookings.delete(key);
+    }
+}
+
+WarpSeatFactory.prototype._conflictCount = function(key) {
+    var s = this.myConflictingBookings.get(key);
+    return s ? s.size : 0;
 }
 
 WarpSeatFactory.prototype.getLogin = function() {
@@ -116,6 +152,9 @@ WarpSeatFactory.prototype.getLogin = function() {
 // you have to call updateAllStates after this method
 WarpSeatFactory.prototype.setSeatsData = function(seatsData = {}) {
 
+    // Full refresh — replace the zone-group map.
+    this.zoneGroups = seatsData.zoneGroups || {};
+
     var oldSeatsIds = new Set( Object.keys(this.instances))
 
     //create possibly missing seats
@@ -154,6 +193,9 @@ WarpSeatFactory.prototype.updateLogin = function(login, seatsData) {
 
     this.login = login;
 
+    // Partial (onlyOtherZone) response — merge so accessible-zone groups survive.
+    Object.assign(this.zoneGroups, seatsData.zoneGroups || {});
+
     //create new seats (all in other zone)
     for (var sid in seatsData.seats) {
         var s = new WarpSeat(sid,seatsData.seats[sid],seatsData.zones,seatsData.users,this);
@@ -162,15 +204,22 @@ WarpSeatFactory.prototype.updateLogin = function(login, seatsData) {
 }
 
 /**
- * Returns a list of my bookings which conflicts in the given datetime
+ * Returns the list of my bookings that conflict with the given seat's booking,
+ * scoped to that seat's exclusivity group (zone-group, or single zone when
+ * ungrouped). Bookings in unrelated zones of the same plan are not included.
+ * @param forSeat the WarpSeat being booked/changed
  * @param raw if true returns an array of bid's
- * @returns array of { sid: 10, bid: 10, fromTS: 1, toTS: 2, zone_name = "Zone 1", seat_name: "Seat 1", datetime1: "yyyy-mm-dd", datetime2: "hh:mm-hh:mm" }
+ * @returns array of { sid, bid, fromTS, toTS, zone_name, seat_name, datetime1, datetime2 }
  */
- WarpSeatFactory.prototype.getMyConflictingBookings = function(raw = false) {
+ WarpSeatFactory.prototype.getMyConflictingBookings = function(forSeat, raw = false) {
 
     var res = [];
 
-    for (var sid of this.myConflictingBookings) {
+    var set = forSeat ? this.myConflictingBookings.get(forSeat.exclusivityKey) : null;
+    if (!set)
+        return res;
+
+    for (var sid of set) {
 
         var seat = this.instances[sid];
 
@@ -201,11 +250,15 @@ WarpSeatFactory.prototype.updateLogin = function(login, seatsData) {
     return res;
  }
 
+// Plan-wide: used by the auto-book FAB to detect when the current selection is
+// already exactly satisfied by an existing booking in any zone.
 WarpSeatFactory.prototype.isExactMatch = function() {
 
-    for (var sid of this.myConflictingBookings) {
-        if (this.instances[sid].state === WarpSeat.SeatStates.CAN_DELETE_EXACT)
-            return true;
+    for (var set of this.myConflictingBookings.values()) {
+        for (var sid of set) {
+            if (this.instances[sid].state === WarpSeat.SeatStates.CAN_DELETE_EXACT)
+                return true;
+        }
     }
     return false;
 }
@@ -359,6 +412,32 @@ WarpSeat.prototype._updateState = function() {
         return this.state;
     }
 
+    if (!this.bookable) {
+        // View-only access (PUBLIC_VIEW zone, or DISABLED zone even for admins)
+        // Existing own bookings can still be cancelled, but no new bookings allowed.
+        var hasOwnBooking = false;
+        for (var i of this._bookingsIterator()) {
+            if (i.book.login == this.factory.login) {
+                hasOwnBooking = true;
+                break;
+            }
+        }
+        if (hasOwnBooking) {
+            // Allow cancellation only (CAN_DELETE or CAN_DELETE_EXACT), not rebooking.
+            // Fall through to normal logic to compute isMine/isExact, but then
+            // override the state to prevent CAN_CHANGE / CAN_REBOOK / CAN_BOOK.
+        } else {
+            // No own booking — seat is not bookable, show as view-only or taken.
+            var isFree = true;
+            for (var i of this._bookingsIterator()) {
+                isFree = false;
+                break;
+            }
+            this.state = isFree ? WarpSeat.SeatStates.VIEW_ONLY : WarpSeat.SeatStates.VIEW_ONLY_TAKEN;
+            return this.state;
+        }
+    }
+
     if (Object.keys(this.assignments).length > 0) {
 
         const everyoneData = this.assignments[EVERYONE_KEY];
@@ -424,9 +503,9 @@ WarpSeat.prototype._updateState = function() {
     }
 
     if (isMine)
-        this.factory.myConflictingBookings.add(this.sid);
+        this.factory._addConflict(this.exclusivityKey, this.sid);
     else
-        this.factory.myConflictingBookings.delete(this.sid);
+        this.factory._removeConflict(this.exclusivityKey, this.sid);
 
     if (this.otherZone) {
         this.state = WarpSeat.SeatStates.DISABLED;
@@ -447,6 +526,15 @@ WarpSeat.prototype._updateState = function() {
         this.state = WarpSeat.SeatStates.CAN_BOOK;
     else
         this.state = WarpSeat.SeatStates.TAKEN;
+
+    // For non-bookable seats with own bookings, only allow cancellation.
+    // Clamp CAN_CHANGE / CAN_REBOOK / CAN_BOOK → CAN_DELETE.
+    if (!this.bookable && this.state != WarpSeat.SeatStates.CAN_DELETE_EXACT) {
+        if (this.state == WarpSeat.SeatStates.CAN_CHANGE ||
+            this.state == WarpSeat.SeatStates.CAN_DELETE) {
+            this.state = WarpSeat.SeatStates.CAN_DELETE;
+        }
+    }
 
     return this.state;
 }
@@ -473,7 +561,12 @@ WarpSeat.prototype._updateView = function() {
             this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.userConflictOffset;
             break;
         case WarpSeat.SeatStates.CAN_BOOK:
-            if (this.factory.myConflictingBookings.size > 0) {
+            if (!this.bookable) {
+                // Should not reach here, but safety fallback
+                this.state = WarpSeat.SeatStates.VIEW_ONLY;
+                this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.viewOnlyOffset;
+            }
+            else if (this.factory._conflictCount(this.exclusivityKey) > 0) {
                 this.state = WarpSeat.SeatStates.CAN_REBOOK;    //this is not very elegant
                 this.seatDiv.style.backgroundPositionX =
                     assignedToMe ? WarpSeat.Sprites.rebookAssignedOffset : WarpSeat.Sprites.rebookOffset;
@@ -490,6 +583,12 @@ WarpSeat.prototype._updateView = function() {
         case WarpSeat.SeatStates.TAKEN:
             this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.conflictOffset;
         break;
+        case WarpSeat.SeatStates.VIEW_ONLY:
+            this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.viewOnlyOffset;
+            break;
+        case WarpSeat.SeatStates.VIEW_ONLY_TAKEN:
+            this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.viewOnlyTakenOffset;
+            break;
         case WarpSeat.SeatStates.DISABLED:
             this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.disabledOffset;
             break;
@@ -503,7 +602,7 @@ WarpSeat.prototype._updateView = function() {
 
 WarpSeat.prototype._destroy = function() {
 
-    this.factory.myConflictingBookings.delete(this.sid);
+    this.factory._removeConflict(this.exclusivityKey, this.sid);
     this.factory = null;
 
     if (this.seatDiv) {
@@ -528,8 +627,12 @@ WarpSeat.prototype._setData = function(seatData,usersNames) {
     this.name = seatData.name;
     this.book = seatData.book;  //NOTE: just reference
 
+    this.zid = seatData.zid;
+    this.exclusivityKey = this.factory._exclusivityKey(seatData.zid);
+
     if (this.otherZone) {
         this.enabled = true;
+        this.bookable = false;
         this.assignments = {}
         for (let b in this.book) {
             this.book[b].login = this.factory.login;
@@ -537,6 +640,7 @@ WarpSeat.prototype._setData = function(seatData,usersNames) {
     }
     else {
         this.enabled = ('enabled' in seatData)? seatData.enabled: true;
+        this.bookable = ('bookable' in seatData)? seatData.bookable: true;
         this.assignments = {}
 
         for (let b in this.book) {

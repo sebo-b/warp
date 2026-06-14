@@ -7,10 +7,9 @@
     window.warpGlobals.URLs['zonesList'] = "{{ url_for('xhr.zones.list') }}";
     window.warpGlobals.URLs['zonesDelete'] = "{{ url_for('xhr.zones.delete') }}";
     window.warpGlobals.URLs['zonesAddOrEdit'] = "{{ url_for('xhr.zones.addOrEdit') }}";
-    window.warpGlobals.URLs['zonesGroups'] = "{{ url_for('xhr.zones.groupsList') }}";
+    window.warpGlobals.URLs['zonesGroups'] = "{{ url_for('xhr.zones.groups') }}";
     window.warpGlobals.URLs['zoneAssign'] = "{{ url_for('view.zoneAssign', zid='__ZID__', return=request.url) }}";
-    window.warpGlobals.URLs['zoneModify'] = "{{ url_for('view.zoneModify', zid='__ZID__', return=request.url) }}";
-    window.warpGlobals.DEFAULT_ZONEGROUP_KEY = "{{ DEFAULT_ZONEGROUP_KEY }}";
+    window.warpGlobals.ungroupedFilterKey = "{{ ungroupedFilterKey }}";
 </script>
 
 {% endblock %}
@@ -21,25 +20,27 @@
 <div id="edit_modal" class="modal">
     <div class="modal-content">
         <div class="row">
-            <div class="input-field col s12 m8">
+            <div class="input-field col s12">
                 <input id="zone_name" type="text" required>
                 <label for="zone_name" class="TR">Zone name</label>
             </div>
-            <div class="input-field col s12 m4">
-                <input id="zone_group_input" type="text" class="autocomplete">
-                <label for="zone_group_input" class="TR active">Zone group</label>
-                <span id="zone_group_helper" class="helper-text grey-text" style="display:none;"></span>
-            </div>
         </div>
         <div class="row">
-            <div class="col s12">
-                <label class="TR">Zone type</label>
-                <select id="zone_type" class="browser-default">
+            <div class="input-field col s12">
+                <select id="zone_type">
                     <option value="10" class="TR">zoneType.Disabled</option>
                     <option value="20" class="TR">zoneType.Enabled</option>
                     <option value="30" class="TR">zoneType.PublicView</option>
                     <option value="40" class="TR">zoneType.PublicBook</option>
                 </select>
+                <label class="TR">Zone type</label>
+            </div>
+        </div>
+        <div class="row">
+            <div class="input-field col s12">
+                <input id="zone_group" type="text" class="autocomplete" placeholder="—" autocomplete="off">
+                <label for="zone_group" class="TR active">Zone group (optional)</label>
+                <span id="zone_group_helper" class="helper-text grey-text" style="display:none;"></span>
             </div>
         </div>
         <div class="row" style="display: none" id="error_div">

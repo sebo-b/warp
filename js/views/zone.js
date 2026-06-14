@@ -104,6 +104,7 @@ function initSeatLabels(seatFactory) {
     var needsFullRender = true;
     var hoveredSid = null;
     var suppressTooltip = false;
+    var multiZone = false; // true when more than one zone on the plan
 
     var TITLE_HEIGHT = 14;
     var SPRITE_CENTER_X = WarpSeat.Sprites.spriteSize / 2;
@@ -152,6 +153,13 @@ function initSeatLabels(seatFactory) {
                 row.className = "seat_label_booking";
                 row.textContent = b.username;
             }
+        }
+
+        // Show zone name when multiple zones exist on the plan
+        if (multiZone && (showSeatNames || showBookingPreview)) {
+            var zoneName = div.appendChild(document.createElement("div"));
+            zoneName.className = "seat_label_zone";
+            zoneName.textContent = seat.getZoneName();
         }
 
         return div;
@@ -250,6 +258,14 @@ function initSeatLabels(seatFactory) {
         needsFullRender = true;
         hoveredSid = null;
         suppressTooltip = false;
+        // Determine if plan has multiple zones
+        var zoneIds = new Set();
+        for (var sid in seatFactory.instances) {
+            var seat = seatFactory.instances[sid];
+            if (seat.isOtherZone()) continue;
+            zoneIds.add(seat.getZoneName());
+        }
+        multiZone = zoneIds.size > 1;
     });
 
     seatFactory.on('updateAllStates', updateBookingLabels);
@@ -566,7 +582,7 @@ function initActionMenu(seatFactory) {
 
         var state = this.getState();
 
-        if (state == WarpSeat.SeatStates.NOT_AVAILABLE)
+        if (state == WarpSeat.SeatStates.NOT_AVAILABLE || state == WarpSeat.SeatStates.VIEW_ONLY || state == WarpSeat.SeatStates.VIEW_ONLY_TAKEN)
             return;
 
         var actions = [];
@@ -630,7 +646,7 @@ function initActionMenu(seatFactory) {
         if (removeMsg) {
 
             var myConflictsTable = document.createElement("table");
-            for (let c of seatFactory.getMyConflictingBookings()) {
+            for (let c of seatFactory.getMyConflictingBookings(this)) {
                 let tr = myConflictsTable.appendChild(document.createElement("tr"));
                 tr.appendChild( document.createElement("td")).innerText = c.zone_name
                 tr.appendChild( document.createElement("td")).innerText = c.seat_name;
@@ -700,7 +716,7 @@ function initActionMenu(seatFactory) {
         }
 
         if (this.dataset.action == 'delete' || this.dataset.action == 'update') {
-            applyData['remove'] = seatFactory.getMyConflictingBookings(true);
+            applyData['remove'] = seatFactory.getMyConflictingBookings(seat, true);
         }
 
         Utils.xhr.post(
@@ -969,7 +985,6 @@ function initAutoBook(seatFactory) {
 function showAutoBookResult(resp) {
 
     var booked = resp.booked || [];
-    var elsewhere = resp.already_booked_elsewhere || [];
     var unbookable = resp.unbookable || [];
     var notExtended = resp.not_extended || [];
 
@@ -998,14 +1013,6 @@ function showAutoBookResult(resp) {
         tr.appendChild(document.createElement('td')).innerText = f.datetime1;
         tr.appendChild(document.createElement('td')).innerText = f.datetime2;
     }, booked);
-
-    appendSection(TR("Already booked in another zone:"), function(tr, b) {
-        let f = WarpSeatFactory._formatDatePair(b);
-        tr.appendChild(document.createElement('td')).innerText = b.zone_name;
-        tr.appendChild(document.createElement('td')).innerText = b.seat_name;
-        tr.appendChild(document.createElement('td')).innerText = f.datetime1;
-        tr.appendChild(document.createElement('td')).innerText = f.datetime2;
-    }, elsewhere);
 
     appendSection(TR("Could not extend or rebook:"), function(tr, u) {
         let f = WarpSeatFactory._formatDatePair(u);

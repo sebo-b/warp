@@ -105,23 +105,31 @@ The zone type influences what role a user effectively has:
 ## 3. Zone Management (Admin Only)
 
 ### 3.1 Creating a Zone
-- An admin creates a zone with a **name**, a **zone group**, and a **zone type**.
-- A zone map image (JPEG or PNG, max 2 MB) can be uploaded later via the Zone Map Editor.
+- An admin creates a zone with a **name** and a **zone type**.
 - New zones default to **Disabled** type if not specified.
 
 ### 3.2 Editing a Zone
-- Change the zone name, zone group, or zone type at any time.
+- Change the zone name, zone type, or zone group at any time.
+- The zone edit dialog is non-dismissible (cannot be closed by clicking outside the modal).
 - Changing a zone type immediately affects who can access it (see §2.3).
 
 ### 3.3 Deleting a Zone
-- Deletes the zone, all its seats, seat assignments, bookings, and the uploaded map image.
-- A warning is shown: deleting a zone also deletes all past booking history. Unassigning all users is suggested as a less destructive alternative.
+- Deletes the zone and its zone assignments.
+- **If the zone has seats**, the delete button skips the simple confirmation and goes directly to a reassignment modal:
+  - The modal displays the seat count and a warning about booking history being permanently deleted.
+  - A Materialize `<select>` of other zones is offered; choosing one and pressing the reassign button moves seats (`UPDATE seat SET zid = <target>`) then deletes the zone.
+  - A prominent red **"Delete seats"** button at the bottom deletes all seats (and their bookings via the cascade) and then deletes the zone. This button triggers a **second confirmation dialog** before proceeding.
+  - The reassignment modal is non-dismissible (cannot be closed by clicking outside).
+  - Cancel leaves the zone intact.
+- **If the zone has no seats**, a simple confirmation dialog ("Are you sure?") is shown, and the zone is deleted upon confirmation.
+- Deleting a zone that had seats also removes their booking history (the seats and bookings are gone).
 
 ### 3.4 Zone Groups
-- Zones can be grouped. The purpose: **one person can have only one seat booked at a given time within the same zone group**.
-- Typical use: group all floor zones together so a person cannot book two desks on different floors at the same time; group parking zones separately so a person can have both a desk and a parking spot.
-- There is always a **"Default"** group (stored internally as a reserved key — see §23.5). Any zone can be assigned to the Default group or to a named group.
-- New group names are created simply by typing a new name in the zone edit dialog.
+- A zone can optionally belong to a **zone group** (a free-text group name set by an admin).
+- When a zone has no group (the default), the **per-zone constraint** applies: one seat per zone per time slot.
+- When two or more zones share the same group name, the **per-group constraint** applies: a user may hold at most one seat across all zones in the group simultaneously.
+- Example: put "Office Floor 1" in one group so users cannot hold both a desk and a second desk on the same floor. Leave parking in no group so a desk + a parking spot can be held simultaneously.
+- The booking constraint is enforced at the database level (see §23.2).
 
 ### 3.5 Zone Type Details
 
@@ -134,17 +142,21 @@ The zone type influences what role a user effectively has:
 
 ---
 
-## 4. Zone Map Editor (Admin Only)
+## 4. Plan Map Editor (Admin Only)
 
-Accessible via the map icon on the Zones management page.
+Accessible via the map icon on the Plans management page.
 
 ### 4.1 Uploading / Replacing the Map Image
-- Upload a JPEG or PNG image as the background for the zone.
+- Upload a JPEG or PNG image as the background for the plan.
 - The image is stored as a binary blob in the database.
 
 ### 4.2 Adding Seats
-- In "create seat" mode, click anywhere on the map to place a new seat.
-- Each seat has a **name**, **X** coordinate, and **Y** coordinate.
+- Toggle the **Edit / Add seats** switch to "Add seats" mode.
+- A **zone selector** dropdown appears below the switch — choose which zone new seats will belong to.
+- If the plan already has seats, **the first time** the switch is flipped to add mode, the zone that already contains the largest number of seats on this plan is pre-selected.
+- If no zones exist at all, nothing is executed and a visible error is shown: "You must create a zone before adding seats."; the click on the map is ignored and a toast reiterates the requirement.
+- Click anywhere on the map to place a new seat with the chosen `zid` (the plan backend no longer has a `default_zid` — every created seat must carry an explicit zone).
+- Each seat has a **name**, **X**, **Y**, and **zone**.
 
 ### 4.3 Editing Seats
 - Select a seat to edit its name, position (X/Y), or drag it to a new position.
@@ -164,11 +176,12 @@ Accessible via the map icon on the Zones management page.
 ### 4.5 Deleting Seats
 - Mark a seat for deletion; it can be restored before saving.
 - Deletion is confirmed via a dialog showing what will be removed.
+- The seat's zone can be changed via the dropdown in the side panel when the seat is selected (Edit mode).
 
 ### 4.6 Saving & Cancelling
 - All changes (image, added/modified/deleted seats) are submitted together.
 - A confirmation dialog lists the pending changes before applying.
-- A **Cancel** button returns to the zones list; if there are unsaved changes, a confirmation dialog ("All unsaved changes will be lost.") is shown first.
+- A **Cancel** button returns to the plans list; if there are unsaved changes, a confirmation dialog ("All unsaved changes will be lost.") is shown first.
 - Unsaved changes trigger a browser warning if the user tries to leave the page.
 
 ---
@@ -244,7 +257,7 @@ Accessible via the user icon on the Zones management page.
 2. Click an available (green) seat.
 3. The action modal opens, showing the dates/times to be booked.
 4. Click **Book**. The booking is created.
-5. If you already have a booking in the same zone group at the same time, it is **automatically removed** and replaced with the new one. The modal shows the bookings that will be removed.
+5. If you already have a booking in the **same zone** at the same time, it is **automatically removed** and replaced with the new one. The modal shows the bookings that will be removed. Bookings in other zones are not affected.
 
 ### 7.4 Updating a Booking
 1. Select a date/time that partially overlaps an existing booking of yours.
@@ -257,10 +270,10 @@ Accessible via the user icon on the Zones management page.
 - Users can always remove **their own** bookings, even from zones they are no longer assigned to. This allows cleanup of leftover bookings after reassignment.
 
 ### 7.6 Booking Constraints (enforced by database trigger)
-- A user **cannot have overlapping bookings** in the same zone group.
+- A user **cannot have overlapping bookings in the same zone** (one seat per zone per time slot).
 - A seat **cannot be double-booked** at the same time.
 - The booking time range must be valid (from < to).
-- These constraints are enforced at the database level via a trigger (`book_overlap_insert_trig`) that checks the entire zone group.
+- These constraints are enforced at the database level via a trigger (`book_overlap_insert_trig`) that checks by `seat.zid`.
 
 ### 7.7 Shift-Select for Dates
 - Holding **Shift** while clicking a date checkbox selects/deselects all dates between the last clicked date and the current one.
@@ -282,9 +295,9 @@ Accessible via the user icon on the Zones management page.
   1. **Priority tiers**: seats directly assigned to the user are preferred; then "Everyone"/unassigned seats.
   2. **Within each tier**, seats are ranked by the user's past booking frequency (prefer seats you book often), then by overall popularity (prefer less popular seats as a tiebreaker), then by seat ID.
   3. The algorithm respects the **days-in-advance** window per seat.
-  4. Existing bookings by the user in the same zone group that overlap the requested times are **automatically replaced** (removed and rebooked on the new seat).
-  5. If the user already has an **exact** booking in another zone of the same group, it is reported as "Already booked elsewhere" without changes.
-  6. If the user has overlapping bookings that cannot be extended/rebooked, those dates are reported as "Could not extend or rebook".
+  4. Existing bookings by the user in the **same zone** that overlap the requested times are **automatically replaced** (removed and rebooked on the new seat). Bookings in other zones are left untouched.
+  5. If the user already has an **exact** booking for the requested time, it is reported as "Already booked" without changes.
+  6. If the user has overlapping bookings in the same zone that cannot be extended/rebooked, those dates are reported as "Could not extend or rebook".
 
 ### 8.3 Auto-Book Results
 - The result is shown in a modal with sections:
@@ -405,6 +418,8 @@ Accessible via the user icon on the Zones management page.
 
 ## 14. User Preferences
 
+> A user's preferred "default zone" (user profile preference) is independent of the former plan default-zone design. It still influences the post-login redirect and certain reminders.
+
 Accessible from the user menu (dropdown in the top-right corner).
 
 ### 14.1 Default Zone
@@ -453,7 +468,7 @@ Accessible from the user menu → "Calendar integration".
 ### 15.5 Booking a Seat via Calendar Link (Missing Booking Reminder)
 - When the missing booking reminder triggers, the event contains a one-click **book** link.
 - Clicking it attempts auto-book for the zone and day using the user's default time preferences.
-- If a booking already exists in the same zone group, it reports "Seat already booked" with details.
+- If a booking already exists in the same zone, it reports "Seat already booked" with details.
 - If auto-book succeeds, it reports "Seat booked" with zone/seat/time details.
 - If no seat is available, it reports "Not possible to book".
 - Past dates cannot be booked via the link.
@@ -564,7 +579,7 @@ All text on these pages is translated according to the deployment-wide language 
 - Session lifetime is configurable (default: 1 day). Expired sessions force re-login.
 
 ### 23.2 Database-Level Constraints
-- **No double-booking**: a PostgreSQL trigger enforces that a seat cannot be booked by two users at the same time, and a user cannot have overlapping bookings within the same zone group.
+- **No double-booking**: a PostgreSQL trigger enforces that a seat cannot be booked by two users at the same time. Additionally, if a zone belongs to a zone group, a user cannot hold two overlapping bookings in any zones of that group simultaneously; for ungrouped zones, the constraint is one seat per zone.
 - **Referential integrity**: cascading deletes ensure that deleting a user, zone, or seat cleans up all related records.
 
 ### 23.3 iCal Token Security
@@ -582,7 +597,6 @@ All text on these pages is translated according to the deployment-wide language 
 
 ### 23.5 Reserved Identifiers
 - The login `__everyone__:550e8400-...` is reserved for the virtual "Everyone" user and cannot be used as a real login.
-- The zone group key `__default__:7f2b3c50-...` is reserved for the Default group and cannot be used as a named group.
 
 ---
 
@@ -610,12 +624,12 @@ All text on these pages is translated according to the deployment-wide language 
 | Set days-in-advance per assignment    | ❌  | ❌  | ✅  | ✅¹ |
 | Assign/unassign users to zones        | ❌  | ❌  | ❌  | ✅  |
 | Create/edit/delete zones              | ❌  | ❌  | ❌  | ✅  |
-| Upload/replace zone map               | ❌  | ❌  | ❌  | ✅  |
+| Create/edit/delete plans              | ❌  | ❌  | ❌  | ✅  |
+| Upload/replace plan map               | ❌  | ❌  | ❌  | ✅  |
 | Create/edit/delete users              | ❌  | ❌  | ❌  | ✅  |
 | Create/edit/delete groups             | ❌  | ❌  | ❌  | ✅  |
 | Access booking report                 | ❌  | ❌  | ❌  | ✅  |
 | Export bookings to Excel              | ❌  | ❌  | ❌  | ✅  |
-| Manage zone groups                    | ❌  | ❌  | ❌  | ✅  |
 | See disabled seats                    | ❌  | ❌  | ✅  | ✅¹ |
 | Change own password                   | ✅³ | ✅³ | ✅³ | ✅³ |
 

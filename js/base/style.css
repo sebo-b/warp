@@ -425,6 +425,18 @@ NAV {
     white-space: nowrap;
 }
 
+.seat_label_zone {
+    background-color: #e8eaf6;
+    color: #283593;
+    padding: 0px 4px;
+    line-height: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 9px;
+    border-top: 1px solid #c5cae9;
+}
+
 .assigned_seat_list {
     max-height: 200px;
     overflow-y: auto;
@@ -730,4 +742,15 @@ INPUT[type="text"] ~ .show_password_btn::after {
 @keyframes spinnerRotate {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
+}
+
+/* Dropdown group headers (admin menu, etc.) */
+.dropdown-header {
+    padding: 8px 16px 4px;
+    font-size: 0.8rem;
+    color: #9e9e9e;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: default;
+    user-select: none;
 }

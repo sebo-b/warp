@@ -9,7 +9,7 @@ from time import gmtime, strftime, strptime
 from peewee import JOIN
 
 from warp import utils
-from warp.db import UserPrefs, Book, Seat, SeatAssign, Zone, CalendarCache
+from warp.db import UserPrefs, Book, Seat, SeatAssign, Zone, Plan, CalendarCache
 
 bp = flask.Blueprint('ical', __name__)
 
@@ -512,19 +512,22 @@ def book_seat(login):
     time_from, time_to = prefs['default_time']
     slot = {'fromTS': day_ts + time_from, 'toTS': day_ts + time_to}
 
-    # Pre-check: any existing booking in the same zone_group that overlaps the day
-    zone_group = zone_row['zone_group']
+    # Pre-check: any existing booking in same zone (or same zone group) that overlaps the day
+    zone_grp = zone_row['zone_group']
     day_end = day_ts + 86400
-    existing = (Book.select(Book.id, Book.fromts, Book.tots,
-                            Seat.name.alias('seat_name'),
-                            Zone.name.alias('zone_name'))
-                    .join(Seat, on=(Book.sid == Seat.id))
-                    .join(Zone, on=(Seat.zid == Zone.id))
-                    .where(Book.login == login)
-                    .where(Zone.zone_group == zone_group)
-                    .where(Book.fromts < day_end)
-                    .where(Book.tots > day_ts)
-                    .first())
+    existing_q = (Book.select(Book.id, Book.fromts, Book.tots,
+                              Seat.name.alias('seat_name'),
+                              Zone.name.alias('zone_name'))
+                      .join(Seat, on=(Book.sid == Seat.id))
+                      .join(Zone, on=(Seat.zid == Zone.id))
+                      .where(Book.login == login)
+                      .where(Book.fromts < day_end)
+                      .where(Book.tots > day_ts))
+    if zone_grp is not None:
+        existing_q = existing_q.where(Zone.zone_group == zone_grp)
+    else:
+        existing_q = existing_q.where(Seat.zid == zid)
+    existing = existing_q.first()
     if existing is not None:
         details = "{zone} – {seat} – {timespan}".format(
             zone=existing['zone_name'],
@@ -533,9 +536,20 @@ def book_seat(login):
         )
         return _render_action(_action_t('Seat Already Booked'), details=details)
 
-    # Run autobook
+    # Find any plan that contains a seat in this zone and run autobook.
+    # (Plans no longer have a default zone; a zone may be used by seats on one or more plans.)
+    plan_row = (Plan.select(Plan.id)
+                    .join(Seat, on=(Seat.pid == Plan.id))
+                    .where(Seat.zid == zid)
+                    .first())
+    if plan_row is None:
+        return _render_action(_action_t('Not possible to book'))
+    pid = plan_row['id']
+
     from warp.xhr.zone import runAutoBook
-    result, err = runAutoBook(login, zid, [slot])
+    # The calendar reminder is per-zone, so confine autobook to the requested zone
+    # even though the plan it lives on may span several zones.
+    result, err = runAutoBook(login, pid, [slot], allowedZids={zid})
 
     if err == 103:
         return _render_action(_action_t('Not possible to book'))

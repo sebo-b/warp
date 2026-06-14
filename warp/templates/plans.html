@@ -1,0 +1,53 @@
+{% extends 'base_logged.html' %}
+
+{% block header %}
+    {{ super() }}
+
+<script>
+    window.warpGlobals.URLs['plansList'] = "{{ url_for('xhr.plans.list') }}";
+    window.warpGlobals.URLs['plansDelete'] = "{{ url_for('xhr.plans.delete') }}";
+    window.warpGlobals.URLs['plansAddOrEdit'] = "{{ url_for('xhr.plans.addOrEdit') }}";
+    window.warpGlobals.URLs['planModify'] = "{{ url_for('view.planModify', pid='__PID__', return=request.url) }}";
+    window.warpGlobals.URLs['zoneNames'] = "{{ url_for('xhr.zones.names') }}";
+</script>
+
+{% endblock %}
+
+{% block overlays %}
+    {{ super() }}
+
+<div id="edit_modal" class="modal">
+    <div class="modal-content">
+        <div class="row">
+            <div class="input-field col s12">
+                <input id="plan_name" type="text" required>
+                <label for="plan_name" class="TR">Plan name</label>
+            </div>
+        </div>
+        <div class="row" style="display: none" id="error_div">
+            <div class="col s12" style="color: red" id="error_message"></div>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="waves-effect waves-light btn red darken-2 TR" id="edit_modal_delete_btn">btn.Delete</a>
+        <a href="#!" class="waves-effect waves-light btn TR" id="edit_modal_save_btn">btn.Save</a>
+        <a href="#!" class="modal-close waves-effect waves-light btn-flat TR" id="edit_modal_cancel_btn">btn.Cancel</a>
+    </div>
+</div>
+
+<div class="fixed-action-btn">
+    <a class="btn-floating btn-large waves-effect waves-light orange accent-4" id="add_plan_btn">
+        <i class="material-icons-outlined">add</i>
+    </a>
+</div>
+
+{% endblock %}
+
+{% block content %}
+    {{ super() }}
+
+    <div class="container">
+        <div id="plansTable"></div>
+    </div>
+
+{% endblock %}

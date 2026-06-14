@@ -20,7 +20,7 @@ test.describe('zone map help legend', () => {
 
   test('help icon opens the legend modal with seat icon explanations', async ({ page }) => {
     await logIn(page, USER1);
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
 
     await page.locator('.zonemap_help').first().click();
@@ -37,7 +37,7 @@ test.describe('seat name and booking preview labels', () => {
     await logIn(page, USER1);
     await apiSetPrefs(page, { zone_show_seat_names: true });
 
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
 
     await expect(page.locator('.seat_label_title', { hasText: '1.1' })).toBeVisible();
@@ -50,7 +50,7 @@ test.describe('seat name and booking preview labels', () => {
       zone_show_booking_preview: false,
     });
 
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
 
     await expect(page.locator('.seat_label')).toHaveCount(0);
@@ -64,7 +64,7 @@ test.describe('seat name and booking preview labels', () => {
     await logIn(page, USER1);
     await apiSetPrefs(page, { zone_show_booking_preview: true });
 
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
     await selectOnlyDates(page, [ts]);
     await page.waitForTimeout(400);
@@ -80,7 +80,7 @@ test.describe('seat name and booking preview labels', () => {
     await logIn(page, USER1);
     await apiSetPrefs(page, { zone_show_booking_preview: true });
 
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
     await selectOnlyDates(page, [ts]);
     await page.waitForTimeout(400);
@@ -101,7 +101,7 @@ test.describe('seat hover tooltip', () => {
     await insertBooking(USER2.login, seat.id, 1);
 
     await logIn(page, USER1);
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
     await selectOnlyDates(page, [ts]);
     await page.waitForTimeout(400);
@@ -118,7 +118,7 @@ test.describe('seat hover tooltip', () => {
     const [seat] = await getZoneSeats(1);
 
     await logIn(page, USER1);
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
 
     await page.locator('#zonemap').hover({ position: { x: seat.x + 24, y: seat.y + 24 } });
@@ -133,7 +133,7 @@ test.describe('date selection UX', () => {
 
   test('shift-click selects the whole date range', async ({ page }) => {
     await logIn(page, USER1);
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
 
     const checkboxes = page.locator('.date_checkbox');
@@ -152,7 +152,7 @@ test.describe('date selection UX', () => {
 
   test('shift-click also deselects a whole range', async ({ page }) => {
     await logIn(page, USER1);
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
 
     const checkboxes = page.locator('.date_checkbox');
@@ -175,7 +175,7 @@ test.describe('date selection UX', () => {
     const ts = futureDayTs(1);
 
     await logIn(page, USER1);
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
     await selectOnlyDates(page, [ts]);
 

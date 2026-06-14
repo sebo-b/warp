@@ -1,11 +1,8 @@
 import { execFileSync } from 'child_process';
-import { writeFileSync, rmSync } from 'fs';
 import path from 'path';
-import { BASE_URL } from './playwright.config';
+import { writeRuntimeInfo, RuntimeInfo } from './helpers/runtime';
 
-export const CONTAINER_NAME = 'warp-e2e';
 export const IMAGE_TAG = 'warp-e2e';
-export const MARKER_FILE = path.join(__dirname, '.container-started-by-setup');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 
@@ -19,64 +16,98 @@ function detectContainerEngine(): string {
   }
 }
 
-export const CONTAINER_ENGINE = detectContainerEngine();
-
 function run(cmd: string, args: string[]) {
   execFileSync(cmd, args, { stdio: 'inherit', cwd: REPO_ROOT });
 }
 
-async function serverIsUp(): Promise<boolean> {
+function capture(cmd: string, args: string[]): string {
+  return execFileSync(cmd, args, { cwd: REPO_ROOT, encoding: 'utf8' });
+}
+
+async function serverIsUp(baseURL: string): Promise<boolean> {
   try {
-    const res = await fetch(`${BASE_URL}/login`, { signal: AbortSignal.timeout(2000) });
+    const res = await fetch(`${baseURL}/login`, { signal: AbortSignal.timeout(2000) });
     return res.ok;
   } catch {
     return false;
   }
 }
 
-async function waitForServer(timeoutMs: number) {
+async function waitForServer(baseURL: string, timeoutMs: number) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    if (await serverIsUp()) return;
+    if (await serverIsUp(baseURL)) return;
     await new Promise((r) => setTimeout(r, 1000));
   }
-  throw new Error(`warp did not become ready at ${BASE_URL}/login within ${timeoutMs}ms`);
+  throw new Error(`warp did not become ready at ${baseURL}/login within ${timeoutMs}ms`);
+}
+
+// The host port the engine assigned to a container port via `-P`. Output of
+// `<engine> port <name> 5000/tcp` looks like "0.0.0.0:49153\n[::]:49153".
+function mappedHostPort(engine: string, name: string, containerPort: number): number {
+  const out = capture(engine, ['port', name, `${containerPort}/tcp`]);
+  for (const line of out.split('\n')) {
+    const m = line.trim().match(/:(\d+)$/);
+    if (m) return Number(m[1]);
+  }
+  throw new Error(`could not determine host port for ${containerPort} on '${name}':\n${out}`);
 }
 
 export default async function globalSetup() {
-  rmSync(MARKER_FILE, { force: true });
-
-  // Reuse an already-running instance (e.g. a container started manually,
-  // or a remote target selected via E2E_BASE_URL).
-  if (await serverIsUp()) {
-    console.log(`Reusing already-running warp at ${BASE_URL}`);
+  // External / manually managed target: never touch containers, just point the
+  // suite at it. Useful for fast iteration or testing a remote deployment.
+  if (process.env.E2E_BASE_URL) {
+    console.log(`Using external warp at ${process.env.E2E_BASE_URL}`);
+    await waitForServer(process.env.E2E_BASE_URL, 30_000);
+    writeRuntimeInfo({
+      baseURL: process.env.E2E_BASE_URL,
+      dbHost: process.env.E2E_DB_HOST ?? '127.0.0.1',
+      dbPort: Number(process.env.E2E_DB_PORT ?? 5432),
+      startedBySetup: false,
+    });
     return;
   }
 
+  const engine = detectContainerEngine();
+
+  // Always rebuild (layer cache makes this fast when nothing changed) and run a
+  // *fresh* container, so the suite can never reuse a stale instance.
   console.log(`Building image '${IMAGE_TAG}' from Dockerfile_debug...`);
-  run(CONTAINER_ENGINE, ['build', '-f', 'containers/Dockerfile_debug', '-t', IMAGE_TAG, '.']);
+  run(engine, ['build', '-f', 'containers/Dockerfile_debug', '-t', IMAGE_TAG, '.']);
 
-  // Remove a stale (stopped) container from a previous aborted run.
-  try {
-    execFileSync(CONTAINER_ENGINE, ['rm', '-f', CONTAINER_NAME], { stdio: 'ignore' });
-  } catch {
-    /* no stale container */
-  }
+  // Unique name so concurrent runs (other terminals, CI shards) and unrelated
+  // local containers never collide.
+  const containerName = `warp-e2e-${process.pid}-${Date.now()}`;
 
-  console.log(`Starting container '${CONTAINER_NAME}'...`);
-  run(CONTAINER_ENGINE, [
+  console.log(`Starting container '${containerName}' on random ports...`);
+  run(engine, [
     'run', '-d',
-    '--name', CONTAINER_NAME,
-    '-p', '5000:5000',
-    '-p', '5432:5432',
+    '--name', containerName,
+    // -P publishes every EXPOSEd port (5000, 5432) to a random free host port,
+    // so the suite never fights with whatever else is bound to 5000/5432.
+    '-P',
     // The suite resets the database directly over TCP, so Postgres must bind
     // all interfaces inside the container (off by default — see Dockerfile_debug).
     '-e', 'EXPOSE_POSTGRES=1',
     IMAGE_TAG,
   ]);
-  writeFileSync(MARKER_FILE, CONTAINER_NAME);
 
+  const appPort = mappedHostPort(engine, containerName, 5000);
+  const dbPort = mappedHostPort(engine, containerName, 5432);
+  const baseURL = `http://127.0.0.1:${appPort}`;
+
+  const info: RuntimeInfo = {
+    baseURL,
+    dbHost: '127.0.0.1',
+    dbPort,
+    engine,
+    containerName,
+    startedBySetup: true,
+  };
+  writeRuntimeInfo(info);
+
+  console.log(`warp: ${baseURL}   postgres: 127.0.0.1:${dbPort}`);
   // First start initializes the database (schema + sample data), allow time.
-  await waitForServer(120_000);
+  await waitForServer(baseURL, 120_000);
   console.log('warp is up.');
 }

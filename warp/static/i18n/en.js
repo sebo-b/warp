@@ -126,6 +126,10 @@ warpGlobals.i18n.phrases = {
         "The seat is available to be booked on the selected dates and time. However, you have other bookings at that time which will be automatically updated.",
     "The seat is booked by another person or not available.":
         "The seat is booked by another person or not available.",
+    "The seat is in a view-only zone — you can see it but cannot book it.":
+        "The seat is in a view-only zone — you can see it but cannot book it.",
+    "The seat is booked by someone in a view-only zone — you can see it but cannot book it.":
+        "The seat is booked by someone in a view-only zone — you can see it but cannot book it.",
     "The seat is booked by you on the selected date and time.":
         "The seat is booked by you on the selected date and time.",
     "The seat is booked by you, but not exactly on the selected date or time. You can update booking, all your other reservations at that time will be automatically updated.":
@@ -164,6 +168,7 @@ warpGlobals.i18n.phrases = {
     "You will delete the log of all past bookings in this zone. It is usually a better idea to unassign all users from the zone to make it inaccessible.":
         "You will delete the log of all past bookings in this zone. It is usually a better idea to unassign all users from the zone to make it inaccessible.",
     "Are you sure to delete zone: %{zone_name}": "Are you sure to delete zone: %{zone_name}",
+    "Are you sure to delete plan: %{plan_name}": "Are you sure to delete plan: %{plan_name}",
     "Zone name and zone group cannot be empty.":
         "Zone name and zone group cannot be empty.",
     'Users assigned to: %{zone_name}': 'Users assigned to: %{zone_name}',
@@ -191,8 +196,10 @@ warpGlobals.i18n.phrases = {
         "110": "Cannot book this seat that far in advance. (%{code})",
     },
     "Are you sure to update the zone?": "Are you sure to update the zone?",
+    "Are you sure to update the plan?": "Are you sure to update the plan?",
     "The following changes will be applied:<br>": "The following changes will be applied:<br>",
     "- updated zone map<br>": "- updated zone map<br>",
+    "- updated plan map<br>": "- updated plan map<br>",
     "- added %{smart_count} seat(s)<br>":
         "- added one seat<br>||||"+
         "- added %{smart_count} seats<br>",
@@ -238,6 +245,7 @@ warpGlobals.i18n.phrases = {
     },
     zoneGroup: {
         "Default": "Default",
+        "None": "(none)",
         "NewGroupWillBeCreated": "A new group will be created",
     },
     'Preferences': 'Preferences',
@@ -274,4 +282,20 @@ warpGlobals.i18n.phrases = {
     'Error changing password': 'Error changing password',
     'Show seat names on zone map': 'Show seat names on zone map',
     'Show booking preview on zone map': 'Show booking preview on zone map',
+
+    // Zone deletion / reassignment modal
+    'Reassign seats from deleted zone': 'Reassign seats from deleted zone',
+    'This zone contains %{smart_count} seat(s). All past booking history for these seats will be permanently deleted.': 'This zone contains %{smart_count} seat(s). All past booking history for these seats will be permanently deleted. |||| This zone contains %{smart_count} seats. All past booking history for these seats will be permanently deleted.',
+    'Select a zone to reassign seats to, or use the button below to delete the seats without reassignment.': 'Select a zone to reassign seats to, or use the button below to delete the seats without reassignment.',
+    'No other zones exist. You may only delete the seats along with this zone.': 'No other zones exist. You may only delete the seats along with this zone.',
+    'Reassign seats': 'Reassign seats',
+    'Delete seats': 'Delete seats',
+    'Delete %{smart_count} seat(s) permanently?': 'Delete %{smart_count} seat(s) permanently? |||| Delete %{smart_count} seats permanently?',
+    'This will remove the seats and all their past booking history. This cannot be undone.': 'This will remove the seats and all their past booking history. This cannot be undone.',
+    'btn.Yes, delete': 'Yes, delete',
+    // Plan editor – no zones error
+    'You must create a zone before adding seats.': 'You must create a zone before adding seats.',
+    'seatEdit.Zone for new seats': 'Zone for new seats',
+    'This action cannot be undone.': 'This action cannot be undone.',
+    'Plans': 'Plans',
 };

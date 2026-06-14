@@ -46,7 +46,7 @@ test.describe('booking as another user', () => {
 
   test('zone admin can book a seat via "Book as" UI (autocomplete)', async ({ page }) => {
     await logIn(page, USER1);
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
 
     await pickFirstDate(page);
