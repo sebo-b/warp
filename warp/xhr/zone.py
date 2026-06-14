@@ -185,8 +185,15 @@ def getSeats(pid):
                 "toTS": b[5]
             })
 
-    usedZonesQuery = Zone.select(Zone.id, Zone.name).where(Zone.id.in_(usedZids)).tuples()
-    res['zones'] = {str(i[0]): i[1] for i in usedZonesQuery.iterator()}
+    usedZonesQuery = Zone.select(Zone.id, Zone.name, Zone.zone_group).where(Zone.id.in_(usedZids)).tuples()
+    res['zones'] = {}
+    # zoneGroups maps zid -> zone_group (null = ungrouped). The client uses it to
+    # scope booking conflicts per zone-group (or per single zone when null),
+    # matching the book_overlap_insert trigger, instead of per whole plan.
+    res['zoneGroups'] = {}
+    for i in usedZonesQuery.iterator():
+        res['zones'][str(i[0])] = i[1]
+        res['zoneGroups'][str(i[0])] = i[2]
 
     usedUsersQuery = Users.select(Users.login, Users.name).where(Users.login.in_(usedUsers)).tuples()
     res['users'] = {str(i[0]): i[1] for i in usedUsersQuery.iterator()}
@@ -562,6 +569,14 @@ def runAutoBook(login, pid, dates):
         seats[s['id']] = s['name']
         seat_zids[s['id']] = s['zid']
 
+    # zone_group for each zone that appears on this plan
+    zone_group_map = {}  # zid -> zone_group (None if ungrouped)
+    for z in Zone.select(Zone.id, Zone.zone_group) \
+                 .join(Seat, on=(Seat.zid == Zone.id)) \
+                 .where(Seat.pid == pid) \
+                 .group_by(Zone.id, Zone.zone_group).dicts():
+        zone_group_map[z['id']] = z['zone_group']
+
     seatIds = list(seats.keys())
     seatAssigns = defaultdict(list)
     for r in SeatAssign.select(SeatAssign.sid, SeatAssign.login, SeatAssign.days_in_advance) \
@@ -603,15 +618,16 @@ def runAutoBook(login, pid, dates):
         return ids
 
     # All bookings on this plan within slot range (for conflict detection)
-    allBookings = list(Book.select(Book.id, Book.sid, Book.login, Book.fromts, Book.tots, Seat.zid)
+    allBookings = list(Book.select(Book.id, Book.sid, Book.login, Book.fromts, Book.tots, Seat.zid, Zone.zone_group)
                        .join(Seat, on=(Book.sid == Seat.id))
+                       .join(Zone, on=(Seat.zid == Zone.id))
                        .where(Seat.pid == pid)
                        .where((Book.fromts < slotMax) & (Book.tots > slotMin)).dicts())
 
     def withinWindow(dia, slot):
         return dia is None or slot['fromTS'] < today + (dia + 1) * 86400
 
-    def covers_all(sid, sid_zid, dia, day_slots, ignore_bids):
+    def covers_all(sid, sid_zid, sid_zgroup, dia, day_slots, ignore_bids):
         for s in day_slots:
             if not withinWindow(dia, s): return False
             for bk in allBookings:
@@ -620,9 +636,15 @@ def runAutoBook(login, pid, dates):
                         continue
                     if bk['sid'] == sid:
                         return False
-                    # Only block if the user's existing booking is in the same zone
-                    if bk['login'] == login and bk['zid'] == sid_zid:
-                        return False
+                    if bk['login'] == login:
+                        if sid_zgroup is not None:
+                            # block if booking is in any zone of the same group
+                            if bk['zone_group'] == sid_zgroup:
+                                return False
+                        else:
+                            # block if booking is in the same zone
+                            if bk['zid'] == sid_zid:
+                                return False
         return True
 
     booked = []
@@ -654,14 +676,23 @@ def runAutoBook(login, pid, dates):
         candidate_seat_name = None
         candidate_ignore_bids = []
 
+        def conflict_bids(sid):
+            """Collect existing booking ids that would conflict with booking this seat."""
+            sid_zid = seat_zids[sid]
+            sid_zgroup = zone_group_map.get(sid_zid)
+            if sid_zgroup is not None:
+                return [eb['id'] for eb in day_overlaps if eb['zone_group'] == sid_zgroup]
+            return [eb['id'] for eb in day_overlaps if eb['zid'] == sid_zid]
+
         for sid in preferred_sids:
             if sid in seatInfo and seatInfo[sid][0] != 'blocked':
                 sid_zid = seat_zids[sid]
-                zone_bids = [eb['id'] for eb in day_overlaps if eb['zid'] == sid_zid]
-                if covers_all(sid, sid_zid, seatInfo[sid][1], day_slots, zone_bids):
+                sid_zgroup = zone_group_map.get(sid_zid)
+                bids = conflict_bids(sid)
+                if covers_all(sid, sid_zid, sid_zgroup, seatInfo[sid][1], day_slots, bids):
                     candidate_sid = sid
                     candidate_seat_name = seats[sid]
-                    candidate_ignore_bids = zone_bids
+                    candidate_ignore_bids = bids
                     break
 
         if not candidate_sid:
@@ -669,11 +700,12 @@ def runAutoBook(login, pid, dates):
                 for sid in rankTier(tier):
                     if sid in preferred_sids: continue
                     sid_zid = seat_zids[sid]
-                    zone_bids = [eb['id'] for eb in day_overlaps if eb['zid'] == sid_zid]
-                    if covers_all(sid, sid_zid, tier[sid], day_slots, zone_bids):
+                    sid_zgroup = zone_group_map.get(sid_zid)
+                    bids = conflict_bids(sid)
+                    if covers_all(sid, sid_zid, sid_zgroup, tier[sid], day_slots, bids):
                         candidate_sid = sid
                         candidate_seat_name = seats[sid]
-                        candidate_ignore_bids = zone_bids
+                        candidate_ignore_bids = bids
                         break
                 if candidate_sid: break
 

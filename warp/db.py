@@ -12,7 +12,7 @@ Users = Table('users',('login','password','name','account_type'))
 Groups = Table('groups',('group','login'))
 Plan = Table('plan',('id','name','iid','default_zid'))
 Seat = Table('seat',('id','pid','zid','name','x','y','enabled'))
-Zone = Table('zone',('id','name','zone_type'))
+Zone = Table('zone',('id','name','zone_type','zone_group'))
 ZoneAssign = Table('zone_assign',('zid','login','zone_role'))
 Book = Table('book',('id','login','sid','fromts','tots'))
 SeatAssign = Table('seat_assign',('sid','login','days_in_advance'))
@@ -47,6 +47,13 @@ ZONE_TYPE_PUBLIC_BOOK = 40
 # rejected by users.edit. Mirror this value in js/views/modules/seat.js EVERYONE_KEY.
 EVERYONE_KEY = '__everyone__:550e8400-e29b-41d4-a716-446655440000'
 
+# Reserved sentinel the zone_group header filter sends to select "ungrouped"
+# (NULL) zones — Tabulator can't tell an empty value (no filter) from a request
+# to match NULL. zones.listW translates it to IS NULL. Must never be a real
+# group name. Exposed to the frontend via the template global
+# (window.warpGlobals.ungroupedFilterKey); never duplicated as a JS literal.
+UNGROUPED_FILTER_KEY = '__ungrouped__:088891f7-4de2-4b08-a8a7-fa2d0d035fa3'
+
 def effectiveZoneRole(zone_type, specificRole):
     """Compute effective zone role from zone_type and the user's specific role.
 
@@ -67,7 +74,7 @@ def effectiveZoneRole(zone_type, specificRole):
     return min(candidates) if candidates else None
 
 __all__ = ["DB", "Blobs", "Users", "Groups", "Plan", "Seat", "Zone", "ZoneAssign", "Book", "SeatAssign", "UserPrefs", "UserToZoneRoles", "CalendarCache",
-           "EVERYONE_KEY",
+           "EVERYONE_KEY", "UNGROUPED_FILTER_KEY",
            "IntegrityError", "COUNT_STAR", "SQL_ONE",
            'ACCOUNT_TYPE_ADMIN','ACCOUNT_TYPE_USER','ACCOUNT_TYPE_BLOCKED','ACCOUNT_TYPE_GROUP',
            'ZONE_ROLE_ADMIN', 'ZONE_ROLE_USER', 'ZONE_ROLE_VIEWER',
@@ -87,6 +94,7 @@ DB_MIGRATIONS = [
     (9, "sql/migration_009_zone_preview_prefs.sql"),
     (10, "sql/migration_010_zone_group_text.sql"),
     (11, "sql/migration_011_plans.sql"),
+    (12, "sql/migration_012_zone_group.sql"),
 ]
 
 DB_ADVISORY_LOCK_KEY = 7484381

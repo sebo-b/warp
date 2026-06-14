@@ -222,7 +222,8 @@ def groups():
 def zones():
     if not flask.g.isAdmin:
         flask.abort(403)
-    return flask.render_template('zones.html')
+    return flask.render_template('zones.html',
+                                 ungroupedFilterKey=UNGROUPED_FILTER_KEY)
 
 
 @bp.route("/plans")

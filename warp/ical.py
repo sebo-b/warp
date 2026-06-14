@@ -491,7 +491,7 @@ def book_seat(login):
         return _render_action(_action_t('Requested date is in the past'))
 
     # Zone role check
-    zone_row = (Zone.select(Zone.zone_type, Zone.name)
+    zone_row = (Zone.select(Zone.zone_type, Zone.zone_group, Zone.name)
                     .where(Zone.id == zid)
                     .first())
     if zone_row is None:
@@ -512,18 +512,22 @@ def book_seat(login):
     time_from, time_to = prefs['default_time']
     slot = {'fromTS': day_ts + time_from, 'toTS': day_ts + time_to}
 
-    # Pre-check: any existing booking in the same zone that overlaps the day
+    # Pre-check: any existing booking in same zone (or same zone group) that overlaps the day
+    zone_grp = zone_row['zone_group']
     day_end = day_ts + 86400
-    existing = (Book.select(Book.id, Book.fromts, Book.tots,
-                            Seat.name.alias('seat_name'),
-                            Zone.name.alias('zone_name'))
-                    .join(Seat, on=(Book.sid == Seat.id))
-                    .join(Zone, on=(Seat.zid == Zone.id))
-                    .where(Book.login == login)
-                    .where(Seat.zid == zid)
-                    .where(Book.fromts < day_end)
-                    .where(Book.tots > day_ts)
-                    .first())
+    existing_q = (Book.select(Book.id, Book.fromts, Book.tots,
+                              Seat.name.alias('seat_name'),
+                              Zone.name.alias('zone_name'))
+                      .join(Seat, on=(Book.sid == Seat.id))
+                      .join(Zone, on=(Seat.zid == Zone.id))
+                      .where(Book.login == login)
+                      .where(Book.fromts < day_end)
+                      .where(Book.tots > day_ts))
+    if zone_grp is not None:
+        existing_q = existing_q.where(Zone.zone_group == zone_grp)
+    else:
+        existing_q = existing_q.where(Seat.zid == zid)
+    existing = existing_q.first()
     if existing is not None:
         details = "{zone} – {seat} – {timespan}".format(
             zone=existing['zone_name'],

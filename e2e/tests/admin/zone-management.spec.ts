@@ -107,4 +107,53 @@ test.describe('zone management', () => {
     await expect(page.locator('.tabulator-row', { hasText: 'Parking' }).first()).toBeVisible();
   });
 
+  test('zone list includes zone_group field (null by default)', async ({ page }) => {
+    await logIn(page, ADMIN);
+    const resp = await adminPost(page, '/xhr/zones/list', TAB);
+    const zone1 = (await resp.json()).data.find((z: any) => z.id === 1);
+    expect(zone1).toBeDefined();
+    expect(zone1.zone_group).toBeNull();
+  });
+
+  test('admin can set zone_group on a zone', async ({ page }) => {
+    await logIn(page, ADMIN);
+    const resp = await adminPost(page, '/xhr/zones/addoredit', {
+      id: 1, name: 'Zone 1A', zone_type: 20, zone_group: 'office-floor-1',
+    });
+    expect(resp.status()).toBe(200);
+
+    const result = await querySql('SELECT zone_group FROM zone WHERE id = 1');
+    expect(result.rows[0].zone_group).toBe('office-floor-1');
+  });
+
+  test('admin can clear zone_group (set back to null)', async ({ page }) => {
+    await querySql("UPDATE zone SET zone_group = 'office-floor-1' WHERE id = 1");
+
+    await logIn(page, ADMIN);
+    const resp = await adminPost(page, '/xhr/zones/addoredit', {
+      id: 1, name: 'Zone 1A', zone_type: 20, zone_group: null,
+    });
+    expect(resp.status()).toBe(200);
+
+    const result = await querySql('SELECT zone_group FROM zone WHERE id = 1');
+    expect(result.rows[0].zone_group).toBeNull();
+  });
+
+  test('groups endpoint returns distinct non-null group names (sorted)', async ({ page }) => {
+    await querySql("UPDATE zone SET zone_group = 'floor-b' WHERE id = 1");
+    await querySql("UPDATE zone SET zone_group = 'floor-a' WHERE id = 2");
+    // id 3 stays NULL (ungrouped) — must not appear
+
+    await logIn(page, ADMIN);
+    const resp = await page.request.get('/xhr/zones/groups');
+    expect(resp.status()).toBe(200);
+    expect(await resp.json()).toEqual(['floor-a', 'floor-b']);
+  });
+
+  test('non-admin cannot list zone groups (403)', async ({ page }) => {
+    await logIn(page, USER1);
+    const resp = await page.request.get('/xhr/zones/groups');
+    expect(resp.status()).toBe(403);
+  });
+
 });

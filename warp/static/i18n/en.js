@@ -240,6 +240,7 @@ warpGlobals.i18n.phrases = {
     },
     zoneGroup: {
         "Default": "Default",
+        "None": "(none)",
         "NewGroupWillBeCreated": "A new group will be created",
     },
     'Preferences': 'Preferences',

@@ -73,6 +73,7 @@ const COVERED_ENDPOINTS: ReadonlySet<string> = new Set([
   '/xhr/zones/addoredit',
   '/xhr/zones/assign',
   '/xhr/zones/delete',
+  '/xhr/zones/groups',
   '/xhr/zones/list',
   '/xhr/zones/members',
 

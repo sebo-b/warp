@@ -76,7 +76,39 @@ function WarpSeatFactory(spriteURL,rootDivId,login) {
         updateAllStates: new Set()
     };
 
-    this.myConflictingBookings = new Set();
+    // Map: exclusivityKey -> Set(sid) of my bookings conflicting with the
+    // current selection. Conflicts are scoped per zone-group (or per single
+    // zone when ungrouped), mirroring the book_overlap_insert DB trigger, so
+    // bookings in unrelated zones of the same plan don't replace each other.
+    this.myConflictingBookings = new Map();
+    // zid -> zone_group (null = ungrouped), from getSeats.
+    this.zoneGroups = {};
+}
+
+// Booking-exclusivity key for a zone: shared across a named group, otherwise
+// unique per zone. Mirrors book_overlap_insert in schema.sql.
+WarpSeatFactory.prototype._exclusivityKey = function(zid) {
+    var g = this.zoneGroups[zid];
+    return (g !== null && g !== undefined && g !== "") ? ('g:' + g) : ('z:' + zid);
+}
+
+WarpSeatFactory.prototype._addConflict = function(key, sid) {
+    var s = this.myConflictingBookings.get(key);
+    if (!s) { s = new Set(); this.myConflictingBookings.set(key, s); }
+    s.add(sid);
+}
+
+WarpSeatFactory.prototype._removeConflict = function(key, sid) {
+    var s = this.myConflictingBookings.get(key);
+    if (s) {
+        s.delete(sid);
+        if (s.size === 0) this.myConflictingBookings.delete(key);
+    }
+}
+
+WarpSeatFactory.prototype._conflictCount = function(key) {
+    var s = this.myConflictingBookings.get(key);
+    return s ? s.size : 0;
 }
 
 WarpSeatFactory.prototype.getLogin = function() {
@@ -116,6 +148,9 @@ WarpSeatFactory.prototype.getLogin = function() {
 // you have to call updateAllStates after this method
 WarpSeatFactory.prototype.setSeatsData = function(seatsData = {}) {
 
+    // Full refresh — replace the zone-group map.
+    this.zoneGroups = seatsData.zoneGroups || {};
+
     var oldSeatsIds = new Set( Object.keys(this.instances))
 
     //create possibly missing seats
@@ -154,6 +189,9 @@ WarpSeatFactory.prototype.updateLogin = function(login, seatsData) {
 
     this.login = login;
 
+    // Partial (onlyOtherZone) response — merge so accessible-zone groups survive.
+    Object.assign(this.zoneGroups, seatsData.zoneGroups || {});
+
     //create new seats (all in other zone)
     for (var sid in seatsData.seats) {
         var s = new WarpSeat(sid,seatsData.seats[sid],seatsData.zones,seatsData.users,this);
@@ -162,15 +200,22 @@ WarpSeatFactory.prototype.updateLogin = function(login, seatsData) {
 }
 
 /**
- * Returns a list of my bookings which conflicts in the given datetime
+ * Returns the list of my bookings that conflict with the given seat's booking,
+ * scoped to that seat's exclusivity group (zone-group, or single zone when
+ * ungrouped). Bookings in unrelated zones of the same plan are not included.
+ * @param forSeat the WarpSeat being booked/changed
  * @param raw if true returns an array of bid's
- * @returns array of { sid: 10, bid: 10, fromTS: 1, toTS: 2, zone_name = "Zone 1", seat_name: "Seat 1", datetime1: "yyyy-mm-dd", datetime2: "hh:mm-hh:mm" }
+ * @returns array of { sid, bid, fromTS, toTS, zone_name, seat_name, datetime1, datetime2 }
  */
- WarpSeatFactory.prototype.getMyConflictingBookings = function(raw = false) {
+ WarpSeatFactory.prototype.getMyConflictingBookings = function(forSeat, raw = false) {
 
     var res = [];
 
-    for (var sid of this.myConflictingBookings) {
+    var set = forSeat ? this.myConflictingBookings.get(forSeat.exclusivityKey) : null;
+    if (!set)
+        return res;
+
+    for (var sid of set) {
 
         var seat = this.instances[sid];
 
@@ -201,11 +246,15 @@ WarpSeatFactory.prototype.updateLogin = function(login, seatsData) {
     return res;
  }
 
+// Plan-wide: used by the auto-book FAB to detect when the current selection is
+// already exactly satisfied by an existing booking in any zone.
 WarpSeatFactory.prototype.isExactMatch = function() {
 
-    for (var sid of this.myConflictingBookings) {
-        if (this.instances[sid].state === WarpSeat.SeatStates.CAN_DELETE_EXACT)
-            return true;
+    for (var set of this.myConflictingBookings.values()) {
+        for (var sid of set) {
+            if (this.instances[sid].state === WarpSeat.SeatStates.CAN_DELETE_EXACT)
+                return true;
+        }
     }
     return false;
 }
@@ -424,9 +473,9 @@ WarpSeat.prototype._updateState = function() {
     }
 
     if (isMine)
-        this.factory.myConflictingBookings.add(this.sid);
+        this.factory._addConflict(this.exclusivityKey, this.sid);
     else
-        this.factory.myConflictingBookings.delete(this.sid);
+        this.factory._removeConflict(this.exclusivityKey, this.sid);
 
     if (this.otherZone) {
         this.state = WarpSeat.SeatStates.DISABLED;
@@ -473,7 +522,7 @@ WarpSeat.prototype._updateView = function() {
             this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.userConflictOffset;
             break;
         case WarpSeat.SeatStates.CAN_BOOK:
-            if (this.factory.myConflictingBookings.size > 0) {
+            if (this.factory._conflictCount(this.exclusivityKey) > 0) {
                 this.state = WarpSeat.SeatStates.CAN_REBOOK;    //this is not very elegant
                 this.seatDiv.style.backgroundPositionX =
                     assignedToMe ? WarpSeat.Sprites.rebookAssignedOffset : WarpSeat.Sprites.rebookOffset;
@@ -503,7 +552,7 @@ WarpSeat.prototype._updateView = function() {
 
 WarpSeat.prototype._destroy = function() {
 
-    this.factory.myConflictingBookings.delete(this.sid);
+    this.factory._removeConflict(this.exclusivityKey, this.sid);
     this.factory = null;
 
     if (this.seatDiv) {
@@ -527,6 +576,9 @@ WarpSeat.prototype._setData = function(seatData,usersNames) {
 
     this.name = seatData.name;
     this.book = seatData.book;  //NOTE: just reference
+
+    this.zid = seatData.zid;
+    this.exclusivityKey = this.factory._exclusivityKey(seatData.zid);
 
     if (this.otherZone) {
         this.enabled = true;

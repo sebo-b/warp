@@ -116,10 +116,12 @@ The zone type influences what role a user effectively has:
 - Deletes the zone, all its seat assignments, and bookings for seats in that zone.
 - A warning is shown: deleting a zone also deletes all past booking history. Unassigning all users is suggested as a less destructive alternative.
 
-### 3.4 Per-Zone Booking Constraint
-- **One seat per zone per time slot**: a user may not hold two overlapping bookings in the same zone simultaneously.
-- Seats in **different zones** are fully independent — a user can hold a seat in Zone 1A and a seat in Zone 1B at the same time, even if both zones are on the same plan.
-- This constraint is enforced at the database level (see §23.2).
+### 3.4 Zone Groups
+- A zone can optionally belong to a **zone group** (a free-text group name set by an admin).
+- When a zone has no group (the default), the **per-zone constraint** applies: one seat per zone per time slot.
+- When two or more zones share the same group name, the **per-group constraint** applies: a user may hold at most one seat across all zones in the group simultaneously.
+- Example: put "Office Floor 1" in one group so users cannot hold both a desk and a second desk on the same floor. Leave parking in no group so a desk + a parking spot can be held simultaneously.
+- The booking constraint is enforced at the database level (see §23.2).
 
 ### 3.5 Zone Type Details
 
@@ -562,7 +564,7 @@ All text on these pages is translated according to the deployment-wide language 
 - Session lifetime is configurable (default: 1 day). Expired sessions force re-login.
 
 ### 23.2 Database-Level Constraints
-- **No double-booking**: a PostgreSQL trigger enforces that a seat cannot be booked by two users at the same time, and a user cannot have overlapping bookings within the same zone (one seat per zone per time slot).
+- **No double-booking**: a PostgreSQL trigger enforces that a seat cannot be booked by two users at the same time. Additionally, if a zone belongs to a zone group, a user cannot hold two overlapping bookings in any zones of that group simultaneously; for ungrouped zones, the constraint is one seat per zone.
 - **Referential integrity**: cascading deletes ensure that deleting a user, zone, or seat cleans up all related records.
 
 ### 23.3 iCal Token Security

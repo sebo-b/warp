@@ -8,6 +8,9 @@ from warp.utils_tabulator import *
 
 bp = flask.Blueprint('zones', __name__, url_prefix='zones')
 
+# UNGROUPED_FILTER_KEY is defined in warp.db (single source of truth) and
+# imported via `from warp.db import *`.
+
 
 @bp.route("list", endpoint='list', methods=["POST"])
 @utils.validateJSONInput(tabulatorSchema, isAdmin=True)
@@ -22,11 +25,22 @@ def listW():
         .group_by(UserToZoneRoles.zid)
 
     query = Zone.select(
-        Zone.id, Zone.name, Zone.zone_type,
+        Zone.id, Zone.name, Zone.zone_type, Zone.zone_group,
         fn.COALESCE(countQuery.c.admins, 0).alias('admins'),
         fn.COALESCE(countQuery.c.users, 0).alias('users'),
         fn.COALESCE(countQuery.c.viewers, 0).alias('viewers')) \
         .join(countQuery, join_type=JOIN.LEFT_OUTER, on=(Zone.id == countQuery.c.zid))
+
+    # The generic tabulator filter only does value comparisons; intercept the
+    # "ungrouped" sentinel and translate it to an IS NULL predicate.
+    if 'filter' in requestData:
+        kept = []
+        for f in requestData['filter']:
+            if f.get('field') == 'zone_group' and f.get('value') == UNGROUPED_FILTER_KEY:
+                query = query.where(Zone.zone_group.is_null())
+            else:
+                kept.append(f)
+        requestData['filter'] = kept
 
     (query, lastPage) = applyTabulatorToQuery(query, requestData)
 
@@ -34,6 +48,18 @@ def listW():
     if lastPage is not None:
         res["last_page"] = lastPage
     return res, 200
+
+
+@bp.route("groups", endpoint='groups', methods=["GET"])
+def groupsList():
+    """Distinct, non-NULL zone group names (sorted) for the autocomplete."""
+    if not flask.g.isAdmin:
+        flask.abort(403)
+    rows = Zone.select(Zone.zone_group) \
+               .where(Zone.zone_group.is_null(False)) \
+               .distinct() \
+               .order_by(Zone.zone_group)
+    return flask.jsonify([r['zone_group'] for r in rows.iterator()])
 
 
 deleteSchema = {
@@ -68,6 +94,7 @@ addOrEditSchema = {
         "id": {"type": "integer"},
         "name": {"type": "string"},
         "zone_type": {"type": "integer", "enum": [ZONE_TYPE_DISABLED, ZONE_TYPE_ENABLED, ZONE_TYPE_PUBLIC_VIEW, ZONE_TYPE_PUBLIC_BOOK]},
+        "zone_group": {"type": ["string", "null"]},
     },
     "required": ["name"]
 }
@@ -88,6 +115,9 @@ def addOrEdit():
             }
             if 'zone_type' in jsonData:
                 updColumns[Zone.zone_type] = jsonData['zone_type']
+            if 'zone_group' in jsonData:
+                # treat empty string as NULL
+                updColumns[Zone.zone_group] = jsonData['zone_group'] or None
 
             if 'id' in jsonData:
                 rowCount = Zone.update(updColumns).where(Zone.id == jsonData['id']).execute()
