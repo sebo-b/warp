@@ -97,8 +97,11 @@ The zone type influences what role a user effectively has:
 
 ### 2.4 Navigation Visibility
 
-- **Non-admin users**: see only zones they have access to (plus public zones), plus "Bookings".
-- **Admins**: additionally see "Report", "Users", "Groups", and "Zones" in the navigation bar.
+- **Non-admin users**: see "Bookings" plus only the **Plans** containing seats in zones they can access (plus public zones).
+- **Admins** see an additional **settings (gear) icon** dropdown in the top bar that contains two groups:
+  - **User management**: Users, Groups
+  - **Plan management**: Zones, Plans
+- The right-side admin nav ("Report") remains; the old flat Users/Groups/Zones links were folded into the grouped dropdown.
 
 ---
 
@@ -231,8 +234,10 @@ Accessible via the user icon on the Zones management page.
 
 ## 7. Booking Seats
 
-### 7.1 The Zone View
-- The zone view shows an image-based map with seat icons overlaid.
+### 7.1 The Plan View (Booking Map)
+- A **plan** is the floor-map page you interact with to book (“the zone view” in everyday speech). Each plan owns an image + seats; seats are labelled with a **zone** for access control.
+- A single plan may contain seats belonging to several different zones (mixed permissions on the same map).
+- The plan view shows the plan's map image with seat icons overlaid.
 - A **side panel** (collapsible on mobile) contains:
   - **Date checkboxes**: the next ~2 weeks of dates (configurable via `WEEKS_IN_ADVANCE`). Omitted weekdays (e.g., Sat/Sun) are hidden.
   - **Time slider**: a vertical dual-handle slider for selecting the start and end time. Configurable range (`BOOK_OPEN` / `BOOK_CLOSE`, default 00:00–24:00). Steps in 15-minute increments.
@@ -250,6 +255,7 @@ Accessible via the user icon on the Zones management page.
 | Blue (conflict)                         | You booked this seat, but another user has a conflicting booking — cannot update, only remove | Remove                     |
 | Red (taken)                             | Booked by someone else or unavailable                                                  | —                               |
 | Gray (disabled)                         | Seat is disabled (visible only to zone admins)                                         | Enable/Disable                  |
+| Gray circle / gray person (view-only)   | Seat is in a view-only or disabled zone you cannot book in (free vs. taken)            | —                               |
 | No icon                                 | No date/time selected                                                                  | —                               |
 
 ### 7.3 Booking a Seat
@@ -257,7 +263,7 @@ Accessible via the user icon on the Zones management page.
 2. Click an available (green) seat.
 3. The action modal opens, showing the dates/times to be booked.
 4. Click **Book**. The booking is created.
-5. If you already have a booking in the **same zone** at the same time, it is **automatically removed** and replaced with the new one. The modal shows the bookings that will be removed. Bookings in other zones are not affected.
+5. If you already have a booking in the **same zone (or zone group)** at the same time, it is **automatically removed** and replaced with the new one. The modal shows the bookings that will be removed. Bookings in unrelated zones or groups are not affected.
 
 ### 7.4 Updating a Booking
 1. Select a date/time that partially overlaps an existing booking of yours.
@@ -270,10 +276,11 @@ Accessible via the user icon on the Zones management page.
 - Users can always remove **their own** bookings, even from zones they are no longer assigned to. This allows cleanup of leftover bookings after reassignment.
 
 ### 7.6 Booking Constraints (enforced by database trigger)
-- A user **cannot have overlapping bookings in the same zone** (one seat per zone per time slot).
+- A user **cannot have two overlapping bookings** across zones that share a **zone group** (or, for an ungrouped zone, within that single zone). This is the per-zone/per-group exclusivity rule.
 - A seat **cannot be double-booked** at the same time.
 - The booking time range must be valid (from < to).
-- These constraints are enforced at the database level via a trigger (`book_overlap_insert_trig`) that checks by `seat.zid`.
+- These constraints are enforced at the database level via the `book_overlap_insert` trigger (keyed by seat.zid and zone_group membership).
+
 
 ### 7.7 Shift-Select for Dates
 - Holding **Shift** while clicking a date checkbox selects/deselects all dates between the last clicked date and the current one.
@@ -286,36 +293,59 @@ Accessible via the user icon on the Zones management page.
 ## 8. Auto-Book ("Find Me a Seat")
 
 ### 8.1 The Floating "+" Button
-- A floating action button appears in the bottom-right corner of the zone view.
+- A floating action button appears in the bottom-right corner of the plan view (the interactive floor-map page).
 - Disabled when no dates are selected or when the exact booking already exists.
 - Clicking it triggers the auto-book algorithm.
 
 ### 8.2 Auto-Book Algorithm
+<<<<<<< Updated upstream
 - For each selected date, the system tries to find an available seat:
   1. **Priority tiers**: seats directly assigned to the user are preferred; then "Everyone"/unassigned seats.
   2. **Within each tier**, seats are ranked by the user's past booking frequency (prefer seats you book often), then by overall popularity (prefer less popular seats as a tiebreaker), then by seat ID.
   3. The algorithm respects the **days-in-advance** window per seat.
-  4. Existing bookings by the user in the **same zone** that overlap the requested times are **automatically replaced** (removed and rebooked on the new seat). Bookings in other zones are left untouched.
-  5. If the user already has an **exact** booking for the requested time, it is reported as "Already booked" without changes.
-  6. If the user has overlapping bookings in the same zone that cannot be extended/rebooked, those dates are reported as "Could not extend or rebook".
+  4. Existing bookings by the user in the same zone group that overlap the requested times are **automatically replaced** (removed and rebooked on the new seat).
+  5. If the user already has an **exact** booking in another zone of the same group, it is reported as "Already booked elsewhere" without changes.
+  6. If the user has overlapping bookings that cannot be extended/rebooked, those dates are reported as "Could not extend or rebook".
+Auto-book runs **one day at a time**, scoped to the **current plan**. For each requested day it walks this priority (best first) and takes the first seat that can cover the whole day's slots:
+
+1. **The seat you already hold that day** (extend or shrink your existing booking on it).
+2. **A seat assigned/reserved to you** — ordered by descending `days_in_advance` (unlimited first), then by your own cumulative booked time on it, then spread. A reserved seat is not eligible until its window has opened.
+3. **Your most-used seat** (among the remaining shared/everyone seats) — ranked by your own total booked *time* (cumulative seconds, not number of bookings) over the look-back window.
+4. **Another seat in that seat's zone** — the fallback when your usual seat is taken.
+5. **A seat in the biggest zone** on the plan (the "main area" fallback when you have no usage history or the prior zone was full).
+6. **Any remaining free seat**, picked at random (to spread people).
+
+- Existing bookings by *you* in the **same zone or zone group** as the chosen seat are automatically removed (so the new booking can be created without a conflict).
+- Bookings in unrelated zones/groups are untouched.
+- Assignments (`direct` or `everyone`) still gate eligibility: you can only be auto-booked onto a seat whose assignment includes you and whose days-in-advance window covers the date.
+- The algorithm never uses the site-admin super-user bypass for seat *selection* when booking for yourself; the pool is exactly the seats/ zones the subject could have booked manually.
+
+Full details (with the exact decision tree, `dia` handling, exclusivity keys, future_options, etc.) live in [AUTOBOOK.md](AUTOBOOK.md).
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
 
 ### 8.3 Auto-Book Results
-- The result is shown in a modal with sections:
-  - **Booked**: seats successfully booked.
-  - **Already booked in another zone**: exact match found — no change needed.
-  - **Could not extend or rebook**: overlapping booking exists but the desired seat is not available.
-  - **Could not book**: no seat available. For dates blocked by days-in-advance, the modal shows **future availability** (e.g., "Seat A becomes available on 2025-01-15").
+The backend result buckets are:
+
+- `booked` — successfully booked (or already exactly matched).
+- `not_extended` — you already had a booking that day but it could not be adjusted (a conflict prevented extending/rebooking).
+- `unbookable` — no seat could be found for the day; each carries optional `future_options` hints for when a reserved seat you are eligible for will open up.
+
+The UI modal surfaces this as sections titled "Booked", "Could not extend or rebook", and "No seat available" (the last one shows the future-availability messages when present).
+
+The old "Already booked in another zone" section is gone; an existing booking on the same plan for the same slots takes top priority at step 1 instead.
 
 ### 8.4 Auto-Book for Zone Admins
 - Zone admins can use the "Book As" feature with auto-book to find a seat for another user (see §9).
+- When doing so via auto-book, the seat is chosen exactly as it would have been for the target user themselves (the actor's own zones do not restrict the choice). Manual "book as" is still scoped to the specific seat's zone adminship.
 
 ---
 
 ## 9. "Book As" (Zone Admin Feature)
 
-- A "Book As" input field appears in the zone view side panel for zone admins.
-- It is an autocomplete field listing all users assigned to the zone (or all non-blocked users for public zones).
-- Selecting a user switches the entire zone view to show what that user sees, including their bookings and conflicting bookings in other zones.
+- A "Book As" input field appears in the plan-view side panel (the booking map) for zone admins.
+- It is an autocomplete field listing all users assigned to the zones on that plan (or all non-blocked users for public zones on the plan).
+- Selecting a user switches the entire plan view to show what that user sees, including their bookings and conflicting bookings across the plan.
 - When the admin books, updates, or removes a booking, it is performed **on behalf of the selected user**.
 - The admin can also auto-book for the selected user.
 - Clearing the "Book As" field (pressing Enter while empty) reverts to the admin's own view.
@@ -331,10 +361,10 @@ Accessible via the user icon on the Zones management page.
   - **Current bookings**: up to 8 booking entries showing the date, time, and username.
 
 ### 10.2 Seat Name Labels (User Preference)
-- Users can toggle **"Show seat names on zone map"** to display permanent labels with seat names below each seat icon.
+- Users can toggle **"Show seat names on the map"** to display permanent labels with seat names below each seat icon.
 
 ### 10.3 Booking Preview Labels (User Preference)
-- Users can toggle **"Show booking preview on zone map"** to show who is booked on each seat for the currently selected date/time.
+- Users can toggle **"Show booking preview on the map"** to show who is booked on each seat for the currently selected date/time.
 - Labels update in real-time when the date/time selection changes.
 - When both seat names and booking preview are on, labels show both.
 
@@ -434,7 +464,7 @@ Accessible from the user menu (dropdown in the top-right corner).
 
 ### 14.3 Default Time
 - A dual-handle slider setting the default booking time range (e.g., 09:00–17:00).
-- This range is used when opening a zone and for iCal one-click booking.
+- This range is used when opening a plan view and for iCal one-click booking.
 
 ### 14.4 Zone Display Preferences
 - **Show seat names on zone map**: toggle permanent seat name labels.
@@ -550,18 +580,18 @@ All text on these pages is translated according to the deployment-wide language 
 
 ## 21. Mobile Responsiveness
 
-- The zone view side panel (date/time selection) collapses into a **sidenav** on mobile.
-- A trigger button (schedule icon) appears on the zone map to open the side panel.
+- The plan-view side panel (date/time selection) collapses into a **sidenav** on mobile.
+- A trigger button (schedule icon) appears on the plan map to open the side panel.
 - The navigation bar collapses into a hamburger menu.
 - The user menu is available from the mobile sidenav.
-- Seat icons and the zone map scale to the viewport.
+- Seat icons and the plan map scale to the viewport.
 
 ---
 
 ## 22. Booking Window Configuration
 
 ### 22.1 System-Wide Booking Window
-- `WEEKS_IN_ADVANCE`: how many weeks after the current week users can book (default: 1). The visible date range in the zone view is from today to the end of (current week + WEEKS_IN_ADVANCE) weeks.
+- `WEEKS_IN_ADVANCE`: how many weeks after the current week users can book (default: 1). The visible date range in the plan view is from today to the end of (current week + WEEKS_IN_ADVANCE) weeks.
 - `BOOK_OPEN` / `BOOK_CLOSE`: earliest and latest bookable time of day, in seconds from midnight (default: 0 / 86400 = full day).
 
 ### 22.2 Omitted Weekdays
@@ -639,7 +669,7 @@ All text on these pages is translated according to the deployment-wide language 
 
 ---
 
-## 26. Zone View Interaction Summary
+## 26. Plan View Interaction Summary
 
 | Seat State            | No Dates | Green (Book)          | Green (Rebook)      | Blue (Update) | Blue (Conflict) | Blue (Exact) | Red (Taken) | Yellow (Assigned)           | Gray (Disabled)             |
 |-----------------------|----------|-----------------------|----------------------|---------------|-----------------|--------------|-------------|-----------------------------|-----------------------------|
