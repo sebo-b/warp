@@ -37,6 +37,9 @@ I've quickly evaluated a couple of existing solutions, but they were either too 
 - **LDAP/Active Directory**: Via LDAP3 library.
 
 See [FEATURES.md](FEATURES.md) for a detailed description of all functionality, roles, booking rules, and configuration options.
+New to the concepts? Start with the [GLOSSARY.md](GLOSSARY.md), and read
+[PERMISSIONS.md](PERMISSIONS.md) for the complete access model (account types,
+zones, plans, roles, and how they nest).
 
 ## What I'm not even planning to do
 

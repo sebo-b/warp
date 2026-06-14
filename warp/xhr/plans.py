@@ -309,6 +309,9 @@ def modify():
                 if totalCount != len(jsonData['addOrUpdate']):
                     raise ApplyError("Wrong number of affected rows", 338)
 
+    except IntegrityError:
+        # e.g. a new seat without a valid zid, or a stale pid/sid reference.
+        return {"msg": "Error", "code": 339}, 400
     except ApplyError as err:
         return {"msg": "Error", "code": err.args[1]}, 400
 

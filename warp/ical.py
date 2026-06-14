@@ -547,7 +547,9 @@ def book_seat(login):
     pid = plan_row['id']
 
     from warp.xhr.zone import runAutoBook
-    result, err = runAutoBook(login, pid, [slot])
+    # The calendar reminder is per-zone, so confine autobook to the requested zone
+    # even though the plan it lives on may span several zones.
+    result, err = runAutoBook(login, pid, [slot], allowedZids={zid})
 
     if err == 103:
         return _render_action(_action_t('Not possible to book'))

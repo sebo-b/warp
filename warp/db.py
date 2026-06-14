@@ -94,8 +94,6 @@ DB_MIGRATIONS = [
     (9, "sql/migration_009_zone_preview_prefs.sql"),
     (10, "sql/migration_010_zone_group_text.sql"),
     (11, "sql/migration_011_plans.sql"),
-    (12, "sql/migration_012_zone_group.sql"),
-    (13, "sql/migration_013_drop_plan_default_zid.sql"),
 ]
 
 DB_ADVISORY_LOCK_KEY = 7484381

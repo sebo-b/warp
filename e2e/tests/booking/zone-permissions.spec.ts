@@ -25,65 +25,17 @@ import {
   getFirstZoneDate,
   clickZoneSeat,
 } from '../../helpers/booking';
+import {
+  setZoneType,
+  createZone,
+  createPlan,
+  addSeats,
+  assignZoneRole,
+} from '../../helpers/zone-setup';
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Helpers (generic zone/plan/seat setup lives in helpers/zone-setup.ts)
 // ---------------------------------------------------------------------------
-
-/** Set zone_type on an existing zone. */
-async function setZoneType(zid: number, zoneType: number): Promise<void> {
-  await querySql('UPDATE zone SET zone_type = $1 WHERE id = $2', [zoneType, zid]);
-}
-
-/** Create a new zone and return its id. */
-async function createZone(name: string, zoneType: number): Promise<number> {
-  const result = await querySql(
-    'INSERT INTO zone (name, zone_type) VALUES ($1, $2) RETURNING id',
-    [name, zoneType],
-  );
-  const zid = Number(result.rows[0].id);
-  await querySql(
-    "SELECT pg_catalog.setval(pg_get_serial_sequence('zone', 'id'), (SELECT MAX(id) FROM zone))",
-  );
-  return zid;
-}
-
-/** Create a new plan and return its id. */
-async function createPlan(name: string, iid: number | null): Promise<number> {
-  const result = await querySql(
-    'INSERT INTO plan (name, iid) VALUES ($1, $2) RETURNING id',
-    [name, iid],
-  );
-  const pid = Number(result.rows[0].id);
-  await querySql(
-    "SELECT pg_catalog.setval(pg_get_serial_sequence('plan', 'id'), (SELECT MAX(id) FROM plan))",
-  );
-  return pid;
-}
-
-/** Add seats to a plan+zone. Returns the seat ids. */
-async function addSeats(pid: number, zid: number, names: string[]): Promise<number[]> {
-  const ids: number[] = [];
-  for (let i = 0; i < names.length; i++) {
-    const result = await querySql(
-      'INSERT INTO seat (pid, zid, name, x, y) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-      [pid, zid, names[i], 100 + i * 70, 100],
-    );
-    ids.push(Number(result.rows[0].id));
-  }
-  await querySql(
-    "SELECT pg_catalog.setval(pg_get_serial_sequence('seat', 'id'), (SELECT MAX(id) FROM seat))",
-  );
-  return ids;
-}
-
-/** Assign a user (or group) to a zone with a given role. */
-async function assignZoneRole(zid: number, login: string, role: number): Promise<void> {
-  await querySql(
-    'INSERT INTO zone_assign (zid, login, zone_role) VALUES ($1, $2, $3) ON CONFLICT (zid, login) DO UPDATE SET zone_role = $3',
-    [zid, login, role],
-  );
-}
 
 /** Set up a plan with two zones: one enabled, one public-view. Returns setup data. */
 async function setupMixedEnabledPublicViewPlan(): Promise<{
