@@ -142,7 +142,7 @@ test.describe('zone modes (zone_type)', () => {
     expect(resp.status()).toBe(200);
   });
 
-  test('zone admin can still book in a DISABLED zone (effectiveRole=10 passes user check)', async ({ page }) => {
+  test('zone admin CANNOT book in a DISABLED zone (disabled zones are fully locked down)', async ({ page }) => {
     await querySql('UPDATE zone SET zone_type = 10 WHERE id = 1');
 
     await logIn(page, USER1);
@@ -151,7 +151,9 @@ test.describe('zone modes (zone_type)', () => {
     const resp = await apiApply(page, {
       book: { sid: seat.id, dates: [{ fromTS: ts + 9 * 3600, toTS: ts + 17 * 3600 }] },
     });
-    expect(resp.status()).toBe(200);
+    // Disabled zones cannot be booked even by zone admins — the zone must be enabled first.
+    expect(resp.status()).toBe(403);
+    expect((await resp.json()).code).toBe(104);
   });
 
   test('regular user cannot book in a DISABLED zone (code 104)', async ({ page }) => {

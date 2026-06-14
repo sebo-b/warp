@@ -41,7 +41,8 @@ WarpSeat.SeatStates = {
     CAN_REBOOK: 5,      // seat is available to be booked, but other seat is already booked (IMPLEMENTATION NOTE: this state is set in _updateView)
     CAN_CHANGE: 6,      // seat is already booked by this user, but can be changed (extended, reduced, deleted)
     CAN_DELETE: 7,      // seat is already booked by this user, but cannot be changed
-    CAN_DELETE_EXACT: 8 // seat is already booked by this user, cannot be changed and selected dated are exactly matching booking dates
+    CAN_DELETE_EXACT: 8, // seat is already booked by this user, cannot be changed and selected dated are exactly matching booking dates
+    VIEW_ONLY: 9        // seat is visible but cannot be booked (viewer access in a public-view or disabled zone)
 }
 
 WarpSeat.Sprites = {
@@ -55,7 +56,8 @@ WarpSeat.Sprites = {
     disabledOffset: "-288px",
     bookAssignedOffset: "-336px",
     rebookAssignedOffset: "-384px",
-    assignedOffset: "-432px"
+    assignedOffset: "-432px",
+    viewOnlyOffset: "-480px"
 };
 
 function WarpSeatFactory(spriteURL,rootDivId,login) {
@@ -396,6 +398,13 @@ WarpSeat.prototype._bookingsIterator = function*() {
     }
 }
 
+WarpSeat.prototype._isFreeForSelectedDates = function() {
+    for (var i of this._bookingsIterator()) {
+        return false;
+    }
+    return true;
+};
+
 WarpSeat.prototype._updateState = function() {
 
     if (!this.factory.selectedDates.length) {
@@ -406,6 +415,32 @@ WarpSeat.prototype._updateState = function() {
     if (!this.enabled) {
         this.state = WarpSeat.SeatStates.DISABLED;
         return this.state;
+    }
+
+    if (!this.bookable) {
+        // View-only access (PUBLIC_VIEW zone, or DISABLED zone even for admins)
+        // Existing own bookings can still be cancelled, but no new bookings allowed.
+        var hasOwnBooking = false;
+        for (var i of this._bookingsIterator()) {
+            if (i.book.login == this.factory.login) {
+                hasOwnBooking = true;
+                break;
+            }
+        }
+        if (hasOwnBooking) {
+            // Allow cancellation only (CAN_DELETE or CAN_DELETE_EXACT), not rebooking.
+            // Fall through to normal logic to compute isMine/isExact, but then
+            // override the state to prevent CAN_CHANGE / CAN_REBOOK / CAN_BOOK.
+        } else {
+            // No own booking — seat is not bookable, show as view-only or taken.
+            var isFree = true;
+            for (var i of this._bookingsIterator()) {
+                isFree = false;
+                break;
+            }
+            this.state = isFree ? WarpSeat.SeatStates.VIEW_ONLY : WarpSeat.SeatStates.TAKEN;
+            return this.state;
+        }
     }
 
     if (Object.keys(this.assignments).length > 0) {
@@ -497,6 +532,15 @@ WarpSeat.prototype._updateState = function() {
     else
         this.state = WarpSeat.SeatStates.TAKEN;
 
+    // For non-bookable seats with own bookings, only allow cancellation.
+    // Clamp CAN_CHANGE / CAN_REBOOK / CAN_BOOK → CAN_DELETE.
+    if (!this.bookable && this.state != WarpSeat.SeatStates.CAN_DELETE_EXACT) {
+        if (this.state == WarpSeat.SeatStates.CAN_CHANGE ||
+            this.state == WarpSeat.SeatStates.CAN_DELETE) {
+            this.state = WarpSeat.SeatStates.CAN_DELETE;
+        }
+    }
+
     return this.state;
 }
 
@@ -522,7 +566,12 @@ WarpSeat.prototype._updateView = function() {
             this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.userConflictOffset;
             break;
         case WarpSeat.SeatStates.CAN_BOOK:
-            if (this.factory._conflictCount(this.exclusivityKey) > 0) {
+            if (!this.bookable) {
+                // Should not reach here, but safety fallback
+                this.state = WarpSeat.SeatStates.VIEW_ONLY;
+                this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.viewOnlyOffset;
+            }
+            else if (this.factory._conflictCount(this.exclusivityKey) > 0) {
                 this.state = WarpSeat.SeatStates.CAN_REBOOK;    //this is not very elegant
                 this.seatDiv.style.backgroundPositionX =
                     assignedToMe ? WarpSeat.Sprites.rebookAssignedOffset : WarpSeat.Sprites.rebookOffset;
@@ -539,6 +588,9 @@ WarpSeat.prototype._updateView = function() {
         case WarpSeat.SeatStates.TAKEN:
             this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.conflictOffset;
         break;
+        case WarpSeat.SeatStates.VIEW_ONLY:
+            this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.viewOnlyOffset;
+            break;
         case WarpSeat.SeatStates.DISABLED:
             this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.disabledOffset;
             break;
@@ -582,6 +634,7 @@ WarpSeat.prototype._setData = function(seatData,usersNames) {
 
     if (this.otherZone) {
         this.enabled = true;
+        this.bookable = false;
         this.assignments = {}
         for (let b in this.book) {
             this.book[b].login = this.factory.login;
@@ -589,6 +642,7 @@ WarpSeat.prototype._setData = function(seatData,usersNames) {
     }
     else {
         this.enabled = ('enabled' in seatData)? seatData.enabled: true;
+        this.bookable = ('bookable' in seatData)? seatData.bookable: true;
         this.assignments = {}
 
         for (let b in this.book) {

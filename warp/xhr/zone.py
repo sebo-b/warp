@@ -15,7 +15,7 @@ bp = flask.Blueprint('zone', __name__, url_prefix='zone')
 #   users: { login: "name" }
 #   seats: {
 #       sidN: {          # seat visible to this user (in an accessible zone)
-#          name, x, y, zid, enabled,
+#          name, x, y, zid, enabled, bookable,
 #          book: [ { bid, login, fromTS, toTS } ],
 #          assignments: [ { login, days_in_advance, isEveryone? } ]
 #       }
@@ -24,6 +24,11 @@ bp = flask.Blueprint('zone', __name__, url_prefix='zone')
 #          book: [ { bid, fromTS, toTS } ]
 #       }
 #   }
+#
+# bookable: true if the user's effective role for this seat's zone is ≤ ZONE_ROLE_USER
+#           (i.e. the user can actually book the seat). False for VIEWER-only access
+#           or for seats in DISABLED zones (even if the user is admin there — disabled
+#           zones are fully locked down and should not allow booking from the UI).
 #
 # Optional query args:
 #   login=string       – use this login for conflict bookings (requires plan admin)
@@ -132,6 +137,7 @@ def getSeats(pid):
                 "y": s['y'],
                 "zid": zid,
                 "enabled": s['enabled'] != 0,
+                "bookable": zone_role <= ZONE_ROLE_USER and zone_type_map[zid] != ZONE_TYPE_DISABLED,
                 "book": []
             }
             if s['id'] in assignments:
@@ -317,6 +323,11 @@ def apply():
 
         effectiveRole = effectiveZoneRole(seatZone['zone_type'], bookerRole)
         if effectiveRole is None or effectiveRole > ZONE_ROLE_USER:
+            return {"msg": "Forbidden", "code": 104}, 403
+
+        # Disabled zones cannot be booked at all — even by admins.
+        # Enable the zone first, then book.
+        if seatZone['zone_type'] == ZONE_TYPE_DISABLED:
             return {"msg": "Forbidden", "code": 104}, 403
 
         if not seatZone['enabled']:
@@ -545,11 +556,13 @@ def runAutoBook(login, pid, dates):
         day_key = d['fromTS'] - d['fromTS'] % (24 * 3600)
         slots_by_day[day_key].append(d)
 
-    # Seats accessible to this user on this plan
+    # Seats accessible to this user on this plan (excluding DISABLED zones)
     accessibleSeatQ = Seat.select(Seat.id, Seat.name, Seat.zid) \
+        .join(Zone, on=(Seat.zid == Zone.id)) \
         .join(UserToZoneRoles, on=(Seat.zid == UserToZoneRoles.zid)) \
         .where(Seat.pid == pid) \
         .where(Seat.enabled == True) \
+        .where(Zone.zone_type != ZONE_TYPE_DISABLED) \
         .where(UserToZoneRoles.login == login) \
         .where(UserToZoneRoles.zone_role <= ZONE_ROLE_USER)
 
@@ -785,12 +798,14 @@ def autoBook(pid):
 
     login = requested_login
 
-    # Check user has at least USER access to some zone on this plan
+    # Check user has at least USER access to some bookable zone on this plan
+    # (excluding DISABLED zones — those are fully locked down)
     accessible = Zone.select(Zone.id, Zone.zone_type) \
         .join(Seat, on=(Seat.zid == Zone.id)) \
         .join(UserToZoneRoles, join_type=peewee.JOIN.LEFT_OUTER,
               on=((Zone.id == UserToZoneRoles.zid) & (UserToZoneRoles.login == flask.g.login))) \
         .where(Seat.pid == pid) \
+        .where(Zone.zone_type != ZONE_TYPE_DISABLED) \
         .where(
             Zone.zone_type.in_([ZONE_TYPE_PUBLIC_BOOK]) |
             ((Zone.zone_type == ZONE_TYPE_ENABLED) & (UserToZoneRoles.zone_role <= ZONE_ROLE_USER)) |

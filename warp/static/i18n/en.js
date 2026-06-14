@@ -126,6 +126,8 @@ warpGlobals.i18n.phrases = {
         "The seat is available to be booked on the selected dates and time. However, you have other bookings at that time which will be automatically updated.",
     "The seat is booked by another person or not available.":
         "The seat is booked by another person or not available.",
+    "The seat is in a view-only zone — you can see it but cannot book it.":
+        "The seat is in a view-only zone — you can see it but cannot book it.",
     "The seat is booked by you on the selected date and time.":
         "The seat is booked by you on the selected date and time.",
     "The seat is booked by you, but not exactly on the selected date or time. You can update booking, all your other reservations at that time will be automatically updated.":

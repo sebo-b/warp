@@ -582,7 +582,7 @@ function initActionMenu(seatFactory) {
 
         var state = this.getState();
 
-        if (state == WarpSeat.SeatStates.NOT_AVAILABLE)
+        if (state == WarpSeat.SeatStates.NOT_AVAILABLE || state == WarpSeat.SeatStates.VIEW_ONLY)
             return;
 
         var actions = [];
