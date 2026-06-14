@@ -52,14 +52,7 @@ def headerDataInit():
         {"text": "Report", "endpoint": "view.bookings", "view_args": {"report": "report"}},
     ]
 
-    headerDataAdmin = [
-        {"group": "user_management", "text": "Users", "endpoint": "view.users", "view_args": {}},
-        {"group": "user_management", "text": "Groups", "endpoint": "view.groups", "view_args": {}},
-        {"group": "plan_management", "text": "Zones", "endpoint": "view.zones", "view_args": {}},
-        {"group": "plan_management", "text": "Plans", "endpoint": "view.plans", "view_args": {}},
-    ]
-
-    for hdata in [headerDataL, headerDataR, headerDataAdmin]:
+    for hdata in [headerDataL, headerDataR]:
         for h in hdata:
             h['url'] = flask.url_for(h['endpoint'], **h['view_args'])
             h['active'] = flask.request.endpoint == h['endpoint'] and flask.request.view_args == h['view_args']
@@ -67,7 +60,6 @@ def headerDataInit():
     return {
         "headerDataL": headerDataL,
         "headerDataR": headerDataR,
-        "headerDataAdmin": headerDataAdmin,
         "accessibleZones": accessible_zones,
         'hasLogout': 'auth.logout' in flask.current_app.view_functions,
         'hasChangePassword': 'auth.change_password' in flask.current_app.view_functions,
