@@ -1,16 +1,22 @@
 import { execFileSync } from 'child_process';
-import { existsSync, rmSync } from 'fs';
-import { CONTAINER_ENGINE, CONTAINER_NAME, MARKER_FILE } from './global-setup';
+import { getRuntimeInfo, clearRuntimeInfo } from './helpers/runtime';
 
 export default async function globalTeardown() {
-  // Only stop the container if global-setup started it; a manually started
-  // or external instance is left running.
-  if (!existsSync(MARKER_FILE)) return;
-
-  console.log(`Removing container '${CONTAINER_NAME}'...`);
+  let info;
   try {
-    execFileSync(CONTAINER_ENGINE, ['rm', '-f', CONTAINER_NAME], { stdio: 'inherit' });
+    info = getRuntimeInfo();
+  } catch {
+    return; // nothing was set up
+  }
+
+  try {
+    // Only remove the container if global-setup started it; an external or
+    // manually started instance (E2E_BASE_URL) is left running.
+    if (info.startedBySetup && info.containerName && info.engine) {
+      console.log(`Removing container '${info.containerName}'...`);
+      execFileSync(info.engine, ['rm', '-f', info.containerName], { stdio: 'inherit' });
+    }
   } finally {
-    rmSync(MARKER_FILE, { force: true });
+    clearRuntimeInfo();
   }
 }
