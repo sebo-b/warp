@@ -824,31 +824,36 @@ def autoBook(pid):
     if not zone_type_map:
         return {"msg": "Forbidden", "code": 104}, 403
 
-    # The acting user's effective role per zone on this plan (a site admin
-    # administers every zone).
+    # The acting user's *regular* effective role per zone — explicit grants (incl.
+    # those inherited from groups) combined with the zone type. This deliberately
+    # excludes the site-admin super-user bypass: a site admin's "access to
+    # everything" must not silently widen which zones autobook will pick from.
     specific_roles = {}
-    if not flask.g.isAdmin:
-        for r in UserToZoneRoles.select(UserToZoneRoles.zid, UserToZoneRoles.zone_role) \
-                                .where(UserToZoneRoles.zid.in_(list(zone_type_map))) \
-                                .where(UserToZoneRoles.login == flask.g.login).iterator():
-            specific_roles[r['zid']] = r['zone_role']
+    for r in UserToZoneRoles.select(UserToZoneRoles.zid, UserToZoneRoles.zone_role) \
+                            .where(UserToZoneRoles.zid.in_(list(zone_type_map))) \
+                            .where(UserToZoneRoles.login == flask.g.login).iterator():
+        specific_roles[r['zid']] = r['zone_role']
 
-    actor_roles = {}
+    regular_roles = {}
     for zid, zone_type in zone_type_map.items():
-        if flask.g.isAdmin:
-            actor_roles[zid] = ZONE_ROLE_ADMIN
-        else:
-            eff = effectiveZoneRole(zone_type, specific_roles.get(zid))
-            if eff is not None:
-                actor_roles[zid] = eff
+        eff = effectiveZoneRole(zone_type, specific_roles.get(zid))
+        if eff is not None:
+            regular_roles[zid] = eff
 
     if is_book_as:
-        # Booking for another user requires zone-admin rights; the seat pool is
-        # confined to the zones the actor administers (a site admin: all of them).
-        allowed_zids = {zid for zid, role in actor_roles.items() if role <= ZONE_ROLE_ADMIN}
+        # Booking for another user is an admin action, so the seat pool is the
+        # zones the actor administers: every zone for a site admin, only the
+        # explicitly-granted ones for a zone admin.
+        if flask.g.isAdmin:
+            allowed_zids = set(zone_type_map)
+        else:
+            allowed_zids = {zid for zid, role in regular_roles.items() if role <= ZONE_ROLE_ADMIN}
     else:
-        # Booking for self: any non-disabled zone the actor can actually book in.
-        allowed_zids = {zid for zid, role in actor_roles.items()
+        # Booking for self: only zones where the actor genuinely has booking
+        # rights. The super-user bypass is intentionally NOT applied here — an
+        # admin must never be auto-booked into a zone they merely oversee (or
+        # don't touch at all) but never personally book in.
+        allowed_zids = {zid for zid, role in regular_roles.items()
                         if role <= ZONE_ROLE_USER and zone_type_map[zid] != ZONE_TYPE_DISABLED}
 
     if not allowed_zids:

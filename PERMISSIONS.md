@@ -117,6 +117,13 @@ This makes the booking screens behave consistently with the management screens
 (which already treat the site admin as owner of everything). The **disabled-zone
 "no booking" rule still applies even to site admins** (§7).
 
+**One deliberate exception — self auto-book.** When a site admin uses "find me a
+seat" *for themselves*, the super-user bypass is **not** applied to seat
+selection: auto-book only considers zones where the admin has a *regular* grant
+(or that are public-bookable), exactly as it would for any other user. Otherwise
+an admin could be auto-booked into a zone they merely oversee but never sit in.
+The bypass still applies to viewing, managing, and booking *as* another user.
+
 > Implementation note: the booking endpoints (`getSeats`, `apply`, `autoBook`)
 > short-circuit to *zone admin* when `flask.g.isAdmin` is set, mirroring the
 > bypasses already present in the view layer (`view.plan`, `view.planImage`,
@@ -231,6 +238,11 @@ For **auto-book as**, the candidate seats are additionally **confined to the
 zones the actor administers** (all zones, for a site admin). So a zone admin
 auto-booking for someone else can only ever place them in the zones that admin
 controls.
+
+For **auto-book for yourself**, the pool is the zones where *you* have a regular
+booking grant (or that are public-bookable). A site admin's super-user bypass is
+intentionally excluded here (§4), so auto-book never picks a zone you only
+oversee or have no real stake in.
 
 ---
 

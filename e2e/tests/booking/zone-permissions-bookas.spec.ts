@@ -305,6 +305,39 @@ test.describe('auto-book as another user', () => {
     );
     expect(r.rows[0].cnt).toBeGreaterThan(0);
   });
+
+  test('C6: site admin self auto-book ignores zones where they have no regular rights', async ({ page }) => {
+    // Zone A: admin has a real (explicit) booking grant. Zone B: admin has NO
+    // grant — only the super-user bypass. Self auto-book must land in A, never B.
+    const pid = await createPlan('Admin Self AutoBook Plan');
+    const zidA = await createZone('Self Regular A', ZONE_TYPE_ENABLED);
+    const zidB = await createZone('Self Bypass B', ZONE_TYPE_ENABLED);
+    const [seatA] = await addSeats(pid, zidA, ['RA.1']);
+    const [seatB] = await addSeats(pid, zidB, ['BB.1']);
+    await clearZoneRoles('admin');
+    await assignZoneRole(zidA, 'admin', ZONE_ROLE_USER); // regular booking right in A only
+
+    await logIn(page, ADMIN);
+    const resp = await autoBook(page, pid, [slot(1)]); // self
+    expect(resp.status()).toBe(200);
+    expect((await resp.json()).booked.length).toBe(1);
+    expect(await countBookings('admin', seatA)).toBe(1);
+    expect(await countBookings('admin', seatB)).toBe(0);
+  });
+
+  test('C7: site admin self auto-book is rejected when they hold no regular booking rights', async ({ page }) => {
+    // A private plan the admin only reaches via the super-user bypass: self
+    // auto-book must not silently pick a seat there.
+    const pid = await createPlan('Admin No-Rights Plan');
+    const zid = await createZone('Bypass-only Zone', ZONE_TYPE_ENABLED);
+    await addSeats(pid, zid, ['NR.1']);
+    await clearZoneRoles('admin');
+
+    await logIn(page, ADMIN);
+    const resp = await autoBook(page, pid, [slot(1)]); // self
+    expect(resp.status()).toBe(403);
+    expect((await resp.json()).code).toBe(104);
+  });
 });
 
 // ---------------------------------------------------------------------------
