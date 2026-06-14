@@ -297,7 +297,5 @@ warpGlobals.i18n.phrases = {
     'You must create a zone before adding seats.': 'You must create a zone before adding seats.',
     'seatEdit.Zone for new seats': 'Zone for new seats',
     'This action cannot be undone.': 'This action cannot be undone.',
-    'admin_menu.user_management': 'User management',
-    'admin_menu.plan_management': 'Plan management',
     'Plans': 'Plans',
 };
