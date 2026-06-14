@@ -338,6 +338,34 @@ test.describe('auto-book as another user', () => {
     expect(resp.status()).toBe(403);
     expect((await resp.json()).code).toBe(104);
   });
+
+  test('C8: self auto-book includes everyone-can-book (PUBLIC_BOOK) zones, even for an admin with no explicit grant', async ({ page }) => {
+    // PUBLIC_BOOK grants everyone a *regular* USER right, so the zone is eligible
+    // for self auto-book regardless of the super-user bypass.
+    const pid = await createPlan('Admin Public AutoBook Plan');
+    const zid = await createZone('Everyone Can Book Z', ZONE_TYPE_PUBLIC_BOOK);
+    const [seatId] = await addSeats(pid, zid, ['PBA.1']);
+    await clearZoneRoles('admin'); // no explicit grant; access here is the public baseline
+
+    await logIn(page, ADMIN);
+    const resp = await autoBook(page, pid, [slot(1)]); // self
+    expect(resp.status()).toBe(200);
+    expect((await resp.json()).booked.length).toBe(1);
+    expect(await countBookings('admin', seatId)).toBe(1);
+  });
+
+  test('C9: a regular user can self auto-book in a PUBLIC_BOOK zone with no explicit grant', async ({ page }) => {
+    const pid = await createPlan('User Public AutoBook Plan');
+    const zid = await createZone('Everyone Can Book Z2', ZONE_TYPE_PUBLIC_BOOK);
+    const [seatId] = await addSeats(pid, zid, ['PBU.1']);
+    // user3 has no zone assignments at all → relies purely on the public baseline
+
+    await logIn(page, USER3);
+    const resp = await autoBook(page, pid, [slot(1)]); // self
+    expect(resp.status()).toBe(200);
+    expect((await resp.json()).booked.length).toBe(1);
+    expect(await countBookings('user3', seatId)).toBe(1);
+  });
 });
 
 // ---------------------------------------------------------------------------
