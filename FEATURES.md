@@ -488,6 +488,10 @@ Accessible from the user menu → "Calendar integration".
 - Paste the URL into Google Calendar, Outlook, Apple Calendar, or any app that supports iCal/webcal subscriptions.
 - The feed includes all **current and future** bookings (with a 7-day lookback for recently ended bookings).
 - Each booking event contains a **one-click release link** in the URL and description fields.
+- An extra `kind` URL parameter can be appended to filter the feed contents:
+  - `?kind=bookings` — only real bookings (no reminders).
+  - `?kind=reminders` — only reminder events (no bookings).
+  - (no flag or `?kind=all`) — both bookings and reminders (the historical default).
 
 ### 15.4 Releasing a Seat via Calendar Link
 - Click the link in the calendar event → opens a WARP page asking **"Release seat?"** with Confirm/Cancel buttons.

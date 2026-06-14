@@ -354,43 +354,61 @@ def _reminder_vevents(login, ical_token, now_ts, today_ts, summaries, tz=None):
     return lines
 
 
-def _generate_ical(login, ical_token, now_ts, today_ts):
-    """Build and return the full iCalendar text for `login`."""
-    lookback = 7 * 24 * 3600
-    min_ts = now_ts - lookback
+# Valid values for the ?kind URL query parameter and the 'kind' column in calendar_cache.
+ICAL_KIND_BOOKINGS  = 'bookings'
+ICAL_KIND_REMINDERS = 'reminders'
+ICAL_KIND_ALL       = 'all'
+ICAL_KINDS = (ICAL_KIND_BOOKINGS, ICAL_KIND_REMINDERS, ICAL_KIND_ALL)
 
-    bookings = (Book.select(Book.id, Book.fromts, Book.tots, Seat.name)
-                    .join(Seat, on=(Book.sid == Seat.id))
-                    .where((Book.login == login) & (Book.tots > min_ts))
-                    .order_by(Book.fromts.asc())
-                    .tuples())
+VALID_KIND = ICAL_KINDS  # exported for tests/docs
+
+
+def _generate_ical(login, ical_token, now_ts, today_ts, kind=ICAL_KIND_ALL):
+    """Build and return the iCalendar text for `login`, optionally filtered by kind.
+
+    kind: 'all' (default) | 'bookings' | 'reminders'
+    """
+    if kind not in ICAL_KINDS:
+        kind = ICAL_KIND_ALL
 
     tz = flask.current_app.config.get('TIMEZONE') or None
     dtstamp = _ts_to_ical_dt(now_ts)
     summaries = _summary_templates()
 
     lines = [ICAL_HEADER]
-    for book_id, fromts, tots, seat_name in bookings:
-        nonce = secrets.token_hex(8)
-        tok = delete_token(ical_token, book_id, nonce)
-        del_url = flask.url_for(
-            'ical.delete_seat', login=login,
-            i=book_id, n=nonce, t=tok,
-            _external=True,
-        )
-        url_escaped = _escape_ical_text(del_url)
-        lines.append(_format_vevent(
-            uid=f"{book_id}@warp",
-            dtstamp=dtstamp,
-            dtstart=_ts_to_ical_dt(fromts, tz),
-            dtend=_ts_to_ical_dt(tots, tz),
-            summary=_escape_ical_text(summaries['booking'].format(name=seat_name)),
-            url=del_url,
-            description=_escape_ical_text(summaries['booking_desc']).replace('{url}', url_escaped),
-            tz=tz,
-        ))
 
-    lines.extend(_reminder_vevents(login, ical_token, now_ts, today_ts, summaries, tz))
+    if kind in (ICAL_KIND_ALL, ICAL_KIND_BOOKINGS):
+        lookback = 7 * 24 * 3600
+        min_ts = now_ts - lookback
+        bookings = (Book.select(Book.id, Book.fromts, Book.tots, Seat.name)
+                        .join(Seat, on=(Book.sid == Seat.id))
+                        .where((Book.login == login) & (Book.tots > min_ts))
+                        .order_by(Book.fromts.asc())
+                        .tuples())
+        for book_id, fromts, tots, seat_name in bookings:
+            nonce = secrets.token_hex(8)
+            tok = delete_token(ical_token, book_id, nonce)
+            del_url = flask.url_for(
+                'ical.delete_seat', login=login,
+                i=book_id, n=nonce, t=tok,
+                _external=True,
+            )
+            url_escaped = _escape_ical_text(del_url)
+            lines.append(_format_vevent(
+                uid=f"{book_id}@warp",
+                dtstamp=dtstamp,
+                dtstart=_ts_to_ical_dt(fromts, tz),
+                dtend=_ts_to_ical_dt(tots, tz),
+                summary=_escape_ical_text(summaries['booking'].format(name=seat_name)),
+                url=del_url,
+                description=_escape_ical_text(summaries['booking_desc']).replace('{url}', url_escaped),
+                tz=tz,
+            ))
+
+    if kind in (ICAL_KIND_ALL, ICAL_KIND_REMINDERS):
+        reminder_lines = _reminder_vevents(login, ical_token, now_ts, today_ts, summaries, tz)
+        # _reminder_vevents already returns [] when reminders are disabled
+        lines.extend(reminder_lines)
 
     lines.append(ICAL_FOOTER)
     return "".join(lines)
@@ -406,16 +424,22 @@ def ical_feed(login):
     if not t:
         flask.abort(404)
 
+    requested_kind = (flask.request.args.get('kind') or ICAL_KIND_ALL).lower()
+    if requested_kind not in ICAL_KINDS:
+        requested_kind = ICAL_KIND_ALL
+
     today_ts = utils.today()
     now_ts = utils.now()
 
-    # Single query: validate token + check cache
+    # Single query: validate token + check cache (per kind)
     row = (UserPrefs.select(
                UserPrefs.login,
                CalendarCache.ics,
                CalendarCache.day,
+               CalendarCache.kind,
            )
-           .join(CalendarCache, JOIN.LEFT_OUTER, on=(UserPrefs.login == CalendarCache.login))
+           .join(CalendarCache, JOIN.LEFT_OUTER,
+                 on=((UserPrefs.login == CalendarCache.login) & (CalendarCache.kind == requested_kind)))
            .where(
                (UserPrefs.login == login) &
                (UserPrefs.ical_token == t) &
@@ -426,20 +450,21 @@ def ical_feed(login):
     if row is None:
         flask.abort(404)
 
-    # Cache hit: same calendar day, reuse stored ICS
+    # Cache hit: same calendar day, reuse stored ICS for this kind
     if row['ics'] is not None and row['day'] == today_ts:
         return flask.Response(row['ics'], mimetype="text/calendar")
 
-    # Cache miss: regenerate
-    ics_content = _generate_ical(login, t, now_ts, today_ts)
+    # Cache miss: regenerate for this kind
+    ics_content = _generate_ical(login, t, now_ts, today_ts, kind=requested_kind)
 
     CalendarCache.insert({
         CalendarCache.login: login,
+        CalendarCache.kind: requested_kind,
         CalendarCache.ics: ics_content,
         CalendarCache.day: today_ts,
         CalendarCache.generated_at: now_ts,
     }).on_conflict(
-        conflict_target=[CalendarCache.login],
+        conflict_target=[CalendarCache.login, CalendarCache.kind],
         update={
             CalendarCache.ics: ics_content,
             CalendarCache.day: today_ts,

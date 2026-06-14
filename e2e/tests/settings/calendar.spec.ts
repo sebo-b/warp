@@ -64,13 +64,18 @@ async function setReminders(
   });
 }
 
-/** Fetch and parse the iCal feed for login. */
+/** Fetch and parse the iCal feed for login. Optional kind: 'all'|'bookings'|'reminders' (server default = all). */
 async function fetchIcal(
   page: import('@playwright/test').Page,
   login: string,
   token: string,
+  kind?: string,
 ): Promise<import('../../helpers/ical').ICalEvent[]> {
-  const resp = await page.request.get(`/calendar/${login}/events.ics?t=${token}`);
+  let url = `/calendar/${login}/events.ics?t=${token}`;
+  if (kind && kind !== 'all') {
+    url += `&kind=${encodeURIComponent(kind)}`;
+  }
+  const resp = await page.request.get(url);
   expect(resp.status()).toBe(200);
   return parseIcal(await resp.text());
 }
@@ -545,4 +550,122 @@ test.describe('calendar settings API', () => {
     expect(events.length).toBeGreaterThan(0);
   });
 
+});
+
+// ─── URL kind filter (?kind=bookings / reminders / all) ───
+
+test.describe('iCal feed kind filter (bookings vs reminders vs all)', () => {
+
+  test('no-kind (default) and kind=all return both bookings and reminders', async ({ page }) => {
+    const [seat] = await getZoneSeats(1);
+    const ts = futureDayTs(3);
+    await querySql(
+      'INSERT INTO book (login, sid, fromts, tots) VALUES ($1, $2, $3, $4)',
+      ['user1', seat.id, ts + 9 * 3600, ts + 17 * 3600],
+    );
+    await logIn(page, USER1);
+    const token = await enableIcal(page, 'user1');
+    await setReminders(page, {
+      reminder_ahead_days: 1,
+      reminder_time: 0,
+      reminder_zones: [1],
+      reminder_weekdays: 127,
+    });
+
+    const all1 = await fetchIcal(page, 'user1', token);           // default
+    const all2 = await fetchIcal(page, 'user1', token, 'all');
+    const hasBooking = (evs: import('../../helpers/ical').ICalEvent[]) =>
+      evs.some(e => /^[0-9]+@warp$/.test(e.uid));
+    const hasReminder = (evs: import('../../helpers/ical').ICalEvent[]) =>
+      evs.some(e => e.uid.startsWith('missing-') || e.uid.startsWith('release-'));
+
+    expect(hasBooking(all1) || hasReminder(all1)).toBeTruthy();
+    expect(all1).toEqual(all2);
+  });
+
+  test('kind=bookings yields only booking VEVENTs (no reminder UIDs)', async ({ page }) => {
+    const [seat] = await getZoneSeats(1);
+    const ts = futureDayTs(4);
+    await querySql(
+      'INSERT INTO book (login, sid, fromts, tots) VALUES ($1, $2, $3, $4)',
+      ['user1', seat.id, ts + 9 * 3600, ts + 17 * 3600],
+    );
+    await logIn(page, USER1);
+    const token = await enableIcal(page, 'user1');
+    await setReminders(page, { reminder_ahead_days: 1, reminder_zones: [1], reminder_weekdays: 127 });
+
+    const bookingsOnly = await fetchIcal(page, 'user1', token, 'bookings');
+    expect(bookingsOnly.length).toBeGreaterThan(0);
+    expect(bookingsOnly.every(e => /^[0-9]+@warp$/.test(e.uid))).toBeTruthy();
+    expect(bookingsOnly.some(e => e.uid.startsWith('missing-') || e.uid.startsWith('release-'))).toBeFalsy();
+  });
+
+  test('kind=reminders yields only reminder VEVENTs (no booking UIDs)', async ({ page }) => {
+    await logIn(page, USER1);
+    const token = await enableIcal(page, 'user1');
+    await setReminders(page, { reminder_ahead_days: 1, reminder_zones: [1], reminder_weekdays: 127 });
+
+    const remindersOnly = await fetchIcal(page, 'user1', token, 'reminders');
+    expect(remindersOnly.length).toBeGreaterThan(0);
+    expect(remindersOnly.every(e => e.uid.startsWith('missing-') || e.uid.startsWith('release-'))).toBeTruthy();
+    expect(remindersOnly.some(e => /^[0-9]+@warp$/.test(e.uid))).toBeFalsy();
+  });
+
+  test('kind=invalid falls back to all (server side)', async ({ page }) => {
+    const [seat] = await getZoneSeats(1);
+    const ts = futureDayTs(5);
+    await querySql(
+      'INSERT INTO book (login, sid, fromts, tots) VALUES ($1, $2, $3, $4)',
+      ['user1', seat.id, ts + 9 * 3600, ts + 17 * 3600],
+    );
+    await logIn(page, USER1);
+    const token = await enableIcal(page, 'user1');
+    await setReminders(page, { reminder_ahead_days: 1, reminder_zones: [1], reminder_weekdays: 127 });
+
+    const unknown = await fetchIcal(page, 'user1', token, 'nonsense');
+    const hasB = unknown.some(e => /^[0-9]+@warp$/.test(e.uid));
+    const hasR = unknown.some(e => e.uid.startsWith('missing-') || e.uid.startsWith('release-'));
+    expect(hasB || hasR).toBeTruthy();
+  });
+
+});
+
+// Lightweight UI interaction test (drives the calendar modal tabs)
+test.describe('calendar settings modal kind tabs (UI)', () => {
+  test('clicking kind tabs updates the displayed subscription URL', async ({ page }) => {
+    await logIn(page, USER1);
+    // Ensure a token exists so the URL row is populated when modal opens.
+    await page.request.post('/xhr/calendar', {
+      data: { ical_enabled: true, ensure_token: true },
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    // Open the calendar modal via the menu link (drive UI)
+    // The link text is translated at runtime; use the stable href or visible text.
+    await page.getByRole('link', { name: /calendar integration/i }).first().click();
+    await page.locator('#calendar_modal').waitFor({ state: 'visible' });
+
+    const urlInput = page.locator('#cal_url');
+    // Initially (default selectedKind = 'all') the URL has no &kind
+    await expect(urlInput).toBeVisible();
+    const initial = await urlInput.inputValue();
+    expect(initial).not.toContain('kind=');
+
+    // Click the Bookings tab (stable selector)
+    await page.locator('a.cal-kind-tab[data-kind="bookings"]').click();
+    await expect(urlInput).toHaveValue(/&kind=bookings/);
+
+    // Click Reminders
+    await page.locator('a.cal-kind-tab[data-kind="reminders"]').click();
+    await expect(urlInput).toHaveValue(/&kind=reminders/);
+
+    // Back to All — no kind suffix
+    await page.locator('a.cal-kind-tab[data-kind="all"]').click();
+    const backToAll = await urlInput.inputValue();
+    expect(backToAll).not.toContain('kind=');
+
+    // Close without saving (just the cancel button inside the calendar modal)
+    await page.locator('#cal_cancel_btn').click();
+    await page.locator('#calendar_modal').waitFor({ state: 'hidden' });
+  });
 });

@@ -21,7 +21,7 @@ UserPrefs = Table('user_prefs',('login','default_zone','default_day','default_ti
 
 UserToZoneRoles = Table('user_to_zone_roles',('login','zid','zone_role'))
 
-CalendarCache = Table('calendar_cache',('login','ics','day','generated_at'),primary_key='login')
+CalendarCache = Table('calendar_cache', ('login', 'kind', 'ics', 'day', 'generated_at'))
 
 COUNT_STAR = fn.COUNT(SQL('*'))
 SQL_ONE = SQL('1')
@@ -94,6 +94,7 @@ DB_MIGRATIONS = [
     (9, "sql/migration_009_zone_preview_prefs.sql"),
     (10, "sql/migration_010_zone_group_text.sql"),
     (11, "sql/migration_011_plans.sql"),
+    (12, "sql/migration_012_calendar_kind_filter.sql"),
 ]
 
 DB_ADVISORY_LOCK_KEY = 7484381
