@@ -221,7 +221,7 @@ Rule 6 is enforced at the database level, so it holds no matter which path
 
 ## 8. Booking on behalf of others ("book as")
 
-Both manual booking and auto-book can act for another user. The rules:
+### Manual book-as (picking a specific seat for someone)
 
 - **The actor must be a zone admin of the seat's zone** (site admins qualify
   everywhere). Being an admin of a _different_ zone on the same plan is not
@@ -234,15 +234,25 @@ Both manual booking and auto-book can act for another user. The rules:
   those granted _user_/_admin_.)
 - **Disabled zones** still reject the booking outright.
 
-For **auto-book as**, the candidate seats are additionally **confined to the
-zones the actor administers** (all zones, for a site admin). So a zone admin
-auto-booking for someone else can only ever place them in the zones that admin
-controls.
+### Auto-book ("find me a seat")
 
-For **auto-book for yourself**, the pool is the zones where _you_ have a regular
-booking grant (or that are public-bookable). A site admin's super-user bypass is
-intentionally excluded here (§4), so auto-book never picks a zone you only
-oversee or have no real stake in.
+Auto-book is always a **regular-user action**: it picks a seat the **subject**
+(the booking's owner) could have picked themselves — no super-user bypass, and no
+confinement to the actor's own zones. The actor's role only gates _who may book
+for whom_:
+
+- **For yourself** — always allowed; the pool is the zones where _you_ have a
+  regular booking grant (or that are public-bookable). The site-admin bypass is
+  excluded here (§4), so auto-book never picks a zone you only oversee.
+- **As another user** — only a **site admin** or a **zone admin of some zone on
+  the plan** may trigger it. The seat is then chosen exactly as the **target**
+  would get it (across the target's own accessible zones), so the target is never
+  placed on a seat they couldn't book themselves, and the actor's zones do not
+  constrain the choice. This is intentionally looser than manual book-as (which
+  also requires the actor to administer the specific seat's zone) — safe, because
+  the picked seat is by construction one the target could book on their own.
+
+See [AUTOBOOK.md](AUTOBOOK.md) for the full auto-book selection priority.
 
 ---
 
@@ -313,7 +323,8 @@ Book-as on this plan:
 - Bob books **as Carol** in **Quiet** → ✅ (Bob admins Quiet, Carol may book there).
 - Bob books **as Dana** in **Open** → ❌ Bob is only a _user_ of Open, not its
   admin; he cannot book-as there (even though Dana herself could book).
-- Bob auto-books **as Carol** across the plan → only ever lands in **Quiet**
-  (the zone Bob administers where Carol can book); never in Open or Lab.
+- Bob auto-books **as Carol** → he may trigger it (he admins Quiet, a zone on the
+  plan), and it then runs **as Carol**, so it may place her in **any zone Carol
+  can book** (Quiet or the public Open) by the auto-book priority — never in Lab.
 - Site admin books **as Dana** in **Open** → ✅ (super-user admins Open; Dana may
   book there).

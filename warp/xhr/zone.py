@@ -1,4 +1,5 @@
 from collections import defaultdict
+import random
 import flask
 from jsonschema import validate, ValidationError
 import orjson
@@ -638,16 +639,61 @@ def runAutoBook(login, pid, dates, allowedZids=None):
             dia = max(applicableDias)
         seatInfo[sid] = (kind, dia)
 
-    tierA = {sid: dia for sid, (k, dia) in seatInfo.items() if k == 'direct'}
-    tierD = {sid: dia for sid, (k, dia) in seatInfo.items() if k in ('everyone', 'none')}
+    # Booked TIME per seat (not a count) over the usage window — both the
+    # subject's own (to find their most-used seats) and everyone's (to spread).
+    your_time = _seatBookTime(pid, usageStart, usageEnd, login=login)
+    overall_time = _seatBookTime(pid, usageStart, usageEnd, login=None)
 
-    userBookCounts = _seatBookCount(pid, usageStart, usageEnd, login=login)
-    totalBookCounts = _seatBookCount(pid, usageStart, usageEnd, login=None)
+    # Eligible-seat count per zone, for the "biggest zone" step.
+    zone_elig_count = defaultdict(int)
+    for sid in seatInfo:
+        zone_elig_count[seat_zids[sid]] += 1
 
-    def rankTier(seatsMap):
-        ids = list(seatsMap.keys())
-        ids.sort(key=lambda sid: (-userBookCounts.get(sid, 0), totalBookCounts.get(sid, 0), sid))
-        return ids
+    # ----- Day-independent candidate order: the selection priority (steps 2-6 of
+    # AUTOBOOK.md). Step 1 (extend the seat you already hold) is handled per day.
+    def _spread_key(sid):
+        # least globally-used first, then a random tie-break so we spread people out
+        return (overall_time.get(sid, 0), random.random())
+
+    # Step 2: seats assigned to the subject, by descending days-in-advance
+    # (unlimited first), then the subject's own usage, then spread.
+    def _dia_rank(dia):
+        return float('inf') if dia is None else dia
+
+    assigned_order = sorted(
+        (sid for sid, (k, _d) in seatInfo.items() if k == 'direct'),
+        key=lambda sid: (-_dia_rank(seatInfo[sid][1]), -your_time.get(sid, 0)) + _spread_key(sid))
+
+    # Steps 3-6 work on the shared pool (everyone / unassigned).
+    shared = [sid for sid, (k, _d) in seatInfo.items() if k in ('everyone', 'none')]
+    shared_order = []
+
+    # Steps 3-4: your most-used shared seat, then the rest of that seat's zone.
+    used_shared = [sid for sid in shared if your_time.get(sid, 0) > 0]
+    home_zone = None
+    if used_shared:
+        top_sid = max(used_shared, key=lambda sid: (your_time[sid], -sid))
+        home_zone = seat_zids[top_sid]
+        home_seats = [sid for sid in shared if seat_zids[sid] == home_zone]
+        home_seats.sort(key=lambda sid: (-your_time.get(sid, 0),) + _spread_key(sid))
+        shared_order += home_seats
+
+    rest = [sid for sid in shared if seat_zids[sid] != home_zone]
+
+    # Step 5: the biggest remaining zone (most eligible seats), spread within it.
+    if rest:
+        biggest_zone = max({seat_zids[sid] for sid in rest},
+                           key=lambda z: (zone_elig_count[z], -z))
+        biggest_seats = [sid for sid in rest if seat_zids[sid] == biggest_zone]
+        biggest_seats.sort(key=_spread_key)
+        shared_order += biggest_seats
+        rest = [sid for sid in rest if seat_zids[sid] != biggest_zone]
+
+    # Step 6: anything left, at random.
+    random.shuffle(rest)
+    shared_order += rest
+
+    candidate_order = assigned_order + shared_order
 
     # All bookings on this plan within slot range (for conflict detection)
     allBookings = list(Book.select(Book.id, Book.sid, Book.login, Book.fromts, Book.tots, Seat.zid, Zone.zone_group)
@@ -680,7 +726,6 @@ def runAutoBook(login, pid, dates, allowedZids=None):
         return True
 
     booked = []
-    alreadyBookedElsewhere = []
     unbookable = []
     not_extended = []
     to_delete_bids = []
@@ -728,18 +773,16 @@ def runAutoBook(login, pid, dates, allowedZids=None):
                     break
 
         if not candidate_sid:
-            for tier in [tierA, tierD]:
-                for sid in rankTier(tier):
-                    if sid in preferred_sids: continue
-                    sid_zid = seat_zids[sid]
-                    sid_zgroup = zone_group_map.get(sid_zid)
-                    bids = conflict_bids(sid)
-                    if covers_all(sid, sid_zid, sid_zgroup, tier[sid], day_slots, bids):
-                        candidate_sid = sid
-                        candidate_seat_name = seats[sid]
-                        candidate_ignore_bids = bids
-                        break
-                if candidate_sid: break
+            for sid in candidate_order:
+                if sid in preferred_sids: continue
+                sid_zid = seat_zids[sid]
+                sid_zgroup = zone_group_map.get(sid_zid)
+                bids = conflict_bids(sid)
+                if covers_all(sid, sid_zid, sid_zgroup, seatInfo[sid][1], day_slots, bids):
+                    candidate_sid = sid
+                    candidate_seat_name = seats[sid]
+                    candidate_ignore_bids = bids
+                    break
 
         if candidate_sid:
             to_delete_bids.extend(candidate_ignore_bids)
@@ -797,7 +840,6 @@ def runAutoBook(login, pid, dates, allowedZids=None):
 
     result = {
         "booked": booked,
-        "already_booked_elsewhere": alreadyBookedElsewhere,
         "not_extended": not_extended,
         "unbookable": unbookable
     }
@@ -824,42 +866,41 @@ def autoBook(pid):
     if not zone_type_map:
         return {"msg": "Forbidden", "code": 104}, 403
 
-    # The acting user's *regular* effective role per zone — explicit grants (incl.
-    # those inherited from groups) combined with the zone type. This deliberately
-    # excludes the site-admin super-user bypass: a site admin's "access to
-    # everything" must not silently widen which zones autobook will pick from.
-    specific_roles = {}
-    for r in UserToZoneRoles.select(UserToZoneRoles.zid, UserToZoneRoles.zone_role) \
-                            .where(UserToZoneRoles.zid.in_(list(zone_type_map))) \
-                            .where(UserToZoneRoles.login == flask.g.login).iterator():
-        specific_roles[r['zid']] = r['zone_role']
+    def _rolesFor(loginToCheck):
+        roles = {}
+        for r in UserToZoneRoles.select(UserToZoneRoles.zid, UserToZoneRoles.zone_role) \
+                                .where(UserToZoneRoles.zid.in_(list(zone_type_map))) \
+                                .where(UserToZoneRoles.login == loginToCheck).iterator():
+            roles[r['zid']] = r['zone_role']
+        return roles
 
-    regular_roles = {}
+    # Auto-book is always a regular-user action: it picks a seat the *subject* (the
+    # booking's owner) could pick themselves — no site-admin bypass, no confinement
+    # to the actor's zones (runAutoBook keys its seat pool off `login`). The actor's
+    # role only gates *who may book for whom*: booking for someone else requires the
+    # actor to be a site admin or a zone admin of some zone on this plan.
+    if is_book_as and not flask.g.isAdmin:
+        actor_roles = _rolesFor(flask.g.login)
+        is_plan_admin = any(
+            effectiveZoneRole(zone_type_map[zid], actor_roles.get(zid)) == ZONE_ROLE_ADMIN
+            for zid in zone_type_map)
+        if not is_plan_admin:
+            return {"msg": "Forbidden", "code": 104}, 403
+
+    # The subject must be able to book in at least one (non-disabled) zone on the plan.
+    subject_roles = _rolesFor(login)
+    can_book = False
     for zid, zone_type in zone_type_map.items():
-        eff = effectiveZoneRole(zone_type, specific_roles.get(zid))
-        if eff is not None:
-            regular_roles[zid] = eff
-
-    if is_book_as:
-        # Booking for another user is an admin action, so the seat pool is the
-        # zones the actor administers: every zone for a site admin, only the
-        # explicitly-granted ones for a zone admin.
-        if flask.g.isAdmin:
-            allowed_zids = set(zone_type_map)
-        else:
-            allowed_zids = {zid for zid, role in regular_roles.items() if role <= ZONE_ROLE_ADMIN}
-    else:
-        # Booking for self: only zones where the actor genuinely has booking
-        # rights. The super-user bypass is intentionally NOT applied here — an
-        # admin must never be auto-booked into a zone they merely oversee (or
-        # don't touch at all) but never personally book in.
-        allowed_zids = {zid for zid, role in regular_roles.items()
-                        if role <= ZONE_ROLE_USER and zone_type_map[zid] != ZONE_TYPE_DISABLED}
-
-    if not allowed_zids:
+        if zone_type == ZONE_TYPE_DISABLED:
+            continue
+        eff = effectiveZoneRole(zone_type, subject_roles.get(zid))
+        if eff is not None and eff <= ZONE_ROLE_USER:
+            can_book = True
+            break
+    if not can_book:
         return {"msg": "Forbidden", "code": 104}, 403
 
-    result, err = runAutoBook(login, pid, dates, allowed_zids)
+    result, err = runAutoBook(login, pid, dates)
 
     if err == 103:
         return {"msg": "Forbidden", "code": 103}, 403
@@ -886,15 +927,21 @@ def _bestKind(current, new):
     return new if _KIND_PRIORITY[new] > _KIND_PRIORITY[current] else current
 
 
-def _seatBookCount(pid, fromTS, toTS, login=None):
-    q = Book.select(Book.sid, COUNT_STAR.alias('cnt')) \
+def _seatBookTime(pid, fromTS, toTS, login=None):
+    """Total booked time (seconds) per seat on the plan within [fromTS, toTS).
+
+    Seats are ranked by how much they have been *used* (summed booking duration),
+    not by how many times they were booked — so a desk held all day outweighs a
+    phone booth grabbed in many short slots.
+    """
+    q = Book.select(Book.sid, peewee.fn.SUM(Book.tots - Book.fromts).alias('total')) \
             .join(Seat, on=(Book.sid == Seat.id)) \
             .where((Seat.pid == pid) & (Seat.enabled == True)) \
             .where((Book.fromts < toTS) & (Book.tots > fromTS))
     if login is not None:
         q = q.where(Book.login == login)
     q = q.group_by(Book.sid)
-    return {r['sid']: r['cnt'] for r in q.iterator()}
+    return {r['sid']: r['total'] for r in q.iterator()}
 
 
 @bp.route("getUsers/<int:pid>")

@@ -985,7 +985,6 @@ function initAutoBook(seatFactory) {
 function showAutoBookResult(resp) {
 
     var booked = resp.booked || [];
-    var elsewhere = resp.already_booked_elsewhere || [];
     var unbookable = resp.unbookable || [];
     var notExtended = resp.not_extended || [];
 
@@ -1014,14 +1013,6 @@ function showAutoBookResult(resp) {
         tr.appendChild(document.createElement('td')).innerText = f.datetime1;
         tr.appendChild(document.createElement('td')).innerText = f.datetime2;
     }, booked);
-
-    appendSection(TR("Already booked in another zone:"), function(tr, b) {
-        let f = WarpSeatFactory._formatDatePair(b);
-        tr.appendChild(document.createElement('td')).innerText = b.zone_name;
-        tr.appendChild(document.createElement('td')).innerText = b.seat_name;
-        tr.appendChild(document.createElement('td')).innerText = f.datetime1;
-        tr.appendChild(document.createElement('td')).innerText = f.datetime2;
-    }, elsewhere);
 
     appendSection(TR("Could not extend or rebook:"), function(tr, u) {
         let f = WarpSeatFactory._formatDatePair(u);

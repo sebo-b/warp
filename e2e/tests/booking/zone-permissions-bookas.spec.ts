@@ -228,22 +228,24 @@ test.describe('auto-book as another user', () => {
     expect(r.rows[0].cnt).toBeGreaterThan(0);
   });
 
-  test('C2: auto-book-as is confined to zones the actor administers', async ({ page }) => {
-    const pid = await createPlan('AutoBookAs Confine Plan');
-    const zidA = await createZone('Confine A', ZONE_TYPE_ENABLED); // user1 admin, user2 NO role
-    const zidB = await createZone('Confine B', ZONE_TYPE_ENABLED); // user1 NOT admin, user2 user
+  test('C2: auto-book-as acts as the target — even into a zone the actor does not administer', async ({ page }) => {
+    // user1 administers zone A but NOT zone B; user2 can only book zone B. Auto-book
+    // runs as user2, so it books user2 in zone B (where *they* have access) — the
+    // actor's own zones do not constrain the seat pool.
+    const pid = await createPlan('AutoBookAs ActsAsTarget Plan');
+    const zidA = await createZone('AAT A', ZONE_TYPE_ENABLED); // user1 admin, user2 NO role
+    const zidB = await createZone('AAT B', ZONE_TYPE_ENABLED); // user1 NOT admin, user2 user
     const [seatA] = await addSeats(pid, zidA, ['CA.1']);
     const [seatB] = await addSeats(pid, zidB, ['CB.1']);
-    await assignZoneRole(zidA, 'user1', ZONE_ROLE_ADMIN);
+    await assignZoneRole(zidA, 'user1', ZONE_ROLE_ADMIN); // user1 is a plan admin (admins zone A)
     await assignZoneRole(zidB, 'user2', ZONE_ROLE_USER);
 
     await logIn(page, USER1);
     const resp = await autoBook(page, pid, [slot(1)], 'user2');
     expect(resp.status()).toBe(200);
-    // user1 only administers zone A, where user2 has no booking access → nothing booked
-    expect((await resp.json()).booked.length).toBe(0);
-    expect(await countBookings('user2', seatA)).toBe(0);
-    expect(await countBookings('user2', seatB)).toBe(0);
+    expect((await resp.json()).booked.length).toBe(1);
+    expect(await countBookings('user2', seatB)).toBe(1); // booked where user2 can book
+    expect(await countBookings('user2', seatA)).toBe(0); // never in user1's-only zone
   });
 
   test('C3: a site admin can auto-book as anyone', async ({ page }) => {

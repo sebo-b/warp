@@ -100,3 +100,37 @@ export async function countBookings(login: string, sid: number): Promise<number>
   );
   return r.rows[0].cnt;
 }
+
+/** Directly assign a seat to a user (or everyone, login=null). days = null means unlimited. */
+export async function assignSeat(sid: number, login: string | null, days: number | null = null): Promise<void> {
+  await querySql(
+    'INSERT INTO seat_assign (sid, login, days_in_advance) VALUES ($1, $2, $3)',
+    [sid, login, days],
+  );
+}
+
+/** Insert a raw booking — used to seed usage history or to occupy a seat. */
+export async function insertBooking(login: string, sid: number, fromTS: number, toTS: number): Promise<void> {
+  await querySql(
+    'INSERT INTO book (login, sid, fromts, tots) VALUES ($1, $2, $3, $4)',
+    [login, sid, fromTS, toTS],
+  );
+}
+
+/** The seat a login has booked starting exactly at fromTS (the auto-book target). Null if none. */
+export async function bookedSeatAt(login: string, fromTS: number): Promise<number | null> {
+  const r = await querySql(
+    'SELECT sid FROM book WHERE login = $1 AND fromts = $2',
+    [login, fromTS],
+  );
+  return r.rows.length ? Number(r.rows[0].sid) : null;
+}
+
+/** The zone id of the (single) seat a login has booked on a plan. Null if none. */
+export async function bookedZone(login: string, pid: number): Promise<number | null> {
+  const r = await querySql(
+    'SELECT s.zid FROM book b JOIN seat s ON b.sid = s.id WHERE b.login = $1 AND s.pid = $2',
+    [login, pid],
+  );
+  return r.rows.length ? Number(r.rows[0].zid) : null;
+}

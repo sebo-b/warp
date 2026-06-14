@@ -146,17 +146,19 @@ themselves — can book outside this window through the normal booking screen.
 
 ### Book as
 
-A convenience for zone admins: book (or auto-book) a seat **on behalf of another
-user**. The admin must administer the seat's zone, and the target user must be
-allowed to book in that zone. The booking is recorded under the target user, not
-the admin.
+A convenience for zone (and site) admins: book (or auto-book) a seat **on behalf
+of another user**. The booking is recorded under the target user, who must be
+allowed to book that seat. (Manual book-as requires the admin to manage the
+seat's own zone; auto-book-as only requires admin standing on the plan — see
+[PERMISSIONS.md](PERMISSIONS.md) §8.)
 
 ### Auto-book ("find me a seat")
 
 Instead of picking a specific seat, the user asks the system to choose the best
 available seat on the plan for the selected dates, honouring assignments, the
-release window, and existing bookings. Zone admins can auto-book _as_ another
-user, confined to the zones they administer.
+release window, and existing bookings. Admins can also auto-book _as_ another
+user, in which case it runs **as that user** — picking only seats the target
+could book themselves. See [AUTOBOOK.md](AUTOBOOK.md) for the selection priority.
 
 ### Effective zone role
 
