@@ -12,7 +12,7 @@ import { test, expect } from '../fixtures';
  *     behind after a route was renamed or removed) — delete it.
  *
  * Rules must match exactly what Flask reports (angle-bracket params included,
- * e.g. "/zone/<zid>" not "/zone/:zid").
+ * e.g. "/plan/<pid>" not "/plan/:pid").
  */
 const COVERED_ENDPOINTS: ReadonlySet<string> = new Set([
   // auth
@@ -33,21 +33,31 @@ const COVERED_ENDPOINTS: ReadonlySet<string> = new Set([
   '/groups',
   '/groups/assign/<group_login>',
   '/users',
-  '/zone/<zid>',
-  '/zone/image/<zid>',
+  '/plan/<pid>',
+  '/plan/image/<pid>',
+  '/plans',
+  '/plans/modify/<pid>',
   '/zones',
   '/zones/assign/<zid>',
-  '/zones/modify/<zid>',
 
   // xhr — bookings
   '/xhr/bookings/list',
   '/xhr/bookings/report',
 
-  // xhr — zone (single zone operations)
+  // xhr — zone (booking operations)
   '/xhr/zone/apply',
-  '/xhr/zone/autoBook/<int:zid>',
-  '/xhr/zone/getSeats/<int:zid>',
-  '/xhr/zone/getUsers/<zid>',
+  '/xhr/zone/autoBook/<int:pid>',
+  '/xhr/zone/getSeats/<int:pid>',
+  '/xhr/zone/getUsers/<int:pid>',
+
+  // xhr — plans (plan + seat management)
+  '/xhr/plans/addoredit',
+  '/xhr/plans/allZones',
+  '/xhr/plans/delete',
+  '/xhr/plans/getSeats/<int:pid>',
+  '/xhr/plans/list',
+  '/xhr/plans/modify',
+  '/xhr/plans/zonesForPlan',
 
   // xhr — users
   '/xhr/users/delete',
@@ -59,15 +69,12 @@ const COVERED_ENDPOINTS: ReadonlySet<string> = new Set([
   '/xhr/groups/assign',
   '/xhr/groups/members',
 
-  // xhr — zones (zone management)
+  // xhr — zones (zone access management)
   '/xhr/zones/addoredit',
   '/xhr/zones/assign',
   '/xhr/zones/delete',
-  '/xhr/zones/getSeats/<int:zid>',
-  '/xhr/zones/groups',
   '/xhr/zones/list',
   '/xhr/zones/members',
-  '/xhr/zones/modify',
 
   // xhr — prefs & calendar settings
   '/xhr/prefs',

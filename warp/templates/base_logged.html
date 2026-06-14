@@ -51,10 +51,8 @@
                 <div class="input-field col s12">
                     <select id="pref_default_zone">
                         <option value="">--</option>
-                        {% for i in headerDataL %}
-                        {% if 'zid' in i['view_args'] %}
-                        <option value="{{ i['view_args']['zid'] }}">{{ i['text'] }}</option>
-                        {% endif %}
+                        {% for z in accessibleZones %}
+                        <option value="{{ z['id'] }}">{{ z['name'] }}</option>
                         {% endfor %}
                     </select>
                     <label class="TR">Default zone</label>
@@ -150,9 +148,9 @@
                     <div class="row">
                         <div class="input-field col s12">
                             <select id="cal_zones" multiple>
-                                {% for i in headerDataL %}{% if 'zid' in i['view_args'] %}
-                                <option value="{{ i['view_args']['zid'] }}">{{ i['text'] }}</option>
-                                {% endif %}{% endfor %}
+                                {% for z in accessibleZones %}
+                                <option value="{{ z['id'] }}">{{ z['name'] }}</option>
+                                {% endfor %}
                             </select>
                             <label class="TR">Zones to monitor</label>
                         </div>

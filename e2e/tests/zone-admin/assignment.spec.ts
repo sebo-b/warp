@@ -162,7 +162,7 @@ test.describe('assign seat modal UI', () => {
 
   test('zone admin can open the assign modal from the action modal', async ({ page }) => {
     await logIn(page, USER1);
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
     await pickFirstDate(page);
     await page.waitForTimeout(400);
@@ -178,7 +178,7 @@ test.describe('assign seat modal UI', () => {
 
   test('zone admin can assign a user to a seat through the assign modal UI', async ({ page }) => {
     await logIn(page, USER1);
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
     await pickFirstDate(page);
     await page.waitForTimeout(400);

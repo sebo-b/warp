@@ -24,7 +24,7 @@ test.describe('zone admin action modal', () => {
 
   test('zone admin sees Assign and Disable buttons in the action modal', async ({ page }) => {
     await logIn(page, USER1);
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
     await pickFirstDate(page);
     await page.waitForTimeout(400);
@@ -40,7 +40,7 @@ test.describe('zone admin action modal', () => {
 
   test('regular user does NOT see Assign or Disable buttons', async ({ page }) => {
     await logIn(page, USER2);
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
     await pickFirstDate(page);
     await page.waitForTimeout(400);
@@ -61,7 +61,7 @@ test.describe('disable and enable seats', () => {
 
   test('zone admin can disable a seat via the action modal', async ({ page }) => {
     await logIn(page, USER1);
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
     await pickFirstDate(page);
     await page.waitForTimeout(400);
@@ -80,7 +80,7 @@ test.describe('disable and enable seats', () => {
     await querySql('UPDATE seat SET enabled = false WHERE id = $1', [seat.id]);
 
     await logIn(page, USER1);
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
     await pickFirstDate(page);
     await page.waitForTimeout(400);
@@ -96,7 +96,7 @@ test.describe('disable and enable seats', () => {
     await querySql('UPDATE seat SET enabled = false WHERE id = $1', [seat.id]);
 
     await logIn(page, USER1);
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
     await pickFirstDate(page);
     await page.waitForTimeout(400);
@@ -141,7 +141,7 @@ test.describe('disable and enable seats', () => {
     );
 
     await logIn(page, USER1);
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
     await selectOnlyDates(page, [ts]);
     await page.waitForTimeout(400);

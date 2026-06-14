@@ -26,7 +26,7 @@ test.describe('zone management', () => {
 
   test('admin can create a new zone (default DISABLED)', async ({ page }) => {
     await logIn(page, ADMIN);
-    const resp = await adminPost(page, '/xhr/zones/addoredit', { name: 'New Zone', zone_group: 'TestGroup' });
+    const resp = await adminPost(page, '/xhr/zones/addoredit', { name: 'New Zone' });
     expect(resp.status()).toBe(200);
 
     const result = await querySql("SELECT zone_type FROM zone WHERE name = 'New Zone'");
@@ -36,7 +36,7 @@ test.describe('zone management', () => {
   test('admin can create a zone with explicit type', async ({ page }) => {
     await logIn(page, ADMIN);
     const resp = await adminPost(page, '/xhr/zones/addoredit', {
-      name: 'Public Zone', zone_group: 'PubGroup', zone_type: 40,
+      name: 'Public Zone', zone_type: 40,
     });
     expect(resp.status()).toBe(200);
 
@@ -47,7 +47,7 @@ test.describe('zone management', () => {
   test('admin can rename a zone', async ({ page }) => {
     await logIn(page, ADMIN);
     const resp = await adminPost(page, '/xhr/zones/addoredit', {
-      id: 1, name: 'Zone Alpha', zone_group: null, zone_type: 20,
+      id: 1, name: 'Zone Alpha', zone_type: 20,
     });
     expect(resp.status()).toBe(200);
 
@@ -58,7 +58,7 @@ test.describe('zone management', () => {
   test('admin can change zone type via addoredit', async ({ page }) => {
     await logIn(page, ADMIN);
     const resp = await adminPost(page, '/xhr/zones/addoredit', {
-      id: 1, name: 'Zone 1A', zone_group: null, zone_type: 30,
+      id: 1, name: 'Zone 1A', zone_type: 30,
     });
     expect(resp.status()).toBe(200);
 
@@ -67,7 +67,7 @@ test.describe('zone management', () => {
   });
 
   test('admin can delete a zone', async ({ page }) => {
-    await querySql("INSERT INTO zone (name, zone_group, zone_type) VALUES ('Temp', 'TempGroup', 10)");
+    await querySql("INSERT INTO zone (name, zone_type) VALUES ('Temp', 10)");
     const idResult = await querySql("SELECT id FROM zone WHERE name = 'Temp'");
     const zid = Number(idResult.rows[0].id);
 
@@ -77,17 +77,6 @@ test.describe('zone management', () => {
 
     const countResult = await querySql('SELECT COUNT(*)::int AS cnt FROM zone WHERE id = $1', [zid]);
     expect(countResult.rows[0].cnt).toBe(0);
-  });
-
-  test('admin can change zone_group label', async ({ page }) => {
-    await logIn(page, ADMIN);
-    const resp = await adminPost(page, '/xhr/zones/addoredit', {
-      id: 3, name: 'Parking', zone_group: 'CarParks', zone_type: 20,
-    });
-    expect(resp.status()).toBe(200);
-
-    const result = await querySql('SELECT zone_group FROM zone WHERE id = 3');
-    expect(result.rows[0].zone_group).toBe('CarParks');
   });
 
   test('non-admin cannot list zones (403)', async ({ page }) => {

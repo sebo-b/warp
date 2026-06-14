@@ -1,0 +1,211 @@
+{% extends 'base_logged.html' %}
+
+{% block header %}
+    {{ super() }}
+
+    <script>
+        window.warpGlobals.URLs['zoneApply'] = "{{ url_for('xhr.zone.apply') }}";
+        window.warpGlobals.URLs['getSeat'] = "{{ url_for('xhr.zone.getSeats',pid=pid) }}";
+        window.warpGlobals.URLs['seatSprite'] = "{{ url_for('static',filename='images/seat_icons.png') }}";
+
+        window.warpGlobals['defaultSelectedDates'] = {{ defaultSelectedDates | tojson }};
+        window.warpGlobals.today = {{ today | int }};
+        window.warpGlobals['zonePreviewPrefs'] = {{ zonePreviewPrefs | tojson }};
+
+        window.warpGlobals.URLs['zoneAutoBook'] = "{{ url_for('xhr.zone.autoBook', pid=pid) }}";
+
+        {% if isZoneAdmin %}
+        window.warpGlobals.isZoneAdmin = true;
+        window.warpGlobals.URLs['zoneGetUsers'] = "{{ url_for('xhr.zone.getUsers',pid=pid)}}";
+        window.warpGlobals.daysInAdvance = {{ ((config['WEEKS_IN_ADVANCE'] + 1) * 7) | int }};
+        {% elif isZoneViewer %}
+        window.warpGlobals.isZoneViewer = true;
+        {% endif %}
+
+    </script>
+
+{% endblock %}
+
+{% block overlays %}
+    {{ super() }}
+
+
+    {% if not isZoneViewer %}
+    <div id="action_modal" class="modal bottom-sheet">
+        <div class="modal-content">
+            <h4 id="action_modal_title" style="display: none;"></h4>
+            <div class="row">
+                <div class="col s12 m6 l4" id="action_modal_msg1" >
+                </div>
+
+                <div class="col s12 m6 l4" id="action_modal_msg2">
+                </div>
+
+                <div class="col s12 m12 l4 center-align" style="margin-top: 20px">
+                    <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn TR" data-action="book">btn.Book</a>
+                    <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn TR" data-action="update">btn.Update</a>
+                    <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn TR" data-action="delete">btn.Remove</a>
+                    {% if isZoneAdmin %}
+                    <br>
+                    <a href="#!" class="modal-close waves-effect waves-light btn red darken-2 zone_action_btn TR" data-action="assign-modal">btn.Assign</a>
+                    <a href="#!" class="modal-close waves-effect waves-light btn red darken-2 zone_action_btn TR" data-action="enable">btn.Enable</a>
+                    <a href="#!" class="modal-close waves-effect waves-light btn red darken-2 zone_action_btn TR" data-action="disable">btn.Disable</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if isZoneAdmin %}
+    <div id="assigned_seat_modal" class="modal">
+        <div class="modal-content">
+            <h4 class="TR">Seat assignment</h4>
+            <p class="TR">Select users to which the seat will be assigned:</p>
+            <div class="input-field">
+                <input type="text" id="assigned_seat_add_input" class="autocomplete" autocomplete="off">
+                <label for="assigned_seat_add_input" class="TR">Select user</label>
+            </div>
+            <ul id="assigned_seat_list" class="collection assigned_seat_list"></ul>
+        </div>
+        <div class="modal-footer">
+            <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn TR" data-action="assign">btn.Set</a>
+            <a href="#!" class="modal-close waves-effect waves-light btn-flat TR">btn.Cancel</a>
+        </div>
+    </div>
+    {% endif %}
+
+    <div id="zonemap_help_modal" class="modal modal-fixed-footer">
+        <div class="modal-content">
+            <table>
+                <tr>
+                    <td><div class="help_modal_sprite" data-sprite="book"></div></td>
+                    <td class="TR">The seat is available to be booked on the selected dates and time.</td>
+                </tr>
+                <tr>
+                    <td><div class="help_modal_sprite" data-sprite="rebook"></div></td>
+                    <td class="TR">
+                        The seat is available to be booked on the selected dates and time. However, you have other bookings at that time which will be automatically updated.
+                    </td>
+                </tr>
+                <tr>
+                    <td><div class="help_modal_sprite" data-sprite="conflict"></div></td>
+                    <td class="TR">The seat is booked by another person or not available.</td>
+                </tr>
+                <tr>
+                    <td><div class="help_modal_sprite" data-sprite="userExact"></div></td>
+                    <td class="TR">The seat is booked by you on the selected date and time.</td>
+                </tr>
+                <tr>
+                    <td><div class="help_modal_sprite" data-sprite="userRebook"></div></td>
+                    <td class="TR">The seat is booked by you, but not exactly on the selected date or time.
+                        You can update booking, all your other reservations at that time will be automatically updated.
+                    </td>
+                </tr>
+                <tr>
+                    <td><div class="help_modal_sprite" data-sprite="userConflict"></div></td>
+                    <td class="TR">The seat is booked by you, but not exactly on the selected date or time.
+                        You CANNOT update the booking as it is conflicting with another user booking.
+                    </td>
+                </tr>
+                <tr>
+                    <td><div class="help_modal_sprite" data-sprite="bookAssigned"></div></td>
+                    <td class="TR">The same meaning as the green type icon, but the seat is assigned to you, not assigned people cannot book it.
+                        Note that assignment isn't necessarily exclusive, the seat can be assigned to more than one person.
+                    </td>
+                </tr>
+                <tr>
+                    <td><div class="help_modal_sprite" data-sprite="rebookAssigned"></div></td>
+                    <td class="TR">The same meaning as the green type icon, but the seat is assigned to you, not assigned people cannot book it.
+                        Note that assignment isn't necessarily exclusive, the seat can be assigned to more than one person.
+                    </td>
+                </tr>
+                {% if isZoneAdmin %}
+                <tr>
+                    <td><div class="help_modal_sprite" data-sprite="disabled"></div></td>
+                    <td class="TR">The seat is disabled, cannot be booked, and is not visible to non-admins.</td>
+                </tr>
+                <tr>
+                    <td><div class="help_modal_sprite" data-sprite="assigned"></div></td>
+                    <td class="TR">The seat is assigned to some people. This status is visible only to admins.<br>
+                        Note that you won't see this icon if the seat is assigned to you.
+                    </td>
+                </tr>
+                {% endif %}
+            </table>
+        </div>
+        <div class="modal-footer">
+            <div class="center-align">
+                <a href="#!" class="modal-close waves-effect waves-light btn TR">btn.Ok</a>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block content %}
+    {{ super() }}
+
+    <div class="zone_container">
+
+        <div id="zone_sidepanel">
+
+            <div class="zone_sidepanel_topcontainer">
+
+                <div class="input-field book-as_container">
+                    <input type="text" id="book-as" class="autocomplete book-as_input" autocomplete="off">
+                    <label for="book-as" class="active TR">Book as</label>
+                </div>
+
+                <div class="zone_sidepanel_close sidenav-close" data-target="zone_sidepanel">
+                    <i class="material-icons">close</i>
+                </div>
+            </div>
+
+            <div class="zone_datetime_container">
+
+                <div class="zone_datelist">
+                    {% for w in nextWeek %}
+                    <p>
+                        <label>
+                            <input class="filled-in date_checkbox" type="checkbox" value="{{w['timestamp']}}" />
+                            <span>
+                                <span class="TR">weekdaysShort.{{  w['weekdayN'] }}</span>, {{ w['date'] }}
+                            </span>
+                        </label>
+                    </p>
+                    {% endfor %}
+                </div>
+
+                <div class="zone_timeslider">
+                    <div id="timeslider-min" class="timeslider-hint">12:00</div>
+                    <div id="timeslider" class="timeslider" data-min="{{ config['BOOK_OPEN'] }}" data-max="{{ config['BOOK_CLOSE'] }}"></div>
+                    <div id="timeslider-max" class="timeslider-hint">12:00</div>
+                </div>
+            </div>
+
+        </div>
+
+
+        <div class="zone_map" id="zonemap">
+            <div class="zonemap_help">
+                <img src="{{ url_for('static', filename='images/help_icon.png') }}">
+            </div>
+            <div class="zonemap_datetime_trigger sidenav-trigger" data-target="zone_sidepanel">
+                <img src="{{ url_for('static', filename='images/schedule_icon_side.png') }}">
+            </div>
+            <img src="{{ url_for('view.planImage', pid=pid) }}">
+            <div class="zonemap-labels" id="zonemap-labels"></div>
+        </div>
+
+        {% if not isZoneViewer %}
+        <div class="fixed-action-btn auto_book_fab">
+            <a id="auto_book_btn" class="btn-floating btn-large waves-effect waves-light disabled">
+                <i class="material-icons">add</i>
+            </a>
+        </div>
+        {% endif %}
+
+    </div>
+
+{% endblock %}

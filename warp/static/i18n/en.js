@@ -191,8 +191,10 @@ warpGlobals.i18n.phrases = {
         "110": "Cannot book this seat that far in advance. (%{code})",
     },
     "Are you sure to update the zone?": "Are you sure to update the zone?",
+    "Are you sure to update the plan?": "Are you sure to update the plan?",
     "The following changes will be applied:<br>": "The following changes will be applied:<br>",
     "- updated zone map<br>": "- updated zone map<br>",
+    "- updated plan map<br>": "- updated plan map<br>",
     "- added %{smart_count} seat(s)<br>":
         "- added one seat<br>||||"+
         "- added %{smart_count} seats<br>",

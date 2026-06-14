@@ -34,7 +34,7 @@ test.describe('zone assignment', () => {
     await querySql('INSERT INTO zone_assign (zid, login, zone_role) VALUES (1, $1, 20)', ['user3']);
 
     await logIn(page, USER3);
-    const resp = await page.request.get('/zone/1');
+    const resp = await page.request.get('/plan/1');
     expect(resp.status()).toBe(200);
   });
 
@@ -53,7 +53,7 @@ test.describe('zone assignment', () => {
     await querySql('INSERT INTO zone_assign (zid, login, zone_role) VALUES (1, $1, 10)', ['user3']);
 
     await logIn(page, USER3);
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await page.waitForLoadState('networkidle');
     await expect(page.locator('.zone_action_btn[data-action="assign-modal"]')).toBeAttached();
   });
@@ -70,7 +70,7 @@ test.describe('zone assignment', () => {
     await querySql('INSERT INTO zone_assign (zid, login, zone_role) VALUES (1, $1, 30)', ['user3']);
 
     await logIn(page, USER3);
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await page.waitForLoadState('networkidle');
     await expect(page.locator('#zonemap')).toBeVisible();
     await expect(page.locator('#auto_book_btn')).toHaveCount(0);
@@ -126,11 +126,11 @@ test.describe('zone modes (zone_type)', () => {
 
   test('DISABLED zone blocks all non-admin users including assigned ones', async ({ page }) => {
     await logIn(page, ADMIN);
-    await adminPost(page, '/xhr/zones/addoredit', { id: 1, name: 'Zone 1A', zone_group: null, zone_type: 10 });
+    await adminPost(page, '/xhr/zones/addoredit', { id: 1, name: 'Zone 1A', zone_type: 10 });
 
     await logOut(page);
     await logIn(page, USER2);
-    const zoneResp = await page.request.get('/zone/1');
+    const zoneResp = await page.request.get('/plan/1');
     expect(zoneResp.status()).toBe(403);
   });
 
@@ -138,7 +138,7 @@ test.describe('zone modes (zone_type)', () => {
     await querySql('UPDATE zone SET zone_type = 10 WHERE id = 1');
 
     await logIn(page, USER1);
-    const resp = await page.request.get('/zone/1');
+    const resp = await page.request.get('/plan/1');
     expect(resp.status()).toBe(200);
   });
 
@@ -169,11 +169,11 @@ test.describe('zone modes (zone_type)', () => {
 
   test('PUBLIC_VIEW zone accessible to users with no explicit assignment', async ({ page }) => {
     await logIn(page, ADMIN);
-    await adminPost(page, '/xhr/zones/addoredit', { id: 3, name: 'Parking', zone_group: 'Parking', zone_type: 30 });
+    await adminPost(page, '/xhr/zones/addoredit', { id: 3, name: 'Parking', zone_type: 30 });
 
     await logOut(page);
     await logIn(page, USER3);
-    const zoneResp = await page.request.get('/zone/3');
+    const zoneResp = await page.request.get('/plan/3');
     expect(zoneResp.status()).toBe(200);
   });
 
@@ -205,7 +205,7 @@ test.describe('zone modes (zone_type)', () => {
 
   test('PUBLIC_BOOK zone lets any user book without explicit assignment', async ({ page }) => {
     await logIn(page, ADMIN);
-    await adminPost(page, '/xhr/zones/addoredit', { id: 3, name: 'Parking', zone_group: 'Parking', zone_type: 40 });
+    await adminPost(page, '/xhr/zones/addoredit', { id: 3, name: 'Parking', zone_type: 40 });
 
     await logOut(page);
     await logIn(page, USER3);
@@ -221,7 +221,7 @@ test.describe('zone modes (zone_type)', () => {
     await querySql('UPDATE zone SET zone_type = 40 WHERE id = 3');
 
     await logIn(page, USER3);
-    const resp = await page.request.get('/zone/3');
+    const resp = await page.request.get('/plan/3');
     expect(resp.status()).toBe(200);
   });
 
@@ -229,11 +229,11 @@ test.describe('zone modes (zone_type)', () => {
     await querySql('UPDATE zone SET zone_type = 10 WHERE id = 1');
 
     await logIn(page, ADMIN);
-    await adminPost(page, '/xhr/zones/addoredit', { id: 1, name: 'Zone 1A', zone_group: null, zone_type: 20 });
+    await adminPost(page, '/xhr/zones/addoredit', { id: 1, name: 'Zone 1A', zone_type: 20 });
     await logOut(page);
 
     await logIn(page, USER2);
-    const resp = await page.request.get('/zone/1');
+    const resp = await page.request.get('/plan/1');
     expect(resp.status()).toBe(200);
   });
 

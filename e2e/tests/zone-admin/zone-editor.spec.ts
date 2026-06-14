@@ -1,5 +1,5 @@
 /**
- * Zone editor tests: /zones/modify/{zid}
+ * Plan editor tests: /plans/modify/{pid}
  *
  * Two modes toggled by #modeSwitch (Materialize switch):
  *   unchecked (default) = edit mode   — click seats to select, drag to move
@@ -31,7 +31,7 @@ const EMPTY_SPOT = { x: 600, y: 150 };
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 async function openEditor(page: import('@playwright/test').Page, zid = ZID): Promise<void> {
-  await page.goto(`/zones/modify/${zid}?return=/zones`);
+  await page.goto(`/plans/modify/${zid}?return=/plans`);
   await expect(page.locator('#zone_map')).toBeVisible();
   await expect(page.locator('#saveBtn')).toBeAttached();
   await page.waitForLoadState('networkidle');
@@ -59,10 +59,10 @@ async function toggleMode(page: import('@playwright/test').Page): Promise<void> 
 async function saveAndConfirm(page: import('@playwright/test').Page): Promise<void> {
   await expect(page.locator('#saveBtn')).not.toHaveClass(/disabled/);
   await page.locator('#saveBtn').click();
-  const modal = page.locator('.modal.open', { hasText: /update the zone/ });
+  const modal = page.locator('.modal.open', { hasText: /update the plan/ });
   await expect(modal).toBeVisible();
   await modal.locator('a', { hasText: /Yes/i }).click();
-  await expect(page).toHaveURL(/\/zones$/);
+  await expect(page).toHaveURL(/\/plans$/);
 }
 
 // ─── Access ───────────────────────────────────────────────────────────────────
@@ -78,7 +78,7 @@ test.describe('zone editor access', () => {
 
   test('non-site-admin is forbidden from the zone editor', async ({ page }) => {
     await logIn(page, USER1); // zone admin but not site admin
-    const resp = await page.request.get(`/zones/modify/${ZID}`);
+    const resp = await page.request.get(`/plans/modify/${ZID}`);
     expect(resp.status()).toBe(403);
   });
 
@@ -117,7 +117,7 @@ test.describe('selecting and editing a seat', () => {
     await expect(page.locator('#saveBtn')).not.toHaveClass(/disabled/);
 
     await page.locator('#saveBtn').click();
-    const modal = page.locator('.modal.open', { hasText: /update the zone/ });
+    const modal = page.locator('.modal.open', { hasText: /update the plan/ });
     await expect(modal).toBeVisible();
     await expect(modal).toContainText('updated data of a seat');
     await modal.locator('a', { hasText: /No/i }).click();
@@ -180,7 +180,7 @@ test.describe('deleting a seat', () => {
     await page.locator('#seat_delete_btn').click();
 
     await page.locator('#saveBtn').click();
-    const modal = page.locator('.modal.open', { hasText: /update the zone/ });
+    const modal = page.locator('.modal.open', { hasText: /update the plan/ });
     await expect(modal).toContainText('deleted a seat');
     await modal.locator('a', { hasText: /No/i }).click();
   });
@@ -215,7 +215,7 @@ test.describe('deleting a seat', () => {
     // Make another change to keep saveBtn enabled, then verify summary has no deletion
     await page.locator('#seat_name').fill(seat.name + '~');
     await page.locator('#saveBtn').click();
-    const modal = page.locator('.modal.open', { hasText: /update the zone/ });
+    const modal = page.locator('.modal.open', { hasText: /update the plan/ });
     await expect(modal).not.toContainText('deleted');
     await modal.locator('a', { hasText: /No/i }).click();
   });
@@ -278,7 +278,7 @@ test.describe('adding a seat', () => {
     await page.locator('#zone_map').click({ position: EMPTY_SPOT });
 
     await page.locator('#saveBtn').click();
-    const modal = page.locator('.modal.open', { hasText: /update the zone/ });
+    const modal = page.locator('.modal.open', { hasText: /update the plan/ });
     await expect(modal).toContainText('added one seat');
     await modal.locator('a', { hasText: /No/i }).click();
   });
@@ -307,7 +307,7 @@ test.describe('combined changes and summary dialog', () => {
     await page.locator('#zone_map').click({ position: EMPTY_SPOT });
 
     await page.locator('#saveBtn').click();
-    const modal = page.locator('.modal.open', { hasText: /update the zone/ });
+    const modal = page.locator('.modal.open', { hasText: /update the plan/ });
     await expect(modal).toContainText('added one seat');
     await expect(modal).toContainText('updated data of a seat');
     await expect(modal).toContainText('deleted a seat');
@@ -322,7 +322,7 @@ test.describe('combined changes and summary dialog', () => {
     await page.locator('#seat_name').fill('ShouldNotBeSaved');
 
     await page.locator('#cancelBtn').click();
-    await expect(page).toHaveURL(/\/zones$/);
+    await expect(page).toHaveURL(/\/plans$/);
 
     const result = await querySql('SELECT name FROM seat WHERE id = $1', [seat.id]);
     expect(result.rows[0].name).toBe(seat.name);
@@ -332,10 +332,10 @@ test.describe('combined changes and summary dialog', () => {
     await logIn(page, ADMIN);
     const seats = await getZoneSeats(ZID);
 
-    const resp = await page.request.post('/xhr/zones/modify', {
+    const resp = await page.request.post('/xhr/plans/modify', {
       multipart: {
         json: JSON.stringify({
-          zid: ZID,
+          pid: ZID,
           addOrUpdate: [
             { name: 'APIAdded', x: 600, y: 500 },
             { sid: seats[2].id, name: 'APIUpdated', x: seats[2].x, y: seats[2].y },
@@ -535,20 +535,20 @@ test.describe('zone editor API error cases', () => {
     await expect(page.locator('#saveBtn')).toHaveClass(/disabled/);
   });
 
-  test('non-admin cannot POST to /xhr/zones/modify (code 230)', async ({ page }) => {
+  test('non-admin cannot POST to /xhr/plans/modify (code 330)', async ({ page }) => {
     await logIn(page, USER1);
-    const resp = await page.request.post('/xhr/zones/modify', {
+    const resp = await page.request.post('/xhr/plans/modify', {
       multipart: {
-        json: JSON.stringify({ zid: ZID, addOrUpdate: [{ name: 'X', x: 0, y: 0 }] }),
+        json: JSON.stringify({ pid: ZID, addOrUpdate: [{ name: 'X', x: 0, y: 0 }] }),
       },
     });
     expect(resp.status()).toBe(403);
-    expect((await resp.json()).code).toBe(230);
+    expect((await resp.json()).code).toBe(330);
   });
 
   test('malformed JSON in modify returns 400', async ({ page }) => {
     await logIn(page, ADMIN);
-    const resp = await page.request.post('/xhr/zones/modify', {
+    const resp = await page.request.post('/xhr/plans/modify', {
       multipart: { json: '{bad json' },
     });
     expect([400, 404]).toContain(resp.status());

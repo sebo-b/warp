@@ -32,7 +32,7 @@ test.describe('zone map booking flow (end-to-end)', () => {
     const ts = await getFirstZoneDate(page, 1);
     await bookSeatUI(page, 1, seat, [ts]);
 
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
     await selectOnlyDates(page, [ts]);
     await page.waitForTimeout(400);
@@ -67,7 +67,7 @@ test.describe('zone map booking flow (end-to-end)', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(200);
 
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
     await selectOnlyDates(page, [ts]);
     await page.waitForTimeout(400);

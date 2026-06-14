@@ -105,23 +105,21 @@ The zone type influences what role a user effectively has:
 ## 3. Zone Management (Admin Only)
 
 ### 3.1 Creating a Zone
-- An admin creates a zone with a **name**, a **zone group**, and a **zone type**.
-- A zone map image (JPEG or PNG, max 2 MB) can be uploaded later via the Zone Map Editor.
+- An admin creates a zone with a **name** and a **zone type**.
 - New zones default to **Disabled** type if not specified.
 
 ### 3.2 Editing a Zone
-- Change the zone name, zone group, or zone type at any time.
+- Change the zone name or zone type at any time.
 - Changing a zone type immediately affects who can access it (see §2.3).
 
 ### 3.3 Deleting a Zone
-- Deletes the zone, all its seats, seat assignments, bookings, and the uploaded map image.
+- Deletes the zone, all its seat assignments, and bookings for seats in that zone.
 - A warning is shown: deleting a zone also deletes all past booking history. Unassigning all users is suggested as a less destructive alternative.
 
-### 3.4 Zone Groups
-- Zones can be grouped. The purpose: **one person can have only one seat booked at a given time within the same zone group**.
-- Typical use: group all floor zones together so a person cannot book two desks on different floors at the same time; group parking zones separately so a person can have both a desk and a parking spot.
-- There is always a **"Default"** group (stored internally as a reserved key — see §23.5). Any zone can be assigned to the Default group or to a named group.
-- New group names are created simply by typing a new name in the zone edit dialog.
+### 3.4 Per-Zone Booking Constraint
+- **One seat per zone per time slot**: a user may not hold two overlapping bookings in the same zone simultaneously.
+- Seats in **different zones** are fully independent — a user can hold a seat in Zone 1A and a seat in Zone 1B at the same time, even if both zones are on the same plan.
+- This constraint is enforced at the database level (see §23.2).
 
 ### 3.5 Zone Type Details
 
@@ -244,7 +242,7 @@ Accessible via the user icon on the Zones management page.
 2. Click an available (green) seat.
 3. The action modal opens, showing the dates/times to be booked.
 4. Click **Book**. The booking is created.
-5. If you already have a booking in the same zone group at the same time, it is **automatically removed** and replaced with the new one. The modal shows the bookings that will be removed.
+5. If you already have a booking in the **same zone** at the same time, it is **automatically removed** and replaced with the new one. The modal shows the bookings that will be removed. Bookings in other zones are not affected.
 
 ### 7.4 Updating a Booking
 1. Select a date/time that partially overlaps an existing booking of yours.
@@ -257,10 +255,10 @@ Accessible via the user icon on the Zones management page.
 - Users can always remove **their own** bookings, even from zones they are no longer assigned to. This allows cleanup of leftover bookings after reassignment.
 
 ### 7.6 Booking Constraints (enforced by database trigger)
-- A user **cannot have overlapping bookings** in the same zone group.
+- A user **cannot have overlapping bookings in the same zone** (one seat per zone per time slot).
 - A seat **cannot be double-booked** at the same time.
 - The booking time range must be valid (from < to).
-- These constraints are enforced at the database level via a trigger (`book_overlap_insert_trig`) that checks the entire zone group.
+- These constraints are enforced at the database level via a trigger (`book_overlap_insert_trig`) that checks by `seat.zid`.
 
 ### 7.7 Shift-Select for Dates
 - Holding **Shift** while clicking a date checkbox selects/deselects all dates between the last clicked date and the current one.
@@ -282,9 +280,9 @@ Accessible via the user icon on the Zones management page.
   1. **Priority tiers**: seats directly assigned to the user are preferred; then "Everyone"/unassigned seats.
   2. **Within each tier**, seats are ranked by the user's past booking frequency (prefer seats you book often), then by overall popularity (prefer less popular seats as a tiebreaker), then by seat ID.
   3. The algorithm respects the **days-in-advance** window per seat.
-  4. Existing bookings by the user in the same zone group that overlap the requested times are **automatically replaced** (removed and rebooked on the new seat).
-  5. If the user already has an **exact** booking in another zone of the same group, it is reported as "Already booked elsewhere" without changes.
-  6. If the user has overlapping bookings that cannot be extended/rebooked, those dates are reported as "Could not extend or rebook".
+  4. Existing bookings by the user in the **same zone** that overlap the requested times are **automatically replaced** (removed and rebooked on the new seat). Bookings in other zones are left untouched.
+  5. If the user already has an **exact** booking for the requested time, it is reported as "Already booked" without changes.
+  6. If the user has overlapping bookings in the same zone that cannot be extended/rebooked, those dates are reported as "Could not extend or rebook".
 
 ### 8.3 Auto-Book Results
 - The result is shown in a modal with sections:
@@ -453,7 +451,7 @@ Accessible from the user menu → "Calendar integration".
 ### 15.5 Booking a Seat via Calendar Link (Missing Booking Reminder)
 - When the missing booking reminder triggers, the event contains a one-click **book** link.
 - Clicking it attempts auto-book for the zone and day using the user's default time preferences.
-- If a booking already exists in the same zone group, it reports "Seat already booked" with details.
+- If a booking already exists in the same zone, it reports "Seat already booked" with details.
 - If auto-book succeeds, it reports "Seat booked" with zone/seat/time details.
 - If no seat is available, it reports "Not possible to book".
 - Past dates cannot be booked via the link.
@@ -564,7 +562,7 @@ All text on these pages is translated according to the deployment-wide language 
 - Session lifetime is configurable (default: 1 day). Expired sessions force re-login.
 
 ### 23.2 Database-Level Constraints
-- **No double-booking**: a PostgreSQL trigger enforces that a seat cannot be booked by two users at the same time, and a user cannot have overlapping bookings within the same zone group.
+- **No double-booking**: a PostgreSQL trigger enforces that a seat cannot be booked by two users at the same time, and a user cannot have overlapping bookings within the same zone (one seat per zone per time slot).
 - **Referential integrity**: cascading deletes ensure that deleting a user, zone, or seat cleans up all related records.
 
 ### 23.3 iCal Token Security
@@ -582,7 +580,6 @@ All text on these pages is translated according to the deployment-wide language 
 
 ### 23.5 Reserved Identifiers
 - The login `__everyone__:550e8400-...` is reserved for the virtual "Everyone" user and cannot be used as a real login.
-- The zone group key `__default__:7f2b3c50-...` is reserved for the Default group and cannot be used as a named group.
 
 ---
 
@@ -610,12 +607,12 @@ All text on these pages is translated according to the deployment-wide language 
 | Set days-in-advance per assignment    | ❌  | ❌  | ✅  | ✅¹ |
 | Assign/unassign users to zones        | ❌  | ❌  | ❌  | ✅  |
 | Create/edit/delete zones              | ❌  | ❌  | ❌  | ✅  |
-| Upload/replace zone map               | ❌  | ❌  | ❌  | ✅  |
+| Create/edit/delete plans              | ❌  | ❌  | ❌  | ✅  |
+| Upload/replace plan map               | ❌  | ❌  | ❌  | ✅  |
 | Create/edit/delete users              | ❌  | ❌  | ❌  | ✅  |
 | Create/edit/delete groups             | ❌  | ❌  | ❌  | ✅  |
 | Access booking report                 | ❌  | ❌  | ❌  | ✅  |
 | Export bookings to Excel              | ❌  | ❌  | ❌  | ✅  |
-| Manage zone groups                    | ❌  | ❌  | ❌  | ✅  |
 | See disabled seats                    | ❌  | ❌  | ✅  | ✅¹ |
 | Change own password                   | ✅³ | ✅³ | ✅³ | ✅³ |
 

@@ -30,7 +30,7 @@ test.describe('group management', () => {
     await querySql("INSERT INTO groups (login, \"group\") VALUES ('user3', 'group_1a')", []);
 
     await logIn(page, USER3);
-    const resp = await page.request.get('/zone/1');
+    const resp = await page.request.get('/plan/1');
     expect(resp.status()).toBe(200);
   });
 
@@ -52,7 +52,7 @@ test.describe('group management', () => {
     await querySql("DELETE FROM groups WHERE login = 'user2' AND \"group\" = 'group_1a'", []);
 
     await logIn(page, USER2);
-    const resp = await page.request.get('/zone/1');
+    const resp = await page.request.get('/plan/1');
     expect(resp.status()).toBe(403);
   });
 

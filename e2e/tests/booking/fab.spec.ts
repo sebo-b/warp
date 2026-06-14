@@ -14,7 +14,7 @@ test.describe('auto-book FAB', () => {
 
   test('FAB creates at least one booking when clicked', async ({ page }) => {
     await logIn(page, USER1);
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
 
     const ts = await getFirstZoneDate(page, 1);
@@ -46,7 +46,7 @@ test.describe('auto-book FAB', () => {
     );
 
     await logIn(page, USER1);
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
     await selectOnlyDates(page, [ts]);
     await page.waitForTimeout(600);
@@ -56,7 +56,7 @@ test.describe('auto-book FAB', () => {
 
   test('FAB is disabled when no dates are selected', async ({ page }) => {
     await logIn(page, USER1);
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
 
     const allCbs = page.locator('.date_checkbox');

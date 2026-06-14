@@ -51,7 +51,7 @@ test.describe('basic booking', () => {
     const ts = await getFirstZoneDate(page, 1);
     await bookSeatUI(page, 1, seat, [ts]);
 
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
     await selectOnlyDates(page, [ts]);
     await page.waitForTimeout(400);
@@ -90,7 +90,7 @@ test.describe('multi-day booking', () => {
     await logIn(page, USER1);
     const [seat] = await getZoneSeats(1);
 
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
 
     const allCbs = page.locator('.date_checkbox');
@@ -116,7 +116,7 @@ test.describe('multi-day booking', () => {
     await logIn(page, USER1);
     const [seat] = await getZoneSeats(1);
 
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
 
     const allCbs = page.locator('.date_checkbox');
@@ -131,7 +131,7 @@ test.describe('multi-day booking', () => {
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
     await clickActionBtn(page, 'book');
 
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
     await selectOnlyDates(page, [ts1, ts2]);
     await page.waitForTimeout(400);
@@ -161,7 +161,7 @@ test.describe('seat states and conflicts', () => {
     );
 
     await logIn(page, USER2);
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
     await selectOnlyDates(page, [ts]);
     await page.waitForTimeout(400);
@@ -179,7 +179,7 @@ test.describe('seat states and conflicts', () => {
     );
 
     await logIn(page, USER1);
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
     await selectOnlyDates(page, [ts]);
     await page.waitForTimeout(400);
@@ -199,7 +199,7 @@ test.describe('seat states and conflicts', () => {
     );
 
     await logIn(page, USER1);
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
     await selectOnlyDates(page, [ts]);
     await page.waitForTimeout(400);
@@ -217,7 +217,7 @@ test.describe('seat states and conflicts', () => {
     );
 
     await logIn(page, USER1);
-    await page.goto('/zone/1');
+    await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
     await selectOnlyDates(page, [ts]);
     await page.waitForTimeout(400);

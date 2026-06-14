@@ -30,11 +30,8 @@ CREATE TABLE groups (
 -- zone_type: 10 == ZONE_TYPE_DISABLED
 CREATE TABLE zone (
     id SERIAL PRIMARY KEY,
-    zone_group text NOT NULL DEFAULT '__default__:7f2b3c50-e8d1-4a9f-b6c3-2d8e7f1a4b09',
     name text NOT NULL,
-    iid integer,
-    zone_type integer NOT NULL DEFAULT 10,
-    FOREIGN KEY (iid) REFERENCES blobs(id) ON DELETE SET NULL
+    zone_type integer NOT NULL DEFAULT 10
     );
 
 -- TODO_X zone_role limit
@@ -47,13 +44,22 @@ CREATE TABLE zone_assign (
     FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE
     );
 
+CREATE TABLE plan (
+    id SERIAL PRIMARY KEY,
+    name text NOT NULL,
+    iid integer REFERENCES blobs(id) ON DELETE SET NULL,
+    default_zid integer REFERENCES zone(id) ON DELETE SET NULL
+);
+
 CREATE TABLE seat (
     id SERIAL PRIMARY KEY,
+    pid integer NOT NULL,
     zid integer NOT NULL,
     name text NOT NULL,
     x integer NOT NULL,
     y integer NOT NULL,
     enabled boolean NOT NULL DEFAULT TRUE,
+    FOREIGN KEY (pid) REFERENCES plan(id) ON DELETE CASCADE,
     FOREIGN KEY (zid) REFERENCES zone(id) ON DELETE CASCADE
     );
 
@@ -68,8 +74,8 @@ CREATE TABLE seat_assign (
 CREATE UNIQUE INDEX seat_assign_uq          ON seat_assign(sid, login) WHERE login IS NOT NULL;
 CREATE UNIQUE INDEX seat_assign_everyone_uq ON seat_assign(sid)         WHERE login IS NULL;
 
-CREATE INDEX seat_zid
-ON seat(zid);
+CREATE INDEX seat_pid ON seat(pid);
+CREATE INDEX seat_zid ON seat(zid);
 
 CREATE TABLE user_prefs (
     login text PRIMARY KEY,
@@ -195,10 +201,8 @@ BEGIN
 
     IF
         (SELECT 1 FROM book b
-         JOIN seat s on b.sid = s.id
-         JOIN zone z on s.zid = z.id
-         WHERE z.zone_group =
-            (SELECT zone_group FROM zone z JOIN seat s on z.id = s.zid WHERE s.id = NEW.sid LIMIT 1)
+         JOIN seat s ON b.sid = s.id
+         WHERE s.zid = (SELECT zid FROM seat WHERE id = NEW.sid)
          AND (b.sid = NEW.sid OR b.login = NEW.login)
          AND b.fromTS < NEW.toTS
          AND b.toTS > NEW.fromTS) IS NOT NULL
@@ -225,4 +229,4 @@ CREATE UNLOGGED TABLE calendar_cache (
 
 CREATE TABLE db_initialized (version INTEGER NOT NULL);
 
-INSERT INTO db_initialized(version) VALUES(10);
+INSERT INTO db_initialized(version) VALUES(11);

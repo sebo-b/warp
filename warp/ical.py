@@ -9,7 +9,7 @@ from time import gmtime, strftime, strptime
 from peewee import JOIN
 
 from warp import utils
-from warp.db import UserPrefs, Book, Seat, SeatAssign, Zone, CalendarCache
+from warp.db import UserPrefs, Book, Seat, SeatAssign, Zone, Plan, CalendarCache
 
 bp = flask.Blueprint('ical', __name__)
 
@@ -491,7 +491,7 @@ def book_seat(login):
         return _render_action(_action_t('Requested date is in the past'))
 
     # Zone role check
-    zone_row = (Zone.select(Zone.zone_type, Zone.zone_group, Zone.name)
+    zone_row = (Zone.select(Zone.zone_type, Zone.name)
                     .where(Zone.id == zid)
                     .first())
     if zone_row is None:
@@ -512,8 +512,7 @@ def book_seat(login):
     time_from, time_to = prefs['default_time']
     slot = {'fromTS': day_ts + time_from, 'toTS': day_ts + time_to}
 
-    # Pre-check: any existing booking in the same zone_group that overlaps the day
-    zone_group = zone_row['zone_group']
+    # Pre-check: any existing booking in the same zone that overlaps the day
     day_end = day_ts + 86400
     existing = (Book.select(Book.id, Book.fromts, Book.tots,
                             Seat.name.alias('seat_name'),
@@ -521,7 +520,7 @@ def book_seat(login):
                     .join(Seat, on=(Book.sid == Seat.id))
                     .join(Zone, on=(Seat.zid == Zone.id))
                     .where(Book.login == login)
-                    .where(Zone.zone_group == zone_group)
+                    .where(Seat.zid == zid)
                     .where(Book.fromts < day_end)
                     .where(Book.tots > day_ts)
                     .first())
@@ -533,9 +532,19 @@ def book_seat(login):
         )
         return _render_action(_action_t('Seat Already Booked'), details=details)
 
-    # Run autobook
+    # Find the plan for this zone and run autobook
+    plan_row = Plan.select(Plan.id).where(Plan.default_zid == zid).first()
+    if plan_row is None:
+        plan_row = (Plan.select(Plan.id)
+                        .join(Seat, on=(Seat.pid == Plan.id))
+                        .where(Seat.zid == zid)
+                        .first())
+    if plan_row is None:
+        return _render_action(_action_t('Not possible to book'))
+    pid = plan_row['id']
+
     from warp.xhr.zone import runAutoBook
-    result, err = runAutoBook(login, zid, [slot])
+    result, err = runAutoBook(login, pid, [slot])
 
     if err == 103:
         return _render_action(_action_t('Not possible to book'))

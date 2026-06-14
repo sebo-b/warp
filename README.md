@@ -23,8 +23,8 @@ I've quickly evaluated a couple of existing solutions, but they were either too 
 
 - **Admin Interface**: Full admin interface to add/remove/edit maps, zones, groups, and users.
 - **Admin Booking**: Admins can book, modify, or unbook seats for any user.
-- **Multiple Zones**: Create multiple zones (maps) for different areas like floors or parking.
-- **Zone Groups**: Group zones so that one person can have only one seat booked simultaneously within a group (e.g., one group for floors, another for parking).
+- **Plans & Zones**: Plans hold the floor-map image and seats; zones control access. A plan can contain seats from multiple zones, enabling mixed-zone floor maps.
+- **Per-Zone Booking Constraint**: One seat per zone per time slot. Users can hold seats in different zones simultaneously (e.g., a desk in Zone A and a parking spot) but cannot double-book within the same zone.
 - **Assigned Seats**: Limit seats to certain people so others cannot book them.
 - **Disabled Seats**: Hide seats so people don't see them at all.
 - **Auto-Book**: Use the floating "+" button to quickly book an available seat with one click.
