@@ -164,6 +164,7 @@ warpGlobals.i18n.phrases = {
     "You will delete the log of all past bookings in this zone. It is usually a better idea to unassign all users from the zone to make it inaccessible.":
         "You will delete the log of all past bookings in this zone. It is usually a better idea to unassign all users from the zone to make it inaccessible.",
     "Are you sure to delete zone: %{zone_name}": "Are you sure to delete zone: %{zone_name}",
+    "Are you sure to delete plan: %{plan_name}": "Are you sure to delete plan: %{plan_name}",
     "Zone name and zone group cannot be empty.":
         "Zone name and zone group cannot be empty.",
     'Users assigned to: %{zone_name}': 'Users assigned to: %{zone_name}',

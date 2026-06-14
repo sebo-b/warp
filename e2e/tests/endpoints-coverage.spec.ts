@@ -76,6 +76,7 @@ const COVERED_ENDPOINTS: ReadonlySet<string> = new Set([
   '/xhr/zones/groups',
   '/xhr/zones/list',
   '/xhr/zones/members',
+  '/xhr/zones/names',
 
   // xhr — prefs & calendar settings
   '/xhr/prefs',

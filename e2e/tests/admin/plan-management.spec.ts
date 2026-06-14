@@ -29,6 +29,22 @@ test.describe('plan management', () => {
     expect(Array.isArray(plan1.zone_names)).toBe(true);
   });
 
+  test('plan list can be filtered by zone name', async ({ page }) => {
+    await logIn(page, ADMIN);
+    // Filter by 'Zone 1A' — should return plans that have seats in Zone 1A
+    const resp = await adminPost(page, '/xhr/plans/list', {
+      ...TAB,
+      filter: [{ field: 'zone_names', type: '=', value: 'Zone 1A' }],
+    });
+    expect(resp.status()).toBe(200);
+    const data = (await resp.json()).data;
+    expect(data.length).toBeGreaterThan(0);
+    // Every returned plan should have Zone 1A in its zone_names
+    for (const plan of data) {
+      expect(plan.zone_names).toContain('Zone 1A');
+    }
+  });
+
   test('admin can create a new plan', async ({ page }) => {
     await logIn(page, ADMIN);
     const resp = await adminPost(page, '/xhr/plans/addoredit', { name: 'Test Plan' });

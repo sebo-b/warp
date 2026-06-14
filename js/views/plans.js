@@ -21,6 +21,32 @@ document.addEventListener("DOMContentLoaded", function(e) {
         return '<i class="'+iconClass+' '+colorClass+'">'+icon+'</i>';
     };
 
+    // Custom header filter: a <select> of zone names fetched from the server.
+    var zoneHeaderFilter = function(cell, onRendered, success, cancel, editorParams) {
+        var select = document.createElement('select');
+        select.className = 'warp_select browser-default';
+
+        var optEmpty = document.createElement('option');
+        optEmpty.value = '';
+        optEmpty.textContent = '---';
+        select.appendChild(optEmpty);
+
+        var appendZones = function(names) {
+            for (let n of names) {
+                var opt = document.createElement('option');
+                opt.value = n;
+                opt.textContent = n;
+                select.appendChild(opt);
+            }
+        };
+
+        Utils.xhr.get(window.warpGlobals.URLs['zoneNames'], {toastOnSuccess: false})
+            .then(function(result) { appendZones(result.response || []); });
+
+        select.addEventListener('change', function() { success(select.value); });
+        return select;
+    };
+
     var showEditDialog;
     var table;
 
@@ -74,7 +100,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
             {formatter: iconFormater, formatterParams: {icon: "map", colorClass: "green-text text-darken-4", iconClass: "material-icons"}, width: 40, hozAlign: "center", cellClick: openPlanModify, headerSort: false, tooltip: TR('Edit map & seats')},
             {title: TR("Plan name"), field: "name", headerFilter: "input", headerFilterFunc: "starts"},
             {title: TR("Seats"), field: "seat_count"},
-            {title: TR("Zones"), field: "zone_names", formatter: chipFormatter, headerSort: false},
+            {title: TR("Zones"), field: "zone_names", formatter: chipFormatter, headerSort: false, headerFilter: zoneHeaderFilter, headerFilterFunc: "="},
         ],
         initialSort: [{column: "name", dir: "asc"}],
     });

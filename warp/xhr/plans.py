@@ -27,6 +27,29 @@ def listW():
     ) \
         .join(seatCountQuery, join_type=JOIN.LEFT_OUTER, on=(Plan.id == seatCountQuery.c.pid))
 
+    # Intercept the "zone_names" filter before applyTabulatorToQuery since zone_names
+    # is a virtual field (added post-query). Translate it to a WHERE EXISTS clause.
+    zoneFilter = None
+    if 'filter' in requestData:
+        kept = []
+        for f in requestData['filter']:
+            if f.get('field') == 'zone_names' and f.get('value'):
+                zoneFilter = f['value']
+            else:
+                kept.append(f)
+        requestData['filter'] = kept
+
+    if zoneFilter:
+        # Plans that have at least one seat in the given zone.
+        # Uses an IN subquery (avoids correlated subquery issues with Peewee).
+        query = query.where(
+            Plan.id.in_(
+                Seat.select(Seat.pid)
+                .join(Zone, on=(Seat.zid == Zone.id))
+                .where(Zone.name == zoneFilter)
+            )
+        )
+
     (query, lastPage) = applyTabulatorToQuery(query, requestData)
 
     res_data = list(query.iterator())

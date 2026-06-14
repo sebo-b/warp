@@ -213,4 +213,22 @@ test.describe('zone management', () => {
     expect(resp.status()).toBe(403);
   });
 
+  test('names endpoint returns all zone names sorted', async ({ page }) => {
+    await logIn(page, ADMIN);
+    const resp = await page.request.get('/xhr/zones/names');
+    expect(resp.status()).toBe(200);
+    const names = await resp.json();
+    expect(Array.isArray(names)).toBe(true);
+    expect(names.length).toBeGreaterThan(0);
+    // Sorted alphabetically
+    const sorted = [...names].sort();
+    expect(names).toEqual(sorted);
+  });
+
+  test('non-admin cannot list zone names (403)', async ({ page }) => {
+    await logIn(page, USER1);
+    const resp = await page.request.get('/xhr/zones/names');
+    expect(resp.status()).toBe(403);
+  });
+
 });

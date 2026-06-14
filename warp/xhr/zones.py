@@ -65,6 +65,15 @@ def groupsList():
     return flask.jsonify([r['zone_group'] for r in rows.iterator()])
 
 
+@bp.route("names", endpoint='names', methods=["GET"])
+def zoneNames():
+    """Distinct zone names (sorted) for the plans zone filter dropdown."""
+    if not flask.g.isAdmin:
+        flask.abort(403)
+    rows = Zone.select(Zone.name).order_by(Zone.name)
+    return flask.jsonify([r['name'] for r in rows.iterator()])
+
+
 deleteSchema = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
