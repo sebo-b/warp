@@ -104,23 +104,24 @@ The zone type influences what role a user effectively has:
 
 ## 3. Zone Management (Admin Only)
 
-> Zone deletion for zones that own seats is a two-step process: the initial delete triggers a 409 that the UI surfaces as a reassignment modal.
-
 ### 3.1 Creating a Zone
 - An admin creates a zone with a **name** and a **zone type**.
 - New zones default to **Disabled** type if not specified.
 
 ### 3.2 Editing a Zone
-- Change the zone name or zone type at any time.
+- Change the zone name, zone type, or zone group at any time.
+- The zone edit dialog is non-dismissible (cannot be closed by clicking outside the modal).
 - Changing a zone type immediately affects who can access it (see §2.3).
 
 ### 3.3 Deleting a Zone
 - Deletes the zone and its zone assignments.
-- **If the zone has seats**, the server returns 409 with `seat_count` and the list of `other_zones`. The UI shows a dedicated reassignment modal:
+- **If the zone has seats**, the delete button skips the simple confirmation and goes directly to a reassignment modal:
+  - The modal displays the seat count and a warning about booking history being permanently deleted.
   - A Materialize `<select>` of other zones is offered; choosing one and pressing the reassign button moves seats (`UPDATE seat SET zid = <target>`) then deletes the zone.
-  - A prominent red **"Delete seats"** button at the bottom deletes all seats (and their bookings via the cascade) and then deletes the zone.
+  - A prominent red **"Delete seats"** button at the bottom deletes all seats (and their bookings via the cascade) and then deletes the zone. This button triggers a **second confirmation dialog** before proceeding.
+  - The reassignment modal is non-dismissible (cannot be closed by clicking outside).
   - Cancel leaves the zone intact.
-- If the zone has no seats, it is deleted immediately after the normal confirmation dialog.
+- **If the zone has no seats**, a simple confirmation dialog ("Are you sure?") is shown, and the zone is deleted upon confirmation.
 - Deleting a zone that had seats also removes their booking history (the seats and bookings are gone).
 
 ### 3.4 Zone Groups

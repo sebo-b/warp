@@ -24,11 +24,14 @@ def listW():
         COUNT_STAR.filter(UserToZoneRoles.zone_role == ZONE_ROLE_VIEWER).alias("viewers")) \
         .group_by(UserToZoneRoles.zid)
 
+    seatCountSub = Seat.select(fn.COUNT(SQL_ONE)).where(Seat.zid == Zone.id)
+
     query = Zone.select(
         Zone.id, Zone.name, Zone.zone_type, Zone.zone_group,
         fn.COALESCE(countQuery.c.admins, 0).alias('admins'),
         fn.COALESCE(countQuery.c.users, 0).alias('users'),
-        fn.COALESCE(countQuery.c.viewers, 0).alias('viewers')) \
+        fn.COALESCE(countQuery.c.viewers, 0).alias('viewers'),
+        fn.COALESCE(seatCountSub, 0).alias('seat_count')) \
         .join(countQuery, join_type=JOIN.LEFT_OUTER, on=(Zone.id == countQuery.c.zid))
 
     # The generic tabulator filter only does value comparisons; intercept the

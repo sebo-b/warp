@@ -39,6 +39,13 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     function populateAddSeatZoneSelect(selectedZid) {
         if (!addSeatZoneEl) return;
+
+        // Clean up any previous Materialize select instance before mutating the <select>
+        let existing = M.FormSelect.getInstance(addSeatZoneEl);
+        if (existing) {
+            existing.destroy();
+        }
+
         addSeatZoneEl.innerHTML = '';
         for (let z of allZones) {
             let opt = document.createElement('option');
@@ -48,6 +55,9 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 opt.selected = true;
             addSeatZoneEl.appendChild(opt);
         }
+
+        // Initialize as proper Materialize select (not .browser-default)
+        M.FormSelect.init(addSeatZoneEl);
     }
 
     function populateZoneSelect(selectedZid) {
@@ -530,5 +540,16 @@ document.addEventListener("DOMContentLoaded", function(e) {
     zoneMapImg.addEventListener('load', seatXYMax);
 
     seatFactory.updateData();
+
+    // Make sure the add-seat zone select is initialized as Materialize if it's already visible on load
+    // (mostly a no-op; actual init happens in populateAddSeatZoneSelect).
+    if (addSeatZoneEl) {
+        // If someone put a static selection in markup we still want to upgrade it.
+        if (!M.FormSelect.getInstance(addSeatZoneEl)) {
+            // Only initialize if it has options (we populate options in the Promise then()).
+            // Safe no-op if empty .
+            try { M.FormSelect.init(addSeatZoneEl); } catch (e) {}
+        }
+    }
 
 });

@@ -277,4 +277,19 @@ warpGlobals.i18n.phrases = {
     'Error changing password': 'Error changing password',
     'Show seat names on zone map': 'Show seat names on zone map',
     'Show booking preview on zone map': 'Show booking preview on zone map',
+
+    // Zone deletion / reassignment modal
+    'Reassign seats from deleted zone': 'Reassign seats from deleted zone',
+    'This zone contains %{smart_count} seat(s). All past booking history for these seats will be permanently deleted.': 'This zone contains %{smart_count} seat(s). All past booking history for these seats will be permanently deleted. |||| This zone contains %{smart_count} seats. All past booking history for these seats will be permanently deleted.',
+    'Select a zone to reassign seats to, or use the button below to delete the seats without reassignment.': 'Select a zone to reassign seats to, or use the button below to delete the seats without reassignment.',
+    'No other zones exist. You may only delete the seats along with this zone.': 'No other zones exist. You may only delete the seats along with this zone.',
+    'Reassign seats': 'Reassign seats',
+    'Delete seats': 'Delete seats',
+    'Delete %{smart_count} seat(s) permanently?': 'Delete %{smart_count} seat(s) permanently? |||| Delete %{smart_count} seats permanently?',
+    'This will remove the seats and all their past booking history. This cannot be undone.': 'This will remove the seats and all their past booking history. This cannot be undone.',
+    'btn.Yes, delete': 'Yes, delete',
+    // Plan editor – no zones error
+    'You must create a zone before adding seats.': 'You must create a zone before adding seats.',
+    'seatEdit.Zone for new seats': 'Zone for new seats',
+    'This action cannot be undone.': 'This action cannot be undone.',
 };

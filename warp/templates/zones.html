@@ -20,18 +20,20 @@
 <div id="edit_modal" class="modal">
     <div class="modal-content">
         <div class="row">
-            <div class="input-field col s12 m8">
+            <div class="input-field col s12">
                 <input id="zone_name" type="text" required>
                 <label for="zone_name" class="TR">Zone name</label>
             </div>
-            <div class="col s12 m4">
-                <label class="TR">Zone type</label>
-                <select id="zone_type" class="browser-default">
+        </div>
+        <div class="row">
+            <div class="input-field col s12">
+                <select id="zone_type">
                     <option value="10" class="TR">zoneType.Disabled</option>
                     <option value="20" class="TR">zoneType.Enabled</option>
                     <option value="30" class="TR">zoneType.PublicView</option>
                     <option value="40" class="TR">zoneType.PublicBook</option>
                 </select>
+                <label class="TR">Zone type</label>
             </div>
         </div>
         <div class="row">
