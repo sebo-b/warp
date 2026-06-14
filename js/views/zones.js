@@ -114,11 +114,107 @@ document.addEventListener("DOMContentLoaded", function(e) {
                     return Utils.xhr.post(window.warpGlobals.URLs['zonesAddOrEdit'], actionData)
                         .then(function() { refreshGroupFilter(); });
                 }
-                else if (actionData.action == 'delete')
-                    return Utils.xhr.post(window.warpGlobals.URLs['zonesDelete'], {id: actionData.id})
-                        .then(function() { refreshGroupFilter(); });
+                else if (actionData.action == 'delete') {
+                    return Utils.xhr.post(window.warpGlobals.URLs['zonesDelete'], {id: actionData.id}, {errorOnFailure: false})
+                        .then(function(result) {
+                            if (result && result.response && result.response.code === 230) {
+                                return showReassignModal(actionData.id, result.response).then(function() {
+                                    refreshGroupFilter();
+                                });
+                            }
+                            refreshGroupFilter();
+                        })
+                        .catch(function(err) {
+                            // 409 "Zone has seats" is a normal interactive flow (show modal), not a hard error.
+                            if (err && err.response && err.response.code === 230) {
+                                return showReassignModal(actionData.id, err.response).then(function() {
+                                    refreshGroupFilter();
+                                });
+                            }
+                            // Any other error: surface it (WarpModal was already shown by Utils.xhr if not suppressed,
+                            // but we still want the table unchanged). Rethrow so outer caller can surface if needed.
+                            throw err;
+                        });
+                }
             })
             .then(() => table.replaceData());
+    }
+
+    // Show modal when deleting a zone that has seats.
+    // Always shows a modal (per spec), with reassignment if alternatives exist,
+    // and a red button at the bottom to delete seats without reassignment.
+    function showReassignModal(zid, responseData) {
+        return new Promise(function(resolveModal) {
+            let otherZones = responseData.other_zones || [];
+            let seatCount = responseData.seat_count || 0;
+            const hasAlternatives = otherZones.length > 0;
+
+            // Build modal HTML dynamically
+            let modalHtml = '<div class="modal-content">';
+            modalHtml += '<h4>' + TR('Zone has %{smart_count} seat(s)', {smart_count: seatCount}) + '</h4>';
+
+            if (hasAlternatives) {
+                modalHtml += '<p>' + TR('Please select a zone to reassign seats to, or delete the seats.') + '</p>';
+                modalHtml += '<div class="input-field">';
+                modalHtml += '<select id="reassign_zone_select" class="browser-default">';
+                for (let z of otherZones) {
+                    modalHtml += '<option value="' + z.id + '">' + z.name + '</option>';
+                }
+                modalHtml += '</select>';
+                modalHtml += '<label>Reassign to zone</label>';
+                modalHtml += '</div>';
+            } else {
+                modalHtml += '<p>' + TR('No other zones are available for reassignment. You can delete the seats along with this zone.') + '</p>';
+            }
+
+            modalHtml += '</div>';
+            modalHtml += '<div class="modal-footer">';
+            modalHtml += '<a href="#!" class="waves-effect waves-light btn red darken-2" id="reassign_delete_seats">' + TR('Delete seats') + '</a>';
+            if (hasAlternatives) {
+                modalHtml += '<a href="#!" class="waves-effect waves-light btn" id="reassign_move_btn">' + TR('Reassign seats') + '</a>';
+            }
+            modalHtml += '<a href="#!" class="modal-close waves-effect waves-light btn-flat">' + TR('btn.Cancel') + '</a>';
+            modalHtml += '</div>';
+
+            let modalDiv = document.createElement('div');
+            modalDiv.className = 'modal';
+            modalDiv.id = 'reassign_modal';
+            modalDiv.innerHTML = modalHtml;
+            document.body.appendChild(modalDiv);
+
+            let modalInstance = M.Modal.init(modalDiv);
+            modalInstance.open();
+
+            let reassignSelect = document.getElementById('reassign_zone_select');
+            let moveBtn = document.getElementById('reassign_move_btn');
+            let deleteSeatsBtn = document.getElementById('reassign_delete_seats');
+
+            function cleanup() {
+                modalInstance.close();
+                setTimeout(function() {
+                    modalDiv.remove();
+                }, 300);
+            }
+
+            deleteSeatsBtn.addEventListener('click', function() {
+                cleanup();
+                Utils.xhr.post(window.warpGlobals.URLs['zonesDelete'], {
+                    id: zid,
+                    delete_seats: true
+                }).then(function() { resolveModal(); });
+            });
+
+            if (hasAlternatives && moveBtn) {
+                moveBtn.addEventListener('click', function() {
+                    let targetZid = parseInt(reassignSelect.value);
+                    cleanup();
+                    Utils.xhr.post(window.warpGlobals.URLs['zonesDelete'], {
+                        id: zid,
+                        reassign_zid: targetZid
+                    }).then(function() { resolveModal(); });
+                });
+            }
+        });
     }
 
     var clickFuncFactory = function(targetURL) {

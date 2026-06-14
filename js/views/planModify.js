@@ -28,6 +28,28 @@ document.addEventListener("DOMContentLoaded", function(e) {
     // Available zones for the seat zone selector
     let allZones = [];
 
+    // Zone dropdown for add-seats mode (added in template)
+    let addSeatZoneSelector = document.getElementById('add_seat_zone_selector');
+    let addSeatZoneEl = document.getElementById('add_seat_zone');
+    let addSeatZoneError = document.getElementById('add_seat_zone_error');
+
+    // Most-frequent zone on this plan (pre-selected in add-seats mode)
+    let mostFrequentZid = null;
+    let addModeZonesInitialized = false;
+
+    function populateAddSeatZoneSelect(selectedZid) {
+        if (!addSeatZoneEl) return;
+        addSeatZoneEl.innerHTML = '';
+        for (let z of allZones) {
+            let opt = document.createElement('option');
+            opt.value = z.id;
+            opt.textContent = z.name;
+            if (selectedZid !== null && selectedZid !== undefined && z.id == selectedZid)
+                opt.selected = true;
+            addSeatZoneEl.appendChild(opt);
+        }
+    }
+
     function populateZoneSelect(selectedZid) {
         let existing = M.FormSelect.getInstance(seatZoneEl);
         if (existing) existing.destroy();
@@ -43,11 +65,61 @@ document.addEventListener("DOMContentLoaded", function(e) {
         M.FormSelect.init(seatZoneEl);
     }
 
-    // Load all zones for selector
-    Utils.xhr.get(window.warpGlobals.URLs['plansAllZones'], {toastOnSuccess: false})
-    .then(function(result) {
-        allZones = result.response;
+    // Load all zones (for selectors) + zones already present on this plan + current seats,
+    // so we can compute the most-frequent zone (by seat count) for the "first time entering add mode" preselection.
+    Promise.all([
+        Utils.xhr.get(window.warpGlobals.URLs['plansAllZones'], {toastOnSuccess: false}),
+        Utils.xhr.get(window.warpGlobals.URLs['plansZonesForPlan'], {toastOnSuccess: false}),
+        Utils.xhr.get(window.warpGlobals.URLs['plansGetSeats'], {toastOnSuccess: false})
+    ])
+    .then(function(results) {
+        allZones = results[0].response || [];
+        let planZones = results[1].response || [];
+        let seatsData = results[2].response || {};
+
+        // Populate the per-seat zone selector (used for editing existing / newly-placed seats in Edit mode).
         populateZoneSelect(null);
+
+        // Compute most frequent zone on *this plan* (used only when user first flips to "Add seats").
+        let zoneCounts = {};
+        for (let sid in seatsData) {
+            let zid = seatsData[sid].zid;
+            if (zid !== undefined) zoneCounts[zid] = (zoneCounts[zid] || 0) + 1;
+        }
+        let maxCount = 0;
+        mostFrequentZid = null;
+        for (let zid in zoneCounts) {
+            if (zoneCounts[zid] > maxCount) {
+                maxCount = zoneCounts[zid];
+                mostFrequentZid = parseInt(zid);
+            }
+        }
+        // If the plan has no seats yet, but already references one or more zones, fall back to the first one.
+        if (mostFrequentZid === null && planZones.length > 0) {
+            mostFrequentZid = planZones[0].id;
+        }
+
+        // If the mode switch was flipped to "add seats" before the data arrived (race),
+        // or the current visible mode is already add, reconcile the dropdown/error banner
+        // so the user never sees a stale "no zones" prohibition after real data loads.
+        if (!editMode && addSeatZoneSelector && addSeatZoneError && addSeatZoneEl) {
+            if (allZones.length === 0) {
+                addSeatZoneSelector.style.display = 'none';
+                addSeatZoneError.style.display = 'block';
+            } else {
+                addSeatZoneSelector.style.display = 'block';
+                addSeatZoneError.style.display = 'none';
+                if (!addModeZonesInitialized) {
+                    let pre = (mostFrequentZid !== null) ? mostFrequentZid : allZones[0].id;
+                    populateAddSeatZoneSelect(pre);
+                    addModeZonesInitialized = true;
+                }
+            }
+        }
+
+        // Do *not* pre-populate the add-seat zone dropdown during the initial page load.
+        // Per spec: the most-frequent (or any) pre-selection must only happen
+        // "the moment user switches to add for the first time".
     });
 
     let seatFactory = new SeatFactory(window.warpGlobals.URLs['plansGetSeats'], zoneMapContainer, zoneMapImg);
@@ -72,7 +144,32 @@ document.addEventListener("DOMContentLoaded", function(e) {
             marquee.hide();
             seatFactory.clearSelection();
             seatEditPanel.style.visibility = "hidden";
+
+            // show zone dropdown for add-seats mode
+            if (addSeatZoneSelector && addSeatZoneError && addSeatZoneEl) {
+                if (allZones.length === 0) {
+                    addSeatZoneSelector.style.display = 'none';
+                    addSeatZoneError.style.display = 'block';
+                } else {
+                    addSeatZoneSelector.style.display = 'block';
+                    addSeatZoneError.style.display = 'none';
+                    if (!addModeZonesInitialized) {
+                        // First time entering add mode: pre-select the most-frequent zone on this plan if available;
+                        // otherwise fall back to any known zone so the dropdown is usable right away.
+                        let preselect = null;
+                        if (allZones.length > 0) {
+                            preselect = (mostFrequentZid !== null)
+                                ? mostFrequentZid
+                                : allZones[0].id;
+                            populateAddSeatZoneSelect(preselect);
+                        }
+                        addModeZonesInitialized = true;
+                    }
+                }
+            }
         } else {
+            if (addSeatZoneSelector) addSeatZoneSelector.style.display = 'none';
+            if (addSeatZoneError) addSeatZoneError.style.display = 'none';
             showMarquee();
         }
         resetCursor();
@@ -84,10 +181,41 @@ document.addEventListener("DOMContentLoaded", function(e) {
     zoneMapImg.addEventListener('mousedown', function(e) {
         if (editMode) return;
 
+        // Check if there are zones available
+        if (allZones.length === 0) {
+            if (typeof M !== 'undefined' && M.toast) {
+                M.toast({html: TR('You must create a zone before adding seats.'), classes: 'red'});
+            }
+            return;
+        }
+
         let rect = zoneMapImg.getBoundingClientRect();
         let x = e.clientX - rect.left;
         let y = e.clientY - rect.top;
+
+        // Get selected zone from add-seat zone dropdown
+        let selectedZid = addSeatZoneEl ? parseInt(addSeatZoneEl.value) : NaN;
+        if (isNaN(selectedZid)) selectedZid = null;
+
+        // If we somehow don't have a zone (race or manual override), fall back to a known zone so
+        // we never create a seat without a zid (the backend now requires an explicit zid).
+        if (selectedZid === null && allZones.length > 0) {
+            selectedZid = (mostFrequentZid !== null) ? mostFrequentZid : allZones[0].id;
+        }
+
+        if (selectedZid === null) {
+            if (typeof M !== 'undefined' && M.toast) {
+                M.toast({html: TR('You must create a zone before adding seats.'), classes: 'red'});
+            }
+            return;
+        }
+
         seatFactory.createNewSeat(null, x, y);
+
+        let newSeat = seatFactory.getSelectedSeat();
+        if (newSeat) {
+            newSeat.zid = selectedZid;
+        }
 
         e.stopPropagation();
     });
@@ -194,13 +322,15 @@ document.addEventListener("DOMContentLoaded", function(e) {
         seatYEl.value = seat.y;
         let zid = seat.zid;
         if (zid === undefined) {
-            // New seats default to the plan's own zone, not the
-            // alphabetically-first zone in the global list.
-            let defaultZid = window.warpGlobals.defaultZid;
-            if (defaultZid === undefined || defaultZid === null)
-                defaultZid = allZones.length > 0 ? allZones[0].id : undefined;
-            if (defaultZid !== undefined) {
-                zid = defaultZid;
+            // New seats: use the add-seat zone dropdown value if in add mode,
+            // otherwise fall back to the first available zone
+            let dropdownZid = addSeatZoneEl ? parseInt(addSeatZoneEl.value) : NaN;
+            if (!isNaN(dropdownZid)) {
+                zid = dropdownZid;
+            } else if (allZones.length > 0) {
+                zid = allZones[0].id;
+            }
+            if (zid !== undefined) {
                 seat.zid = zid;
             }
         }
@@ -231,6 +361,14 @@ document.addEventListener("DOMContentLoaded", function(e) {
     seatFactory.on('init', () => {
         showMarquee();
     });
+
+    // update seat zone when add-seat zone dropdown changes (safe if element missing)
+    if (addSeatZoneEl) {
+        addSeatZoneEl.addEventListener('change', function() {
+            // Pre-update for new seats created by clicking the map
+            // The selected seat's zone is handled via seatZoneEl
+        });
+    }
 
     seatZoneEl.addEventListener('change', function() {
         let seat = seatFactory.getSelectedSeat();

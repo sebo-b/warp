@@ -10,7 +10,7 @@ DB = None
 Blobs = Table('blobs',('id','mimetype','data','etag'),primary_key='id')
 Users = Table('users',('login','password','name','account_type'))
 Groups = Table('groups',('group','login'))
-Plan = Table('plan',('id','name','iid','default_zid'))
+Plan = Table('plan',('id','name','iid'))
 Seat = Table('seat',('id','pid','zid','name','x','y','enabled'))
 Zone = Table('zone',('id','name','zone_type','zone_group'))
 ZoneAssign = Table('zone_assign',('zid','login','zone_role'))
@@ -95,6 +95,7 @@ DB_MIGRATIONS = [
     (10, "sql/migration_010_zone_group_text.sql"),
     (11, "sql/migration_011_plans.sql"),
     (12, "sql/migration_012_zone_group.sql"),
+    (13, "sql/migration_013_drop_plan_default_zid.sql"),
 ]
 
 DB_ADVISORY_LOCK_KEY = 7484381

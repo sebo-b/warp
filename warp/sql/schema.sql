@@ -49,8 +49,7 @@ CREATE TABLE zone_assign (
 CREATE TABLE plan (
     id SERIAL PRIMARY KEY,
     name text NOT NULL,
-    iid integer REFERENCES blobs(id) ON DELETE SET NULL,
-    default_zid integer REFERENCES zone(id) ON DELETE SET NULL
+    iid integer REFERENCES blobs(id) ON DELETE SET NULL
 );
 
 CREATE TABLE seat (
@@ -260,4 +259,4 @@ CREATE UNLOGGED TABLE calendar_cache (
 
 CREATE TABLE db_initialized (version INTEGER NOT NULL);
 
-INSERT INTO db_initialized(version) VALUES(12);
+INSERT INTO db_initialized(version) VALUES(13);

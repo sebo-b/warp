@@ -67,6 +67,8 @@ deleteSchema = {
     "type": "object",
     "properties": {
         "id": {"type": "integer"},
+        "reassign_zid": {"type": "integer"},
+        "delete_seats": {"type": "boolean"},
     },
     "required": ["id"]
 }
@@ -77,6 +79,43 @@ deleteSchema = {
 def delete():
     jsonData = flask.request.get_json()
     id = jsonData['id']
+
+    # If the zone has seats, the client must provide either reassign_zid or delete_seats
+    seat_count = Seat.select(COUNT_STAR).where(Seat.zid == id).scalar()
+    if seat_count and seat_count > 0:
+        reassign_zid = jsonData.get('reassign_zid')
+        delete_seats = jsonData.get('delete_seats')
+
+        if not reassign_zid and not delete_seats:
+            # Return list of other zones for the modal
+            other_zones = Zone.select(Zone.id, Zone.name)\
+                .where(Zone.id != id)\
+                .order_by(Zone.name)
+            return {
+                "msg": "Zone has seats",
+                "code": 230,
+                "seat_count": seat_count,
+                "other_zones": [{'id': z['id'], 'name': z['name']} for z in other_zones]
+            }, 409
+
+        try:
+            with DB.atomic():
+                if reassign_zid:
+                    # Verify target zone exists
+                    target = Zone.select(SQL_ONE).where(Zone.id == reassign_zid).scalar()
+                    if not target:
+                        return {"msg": "Target zone not found", "code": 231}, 400
+                    Seat.update({Seat.zid: reassign_zid}).where(Seat.zid == id).execute()
+                elif delete_seats:
+                    # Delete all bookings and seats in this zone
+                    # Seats cascade-delete bookings, so we just delete seats
+                    Seat.delete().where(Seat.zid == id).execute()
+
+                Zone.delete().where(Zone.id == id).execute()
+        except IntegrityError:
+            return {"msg": "Error", "code": 220}, 400
+
+        return {"msg": "ok"}, 200
 
     try:
         with DB.atomic():

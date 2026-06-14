@@ -337,7 +337,7 @@ test.describe('combined changes and summary dialog', () => {
         json: JSON.stringify({
           pid: ZID,
           addOrUpdate: [
-            { name: 'APIAdded', x: 600, y: 500 },
+            { name: 'APIAdded', x: 600, y: 500, zid: ZID }, // explicit zone; default_zid per plan was removed
             { sid: seats[2].id, name: 'APIUpdated', x: seats[2].x, y: seats[2].y },
           ],
           remove: [seats[3].id],

@@ -536,13 +536,12 @@ def book_seat(login):
         )
         return _render_action(_action_t('Seat Already Booked'), details=details)
 
-    # Find the plan for this zone and run autobook
-    plan_row = Plan.select(Plan.id).where(Plan.default_zid == zid).first()
-    if plan_row is None:
-        plan_row = (Plan.select(Plan.id)
-                        .join(Seat, on=(Seat.pid == Plan.id))
-                        .where(Seat.zid == zid)
-                        .first())
+    # Find any plan that contains a seat in this zone and run autobook.
+    # (Plans no longer have a default zone; a zone may be used by seats on one or more plans.)
+    plan_row = (Plan.select(Plan.id)
+                    .join(Seat, on=(Seat.pid == Plan.id))
+                    .where(Seat.zid == zid)
+                    .first())
     if plan_row is None:
         return _render_action(_action_t('Not possible to book'))
     pid = plan_row['id']

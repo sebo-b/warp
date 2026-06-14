@@ -22,11 +22,9 @@ def listW():
         .group_by(Seat.pid)
 
     query = Plan.select(
-        Plan.id, Plan.name, Plan.default_zid,
-        Zone.name.alias('default_zone_name'),
+        Plan.id, Plan.name,
         fn.COALESCE(seatCountQuery.c.seat_count, 0).alias('seat_count')
     ) \
-        .join(Zone, join_type=JOIN.LEFT_OUTER, on=(Plan.default_zid == Zone.id)) \
         .join(seatCountQuery, join_type=JOIN.LEFT_OUTER, on=(Plan.id == seatCountQuery.c.pid))
 
     (query, lastPage) = applyTabulatorToQuery(query, requestData)
@@ -86,7 +84,6 @@ addOrEditSchema = {
     "properties": {
         "id": {"type": "integer"},
         "name": {"type": "string", "minLength": 1},
-        "default_zid": {"type": ["integer", "null"]},
     },
     "required": ["name"]
 }
@@ -105,8 +102,6 @@ def addOrEdit():
             updColumns = {
                 Plan.name: jsonData['name'],
             }
-            if 'default_zid' in jsonData:
-                updColumns[Plan.default_zid] = jsonData['default_zid']
 
             if 'id' in jsonData:
                 rowCount = Plan.update(updColumns).where(Plan.id == jsonData['id']).execute()
@@ -151,10 +146,10 @@ def getSeats(pid):
 # {
 #   pid: 10,
 #   addOrUpdate: [
-#       {name: "seat 1", x: 10, y: 10}                         # new seat (gets plan's default_zid)
-#       {name: "seat 2", x: 10, y: 10, zid: 5}                 # new seat with explicit zone
-#       {sid: 20, name: "old seat 3", x: 20, y: 20}            # update position/name
-#       {sid: 30, zid: 4}                                       # update zone only
+#       {name: "seat 1", x: 10, y: 10, zid: 7}                 # new seat (must include explicit zid)
+#       {name: "seat 2", x: 10, y: 10, zid: 5}
+#       {sid: 20, name: "old seat 3", x: 20, y: 20}
+#       {sid: 30, zid: 4}
 #   ],
 #   remove: [sid, sid, ...]
 # }
@@ -254,8 +249,6 @@ def modify():
                     raise ApplyError("Wrong number of affected rows", 337)
 
             if 'addOrUpdate' in jsonData:
-                # Fetch plan's default_zid for new seats
-                default_zid = Plan.select(Plan.default_zid).where(Plan.id == pid).scalar()
 
                 columnsMap = {
                     'sid': Seat.id,
@@ -284,8 +277,6 @@ def modify():
                             totalCount += 1  # no-op update still counts
                     else:
                         entry[Seat.pid] = pid
-                        if Seat.zid not in entry:
-                            entry[Seat.zid] = default_zid
                         dataInsert.append(entry)
 
                 if dataInsert:
@@ -319,7 +310,7 @@ def zonesForPlan():
 
 @bp.route("allZones", methods=["GET"])
 def allZones():
-    """Return all zones (for plan default_zid selector)."""
+    """Return all zones (for per-seat zone selector in the plan map editor)."""
     if not flask.g.isAdmin:
         flask.abort(403)
     rows = Zone.select(Zone.id, Zone.name).order_by(Zone.name)

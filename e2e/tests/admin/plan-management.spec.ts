@@ -15,9 +15,9 @@ test.describe('plan management', () => {
     const resp = await adminPost(page, '/xhr/plans/list', TAB);
     expect(resp.status()).toBe(200);
     const names = (await resp.json()).data.map((p: any) => p.name);
-    expect(names).toContain('Zone 1A');
-    expect(names).toContain('Zone 1B');
-    expect(names).toContain('Parking');
+    expect(names).toContain('Plan 1A');
+    expect(names).toContain('Plan 1B');
+    expect(names).toContain('Plan Parking');
   });
 
   test('plan list includes seat_count and zone_names', async ({ page }) => {
@@ -49,10 +49,11 @@ test.describe('plan management', () => {
     expect(result.rows[0].name).toBe('Renamed Plan');
   });
 
-  test('admin can set default_zid on a plan', async ({ page }) => {
+  test('admin can set default_zid on a plan (no longer supported — zone is per-seat)', async ({ page }) => {
     await logIn(page, ADMIN);
+    // default_zid column was removed; zone is now selected per-seat in the editor
     const resp = await adminPost(page, '/xhr/plans/addoredit', {
-      id: 1, name: 'Zone 1A', default_zid: 1,
+      id: 1, name: 'Plan 1A',
     });
     expect(resp.status()).toBe(200);
   });
@@ -106,7 +107,7 @@ test.describe('plan management', () => {
     const body = new URLSearchParams();
     body.append('json', JSON.stringify({
       pid: 1,
-      addOrUpdate: [{ name: 'Test seat', x: 10, y: 10 }],
+      addOrUpdate: [{ name: 'Test seat', x: 10, y: 10, zid: 1 }],
     }));
     const resp = await page.request.post('/xhr/plans/modify', {
       data: body.toString(),
@@ -122,7 +123,7 @@ test.describe('plan management', () => {
     await page.goto('/plans');
     await page.waitForLoadState('networkidle');
     await expect(page.locator('.tabulator-row').first()).toBeVisible();
-    await expect(page.locator('.tabulator-row', { hasText: 'Zone 1A' }).first()).toBeVisible();
+    await expect(page.locator('.tabulator-row', { hasText: 'Plan 1A' }).first()).toBeVisible();
   });
 
   test('admin plan editor page loads', async ({ page }) => {

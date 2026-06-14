@@ -104,6 +104,8 @@ The zone type influences what role a user effectively has:
 
 ## 3. Zone Management (Admin Only)
 
+> Zone deletion for zones that own seats is a two-step process: the initial delete triggers a 409 that the UI surfaces as a reassignment modal.
+
 ### 3.1 Creating a Zone
 - An admin creates a zone with a **name** and a **zone type**.
 - New zones default to **Disabled** type if not specified.
@@ -113,8 +115,13 @@ The zone type influences what role a user effectively has:
 - Changing a zone type immediately affects who can access it (see §2.3).
 
 ### 3.3 Deleting a Zone
-- Deletes the zone, all its seat assignments, and bookings for seats in that zone.
-- A warning is shown: deleting a zone also deletes all past booking history. Unassigning all users is suggested as a less destructive alternative.
+- Deletes the zone and its zone assignments.
+- **If the zone has seats**, the server returns 409 with `seat_count` and the list of `other_zones`. The UI shows a dedicated reassignment modal:
+  - A Materialize `<select>` of other zones is offered; choosing one and pressing the reassign button moves seats (`UPDATE seat SET zid = <target>`) then deletes the zone.
+  - A prominent red **"Delete seats"** button at the bottom deletes all seats (and their bookings via the cascade) and then deletes the zone.
+  - Cancel leaves the zone intact.
+- If the zone has no seats, it is deleted immediately after the normal confirmation dialog.
+- Deleting a zone that had seats also removes their booking history (the seats and bookings are gone).
 
 ### 3.4 Zone Groups
 - A zone can optionally belong to a **zone group** (a free-text group name set by an admin).
@@ -134,17 +141,21 @@ The zone type influences what role a user effectively has:
 
 ---
 
-## 4. Zone Map Editor (Admin Only)
+## 4. Plan Map Editor (Admin Only)
 
-Accessible via the map icon on the Zones management page.
+Accessible via the map icon on the Plans management page.
 
 ### 4.1 Uploading / Replacing the Map Image
-- Upload a JPEG or PNG image as the background for the zone.
+- Upload a JPEG or PNG image as the background for the plan.
 - The image is stored as a binary blob in the database.
 
 ### 4.2 Adding Seats
-- In "create seat" mode, click anywhere on the map to place a new seat.
-- Each seat has a **name**, **X** coordinate, and **Y** coordinate.
+- Toggle the **Edit / Add seats** switch to "Add seats" mode.
+- A **zone selector** dropdown appears below the switch — choose which zone new seats will belong to.
+- If the plan already has seats, **the first time** the switch is flipped to add mode, the zone that already contains the largest number of seats on this plan is pre-selected.
+- If no zones exist at all, nothing is executed and a visible error is shown: "You must create a zone before adding seats."; the click on the map is ignored and a toast reiterates the requirement.
+- Click anywhere on the map to place a new seat with the chosen `zid` (the plan backend no longer has a `default_zid` — every created seat must carry an explicit zone).
+- Each seat has a **name**, **X**, **Y**, and **zone**.
 
 ### 4.3 Editing Seats
 - Select a seat to edit its name, position (X/Y), or drag it to a new position.
@@ -164,11 +175,12 @@ Accessible via the map icon on the Zones management page.
 ### 4.5 Deleting Seats
 - Mark a seat for deletion; it can be restored before saving.
 - Deletion is confirmed via a dialog showing what will be removed.
+- The seat's zone can be changed via the dropdown in the side panel when the seat is selected (Edit mode).
 
 ### 4.6 Saving & Cancelling
 - All changes (image, added/modified/deleted seats) are submitted together.
 - A confirmation dialog lists the pending changes before applying.
-- A **Cancel** button returns to the zones list; if there are unsaved changes, a confirmation dialog ("All unsaved changes will be lost.") is shown first.
+- A **Cancel** button returns to the plans list; if there are unsaved changes, a confirmation dialog ("All unsaved changes will be lost.") is shown first.
 - Unsaved changes trigger a browser warning if the user tries to leave the page.
 
 ---
@@ -404,6 +416,8 @@ Accessible via the user icon on the Zones management page.
 ---
 
 ## 14. User Preferences
+
+> A user's preferred "default zone" (user profile preference) is independent of the former plan default-zone design. It still influences the post-login redirect and certain reminders.
 
 Accessible from the user menu (dropdown in the top-right corner).
 

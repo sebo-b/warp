@@ -273,8 +273,6 @@ def planModify(pid):
         flask.abort(403)
 
     returnURL = flask.request.args.get('return', flask.url_for('view.plans'))
-    default_zid = Plan.select(Plan.default_zid).where(Plan.id == pid).scalar()
     return flask.render_template('plan_modify.html',
                                  pid=pid,
-                                 defaultZid=default_zid,
                                  returnURL=returnURL)

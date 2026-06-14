@@ -7,7 +7,6 @@
     window.warpGlobals.URLs['plansList'] = "{{ url_for('xhr.plans.list') }}";
     window.warpGlobals.URLs['plansDelete'] = "{{ url_for('xhr.plans.delete') }}";
     window.warpGlobals.URLs['plansAddOrEdit'] = "{{ url_for('xhr.plans.addOrEdit') }}";
-    window.warpGlobals.URLs['plansAllZones'] = "{{ url_for('xhr.plans.allZones') }}";
     window.warpGlobals.URLs['planModify'] = "{{ url_for('view.planModify', pid='__PID__', return=request.url) }}";
 </script>
 
@@ -19,15 +18,9 @@
 <div id="edit_modal" class="modal">
     <div class="modal-content">
         <div class="row">
-            <div class="input-field col s12 m8">
+            <div class="input-field col s12">
                 <input id="plan_name" type="text" required>
                 <label for="plan_name" class="TR">Plan name</label>
-            </div>
-            <div class="input-field col s12 m4">
-                <select id="plan_default_zid" class="browser-default">
-                    <option value="">-- No default zone --</option>
-                </select>
-                <label class="TR">Default zone</label>
             </div>
         </div>
         <div class="row" style="display: none" id="error_div">

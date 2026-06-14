@@ -72,11 +72,68 @@ test.describe('zone management', () => {
     const zid = Number(idResult.rows[0].id);
 
     await logIn(page, ADMIN);
+    // Zone has no seats, so it should delete directly
     const resp = await adminPost(page, '/xhr/zones/delete', { id: zid });
     expect(resp.status()).toBe(200);
 
     const countResult = await querySql('SELECT COUNT(*)::int AS cnt FROM zone WHERE id = $1', [zid]);
     expect(countResult.rows[0].cnt).toBe(0);
+  });
+
+  test('deleting a zone with seats returns 409 with reassignment options', async ({ page }) => {
+    await logIn(page, ADMIN);
+    // Zone 1 (Plan 1A) has seats
+    const resp = await adminPost(page, '/xhr/zones/delete', { id: 1 });
+    expect(resp.status()).toBe(409);
+    const data = await resp.json();
+    expect(data.code).toBe(230);
+    expect(data.seat_count).toBeGreaterThan(0);
+    expect(Array.isArray(data.other_zones)).toBe(true);
+  });
+
+  test('admin can delete a zone and reassign its seats to another zone', async ({ page }) => {
+    await logIn(page, ADMIN);
+    // Zone 1 has seats — reassign them to Zone 2
+    const resp = await adminPost(page, '/xhr/zones/delete', { id: 1, reassign_zid: 2 });
+    expect(resp.status()).toBe(200);
+
+    // Verify seats were moved
+    const seatsInZone2 = await querySql("SELECT COUNT(*)::int AS cnt FROM seat WHERE zid = 2 AND pid = 1");
+    expect(seatsInZone2.rows[0].cnt).toBeGreaterThan(0);
+
+    // Verify zone 1 is gone
+    const zone1 = await querySql('SELECT COUNT(*)::int AS cnt FROM zone WHERE id = 1');
+    expect(zone1.rows[0].cnt).toBe(0);
+
+    // Restore: recreate zone 1
+    await querySql("INSERT INTO zone (id, name, zone_type) VALUES (1, 'Zone 1A', 20)");
+    await querySql("SELECT pg_catalog.setval(pg_get_serial_sequence('zone', 'id'), (SELECT MAX(id) FROM zone))");
+    // Move seats back
+    await querySql("UPDATE seat SET zid = 1 WHERE zid = 2 AND pid = 1");
+    // Restore zone assignments
+    await querySql("INSERT INTO zone_assign VALUES (1,'user1',10)");
+    await querySql("INSERT INTO zone_assign VALUES (1,'group_1a',20)");
+    await querySql("INSERT INTO zone_assign VALUES (1,'admin',10)");
+  });
+
+  test('admin can delete a zone and delete its seats', async ({ page }) => {
+    // Create a temporary zone with a seat
+    await querySql("INSERT INTO zone (name, zone_type) VALUES ('TempZoneForDelete', 10)");
+    const zidResult = await querySql("SELECT id FROM zone WHERE name = 'TempZoneForDelete'");
+    const zid = Number(zidResult.rows[0].id);
+    await querySql("INSERT INTO seat (pid, zid, name, x, y) VALUES ($1, $2, 'TmpSeat', 0, 0)", [1, zid]);
+    const seatCountBefore = await querySql('SELECT COUNT(*)::int AS cnt FROM seat WHERE zid = $1', [zid]);
+    expect(seatCountBefore.rows[0].cnt).toBe(1);
+
+    await logIn(page, ADMIN);
+    const resp = await adminPost(page, '/xhr/zones/delete', { id: zid, delete_seats: true });
+    expect(resp.status()).toBe(200);
+
+    // Verify zone and seats are gone
+    const zoneCount = await querySql('SELECT COUNT(*)::int AS cnt FROM zone WHERE id = $1', [zid]);
+    expect(zoneCount.rows[0].cnt).toBe(0);
+    const seatCount = await querySql('SELECT COUNT(*)::int AS cnt FROM seat WHERE name = $1', ['TmpSeat']);
+    expect(seatCount.rows[0].cnt).toBe(0);
   });
 
   test('non-admin cannot list zones (403)', async ({ page }) => {

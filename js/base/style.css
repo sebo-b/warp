@@ -425,6 +425,18 @@ NAV {
     white-space: nowrap;
 }
 
+.seat_label_zone {
+    background-color: #e8eaf6;
+    color: #283593;
+    padding: 0px 4px;
+    line-height: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 9px;
+    border-top: 1px solid #c5cae9;
+}
+
 .assigned_seat_list {
     max-height: 200px;
     overflow-y: auto;

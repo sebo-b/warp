@@ -27,9 +27,9 @@ INSERT INTO zone_assign VALUES (2,'admin',10);
 INSERT INTO zone_assign VALUES (3,'admin',10);
 
 
-INSERT INTO plan (id,name,default_zid) VALUES (1,'Zone 1A',1);
-INSERT INTO plan (id,name,default_zid) VALUES (2,'Zone 1B',2);
-INSERT INTO plan (id,name,default_zid) VALUES (3,'Parking',3);
+INSERT INTO plan (id,name) VALUES (1,'Plan 1A');
+INSERT INTO plan (id,name) VALUES (2,'Plan 1B');
+INSERT INTO plan (id,name) VALUES (3,'Plan Parking');
 SELECT pg_catalog.setval(pg_get_serial_sequence('plan', 'id'), (SELECT MAX(id) FROM plan));
 
 INSERT INTO seat (pid,zid,name,x,y) VALUES (1,1,'1.1',22,94);

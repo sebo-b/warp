@@ -5,7 +5,6 @@
 
 <script>
     window.warpGlobals.pid = {{ pid }};
-    window.warpGlobals.defaultZid = {{ defaultZid if defaultZid is not none else 'null' }};
     window.warpGlobals.returnURL = "{{ returnURL }}";
     window.warpGlobals.URLs['plansModifyXHR'] = "{{ url_for('xhr.plans.modify') }}";
     window.warpGlobals.URLs['plansGetSeats'] = "{{ url_for('xhr.plans.getSeats', pid=pid) }}";
@@ -39,6 +38,18 @@
               <span class="TR">btn.Add seats</span>
             </label>
           </div>
+      </div>
+
+      <div id="add_seat_zone_selector" style="display: none; margin-top: 12px;">
+        <div class="input-field">
+          <select id="add_seat_zone" class="browser-default">
+          </select>
+          <label class="TR">seatEdit.Zone for new seats</label>
+        </div>
+      </div>
+
+      <div id="add_seat_zone_error" style="display: none; color: red; margin-top: 8px; font-size: 0.9em;">
+        <span class="TR">You must create a zone before adding seats.</span>
       </div>
 
       <div>
