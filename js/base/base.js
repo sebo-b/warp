@@ -201,7 +201,9 @@ function initCalendar() {
   var calMissingAheadEl = document.getElementById('cal_missing_ahead');
   var calReleaseAheadEl = document.getElementById('cal_release_ahead');
   var calTimeInputEl = document.getElementById('cal_time_input');
-  var calTypeSelect = document.getElementById('cal_type_select');
+  var calTypeTabs = document.getElementById('cal_type_tabs');
+  var calTypeReminderTabLi = document.getElementById('cal_type_reminders_tab');
+  var calTypeTabsInstance = null;
   var saveBtn = document.getElementById('cal_save_btn');
   var calCancelBtn = document.getElementById('cal_cancel_btn');
 
@@ -333,18 +335,14 @@ function initCalendar() {
     calToken = data.ical_token || null;
     if (calEnabledEl) calEnabledEl.checked = !!data.ical_enabled;
 
-    // Adjust type select disabled state before building the URL below.
-    if (calTypeSelect) {
+    // Disable the Reminders tab when reminders are not configured.
+    if (calTypeReminderTabLi) {
       var remindersEnabled = !!(data.reminder_weekdays);
-      var remindersOpt = calTypeSelect.querySelector('option[value="reminders"]');
-      if (remindersOpt) {
-        remindersOpt.disabled = !remindersEnabled;
-        if (!remindersEnabled && selectedType === 'reminders') {
-          selectedType = 'all';
-          calTypeSelect.value = 'all';
-        }
+      calTypeReminderTabLi.classList.toggle('disabled', !remindersEnabled);
+      if (!remindersEnabled && selectedType === 'reminders') {
+        selectedType = 'all';
+        if (calTypeTabsInstance) calTypeTabsInstance.select('cal-type-all');
       }
-      M.FormSelect.init(calTypeSelect, SELECT_OPTS);
     }
 
     updateCalEnabledUI();
@@ -396,10 +394,7 @@ function initCalendar() {
       ensureTimepicker();
       resetUrlVisibility();
       selectedType = 'all';
-      if (calTypeSelect) {
-        calTypeSelect.value = 'all';
-        M.FormSelect.init(calTypeSelect, SELECT_OPTS);
-      }
+      if (calTypeTabsInstance) calTypeTabsInstance.select('cal-type-all');
       if (calUrlInput) {
         calUrlInput.value = '';
         M.updateTextFields();
@@ -415,16 +410,19 @@ function initCalendar() {
     onCloseEnd: resetUrlVisibility
   });
 
-  if (calTypeSelect) {
-    M.FormSelect.init(calTypeSelect, SELECT_OPTS);
-    calTypeSelect.addEventListener('change', function() {
-      var v = calTypeSelect.value;
-      selectedType = (v === 'bookings' || v === 'reminders') ? v : 'all';
-      if (calUrlInput) {
-        calUrlInput.value = (calEnabledEl && calEnabledEl.checked && calToken)
-          ? buildCalIcalUrl(calToken, selectedType)
-          : '';
-        M.updateTextFields();
+  if (calTypeTabs) {
+    calTypeTabsInstance = M.Tabs.init(calTypeTabs, {
+      onShow: function(tabEl) {
+        var id = tabEl ? tabEl.id : '';
+        if (id === 'cal-type-bookings') selectedType = 'bookings';
+        else if (id === 'cal-type-reminders') selectedType = 'reminders';
+        else selectedType = 'all';
+        if (calUrlInput) {
+          calUrlInput.value = (calEnabledEl && calEnabledEl.checked && calToken)
+            ? buildCalIcalUrl(calToken, selectedType)
+            : '';
+          M.updateTextFields();
+        }
       }
     });
   }

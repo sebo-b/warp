@@ -656,16 +656,16 @@ test.describe('calendar settings modal type select (UI)', () => {
     const initial = await urlInput.inputValue();
     expect(initial).not.toContain('type=');
 
-    // Select Bookings via the native select (underlying element, Materialize wraps it)
-    await page.locator('#cal_type_select').selectOption('bookings');
+    // Click Bookings tab
+    await page.locator('#cal_type_tabs a[href="#cal-type-bookings"]').click();
     await expect(urlInput).toHaveValue(/&type=bookings/);
 
-    // Select Reminders
-    await page.locator('#cal_type_select').selectOption('reminders');
+    // Click Reminders tab
+    await page.locator('#cal_type_tabs a[href="#cal-type-reminders"]').click();
     await expect(urlInput).toHaveValue(/&type=reminders/);
 
-    // Back to Both (all) — no type suffix
-    await page.locator('#cal_type_select').selectOption('all');
+    // Back to Both — no type suffix
+    await page.locator('#cal_type_tabs a[href="#cal-type-all"]').click();
     const backToAll = await urlInput.inputValue();
     expect(backToAll).not.toContain('type=');
 
