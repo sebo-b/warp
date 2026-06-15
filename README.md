@@ -79,7 +79,7 @@ Two images are published to the GitHub Container Registry on every push to `main
 
 | Image                        | Based on                               | Purpose                                                               |
 | ---------------------------- | -------------------------------------- | --------------------------------------------------------------------- |
-| `ghcr.io/sebo-b/warp:latest` | `python:3.13-slim` + uWSGI             | Production — no database bundled, configure via environment variables |
+| `ghcr.io/sebo-b/warp:latest` | Alpine + uWSGI                           | Production — no database bundled, configure via environment variables |
 | `ghcr.io/sebo-b/warp:debug`  | Alpine + Flask dev server + PostgreSQL | Demo / e2e testing — self-contained, not for production               |
 
 Version tags (`v1.2.3`) produce additional `warp:1.2.3` and `warp:1.2` tags on the production image. Both images are published for `linux/amd64` and `linux/arm64`.
