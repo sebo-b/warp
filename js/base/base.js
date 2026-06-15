@@ -202,6 +202,7 @@ function initCalendar() {
   var calReleaseAheadEl = document.getElementById('cal_release_ahead');
   var calTimeInputEl = document.getElementById('cal_time_input');
   var calTypeTabs = document.getElementById('cal_type_tabs');
+  var calTypeTabsRow = document.getElementById('cal_type_tabs_row');
   var calTypeReminderTabLi = document.getElementById('cal_type_reminders_tab');
   var calTypeTabsInstance = null;
   var saveBtn = document.getElementById('cal_save_btn');
@@ -302,6 +303,7 @@ function initCalendar() {
 
   function updateCalEnabledUI() {
     var enabled = calEnabledEl && calEnabledEl.checked;
+    if (calTypeTabsRow) calTypeTabsRow.classList.toggle('cal-section-disabled', !enabled);
     if (calReminderSection) calReminderSection.classList.toggle('cal-section-disabled', !enabled);
     // URL action buttons require a token, which only exists after a save with iCal on.
     if (calUrlBtns) calUrlBtns.classList.toggle('cal-section-disabled', !(enabled && calToken));

@@ -302,7 +302,6 @@
         "Error changing password": "Błąd zmiany hasła",
         "Show seat names on zone map": "Pokaż nazwy miejsc na mapie stref",
         "Show booking preview on zone map": "Pokaż podgląd rezerwacji na mapie stref",
-        "Both": "Oba",
         "Show in calendar feed": "Pokaż w kanale kalendarza",
         "ical": {
             "booking": "Miejsce {name}",
@@ -322,6 +321,7 @@
             "Confirm": "Potwierdź",
             "Cancel": "Anuluj",
             "Action cancelled": "Akcja anulowana"
-        }
+        },
+        "No filter": "Bez filtra"
     }
 }

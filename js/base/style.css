@@ -219,6 +219,17 @@ NAV {
     user-select: none;
 }
 
+#cal_type_tabs .tab a {
+    color: rgba(255, 109, 0, 0.7);
+}
+#cal_type_tabs .tab a.active,
+#cal_type_tabs .tab a:hover {
+    color: #ff6d00;
+}
+#cal_type_tabs .indicator {
+    background-color: #ff6d00;
+}
+
 #calendar_modal .modal-content label {
     font-size: 1rem;
 }

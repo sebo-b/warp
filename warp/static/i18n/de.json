@@ -302,7 +302,6 @@
         "Error changing password": "Fehler beim Ändern des Passworts",
         "Show seat names on zone map": "Sitznamen auf Zonenkarte anzeigen",
         "Show booking preview on zone map": "Buchungsvorschau auf Zonenkarte anzeigen",
-        "Both": "Beides",
         "Show in calendar feed": "Im Kalender-Feed anzeigen",
         "ical": {
             "booking": "Platz {name}",
@@ -322,6 +321,7 @@
             "Confirm": "Bestätigen",
             "Cancel": "Abbrechen",
             "Action cancelled": "Aktion abgebrochen"
-        }
+        },
+        "No filter": "Kein Filter"
     }
 }

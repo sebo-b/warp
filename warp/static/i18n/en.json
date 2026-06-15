@@ -321,7 +321,6 @@
         "seatEdit.Zone for new seats": "Zone for new seats",
         "This action cannot be undone.": "This action cannot be undone.",
         "Plans": "Plans",
-        "Both": "Both",
         "Show in calendar feed": "Show in calendar feed",
         "ical": {
             "booking": "Seat {name}",
@@ -341,6 +340,7 @@
             "Confirm": "Confirm",
             "Cancel": "Cancel",
             "Action cancelled": "Action cancelled"
-        }
+        },
+        "No filter": "No filter"
     }
 }
