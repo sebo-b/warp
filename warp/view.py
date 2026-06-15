@@ -15,8 +15,11 @@ def headerDataInit():
     # Left nav: plans the user has access to (has accessible seats in at least one zone)
     headerDataL = []
 
-    # Zones accessible to user (for default_zone preference + calendar reminder dropdown)
+    # Zones accessible to user (for calendar reminder dropdown)
     accessible_zones = []
+
+    # Plans accessible to user (for default_plan preference)
+    accessible_plans = []
 
     accessible_zone_rows = Zone.select(Zone.id, Zone.name) \
         .join(UserToZoneRoles, join_type=JOIN.LEFT_OUTER,
@@ -42,6 +45,7 @@ def headerDataInit():
             .order_by(Plan.name)
 
         for p in plan_rows:
+            accessible_plans.append({"id": p['id'], "name": p['name']})
             headerDataL.append(
                 {"text": p['name'], "endpoint": "view.plan", "view_args": {"pid": str(p['id'])}})
 
@@ -61,6 +65,7 @@ def headerDataInit():
         "headerDataL": headerDataL,
         "headerDataR": headerDataR,
         "accessibleZones": accessible_zones,
+        "accessiblePlans": accessible_plans,
         'hasLogout': 'auth.logout' in flask.current_app.view_functions,
         'hasChangePassword': 'auth.change_password' in flask.current_app.view_functions,
         'minPasswordLength': flask.current_app.config.get('MIN_PASSWORD_LENGTH', 6)
@@ -69,22 +74,21 @@ def headerDataInit():
 
 @bp.route("/")
 def index():
-    default_zone = get_user_prefs(flask.g.login).get('default_zone')
+    default_plan = get_user_prefs(flask.g.login).get('default_plan')
 
-    if default_zone is not None:
-        # Find a plan with a seat in the user's preferred zone that they can access
-        zoneRow = Zone.select(Zone.zone_type).where(Zone.id == default_zone).first()
-        if zoneRow:
+    if default_plan is not None:
+        # Check if the plan is still accessible to the user
+        plan_zones = list(Zone.select(Zone.id, Zone.zone_type)
+                         .join(Seat, on=(Seat.zid == Zone.id))
+                         .where(Seat.pid == default_plan)
+                         .group_by(Zone.id, Zone.zone_type)
+                         .iterator())
+        for z in plan_zones:
             specificRole = UserToZoneRoles.select(UserToZoneRoles.zone_role) \
-                .where((UserToZoneRoles.zid == default_zone) & (UserToZoneRoles.login == flask.g.login)) \
+                .where((UserToZoneRoles.zid == z['id']) & (UserToZoneRoles.login == flask.g.login)) \
                 .scalar()
-            if effectiveZoneRole(zoneRow['zone_type'], specificRole) is not None:
-                planRow = Plan.select(Plan.id) \
-                    .join(Seat, on=(Seat.pid == Plan.id)) \
-                    .where(Seat.zid == default_zone) \
-                    .first()
-                if planRow:
-                    return flask.redirect(flask.url_for('view.plan', pid=planRow['id']))
+            if effectiveZoneRole(z['zone_type'], specificRole) is not None:
+                return flask.redirect(flask.url_for('view.plan', pid=default_plan))
 
     return flask.render_template('index.html')
 

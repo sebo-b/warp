@@ -17,7 +17,7 @@ ZoneAssign = Table('zone_assign',('zid','login','zone_role'))
 Book = Table('book',('id','login','sid','fromts','tots'))
 SeatAssign = Table('seat_assign',('sid','login','days_in_advance'))
 
-UserPrefs = Table('user_prefs',('login','default_zone','default_day','default_time_from','default_time_to','ical_enabled','ical_token','reminder_weekdays','reminder_ahead_days','reminder_time','reminder_release_ahead_days','reminder_zones','zone_show_seat_names','zone_show_booking_preview'), primary_key='login')
+UserPrefs = Table('user_prefs',('login','default_plan','default_day','default_time_from','default_time_to','ical_enabled','ical_token','reminder_weekdays','reminder_ahead_days','reminder_time','reminder_release_ahead_days','reminder_zones','zone_show_seat_names','zone_show_booking_preview'), primary_key='login')
 
 UserToZoneRoles = Table('user_to_zone_roles',('login','zid','zone_role'))
 
@@ -95,6 +95,7 @@ DB_MIGRATIONS = [
     (10, "sql/migration_010_zone_group_text.sql"),
     (11, "sql/migration_011_plans.sql"),
     (12, "sql/migration_012_calendar_type_filter.sql"),
+    (13, "sql/migration_013_default_plan.sql"),
 ]
 
 DB_ADVISORY_LOCK_KEY = 7484381

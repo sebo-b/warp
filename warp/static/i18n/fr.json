@@ -276,7 +276,7 @@
             "NewGroupWillBeCreated": "Un nouveau groupe sera créé"
         },
         "Preferences": "Préférences",
-        "Default zone": "Zone par défaut",
+        "Default plan": "Plan par défaut",
         "Today": "Aujourd'hui",
         "Tomorrow": "Demain",
         "Today if before start time, otherwise tomorrow": "Aujourd'hui si avant l'heure de début, sinon demain",

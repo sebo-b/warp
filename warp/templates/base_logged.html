@@ -53,13 +53,13 @@
             <h4 class="TR">Preferences</h4>
             <div class="row">
                 <div class="input-field col s12">
-                    <select id="pref_default_zone">
+                    <select id="pref_default_plan">
                         <option value="">--</option>
-                        {% for z in accessibleZones %}
-                        <option value="{{ z['id'] }}">{{ z['name'] }}</option>
+                        {% for p in accessiblePlans %}
+                        <option value="{{ p['id'] }}">{{ p['name'] }}</option>
                         {% endfor %}
                     </select>
-                    <label class="TR">Default zone</label>
+                    <label class="TR">Default plan</label>
                 </div>
             </div>
             <div class="row">

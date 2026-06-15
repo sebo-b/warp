@@ -65,7 +65,7 @@ function formatHHMM(seconds) {
 
 function initPrefs() {
   var prefModalEl = document.getElementById('pref_modal');
-  var zoneSelectEl = document.getElementById('pref_default_zone');
+  var planSelectEl = document.getElementById('pref_default_plan');
   var daySelectEl = document.getElementById('pref_default_day');
   var saveBtn = document.getElementById('pref_save_btn');
   var sliderEl = document.getElementById('pref_timeslider');
@@ -74,7 +74,7 @@ function initPrefs() {
   var showSeatNamesEl = document.getElementById('pref_zone_show_seat_names');
   var showBookingPreviewEl = document.getElementById('pref_zone_show_booking_preview');
 
-  if (!prefModalEl || !zoneSelectEl || !daySelectEl || !saveBtn || !sliderEl)
+  if (!prefModalEl || !planSelectEl || !daySelectEl || !saveBtn || !sliderEl)
     return;
 
   var DEFAULT_TIME = [9 * 3600, 17 * 3600];
@@ -83,9 +83,9 @@ function initPrefs() {
 
   function applyPrefsToUI() {
     var time = (loadedPrefs && loadedPrefs.default_time) ? loadedPrefs.default_time : DEFAULT_TIME;
-    zoneSelectEl.value = (loadedPrefs && loadedPrefs.default_zone) ? String(loadedPrefs.default_zone) : "";
+    planSelectEl.value = (loadedPrefs && loadedPrefs.default_plan) ? String(loadedPrefs.default_plan) : "";
     daySelectEl.value = (loadedPrefs && loadedPrefs.default_day) ? loadedPrefs.default_day : "same";
-    M.FormSelect.init(zoneSelectEl);
+    M.FormSelect.init(planSelectEl);
     M.FormSelect.init(daySelectEl);
     if (slider) slider.set(time);
     if (showSeatNamesEl) showSeatNamesEl.checked = loadedPrefs ? loadedPrefs.zone_show_seat_names : false;
@@ -116,7 +116,7 @@ function initPrefs() {
     applyPrefsToUI();
   }
 
-  M.FormSelect.init(zoneSelectEl);
+  M.FormSelect.init(planSelectEl);
   M.FormSelect.init(daySelectEl);
 
   M.Modal.init(prefModalEl, {
@@ -138,7 +138,7 @@ function initPrefs() {
   function postPrefs(extraPayload, callback) {
     if (!slider) return;
     var payload = {
-      default_zone: zoneSelectEl.value || undefined,
+      default_plan: planSelectEl.value || undefined,
       default_day: daySelectEl.value,
       default_time: slider.get(true).map(function(v) { return Math.round(v); }),
       zone_show_seat_names: showSeatNamesEl ? showSeatNamesEl.checked : false,

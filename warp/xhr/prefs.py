@@ -13,7 +13,7 @@ prefsSchema = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
     "properties": {
-        "default_zone": {"type": ["integer", "string", "null"]},
+        "default_plan": {"type": ["integer", "string", "null"]},
         "default_day": {"enum": ["same", "tomorrow", "boundary"]},
         "default_time": {
             "type": "array",
@@ -31,7 +31,7 @@ prefsSchema = {
 
 def _row_to_prefs(row):
     return {
-        "default_zone": row['default_zone'],
+        "default_plan": row['default_plan'],
         "default_day": row['default_day'],
         "default_time": [row['default_time_from'], row['default_time_to']],
         "zone_show_seat_names": row['zone_show_seat_names'],
@@ -39,7 +39,7 @@ def _row_to_prefs(row):
     }
 
 
-def _coerce_default_zone(value):
+def _coerce_default_plan(value):
     if value is None or value == "":
         return None
     try:
@@ -50,7 +50,7 @@ def _coerce_default_zone(value):
 
 def get_user_prefs(login):
     row = UserPrefs.select(
-        UserPrefs.default_zone,
+        UserPrefs.default_plan,
         UserPrefs.default_day,
         UserPrefs.default_time_from,
         UserPrefs.default_time_to,
@@ -62,7 +62,7 @@ def get_user_prefs(login):
         return _row_to_prefs(row)
 
     return {
-        "default_zone": None,
+        "default_plan": None,
         "default_day": "same",
         "default_time": [DEFAULT_TIME_FROM, DEFAULT_TIME_TO],
         "zone_show_seat_names": False,
@@ -85,7 +85,7 @@ def prefs_set():
 
     values = {
         UserPrefs.login: flask.g.login,
-        UserPrefs.default_zone: _coerce_default_zone(jsonData.get('default_zone')),
+        UserPrefs.default_plan: _coerce_default_plan(jsonData.get('default_plan')),
         UserPrefs.default_day: jsonData['default_day'],
         UserPrefs.default_time_from: time_from,
         UserPrefs.default_time_to: time_to,
@@ -94,7 +94,7 @@ def prefs_set():
     }
 
     update = {
-        UserPrefs.default_zone: values[UserPrefs.default_zone],
+        UserPrefs.default_plan: values[UserPrefs.default_plan],
         UserPrefs.default_day: values[UserPrefs.default_day],
         UserPrefs.default_time_from: values[UserPrefs.default_time_from],
         UserPrefs.default_time_to: values[UserPrefs.default_time_to],

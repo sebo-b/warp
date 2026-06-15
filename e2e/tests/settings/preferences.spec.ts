@@ -31,7 +31,7 @@ test.describe('preferences modal', () => {
     await page.locator('#user_menu_dropdown a', { hasText: 'Preferences' }).click();
     await expect(page.locator('#pref_modal')).toBeVisible();
 
-    await expect(page.locator('#pref_default_zone')).toBeAttached();
+    await expect(page.locator('#pref_default_plan')).toBeAttached();
     await expect(page.locator('#pref_default_day')).toBeAttached();
     await expect(page.locator('#pref_zone_show_seat_names')).toBeAttached();
     await expect(page.locator('#pref_zone_show_booking_preview')).toBeAttached();
@@ -144,11 +144,11 @@ test.describe('preferences API', () => {
     expect([302, 401, 403]).toContain(resp.status());
   });
 
-  test('saving default_zone updates the preferred landing zone', async ({ page }) => {
+  test('saving default_plan updates the preferred landing plan', async ({ page }) => {
     await logIn(page, USER1);
-    const resp = await apiSetPrefs(page, { default_zone: 1 });
+    const resp = await apiSetPrefs(page, { default_plan: 1 });
     expect(resp.status()).toBe(200);
-    expect((await resp.json()).default_zone).toBe(1);
+    expect((await resp.json()).default_plan).toBe(1);
   });
 
 });

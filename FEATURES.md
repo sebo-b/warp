@@ -456,16 +456,16 @@ The old "Already booked in another zone" section is gone; an existing booking on
 
 ## 14. User Preferences
 
-> A user's preferred "default zone" (user profile preference) is independent of the former plan default-zone design. It still influences the post-login redirect and certain reminders.
+> A user's preferred "default plan" (user profile preference) determines which plan opens after login.
 
 Accessible from the user menu (dropdown in the top-right corner).
 
-### 14.1 Default Zone
-- Choose which zone opens by default after login.
-- If the default zone is no longer accessible, WARP falls back to the landing page.
+### 14.1 Default Plan
+- Choose which plan opens by default after login.
+- If the default plan is no longer accessible, WARP falls back to the landing page.
 
 ### 14.2 Default Day
-- Controls which day is pre-selected when opening a zone:
+- Controls which day is pre-selected when opening a plan:
   - **Today**: always start on today.
   - **Tomorrow**: always start on tomorrow.
   - **Today if before start time, otherwise tomorrow**: smart boundary (e.g., if it's already 10:00 AM and your start time is 9:00 AM, it jumps to tomorrow).
@@ -571,12 +571,12 @@ All text on these pages is translated according to the deployment-wide language 
 
 ---
 
-## 19. Landing Page & Default Zone Redirect
+## 19. Landing Page & Default Plan Redirect
 
-- After login, WARP checks if the user has a **default zone** preference set.
-- If the default zone is accessible, the user is redirected directly to that zone's map.
-- If not (no preference, or zone no longer accessible), the user sees the landing page with the WARP logo.
-- The user can navigate to any accessible zone from the navigation bar.
+- After login, WARP checks if the user has a **default plan** preference set.
+- If the default plan is accessible, the user is redirected directly to that plan's map.
+- If not (no preference, or plan no longer accessible), the user sees the landing page with the WARP logo.
+- The user can navigate to any accessible plan from the navigation bar.
 
 ---
 

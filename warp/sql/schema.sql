@@ -80,7 +80,7 @@ CREATE INDEX seat_zid ON seat(zid);
 
 CREATE TABLE user_prefs (
     login text PRIMARY KEY,
-    default_zone integer,
+    default_plan integer,
     default_day text NOT NULL DEFAULT 'same',
     default_time_from integer NOT NULL DEFAULT 32400,
     default_time_to integer NOT NULL DEFAULT 61200,
@@ -94,7 +94,7 @@ CREATE TABLE user_prefs (
     zone_show_seat_names boolean NOT NULL DEFAULT FALSE,
     zone_show_booking_preview boolean NOT NULL DEFAULT FALSE,
     FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE,
-    FOREIGN KEY (default_zone) REFERENCES zone(id) ON DELETE SET NULL
+    FOREIGN KEY (default_plan) REFERENCES plan(id) ON DELETE SET NULL
 );
 
 CREATE UNIQUE INDEX user_prefs_ical_token_idx ON user_prefs(ical_token) WHERE ical_token IS NOT NULL;
@@ -261,4 +261,4 @@ CREATE UNLOGGED TABLE calendar_cache (
 
 CREATE TABLE db_initialized (version INTEGER NOT NULL);
 
-INSERT INTO db_initialized(version) VALUES(12);
+INSERT INTO db_initialized(version) VALUES(13);
