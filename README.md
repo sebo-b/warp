@@ -28,7 +28,7 @@ I've quickly evaluated a couple of existing solutions, but they were either too 
 - **Assigned Seats**: Limit seats to certain people so others cannot book them.
 - **Disabled Seats**: Hide seats so people don't see them at all.
 - **Auto-Book**: Use the floating "+" button to quickly book an available seat with one click.
-- **Calendar Integration**: Subscribe to iCal feeds in Google Calendar, Outlook, Apple Calendar, or any other calendar app. The feed includes bookings and/or reminders; the URL can be filtered with `?kind=bookings`, `?kind=reminders` (or `all`, the default).
+- **Calendar Integration**: Subscribe to iCal feeds in Google Calendar, Outlook, Apple Calendar, or any other calendar app. The feed includes bookings and/or reminders; the URL can be filtered with `?type=bookings`, `?type=reminders` (or `all`, the default).
 - **Per-Zone Reminders**: Configure automatic booking and seat-release reminder notifications for each zone independently.
 - **Days-in-Advance Booking Window**: Per-assignment configurable limits on how far in advance users can book seats.
 - **Virtual "Everyone" Access**: Seats and zones can be configured with virtual "everyone" access for flexible seat management.

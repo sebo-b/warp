@@ -7,6 +7,23 @@ export async function openUserMenu(page: Page): Promise<void> {
   await expect(page.locator('#user_menu_dropdown')).toBeVisible();
 }
 
+/** Open the Calendar integration modal via the desktop user menu.
+ *  Must be called while logged in (top nav present).
+ *  Scopes the link to the freshly opened #user_menu_dropdown to avoid
+ *  the duplicate copy that also exists inside the mobile sidenav.
+ *
+ *  After open, scroll the modal content to the top so that form controls
+ *  near the top are inside the viewport (Materialize modal + small harness viewport).
+ */
+export async function openCalendarModal(page: Page): Promise<void> {
+  await openUserMenu(page);
+  await page.locator('#user_menu_dropdown').getByRole('link', { name: /calendar integration/i }).click();
+  const modal = page.locator('#calendar_modal');
+  await expect(modal).toBeVisible();
+  // Ensure inner content is scrolled to top; some controls are otherwise "outside viewport".
+  await modal.locator('.modal-content').evaluate((el: HTMLElement) => { el.scrollTop = 0; });
+}
+
 /** Full prefs payload matching the required schema. */
 export const defaultPrefsPayload = {
   default_day: 'same',
