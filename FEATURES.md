@@ -176,12 +176,19 @@ Accessible via the map icon on the Plans management page.
 - Seats **marked for deletion** show the gray "disabled" icon.
 - The currently selected seat(s) are highlighted with a red outline.
 
-### 4.5 Deleting Seats
+### 4.5 Editor Seat Labels
+- Every seat shows its **name** as an on-map label below the seat icon.
+- Labels update live as the admin renames a seat in the side panel, including newly placed seats.
+- When the plan spans **more than one zone** (based on non-deleted seats), each label also shows the zone name in a secondary line; this zone line disappears when the plan returns to a single zone.
+- Deleted seats' labels are **greyed out** (solid grey card and title, matching the greyed seat icon — no transparency); they un-grey on restore.
+- Labels are pointer-events:none so they never interfere with click, drag, or marquee hit-testing; the marquee selection box accounts for each label's full footprint so it never clips through them.
+
+### 4.6 Deleting Seats
 - Mark a seat for deletion; it can be restored before saving.
 - Deletion is confirmed via a dialog showing what will be removed.
 - The seat's zone can be changed via the dropdown in the side panel when the seat is selected (Edit mode).
 
-### 4.6 Saving & Cancelling
+### 4.7 Saving & Cancelling
 - All changes (image, added/modified/deleted seats) are submitted together.
 - A confirmation dialog lists the pending changes before applying.
 - A **Cancel** button returns to the plans list; if there are unsaved changes, a confirmation dialog ("All unsaved changes will be lost.") is shown first.
@@ -362,6 +369,7 @@ The old "Already booked in another zone" section is gone; an existing booking on
 
 ### 10.2 Seat Name Labels (User Preference)
 - Users can toggle **"Show seat names on the map"** to display permanent labels with seat names below each seat icon.
+- Labels show the seat name and (when enabled) booking preview only; zone info is never displayed on booking-pane labels, even in mixed-zone plans.
 
 ### 10.3 Booking Preview Labels (User Preference)
 - Users can toggle **"Show booking preview on the map"** to show who is booked on each seat for the currently selected date/time.

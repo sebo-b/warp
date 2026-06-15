@@ -104,8 +104,6 @@ function initSeatLabels(seatFactory) {
     var needsFullRender = true;
     var hoveredSid = null;
     var suppressTooltip = false;
-    var multiZone = false; // true when more than one zone on the plan
-
     var TITLE_HEIGHT = 14;
     var SPRITE_CENTER_X = WarpSeat.Sprites.spriteSize / 2;
 
@@ -153,13 +151,6 @@ function initSeatLabels(seatFactory) {
                 row.className = "seat_label_booking";
                 row.textContent = b.username;
             }
-        }
-
-        // Show zone name when multiple zones exist on the plan
-        if (multiZone && (showSeatNames || showBookingPreview)) {
-            var zoneName = div.appendChild(document.createElement("div"));
-            zoneName.className = "seat_label_zone";
-            zoneName.textContent = seat.getZoneName();
         }
 
         return div;
@@ -258,14 +249,6 @@ function initSeatLabels(seatFactory) {
         needsFullRender = true;
         hoveredSid = null;
         suppressTooltip = false;
-        // Determine if plan has multiple zones
-        var zoneIds = new Set();
-        for (var sid in seatFactory.instances) {
-            var seat = seatFactory.instances[sid];
-            if (seat.isOtherZone()) continue;
-            zoneIds.add(seat.getZoneName());
-        }
-        multiZone = zoneIds.size > 1;
     });
 
     seatFactory.on('updateAllStates', updateBookingLabels);

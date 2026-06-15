@@ -525,6 +525,126 @@ test.describe('marquee transform and rotation', () => {
 
 });
 
+// ─── Seat labels ────────────────────────────────────────────────────────────
+
+test.describe('seat labels in the editor', () => {
+
+  test('each seat shows a label with its name', async ({ page }) => {
+    await logIn(page, ADMIN);
+    const seats = await getZoneSeats(ZID);
+    await openEditor(page);
+
+    const labels = page.locator('#zone_map_container > .seat_label');
+    await expect(labels).toHaveCount(seats.length);
+    // First seat's label title shows the seat name
+    await expect(labels.first().locator('.seat_label_title')).toHaveText(seats[0].name);
+  });
+
+  test('renaming a seat updates the label live', async ({ page }) => {
+    await logIn(page, ADMIN);
+    const [seat] = await getZoneSeats(ZID);
+    await openEditor(page);
+    await selectSeat(page, seat);
+
+    await page.locator('#seat_name').fill('LiveUpdateName');
+    // The label title should reflect the new name immediately
+    const label = page.locator('#zone_map_container > .seat_label').first();
+    await expect(label.locator('.seat_label_title')).toHaveText('LiveUpdateName');
+
+    // Discard changes
+    await page.locator('#cancelBtn').click();
+    const modal = page.locator('.modal.open', { hasText: /unsaved changes/ });
+    if (await modal.isVisible()) {
+      await modal.locator('a', { hasText: /Yes/i }).click();
+    }
+  });
+
+  test('newly placed seat shows a label with its NEW_ name', async ({ page }) => {
+    await logIn(page, ADMIN);
+    const beforeCount = (await getZoneSeats(ZID)).length;
+    await openEditor(page);
+
+    await toggleMode(page); // add mode
+    await page.locator('#zone_map').click({ position: EMPTY_SPOT });
+
+    const labels = page.locator('#zone_map_container > .seat_label');
+    await expect(labels).toHaveCount(beforeCount + 1);
+    // The newest label should contain the NEW_ prefix
+    const allTexts = await labels.locator('.seat_label_title').allTextContents();
+    const hasNew = allTexts.some((t) => t.startsWith('NEW_'));
+    expect(hasNew).toBe(true);
+  });
+
+  test('deleted seat label is greyed out', async ({ page }) => {
+    await logIn(page, ADMIN);
+    const [seat] = await getZoneSeats(ZID);
+    await openEditor(page);
+    await selectSeat(page, seat);
+
+    // Before delete, label is not greyed
+    const label = page.locator('#zone_map_container > .seat_label').first();
+    await expect(label).not.toHaveClass(/seat_label_deleted/);
+
+    await page.locator('#seat_delete_btn').click();
+    await expect(label).toHaveClass(/seat_label_deleted/);
+
+    // Restore un-greys the label
+    await page.locator('#seat_delete_btn').click();
+    await expect(label).not.toHaveClass(/seat_label_deleted/);
+  });
+
+  test('single-zone plan does not show zone line on labels', async ({ page }) => {
+    await logIn(page, ADMIN);
+    await openEditor(page);
+
+    // Plan 1 has seats from only one zone → no .seat_label_zone elements
+    const zoneLines = page.locator('#zone_map_container > .seat_label .seat_label_zone');
+    await expect(zoneLines).toHaveCount(0);
+  });
+
+  test('moving a seat to a second zone toggles the zone line on all labels', async ({ page }) => {
+    await logIn(page, ADMIN);
+    const seats = await getZoneSeats(ZID);
+    await openEditor(page);
+
+    const zoneLines = page.locator('#zone_map_container > .seat_label .seat_label_zone');
+
+    // Plan 1 starts single-zone (all seats in zone 1 "Zone 1A") → no zone lines.
+    await expect(zoneLines).toHaveCount(0);
+
+    // Reassign one seat to zone 2 ("Zone 1B") via the side-panel dropdown. The plan
+    // now spans two zones, so the zone line must appear on *every* label (the toggle
+    // is plan-wide, not per-seat). Drive the native <select> directly: Materialize
+    // overlays it, and the app only listens for the native 'change' event.
+    await selectSeat(page, seats[0]);
+    await page.$eval('#seat_zone', (el) => {
+      const sel = el as HTMLSelectElement;
+      sel.value = '2';
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    await expect(zoneLines).toHaveCount(seats.length);
+    await expect(zoneLines.filter({ hasText: 'Zone 1B' })).toHaveCount(1);
+    await expect(zoneLines.filter({ hasText: 'Zone 1A' })).toHaveCount(seats.length - 1);
+
+    // Revert to a single zone → all zone lines disappear again.
+    await page.$eval('#seat_zone', (el) => {
+      const sel = el as HTMLSelectElement;
+      sel.value = '1';
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await expect(zoneLines).toHaveCount(0);
+
+    // Discard unsaved changes.
+    await page.locator('#cancelBtn').click();
+    const modal = page.locator('.modal.open', { hasText: /unsaved changes/ });
+    if (await modal.isVisible()) {
+      await modal.locator('a', { hasText: /Yes/i }).click();
+    }
+  });
+
+});
+
 // ─── API error cases ──────────────────────────────────────────────────────────
 
 test.describe('zone editor API error cases', () => {

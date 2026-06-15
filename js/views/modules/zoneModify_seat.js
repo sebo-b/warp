@@ -58,6 +58,8 @@ Seat.prototype.isNew = function() {
 Seat.prototype._destroy = function() {
 
     this.seatDiv.parentNode.removeChild(this.seatDiv);
+    if (this.labelDiv && this.labelDiv.parentNode)
+        this.labelDiv.parentNode.removeChild(this.labelDiv);
     Object.keys(this.overlay).forEach((e) => delete this.overlay[e]);
 }
 
@@ -77,8 +79,19 @@ Seat.prototype._createDiv = function(parentDiv) {
     this.seatDiv.style.height = Seat.CONFIG.spriteSize + "px";
     this.seatDiv.style.backgroundImage = 'url('+window.warpGlobals.URLs['seatSprite']+')';
 
-    this._updateDiv();
+    // Label div (class seat_label) — appended to same parent, pointer-events:none
+    this.labelDiv = document.createElement("div");
+    this.labelDiv.className = "seat_label";
+
+    this.labelTitle = this.labelDiv.appendChild(document.createElement("div"));
+    this.labelTitle.className = "seat_label_title";
+
+    this.labelZone = null; // created lazily when multi-zone
+
     parentDiv.appendChild(this.seatDiv);
+    parentDiv.appendChild(this.labelDiv);
+
+    this._updateDiv();
 }
 
 Seat.prototype._updateDiv = function() {
@@ -100,7 +113,46 @@ Seat.prototype._updateDiv = function() {
         this.seatDiv.style.outline = "2px solid #b71c1c";
     else
         this.seatDiv.style.outline = "";
+
+    this._updateLabel();
 }
+
+Seat.prototype._updateLabel = function() {
+
+    if (!this.labelDiv) return;
+
+    var TITLE_HEIGHT = 14;
+    var SPRITE_CENTER_X = Seat.CONFIG.spriteSize / 2;
+
+    // Position: centred below the seat sprite
+    this.labelDiv.style.left = (this.x + SPRITE_CENTER_X) + "px";
+    this.labelDiv.style.top = (this.y + Seat.CONFIG.spriteSize - TITLE_HEIGHT) + "px";
+
+    // Title text = seat name
+    this.labelTitle.textContent = this.name || '';
+
+    // Zone line: only when factory reports multi-zone
+    var factory = this.factory;
+    if (factory && factory.multiZone) {
+        if (!this.labelZone) {
+            this.labelZone = this.labelDiv.appendChild(document.createElement("div"));
+            this.labelZone.className = "seat_label_zone";
+        }
+        var zoneName = (factory.zonesNames && this.zid in factory.zonesNames)
+            ? factory.zonesNames[this.zid]
+            : '';
+        this.labelZone.textContent = zoneName;
+    } else if (this.labelZone) {
+        this.labelZone.remove();
+        this.labelZone = null;
+    }
+
+    // Greyed state for deleted seats
+    if (this.deleted)
+        this.labelDiv.classList.add('seat_label_deleted');
+    else
+        this.labelDiv.classList.remove('seat_label_deleted');
+};
 
 Object.defineProperty(Seat.prototype, "deleted", {
     get: function() {
@@ -173,6 +225,9 @@ function SeatFactory(url,parentDiv,zoneMapImg) {
     this.instances = {};
     this.overlay = {};
 
+    this.zonesNames = {};
+    this.multiZone = false;
+
     this.newSeatCounter = 1;
 
     this.selectedSeat = null;
@@ -191,6 +246,37 @@ function SeatFactory(url,parentDiv,zoneMapImg) {
     this.parentDiv.addEventListener("mousemove", this._zoneMouseMove.bind(this));
     this.parentDiv.addEventListener("mousedown", this._zoneMouseDown.bind(this));
 }
+
+SeatFactory.prototype._recomputeMultiZone = function() {
+
+    var zoneIds = new Set();
+    for (var sid in this.instances) {
+        var seat = this.instances[sid];
+        if (seat.deleted) continue;
+        // Skip seats with no zone yet (e.g. a just-placed seat before its zid is
+        // assigned) so they don't transiently count as a distinct zone.
+        if (seat.zid === undefined || seat.zid === null) continue;
+        zoneIds.add(seat.zid);
+    }
+    var was = this.multiZone;
+    this.multiZone = zoneIds.size > 1;
+    // If multi-zone toggled, refresh all labels (zone line appears/disappears)
+    if (was !== this.multiZone) {
+        for (var sid in this.instances) {
+            this.instances[sid]._updateLabel();
+        }
+    }
+};
+
+SeatFactory.prototype.setZonesNames = function(map) {
+
+    this.zonesNames = map || {};
+    this._recomputeMultiZone();
+    // Refresh all labels so zone names and visibility update
+    for (var sid in this.instances) {
+        this.instances[sid]._updateLabel();
+    }
+};
 
 SeatFactory.prototype._resetSelectionState = function() {
 
@@ -234,6 +320,7 @@ SeatFactory.prototype.updateData = function() {
 
         this.listeners.fireEvent('init',this,null);
         this.listeners.fireEvent('change',this,null);
+        this._recomputeMultiZone();
     });
 }
 
@@ -376,6 +463,7 @@ SeatFactory.prototype.getTransformSeats = function() {
 SeatFactory.prototype._seatOnChange = function(seat) {
 
     this.listeners.fireEvent('change',this,seat);
+    this._recomputeMultiZone();
 }
 
 SeatFactory.prototype._seatMouseDown = function(seat,e) {
@@ -443,6 +531,7 @@ SeatFactory.prototype._createSeat = function(sid,data) {
         this.overlay[sid] = {};
 
     let seat = new Seat(sid, data, this.overlay[sid], this.parentDiv);
+    seat.factory = this;
     this.instances[sid] = seat;
     seat.on('change',this._seatOnChange.bind(this));
 

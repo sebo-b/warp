@@ -90,6 +90,11 @@ document.addEventListener("DOMContentLoaded", function(e) {
         // Populate the per-seat zone selector (used for editing existing / newly-placed seats in Edit mode).
         populateZoneSelect(null);
 
+        // Feed zone names to the seat factory for on-map labels (multi-zone detection + zone name display).
+        let zonesNameMap = {};
+        for (let z of allZones) zonesNameMap[z.id] = z.name;
+        seatFactory.setZonesNames(zonesNameMap);
+
         // Compute most frequent zone on *this plan* (used only when user first flips to "Add seats").
         let zoneCounts = {};
         for (let sid in seatsData) {
