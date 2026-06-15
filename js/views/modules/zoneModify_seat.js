@@ -251,8 +251,12 @@ SeatFactory.prototype._recomputeMultiZone = function() {
 
     var zoneIds = new Set();
     for (var sid in this.instances) {
-        if (!this.instances[sid].deleted)
-            zoneIds.add(this.instances[sid].zid);
+        var seat = this.instances[sid];
+        if (seat.deleted) continue;
+        // Skip seats with no zone yet (e.g. a just-placed seat before its zid is
+        // assigned) so they don't transiently count as a distinct zone.
+        if (seat.zid === undefined || seat.zid === null) continue;
+        zoneIds.add(seat.zid);
     }
     var was = this.multiZone;
     this.multiZone = zoneIds.size > 1;

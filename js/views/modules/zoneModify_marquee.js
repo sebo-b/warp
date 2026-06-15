@@ -24,7 +24,8 @@ MarqueeController.V_EDGE_W       = 10;
 MarqueeController.V_EDGE_H       = 18;
 MarqueeController.ROTATE_SIZE    = 24;
 MarqueeController.ROTATE_OFFSET  = 18;
-MarqueeController.LABEL_PAD      = 20; // default bottom padding for on-map seat labels
+MarqueeController.LABEL_PAD      = 20; // fallback bottom padding for on-map seat labels
+MarqueeController.LABEL_HALF_W   = 44; // fallback half-width envelope for centred labels
 
 MarqueeController.HANDLE_CURSORS = {
     nw: 'nwse-resize',
@@ -207,17 +208,34 @@ MarqueeController.prototype._computeBounds = function(seats) {
 
     for (var i = 0; i < seats.length; i++) {
         var s = seats[i];
-        if (s.x < minX) minX = s.x;
-        if (s.y < minY) minY = s.y;
+
+        var left = s.x;
+        var top = s.y;
         var right = s.x + this.spriteSize;
-        // Account for the on-map label below the sprite; use actual label
-        // height when available (adapts to zone-line visibility).
         var bottom = s.y + this.spriteSize;
+
+        // Account for the on-map label centred below the sprite. The label can be
+        // both wider than the sprite (long names) and taller (zone line), so it must
+        // extend the bounds on all four sides — otherwise the box/handles clip
+        // through it. Prefer real rendered geometry (adapts to name length and
+        // zone-line visibility); the label is laid out at offsetLeft = x + spriteSize/2
+        // and visually centred via `transform: translateX(-50%)`, so its horizontal
+        // extent is offsetLeft ± offsetWidth/2.
         if (s.labelDiv && s.labelDiv.offsetParent !== null) {
+            var lblCenterX = s.labelDiv.offsetLeft;
+            var lblHalfW = s.labelDiv.offsetWidth / 2;
+            left = Math.min(left, lblCenterX - lblHalfW);
+            right = Math.max(right, lblCenterX + lblHalfW);
             bottom = Math.max(bottom, s.labelDiv.offsetTop + s.labelDiv.offsetHeight);
         } else {
+            var cx = s.x + this.spriteSize / 2;
+            left = Math.min(left, cx - MarqueeController.LABEL_HALF_W);
+            right = Math.max(right, cx + MarqueeController.LABEL_HALF_W);
             bottom += MarqueeController.LABEL_PAD;
         }
+
+        if (left < minX) minX = left;
+        if (top < minY) minY = top;
         if (right > maxX) maxX = right;
         if (bottom > maxY) maxY = bottom;
     }

@@ -602,6 +602,47 @@ test.describe('seat labels in the editor', () => {
     await expect(zoneLines).toHaveCount(0);
   });
 
+  test('moving a seat to a second zone toggles the zone line on all labels', async ({ page }) => {
+    await logIn(page, ADMIN);
+    const seats = await getZoneSeats(ZID);
+    await openEditor(page);
+
+    const zoneLines = page.locator('#zone_map_container > .seat_label .seat_label_zone');
+
+    // Plan 1 starts single-zone (all seats in zone 1 "Zone 1A") → no zone lines.
+    await expect(zoneLines).toHaveCount(0);
+
+    // Reassign one seat to zone 2 ("Zone 1B") via the side-panel dropdown. The plan
+    // now spans two zones, so the zone line must appear on *every* label (the toggle
+    // is plan-wide, not per-seat). Drive the native <select> directly: Materialize
+    // overlays it, and the app only listens for the native 'change' event.
+    await selectSeat(page, seats[0]);
+    await page.$eval('#seat_zone', (el) => {
+      const sel = el as HTMLSelectElement;
+      sel.value = '2';
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    await expect(zoneLines).toHaveCount(seats.length);
+    await expect(zoneLines.filter({ hasText: 'Zone 1B' })).toHaveCount(1);
+    await expect(zoneLines.filter({ hasText: 'Zone 1A' })).toHaveCount(seats.length - 1);
+
+    // Revert to a single zone → all zone lines disappear again.
+    await page.$eval('#seat_zone', (el) => {
+      const sel = el as HTMLSelectElement;
+      sel.value = '1';
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await expect(zoneLines).toHaveCount(0);
+
+    // Discard unsaved changes.
+    await page.locator('#cancelBtn').click();
+    const modal = page.locator('.modal.open', { hasText: /unsaved changes/ });
+    if (await modal.isVisible()) {
+      await modal.locator('a', { hasText: /Yes/i }).click();
+    }
+  });
+
 });
 
 // ─── API error cases ──────────────────────────────────────────────────────────

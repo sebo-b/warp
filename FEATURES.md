@@ -180,8 +180,8 @@ Accessible via the map icon on the Plans management page.
 - Every seat shows its **name** as an on-map label below the seat icon.
 - Labels update live as the admin renames a seat in the side panel, including newly placed seats.
 - When the plan spans **more than one zone** (based on non-deleted seats), each label also shows the zone name in a secondary line; this zone line disappears when the plan returns to a single zone.
-- Deleted seats' labels are **greyed out** (reduced opacity and muted title) to match the greyed seat icon; they un-grey on restore.
-- Labels are pointer-events:none so they never interfere with click, drag, or marquee hit-testing.
+- Deleted seats' labels are **greyed out** (solid grey card and title, matching the greyed seat icon — no transparency); they un-grey on restore.
+- Labels are pointer-events:none so they never interfere with click, drag, or marquee hit-testing; the marquee selection box accounts for each label's full footprint so it never clips through them.
 
 ### 4.6 Deleting Seats
 - Mark a seat for deletion; it can be restored before saving.
