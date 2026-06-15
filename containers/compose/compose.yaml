@@ -20,6 +20,12 @@ services:
       WARP_SECRET_KEY_FILE: /run/secrets/warp_secret_key
       WARP_DATABASE_POST_INIT_SCRIPTS: '["sql/sample_data.sql"]'
       WARP_LANGUAGE_FILE: 'i18n/en.js'
+      # OpenID Connect (OIDC) — uncomment to enable, see CONFIGURATION.md
+      # WARP_AUTH_OIDC: 'true'
+      # WARP_OIDC_DISCOVERY_URL: 'https://idp.example.org/realms/warp/.well-known/openid-configuration'
+      # WARP_OIDC_CLIENT_ID: 'warp'
+      # WARP_OIDC_CLIENT_SECRET_FILE: /run/secrets/warp_oidc_client_secret
+      # WARP_OIDC_GROUP_MAP: '[ ["warp-allowed", null], [null, "Everyone"] ]'
     secrets:
       - warp_db_password
       - warp_secret_key
@@ -37,3 +43,5 @@ secrets:
     file: ./secrets/db_password.txt
   warp_secret_key:
     file: ./secrets/secret_key.txt
+  # warp_oidc_client_secret:
+  #   file: ./secrets/oidc_client_secret.txt

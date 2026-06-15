@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block header %}
+    {{ super() }}
+
+    <style>
+        html, body {
+            height: 100%;
+            width: 100%;
+        }
+        .auth-error-container {
+            margin: auto;
+            width: 400px;
+            height: 70%;
+        }
+        .auth-error-message {
+          color: #F44336;
+          padding-bottom: 20px;
+        }
+
+    </style>
+{% endblock %}
+
+{% block content %}
+  {{ super() }}
+
+    <nav>
+        <div class="nav-wrapper">
+            <div class="center"><img class="logo" src="{{ url_for('static', filename='images/logo.png') }}"></div>
+        </div>
+    </nav>
+
+    <div class="auth-error-container valign-wrapper">
+      <div class="row center-align">
+
+        <div class="col s12">
+          <h5 class="auth-error-message TR">Authentication error</h5>
+        </div>
+
+        <div class="col s12">
+        {% if error == 'token_exchange_failed' %}
+          <p class="TR">Authentication failed: could not exchange the authorisation code.</p>
+        {% elif error == 'no_claims' %}
+          <p class="TR">Authentication failed: no user claims received.</p>
+        {% elif error == 'access_denied' %}
+          <p class="TR">Access denied: you are not a member of an allowed group.</p>
+        {% elif result and result.get('error_description') %}
+          <p>{{ result.get('error_description') }}</p>
+        {% elif result and result.get('error') %}
+          <p>{{ result.get('error') }}</p>
+        {% else %}
+          <p class="TR">An unknown authentication error occurred.</p>
+        {% endif %}
+        </div>
+
+        <div class="col s12">
+          {# Go through /logout to also end the IdP session (e.g. Keycloak),
+             so the user can try again with a different account. #}
+          <a href="{{ url_for('auth.logout') }}" class="btn waves-effect waves-light TR">btn.Ok</a>
+        </div>
+
+      </div>
+    </div>
+
+{% endblock %}

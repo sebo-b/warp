@@ -138,42 +138,11 @@ def ldapGetUserMetadata(login,ldapConnection):
 
 def ldapApplyUserMetadata(login,userData):
 
-    with DB.atomic():
-
-        existing = Users.select(Users.login, Users.name).where(warp.auth.loginMatch(login)).first()
-        if existing is None:
-            Users.insert({
-                Users.login: login,
-                Users.name: userData["userName"],
-                Users.account_type: ACCOUNT_TYPE_USER,
-                Users.password: '*'
-            }).execute()
-        else:
-            login = existing['login']    # canonical stored login (case may differ)
-            if existing['name'] != userData["userName"]:
-                Users.update({Users.name: userData["userName"]}).where(Users.login == login).execute()
-
-        existingGroups = Users.select( Users.login ) \
-            .where( Users.account_type == ACCOUNT_TYPE_GROUP ) \
-            .where( Users.login.in_(userData["groups"]) ) \
-            .tuples()
-        existingGroups = [i[0] for i in existingGroups]
-
-        if len(existingGroups) != len(userData["groups"]):
-            print("LDAP WARNING: some of the groups defined in LDAP and mapped via LDAP_GROUP_MAP doesn't exist in Warp")
-
-        insertData = [ {Groups.login: login, Groups.group: i} for i in existingGroups ]
-        #TODO: check if the materialized view is updated if no changes
-        Groups.insert(insertData).on_conflict_ignore().execute()
-
-        strictMapping = flask.current_app.config.get('LDAP_GROUP_STRICT_MAPPING')
-        if strictMapping:
-            Groups.delete() \
-                .where( Groups.login == login ) \
-                .where( Groups.group.not_in(existingGroups) ) \
-                .execute()
-
-    return login
+    strictMapping = flask.current_app.config.get('LDAP_GROUP_STRICT_MAPPING')
+    return warp.auth.applyUserMetadata(
+        login, userData,
+        strictMapping=strictMapping,
+        warnPrefix="LDAP")
 
 
 

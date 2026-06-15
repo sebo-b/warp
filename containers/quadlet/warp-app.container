@@ -32,5 +32,13 @@ Environment=WARP_LANGUAGE_FILE=i18n/en.js
 # Environment=WARP_OMITTED_WEEKDAYS=[5, 6]
 # Environment=WARP_MIN_PASSWORD_LENGTH=8
 
+# OpenID Connect (OIDC) authentication — see CONFIGURATION.md
+# Environment=WARP_AUTH_OIDC=true
+# Environment=WARP_OIDC_DISCOVERY_URL=https://idp.example.org/realms/warp/.well-known/openid-configuration
+# Environment=WARP_OIDC_CLIENT_ID=warp
+# Secret=warp-oidc-client-secret,type=env,target=WARP_OIDC_CLIENT_SECRET
+# Environment=WARP_OIDC_GROUP_MAP=[ ["warp-allowed", null], [null, "Everyone"] ]
+# Create the podman secret with: podman secret create warp-oidc-client-secret <file>
+
 [Install]
 WantedBy=multi-user.target default.target

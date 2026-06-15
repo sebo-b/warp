@@ -63,6 +63,12 @@
           <button class="btn waves-effect waves-light TR" type="submit" name="submit">btn.Login</button>
         </div>
 
+        {% if sso_enabled %}
+        <div class="col s12" style="margin-top: 16px;">
+          <a href="{{ url_for('auth.oidc_start') }}" class="btn waves-effect waves-light TR">btn.Sign in with SSO</a>
+        </div>
+        {% endif %}
+
       </div>
     </div>
 

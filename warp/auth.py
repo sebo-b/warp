@@ -66,6 +66,45 @@ def logout():
 
 bp.route('/logout')(logout)
 
+def applyUserMetadata(login, userData, *, strictMapping=False, warnPrefix="SSO"):
+    """Upsert the user, sync display name, and reconcile group membership from
+    userData['userName'] and userData['groups']. Returns the canonical stored login.
+
+    Shared by all SSO backends (LDAP, AAD, OIDC). Runs inside an atomic block."""
+    with DB.atomic():
+        existing = Users.select(Users.login, Users.name).where(loginMatch(login)).first()
+        if existing is None:
+            Users.insert({
+                Users.login: login,
+                Users.name: userData["userName"],
+                Users.account_type: ACCOUNT_TYPE_USER,
+                Users.password: '*'
+            }).execute()
+        else:
+            login = existing['login']    # canonical stored login (case may differ)
+            if existing['name'] != userData["userName"]:
+                Users.update({Users.name: userData["userName"]}).where(Users.login == login).execute()
+
+        existingGroups = Users.select( Users.login ) \
+            .where( Users.account_type == ACCOUNT_TYPE_GROUP ) \
+            .where( Users.login.in_(userData["groups"]) ) \
+            .tuples()
+        existingGroups = [i[0] for i in existingGroups]
+
+        if len(existingGroups) != len(userData["groups"]):
+            print(f"{warnPrefix} WARNING: some of the groups defined in the IdP and mapped via group map doesn't exist in Warp")
+
+        insertData = [ {Groups.login: login, Groups.group: i} for i in existingGroups ]
+        Groups.insert(insertData).on_conflict_ignore().execute()
+
+        if strictMapping:
+            Groups.delete() \
+                .where( Groups.login == login ) \
+                .where( Groups.group.not_in(existingGroups) ) \
+                .execute()
+
+    return login
+
 changePasswordSchema = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",

@@ -127,7 +127,8 @@
             "Add seats": "Add seats",
             "Restore": "Restore",
             "Edit": "Edit",
-            "Yes, delete": "Yes, delete"
+            "Yes, delete": "Yes, delete",
+            "Sign in with SSO": "Sign in with SSO"
         },
         "Password": "Password",
         "Bookings only": "Bookings only",
@@ -341,6 +342,12 @@
             "Cancel": "Cancel",
             "Action cancelled": "Action cancelled"
         },
-        "No filter": "No filter"
+        "No filter": "No filter",
+        "Logout": "Logout",
+        "Bookings": "Bookings",
+        "Authentication error": "Authentication error",
+        "Access denied: you are not a member of an allowed group.": "Access denied: you are not a member of an allowed group.",
+        "Authentication failed: could not exchange the authorisation code.": "Authentication failed: could not exchange the authorisation code.",
+        "Authentication failed: no user claims received.": "Authentication failed: no user claims received."
     }
 }
