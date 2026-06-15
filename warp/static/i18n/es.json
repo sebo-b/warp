@@ -129,7 +129,7 @@
             "Edit": "Editar"
         },
         "Password": "Contraseña",
-        "Bookings": "Reservas",
+        "Bookings only": "Solo reservas",
         "Report": "Reporte",
         "Users": "Usuarios",
         "Groups": "Grupos",
@@ -296,7 +296,7 @@
         "Reminder time": "Hora del recordatorio",
         "Calendar settings saved": "Configuración del calendario guardada",
         "Error saving calendar settings": "Error al guardar la configuración del calendario",
-        "Reminders": "Recordatorios",
+        "Reminders only": "Solo recordatorios",
         "Password must be at least %{n} characters": "La contraseña debe tener al menos %{n} caracteres",
         "Password changed successfully": "Contraseña cambiada correctamente",
         "Error changing password": "Error al cambiar la contraseña",

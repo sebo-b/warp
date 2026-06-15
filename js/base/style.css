@@ -226,8 +226,10 @@ NAV {
 #cal_type_tabs .tab a:hover {
     color: #ff6d00;
 }
-#cal_type_tabs .indicator {
-    background-color: #ff6d00;
+#cal_type_tabs .tab.disabled a,
+#cal_type_tabs .tab.disabled a:hover {
+    color: rgba(0, 0, 0, 0.4);
+    cursor: default;
 }
 
 #calendar_modal .modal-content label {

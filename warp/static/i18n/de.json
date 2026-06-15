@@ -129,7 +129,7 @@
             "Edit": "Bearbeiten"
         },
         "Password": "Passwort",
-        "Bookings": "Buchungen",
+        "Bookings only": "Nur Buchungen",
         "Report": "Report",
         "Users": "Users",
         "Groups": "Gruppe",
@@ -296,7 +296,7 @@
         "Reminder time": "Erinnerungszeit",
         "Calendar settings saved": "Kalender-Einstellungen gespeichert",
         "Error saving calendar settings": "Fehler beim Speichern der Kalender-Einstellungen",
-        "Reminders": "Erinnerungen",
+        "Reminders only": "Nur Erinnerungen",
         "Password must be at least %{n} characters": "Das Passwort muss mindestens %{n} Zeichen lang sein",
         "Password changed successfully": "Passwort erfolgreich geändert",
         "Error changing password": "Fehler beim Ändern des Passworts",

@@ -129,7 +129,7 @@
             "Edit": "Edit"
         },
         "Password": "Password",
-        "Bookings": "Bookings",
+        "Bookings only": "Bookings only",
         "Report": "Report",
         "Users": "Users",
         "Groups": "Groups",
@@ -302,7 +302,7 @@
         "Reminder time": "Reminder time",
         "Calendar settings saved": "Calendar settings saved",
         "Error saving calendar settings": "Error saving calendar settings",
-        "Reminders": "Reminders",
+        "Reminders only": "Reminders only",
         "Password must be at least %{n} characters": "Password must be at least %{n} characters",
         "Password changed successfully": "Password changed successfully",
         "Error changing password": "Error changing password",
