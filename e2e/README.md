@@ -90,7 +90,7 @@ cannot log in. Sample data also defines zones 1–3 ("Zone 1", "Zone 2",
 ## UI quirks worth knowing (read before writing selectors)
 
 - **Client-side i18n**: elements carrying class `TR` get their text replaced
-  by JS at load time (`warp/static/i18n/en.js`). Raw template text like
+  by JS at load time (`warp/static/i18n/en.json`). Raw template text like
   `btn.Login` is a translation key — match the *translated* text, or use a
   structural locator (e.g. `button[type=submit]`) when the key/translation is
   ambiguous.

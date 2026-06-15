@@ -5,8 +5,17 @@ import 'nouislider/dist/nouislider.css';
 import Polyglot from 'node-polyglot';
 import noUiSlider from 'nouislider';
 
-if (typeof(window?.warpGlobals?.i18n) !== 'object')
-  throw Error('warpGlobals.i18n must be defined');
+if (!window?.warpGlobals?.i18nUrl)
+  throw Error('warpGlobals.i18nUrl must be defined');
+
+(function loadI18n() {
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', window.warpGlobals.i18nUrl, false);
+  xhr.send();
+  if (xhr.status !== 200)
+    throw Error('Failed to load i18n: ' + xhr.status);
+  window.warpGlobals.i18n = JSON.parse(xhr.responseText);
+})();
 
 let locale = window.warpGlobals.i18n.locale;
 let phrases = window.warpGlobals.i18n.phrases;
@@ -192,6 +201,10 @@ function initCalendar() {
   var calMissingAheadEl = document.getElementById('cal_missing_ahead');
   var calReleaseAheadEl = document.getElementById('cal_release_ahead');
   var calTimeInputEl = document.getElementById('cal_time_input');
+  var calTypeTabs = document.getElementById('cal_type_tabs');
+  var calTypeTabsRow = document.getElementById('cal_type_tabs_row');
+  var calTypeReminderTabLi = document.getElementById('cal_type_reminders_tab');
+  var calTypeTabsInstance = null;
   var saveBtn = document.getElementById('cal_save_btn');
   var calCancelBtn = document.getElementById('cal_cancel_btn');
 
@@ -203,6 +216,8 @@ function initCalendar() {
   var calToken = null;
   var weekdayMask = 0;
   var timepicker = null;
+  var selectedType = 'all';
+
 
   // Build weekday chip buttons
   var weekdayContainer = document.getElementById('cal_weekday_chips');
@@ -219,6 +234,7 @@ function initCalendar() {
     chip.addEventListener('click', function() {
       weekdayMask ^= WEEKDAY_BITS[i];
       chip.classList.toggle('active');
+      updateReminderTabState();
     });
   });
 
@@ -243,12 +259,37 @@ function initCalendar() {
   if (calMissingAheadEl) M.FormSelect.init(calMissingAheadEl, SELECT_OPTS);
   if (calReleaseAheadEl) M.FormSelect.init(calReleaseAheadEl, SELECT_OPTS);
 
-  if (calMissingAheadEl) calMissingAheadEl.addEventListener('change', function() { updateSharedSectionState(); });
-  if (calReleaseAheadEl) calReleaseAheadEl.addEventListener('change', function() { updateSharedSectionState(); });
+  if (calMissingAheadEl) calMissingAheadEl.addEventListener('change', function() { updateSharedSectionState(); updateReminderTabState(); });
+  if (calReleaseAheadEl) calReleaseAheadEl.addEventListener('change', function() { updateSharedSectionState(); updateReminderTabState(); });
+  if (calZonesEl) calZonesEl.addEventListener('change', function() { updateReminderTabState(); });
 
-  function buildCalIcalUrl(token) {
+  function buildCalIcalUrl(token, type) {
     if (!token) return '';
-    return window.location.protocol + '//' + window.location.host + '/calendar/' + encodeURIComponent(window.warpGlobals.login) + '/events.ics?t=' + encodeURIComponent(token);
+    var base = window.location.protocol + '//' + window.location.host + '/calendar/' + encodeURIComponent(window.warpGlobals.login) + '/events.ics?t=' + encodeURIComponent(token);
+    if (type === 'bookings' || type === 'reminders') return base + '&type=' + type;
+    return base;
+  }
+
+  // The reminders feed only produces events when reminders are fully and validly
+  // configured (same rule as validateReminders): at least one reminder type, plus
+  // a weekday and a zone. The "Reminders only" tab mirrors that, recomputed live.
+  function remindersFullyConfigured() {
+    var missingVal = calMissingAheadEl ? parseInt(calMissingAheadEl.value) || 0 : 0;
+    var releaseVal = calReleaseAheadEl ? parseInt(calReleaseAheadEl.value) || 0 : 0;
+    if (!(missingVal > 0 || releaseVal > 0)) return false;
+    if (!weekdayMask) return false;
+    var hasZone = calZonesEl && Array.from(calZonesEl.options).some(function(o) { return o.selected; });
+    return !!hasZone;
+  }
+
+  function updateReminderTabState() {
+    if (!calTypeReminderTabLi) return;
+    var remindersEnabled = remindersFullyConfigured();
+    calTypeReminderTabLi.classList.toggle('disabled', !remindersEnabled);
+    if (!remindersEnabled && selectedType === 'reminders') {
+      selectedType = 'all';
+      if (calTypeTabsInstance) calTypeTabsInstance.select('cal-type-all');
+    }
   }
 
   function updateSharedSectionState() {
@@ -286,11 +327,13 @@ function initCalendar() {
 
   function updateCalEnabledUI() {
     var enabled = calEnabledEl && calEnabledEl.checked;
+    if (calTypeTabsRow) calTypeTabsRow.classList.toggle('cal-section-disabled', !enabled);
+    updateReminderTabState();
     if (calReminderSection) calReminderSection.classList.toggle('cal-section-disabled', !enabled);
     // URL action buttons require a token, which only exists after a save with iCal on.
     if (calUrlBtns) calUrlBtns.classList.toggle('cal-section-disabled', !(enabled && calToken));
     if (calUrlInput) {
-      calUrlInput.value = enabled && calToken ? buildCalIcalUrl(calToken) : '';
+      calUrlInput.value = enabled && calToken ? buildCalIcalUrl(calToken, selectedType) : '';
       M.updateTextFields();
     }
     updateSharedSectionState();
@@ -318,6 +361,7 @@ function initCalendar() {
   function applyToUI(data) {
     calToken = data.ical_token || null;
     if (calEnabledEl) calEnabledEl.checked = !!data.ical_enabled;
+
     updateCalEnabledUI();
 
     weekdayMask = data.reminder_weekdays || 0;
@@ -336,6 +380,9 @@ function initCalendar() {
       calReleaseAheadEl.value = String(rVal);
       M.FormSelect.init(calReleaseAheadEl, SELECT_OPTS);
     }
+
+    // Recompute after the reminder selects have been populated above.
+    updateReminderTabState();
 
     if (calZonesEl) {
       var zids = data.reminder_zones || [];
@@ -361,11 +408,44 @@ function initCalendar() {
     if (calUrlEye) calUrlEye.textContent = 'visibility';
   }
 
+  function onCalTabShow(tabEl) {
+    var id = tabEl ? tabEl.id : '';
+    if (id === 'cal-type-bookings') selectedType = 'bookings';
+    else if (id === 'cal-type-reminders') selectedType = 'reminders';
+    else selectedType = 'all';
+    if (calUrlInput) {
+      calUrlInput.value = (calEnabledEl && calEnabledEl.checked && calToken)
+        ? buildCalIcalUrl(calToken, selectedType)
+        : '';
+      M.updateTextFields();
+    }
+  }
+
+  // Materialize measures the tab indicator from element widths, which are only
+  // correct once the modal is fully shown. Re-create the instance on each open
+  // (after the open animation) so the indicator lands on the right tab.
+  function initCalTabs() {
+    if (!calTypeTabs) return;
+    if (calTypeTabsInstance) calTypeTabsInstance.destroy();
+    calTypeTabsInstance = M.Tabs.init(calTypeTabs, { onShow: onCalTabShow });
+    var tabIndicator = calTypeTabs.querySelector('.indicator');
+    if (tabIndicator) tabIndicator.classList.add('orange', 'accent-4');
+    calTypeTabsInstance.select('cal-type-' + selectedType);
+  }
+
   M.Modal.init(calModalEl, {
     dismissible: false,
     onOpenStart: function() {
       ensureTimepicker();
       resetUrlVisibility();
+      calModalEl.scrollTop = 0;
+      var content = calModalEl.querySelector('.modal-content');
+      if (content) content.scrollTop = 0;
+      selectedType = 'all';
+      if (calUrlInput) {
+        calUrlInput.value = '';
+        M.updateTextFields();
+      }
       fetch('/xhr/calendar')
         .then(function(r) {
           if (!r.ok) throw new Error('Failed to load calendar settings');
@@ -374,6 +454,7 @@ function initCalendar() {
         .then(function(data) { applyToUI(data); })
         .catch(function() { updateCalEnabledUI(); });
     },
+    onOpenEnd: initCalTabs,
     onCloseEnd: resetUrlVisibility
   });
 
@@ -461,7 +542,7 @@ function initCalendar() {
 
   if (calCopyBtn) {
     calCopyBtn.addEventListener('click', function() {
-      var url = buildCalIcalUrl(calToken);
+      var url = buildCalIcalUrl(calToken, selectedType);
       if (!url) return;
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(url).then(function() {

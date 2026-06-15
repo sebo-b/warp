@@ -17,6 +17,7 @@
 
 import { test, expect } from '../../fixtures';
 import { logIn } from '../../helpers/auth';
+import { openCalendarModal } from '../../helpers/settings';
 import { USER1, USER2 } from '../../helpers/users';
 import { querySql } from '../../helpers/db';
 import { futureDayTs, getZoneSeats } from '../../helpers/booking';
@@ -64,13 +65,18 @@ async function setReminders(
   });
 }
 
-/** Fetch and parse the iCal feed for login. */
+/** Fetch and parse the iCal feed for login. Optional type: 'all'|'bookings'|'reminders' (server default = all). */
 async function fetchIcal(
   page: import('@playwright/test').Page,
   login: string,
   token: string,
+  type?: string,
 ): Promise<import('../../helpers/ical').ICalEvent[]> {
-  const resp = await page.request.get(`/calendar/${login}/events.ics?t=${token}`);
+  let url = `/calendar/${login}/events.ics?t=${token}`;
+  if (type && type !== 'all') {
+    url += `&type=${encodeURIComponent(type)}`;
+  }
+  const resp = await page.request.get(url);
   expect(resp.status()).toBe(200);
   return parseIcal(await resp.text());
 }
@@ -545,4 +551,198 @@ test.describe('calendar settings API', () => {
     expect(events.length).toBeGreaterThan(0);
   });
 
+});
+
+// ─── URL type filter (?type=bookings / reminders / all) ───
+
+test.describe('iCal feed type filter (bookings vs reminders vs all)', () => {
+
+  test('no-type (default) and type=all return both bookings and reminders', async ({ page }) => {
+    const [seat] = await getZoneSeats(1);
+    const ts = futureDayTs(3);
+    await querySql(
+      'INSERT INTO book (login, sid, fromts, tots) VALUES ($1, $2, $3, $4)',
+      ['user1', seat.id, ts + 9 * 3600, ts + 17 * 3600],
+    );
+    await logIn(page, USER1);
+    const token = await enableIcal(page, 'user1');
+    await setReminders(page, {
+      reminder_ahead_days: 1,
+      reminder_time: 0,
+      reminder_zones: [1],
+      reminder_weekdays: 127,
+    });
+
+    const all1 = await fetchIcal(page, 'user1', token);            // default (no type param)
+    const all2 = await fetchIcal(page, 'user1', token, 'all');
+    const hasBooking = (evs: import('../../helpers/ical').ICalEvent[]) =>
+      evs.some(e => /^[0-9]+@warp$/.test(e.uid));
+    const hasReminder = (evs: import('../../helpers/ical').ICalEvent[]) =>
+      evs.some(e => e.uid.startsWith('missing-') || e.uid.startsWith('release-'));
+
+    expect(hasBooking(all1) || hasReminder(all1)).toBeTruthy();
+    expect(all1).toEqual(all2);
+  });
+
+  test('type=bookings yields only booking VEVENTs (no reminder UIDs)', async ({ page }) => {
+    const [seat] = await getZoneSeats(1);
+    const ts = futureDayTs(4);
+    await querySql(
+      'INSERT INTO book (login, sid, fromts, tots) VALUES ($1, $2, $3, $4)',
+      ['user1', seat.id, ts + 9 * 3600, ts + 17 * 3600],
+    );
+    await logIn(page, USER1);
+    const token = await enableIcal(page, 'user1');
+    await setReminders(page, { reminder_ahead_days: 1, reminder_zones: [1], reminder_weekdays: 127 });
+
+    const bookingsOnly = await fetchIcal(page, 'user1', token, 'bookings');
+    expect(bookingsOnly.length).toBeGreaterThan(0);
+    expect(bookingsOnly.every(e => /^[0-9]+@warp$/.test(e.uid))).toBeTruthy();
+    expect(bookingsOnly.some(e => e.uid.startsWith('missing-') || e.uid.startsWith('release-'))).toBeFalsy();
+  });
+
+  test('type=reminders yields only reminder VEVENTs (no booking UIDs)', async ({ page }) => {
+    await logIn(page, USER1);
+    const token = await enableIcal(page, 'user1');
+    await setReminders(page, { reminder_ahead_days: 1, reminder_zones: [1], reminder_weekdays: 127 });
+
+    const remindersOnly = await fetchIcal(page, 'user1', token, 'reminders');
+    expect(remindersOnly.length).toBeGreaterThan(0);
+    expect(remindersOnly.every(e => e.uid.startsWith('missing-') || e.uid.startsWith('release-'))).toBeTruthy();
+    expect(remindersOnly.some(e => /^[0-9]+@warp$/.test(e.uid))).toBeFalsy();
+  });
+
+  test('type=invalid falls back to all (server side)', async ({ page }) => {
+    const [seat] = await getZoneSeats(1);
+    const ts = futureDayTs(5);
+    await querySql(
+      'INSERT INTO book (login, sid, fromts, tots) VALUES ($1, $2, $3, $4)',
+      ['user1', seat.id, ts + 9 * 3600, ts + 17 * 3600],
+    );
+    await logIn(page, USER1);
+    const token = await enableIcal(page, 'user1');
+    await setReminders(page, { reminder_ahead_days: 1, reminder_zones: [1], reminder_weekdays: 127 });
+
+    const unknown = await fetchIcal(page, 'user1', token, 'nonsense');
+    const hasB = unknown.some(e => /^[0-9]+@warp$/.test(e.uid));
+    const hasR = unknown.some(e => e.uid.startsWith('missing-') || e.uid.startsWith('release-'));
+    expect(hasB || hasR).toBeTruthy();
+  });
+
+});
+
+// ─── Calendar modal UI flow (drive everything through clicks, no direct XHR seeds) ───
+
+test.describe('calendar settings modal UI (full flow + type tabs + disabled tab state)', () => {
+  test('configure via UI, tabs update URL, disabling reminders config greys+auto-deselects the Reminders tab', async ({ page }) => {
+    await logIn(page, USER1);
+
+    // Open the modal the real way (user menu dropdown → link). No API setup.
+    await openCalendarModal(page);
+
+    // Scroll the modal inner content all the way to the top; the harness viewport
+    // is small and Materialize places scroll on .modal-content for tall modals.
+    const modal = page.locator('#calendar_modal');
+    const content = modal.locator('.modal-content');
+    await content.evaluate((el: HTMLElement) => { el.scrollTop = 0; });
+
+    // Give the modal open animation + layout one frame to settle.
+    await page.waitForTimeout(120);
+
+    // Enable iCal via the visible lever (the native checkbox is display:none).
+    // Click the lever with force to survive small-viewport "outside viewport" races
+    // common in the e2e harness. This is still a real user-gesture click.
+    const lever = modal.locator('#cal_enabled').locator('..').locator('.lever');
+    await lever.click({ force: true });
+
+    // Make reminders valid so "Reminders only" tab can be enabled:
+    // - at least one positive ahead value
+    // - a weekday chip active
+    // - at least one zone selected
+    const missingSel = page.locator('#cal_missing_ahead');
+    await missingSel.scrollIntoViewIfNeeded();
+    await missingSel.selectOption('1');
+
+    // Pick Zone 1 from the multi-select
+    const zonesSel = page.locator('#cal_zones');
+    await zonesSel.scrollIntoViewIfNeeded();
+    await zonesSel.selectOption(['1']);
+
+    // Ensure a weekday is active (fresh users start with weekdayMask=0)
+    const monChip = page.locator('#cal_weekday_chips .weekday-chip:has-text("Mon")').first();
+    await monChip.scrollIntoViewIfNeeded();
+    const isActive = await monChip.evaluate((el) => el.classList.contains('active'));
+    if (!isActive) {
+      await monChip.click();
+    }
+
+    // Save persists settings + token, then closes the modal.
+    await page.locator('#cal_save_btn').click();
+    await page.locator('#calendar_modal').waitFor({ state: 'hidden' });
+
+    // Re-open; state is now loaded from server with a token and the reminder config.
+    await openCalendarModal(page);
+
+    const urlInput = page.locator('#cal_url');
+    await expect(urlInput).toBeVisible();
+
+    // Initial tab is "No filter" → URL must not carry a type param
+    await expect(urlInput).toHaveValue(/\/events\.ics\?t=/);
+    let currentUrl = await urlInput.inputValue();
+    expect(currentUrl).not.toContain('type=');
+
+    // Click Bookings only tab → appends &type=bookings and updates the field live
+    await page.locator('#cal_type_tabs a[href="#cal-type-bookings"]').click();
+    await expect(urlInput).toHaveValue(/&type=bookings/);
+
+    // Click Reminders only → &type=reminders
+    await page.locator('#cal_type_tabs a[href="#cal-type-reminders"]').click();
+    await expect(urlInput).toHaveValue(/&type=reminders/);
+
+    // Back to No filter → no param again
+    await page.locator('#cal_type_tabs a[href="#cal-type-all"]').click();
+    currentUrl = await urlInput.inputValue();
+    expect(currentUrl).not.toContain('type=');
+
+    // ─── Delicate part: live disable of the Reminders tab when config becomes invalid ───
+    const remindersTabLi = page.locator('#cal_type_reminders_tab');
+
+    // While on a *safe* tab (all), mutate the config to make reminders invalid.
+    // The reminders tab should grey out, but the active choice + URL must be unaffected.
+    await page.locator('#cal_missing_ahead').selectOption('0');
+    await expect(remindersTabLi).toHaveClass(/disabled/);
+    await expect(urlInput).not.toHaveValue(/type=reminders/);   // still clean (we were not on reminders)
+
+    // Put config back to valid so we can legitimately go to the reminders tab.
+    await page.locator('#cal_missing_ahead').selectOption('1');
+    await expect(remindersTabLi).not.toHaveClass(/disabled/);
+
+    // Now drive *onto* the reminders tab while the config is valid.
+    await page.locator('#cal_type_tabs a[href="#cal-type-reminders"]').click();
+    await expect(urlInput).toHaveValue(/&type=reminders/);
+
+    // Mutate *while selected on the now-illegal choice*.
+    // The JS must auto-deselect (selectedType→'all', instance.select, onShow rewrite).
+    await page.locator('#cal_missing_ahead').selectOption('0');
+
+    // The li becomes disabled and the URL input must be rewritten away from reminders.
+    await expect(remindersTabLi).toHaveClass(/disabled/);
+    await expect(urlInput).not.toHaveValue(/type=reminders/);
+
+    // Force-clicking the still-visible disabled tab link must not take us there.
+    await page.locator('#cal_type_tabs a[href="#cal-type-reminders"]').click({ force: true });
+    await expect(urlInput).not.toHaveValue(/type=reminders/);
+
+    // Re-enable a valid reminder config → the tab should become interactive again.
+    await page.locator('#cal_missing_ahead').selectOption('1');
+    await expect(remindersTabLi).not.toHaveClass(/disabled/);
+
+    // Now selecting it succeeds and the URL gets the param.
+    await page.locator('#cal_type_tabs a[href="#cal-type-reminders"]').click();
+    await expect(urlInput).toHaveValue(/&type=reminders/);
+
+    // Clean close
+    await page.locator('#cal_cancel_btn').click();
+    await page.locator('#calendar_modal').waitFor({ state: 'hidden' });
+  });
 });

@@ -121,6 +121,19 @@
                 </div>
             </div>
 
+            <div class="row" id="cal_type_tabs_row" style="margin-bottom:0;">
+                <div class="col s12">
+                    <ul class="tabs" id="cal_type_tabs" style="height:36px;">
+                        <li class="tab col s4"><a class="active TR" href="#cal-type-all" style="height:36px;line-height:36px;">No filter</a></li>
+                        <li class="tab col s4"><a class="TR" href="#cal-type-bookings" style="height:36px;line-height:36px;">Bookings only</a></li>
+                        <li class="tab col s4" id="cal_type_reminders_tab"><a class="TR" href="#cal-type-reminders" style="height:36px;line-height:36px;">Reminders only</a></li>
+                    </ul>
+                    <div id="cal-type-all"></div>
+                    <div id="cal-type-bookings"></div>
+                    <div id="cal-type-reminders"></div>
+                </div>
+            </div>
+
             <div class="row">
                 <div class="input-field col s12">
                     <input type="password" id="cal_url" readonly
