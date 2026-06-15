@@ -24,6 +24,7 @@ MarqueeController.V_EDGE_W       = 10;
 MarqueeController.V_EDGE_H       = 18;
 MarqueeController.ROTATE_SIZE    = 24;
 MarqueeController.ROTATE_OFFSET  = 18;
+MarqueeController.LABEL_PAD      = 20; // default bottom padding for on-map seat labels
 
 MarqueeController.HANDLE_CURSORS = {
     nw: 'nwse-resize',
@@ -209,7 +210,14 @@ MarqueeController.prototype._computeBounds = function(seats) {
         if (s.x < minX) minX = s.x;
         if (s.y < minY) minY = s.y;
         var right = s.x + this.spriteSize;
+        // Account for the on-map label below the sprite; use actual label
+        // height when available (adapts to zone-line visibility).
         var bottom = s.y + this.spriteSize;
+        if (s.labelDiv && s.labelDiv.offsetParent !== null) {
+            bottom = Math.max(bottom, s.labelDiv.offsetTop + s.labelDiv.offsetHeight);
+        } else {
+            bottom += MarqueeController.LABEL_PAD;
+        }
         if (right > maxX) maxX = right;
         if (bottom > maxY) maxY = bottom;
     }
