@@ -5,8 +5,17 @@ import 'nouislider/dist/nouislider.css';
 import Polyglot from 'node-polyglot';
 import noUiSlider from 'nouislider';
 
-if (typeof(window?.warpGlobals?.i18n) !== 'object')
-  throw Error('warpGlobals.i18n must be defined');
+if (!window?.warpGlobals?.i18nUrl)
+  throw Error('warpGlobals.i18nUrl must be defined');
+
+(function loadI18n() {
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', window.warpGlobals.i18nUrl, false);
+  xhr.send();
+  if (xhr.status !== 200)
+    throw Error('Failed to load i18n: ' + xhr.status);
+  window.warpGlobals.i18n = JSON.parse(xhr.responseText);
+})();
 
 let locale = window.warpGlobals.i18n.locale;
 let phrases = window.warpGlobals.i18n.phrases;
@@ -192,6 +201,7 @@ function initCalendar() {
   var calMissingAheadEl = document.getElementById('cal_missing_ahead');
   var calReleaseAheadEl = document.getElementById('cal_release_ahead');
   var calTimeInputEl = document.getElementById('cal_time_input');
+  var calTypeSelect = document.getElementById('cal_type_select');
   var saveBtn = document.getElementById('cal_save_btn');
   var calCancelBtn = document.getElementById('cal_cancel_btn');
 
@@ -203,7 +213,7 @@ function initCalendar() {
   var calToken = null;
   var weekdayMask = 0;
   var timepicker = null;
-  var selectedKind = 'all';  // 'all' | 'bookings' | 'reminders' — controls the ?kind appended to displayed URL
+  var selectedType = 'all';
 
 
   // Build weekday chip buttons
@@ -248,13 +258,11 @@ function initCalendar() {
   if (calMissingAheadEl) calMissingAheadEl.addEventListener('change', function() { updateSharedSectionState(); });
   if (calReleaseAheadEl) calReleaseAheadEl.addEventListener('change', function() { updateSharedSectionState(); });
 
-  function buildCalIcalUrl(token, kind) {
+  function buildCalIcalUrl(token, type) {
     if (!token) return '';
-    var k = (kind === 'bookings' || kind === 'reminders') ? kind : 'all';
-    if (k === 'all') {
-      return window.location.protocol + '//' + window.location.host + '/calendar/' + encodeURIComponent(window.warpGlobals.login) + '/events.ics?t=' + encodeURIComponent(token);
-    }
-    return window.location.protocol + '//' + window.location.host + '/calendar/' + encodeURIComponent(window.warpGlobals.login) + '/events.ics?t=' + encodeURIComponent(token) + '&kind=' + k;
+    var base = window.location.protocol + '//' + window.location.host + '/calendar/' + encodeURIComponent(window.warpGlobals.login) + '/events.ics?t=' + encodeURIComponent(token);
+    if (type === 'bookings' || type === 'reminders') return base + '&type=' + type;
+    return base;
   }
 
   function updateSharedSectionState() {
@@ -296,7 +304,7 @@ function initCalendar() {
     // URL action buttons require a token, which only exists after a save with iCal on.
     if (calUrlBtns) calUrlBtns.classList.toggle('cal-section-disabled', !(enabled && calToken));
     if (calUrlInput) {
-      calUrlInput.value = enabled && calToken ? buildCalIcalUrl(calToken, selectedKind) : '';
+      calUrlInput.value = enabled && calToken ? buildCalIcalUrl(calToken, selectedType) : '';
       M.updateTextFields();
     }
     updateSharedSectionState();
@@ -324,8 +332,21 @@ function initCalendar() {
   function applyToUI(data) {
     calToken = data.ical_token || null;
     if (calEnabledEl) calEnabledEl.checked = !!data.ical_enabled;
-    // Preserve the last-chosen kind tab selection across reloads of the data.
-    // selectedKind already defaults to 'all' at modal open.
+
+    // Adjust type select disabled state before building the URL below.
+    if (calTypeSelect) {
+      var remindersEnabled = !!(data.reminder_weekdays);
+      var remindersOpt = calTypeSelect.querySelector('option[value="reminders"]');
+      if (remindersOpt) {
+        remindersOpt.disabled = !remindersEnabled;
+        if (!remindersEnabled && selectedType === 'reminders') {
+          selectedType = 'all';
+          calTypeSelect.value = 'all';
+        }
+      }
+      M.FormSelect.init(calTypeSelect, SELECT_OPTS);
+    }
+
     updateCalEnabledUI();
 
     weekdayMask = data.reminder_weekdays || 0;
@@ -374,19 +395,15 @@ function initCalendar() {
     onOpenStart: function() {
       ensureTimepicker();
       resetUrlVisibility();
-      // Default the kind selector to "all" whenever the modal (re)opens.
-      selectedKind = 'all';
+      selectedType = 'all';
+      if (calTypeSelect) {
+        calTypeSelect.value = 'all';
+        M.FormSelect.init(calTypeSelect, SELECT_OPTS);
+      }
       if (calUrlInput) {
-        // will be overwritten when data arrives, but ensure clean state
         calUrlInput.value = '';
         M.updateTextFields();
       }
-      // Deactivate all kind tabs and activate the "All" one.
-      var kindTabs = calModalEl.querySelectorAll('.cal-kind-tab');
-      kindTabs.forEach(function(a) {
-        a.classList.remove('active');
-        if ((a.getAttribute('data-kind') || 'all') === 'all') a.classList.add('active');
-      });
       fetch('/xhr/calendar')
         .then(function(r) {
           if (!r.ok) throw new Error('Failed to load calendar settings');
@@ -398,27 +415,19 @@ function initCalendar() {
     onCloseEnd: resetUrlVisibility
   });
 
-  // Kind filter tabs (below the URL box) — clicking switches the ?kind suffix shown for the subscription URL.
-  // We do not use M.Tabs because these drive a query param, not content panels.
-  var kindTabLinks = calModalEl.querySelectorAll('.cal-kind-tab');
-  kindTabLinks.forEach(function(a) {
-    a.addEventListener('click', function(ev) {
-      ev.preventDefault();
-      var k = (a.getAttribute('data-kind') || 'all').toLowerCase();
-      if (k !== 'all' && k !== 'bookings' && k !== 'reminders') k = 'all';
-      selectedKind = k;
-      // Update visual active state
-      kindTabLinks.forEach(function(x) { x.classList.remove('active'); });
-      a.classList.add('active');
-      // Refresh the URL box for the new kind (token may be absent if not yet saved).
+  if (calTypeSelect) {
+    M.FormSelect.init(calTypeSelect, SELECT_OPTS);
+    calTypeSelect.addEventListener('change', function() {
+      var v = calTypeSelect.value;
+      selectedType = (v === 'bookings' || v === 'reminders') ? v : 'all';
       if (calUrlInput) {
         calUrlInput.value = (calEnabledEl && calEnabledEl.checked && calToken)
-          ? buildCalIcalUrl(calToken, selectedKind)
+          ? buildCalIcalUrl(calToken, selectedType)
           : '';
         M.updateTextFields();
       }
     });
-  });
+  }
 
   function saveCalendar(payload, callback) {
     fetch('/xhr/calendar', {
@@ -492,7 +501,6 @@ function initCalendar() {
     calRegenBtn.addEventListener('click', function() {
       if (!confirm(TR('Regenerating the URL will invalidate your current calendar subscription link. Continue?')))
         return;
-      // After regeneration the per-kind cache rows become useless; the backend clears all rows for the user.
       postTokenRequest({ ical_regenerate_token: true }, function(err) {
         if (err) {
           M.toast({ text: TR('Error regenerating URL') });
@@ -505,7 +513,7 @@ function initCalendar() {
 
   if (calCopyBtn) {
     calCopyBtn.addEventListener('click', function() {
-      var url = buildCalIcalUrl(calToken, selectedKind);
+      var url = buildCalIcalUrl(calToken, selectedType);
       if (!url) return;
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(url).then(function() {

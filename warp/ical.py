@@ -1,6 +1,8 @@
 import flask
+import functools
 import hmac
 import hashlib
+import json
 import os
 import secrets
 from calendar import timegm
@@ -16,135 +18,37 @@ bp = flask.Blueprint('ical', __name__)
 ICAL_HEADER = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Warp//Seat Booking//EN\r\n"
 ICAL_FOOTER = "END:VCALENDAR\r\n"
 
-# Server-side translations for VEVENT SUMMARY strings. The iCal feed has no
-# session context, so locale is taken from the deployment-wide LANGUAGE_FILE
-# config (e.g. "i18n/de.js" → "de"). Falls back to English for unknown codes.
-_SUMMARY_TRANSLATIONS = {
-    'en': {
-        'booking': 'Seat {name}',
-        'missing': 'Book a desk in {zone}',
-        'release': 'Seat {name} becomes available',
-        'booking_desc': 'Release seat: {url}',
-        'missing_desc': 'Book a desk: {url}',
-    },
-    'pl': {
-        'booking': 'Miejsce {name}',
-        'missing': 'Zarezerwuj miejsce w {zone}',
-        'release': 'Miejsce {name} staje się dostępne',
-        'booking_desc': 'Zwolnij miejsce: {url}',
-        'missing_desc': 'Zarezerwuj miejsce: {url}',
-    },
-    'de': {
-        'booking': 'Platz {name}',
-        'missing': 'Platz in {zone} buchen',
-        'release': 'Platz {name} wird verfügbar',
-        'booking_desc': 'Platz freigeben: {url}',
-        'missing_desc': 'Platz buchen: {url}',
-    },
-    'fr': {
-        'booking': 'Place {name}',
-        'missing': 'Réserver une place dans {zone}',
-        'release': 'Place {name} devient disponible',
-        'booking_desc': 'Libérer la place : {url}',
-        'missing_desc': 'Réserver une place : {url}',
-    },
-    'es': {
-        'booking': 'Asiento {name}',
-        'missing': 'Reservar un asiento en {zone}',
-        'release': 'Asiento {name} se vuelve disponible',
-        'booking_desc': 'Liberar asiento: {url}',
-        'missing_desc': 'Reservar un asiento: {url}',
-    },
-}
-
-_ACTION_TRANSLATIONS = {
-    'en': {
-        'Seat Booked': 'Seat Booked',
-        'Seat Already Booked': 'Seat Already Booked',
-        'Not possible to book': 'Not possible to book',
-        'Requested date is in the past': 'Requested date is in the past',
-        'Forbidden': 'Forbidden',
-        'Error': 'Error',
-        'Seat released': 'Seat released',
-        'Reservation in the past': 'Reservation in the past',
-        'Release seat?': 'Release seat?',
-        'Confirm': 'Confirm',
-        'Cancel': 'Cancel',
-        'Action cancelled': 'Action cancelled',
-    },
-    'pl': {
-        'Seat Booked': 'Miejsce zarezerwowane',
-        'Seat Already Booked': 'Miejsce już zarezerwowane',
-        'Not possible to book': 'Rezerwacja niemożliwa',
-        'Requested date is in the past': 'Żądana data jest w przeszłości',
-        'Forbidden': 'Zabronione',
-        'Error': 'Błąd',
-        'Seat released': 'Miejsce zwolnione',
-        'Reservation in the past': 'Rezerwacja w przeszłości',
-        'Release seat?': 'Zwolnić miejsce?',
-        'Confirm': 'Potwierdź',
-        'Cancel': 'Anuluj',
-        'Action cancelled': 'Akcja anulowana',
-    },
-    'de': {
-        'Seat Booked': 'Platz reserviert',
-        'Seat Already Booked': 'Platz bereits reserviert',
-        'Not possible to book': 'Reservierung nicht möglich',
-        'Requested date is in the past': 'Das gewünschte Datum liegt in der Vergangenheit',
-        'Forbidden': 'Verboten',
-        'Error': 'Fehler',
-        'Seat released': 'Platz freigegeben',
-        'Reservation in the past': 'Reservierung in der Vergangenheit',
-        'Release seat?': 'Platz freigeben?',
-        'Confirm': 'Bestätigen',
-        'Cancel': 'Abbrechen',
-        'Action cancelled': 'Aktion abgebrochen',
-    },
-    'fr': {
-        'Seat Booked': 'Place réservée',
-        'Seat Already Booked': 'Place déjà réservée',
-        'Not possible to book': 'Réservation impossible',
-        'Requested date is in the past': 'La date demandée est dans le passé',
-        'Forbidden': 'Interdit',
-        'Error': 'Erreur',
-        'Seat released': 'Place libérée',
-        'Reservation in the past': 'Réservation dans le passé',
-        'Release seat?': 'Libérer la place ?',
-        'Confirm': 'Confirmer',
-        'Cancel': 'Annuler',
-        'Action cancelled': 'Action annulée',
-    },
-    'es': {
-        'Seat Booked': 'Asiento reservado',
-        'Seat Already Booked': 'Asiento ya reservado',
-        'Not possible to book': 'No es posible reservar',
-        'Requested date is in the past': 'La fecha solicitada está en el pasado',
-        'Forbidden': 'Prohibido',
-        'Error': 'Error',
-        'Seat released': 'Asiento liberado',
-        'Reservation in the past': 'Reserva en el pasado',
-        'Release seat?': '¿Liberar asiento?',
-        'Confirm': 'Confirmar',
-        'Cancel': 'Cancelar',
-        'Action cancelled': 'Acción cancelada',
-    },
-}
+ICAL_TYPE_BOOKINGS = 'bookings'
+ICAL_TYPE_REMINDERS = 'reminders'
+ICAL_TYPE_ALL = 'all'
+ICAL_TYPES = (ICAL_TYPE_BOOKINGS, ICAL_TYPE_REMINDERS, ICAL_TYPE_ALL)
 
 
-def _summary_templates():
+# ---------------------------------------------------------------------------
+# i18n: server-side phrases loaded from the deployment language JSON file
+# ---------------------------------------------------------------------------
+
+@functools.lru_cache(maxsize=8)
+def _load_phrases_from_file(json_path):
+    try:
+        with open(json_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return data.get('phrases', {}).get('ical', {})
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _ical_phrases():
     lang_file = flask.current_app.config.get('LANGUAGE_FILE', '')
-    locale = os.path.splitext(os.path.basename(lang_file))[0]
-    return _SUMMARY_TRANSLATIONS.get(locale, _SUMMARY_TRANSLATIONS['en'])
-
-
-def _action_templates():
-    lang_file = flask.current_app.config.get('LANGUAGE_FILE', '')
-    locale = os.path.splitext(os.path.basename(lang_file))[0]
-    return _ACTION_TRANSLATIONS.get(locale, _ACTION_TRANSLATIONS['en'])
+    static = flask.current_app.static_folder
+    phrases = _load_phrases_from_file(os.path.join(static, lang_file))
+    if not phrases:
+        phrases = _load_phrases_from_file(os.path.join(static, 'i18n/en.json'))
+    return phrases
 
 
 def _action_t(key):
-    return _action_templates().get(key, key)
+    return _ical_phrases().get(key, key)
 
 
 def _render_action(title, details=None, status=200):
@@ -160,6 +64,10 @@ def _render_confirm(title, details, confirm_url, cancel_url, status=200):
         cancel_label=_action_t('Cancel'),
     ), status
 
+
+# ---------------------------------------------------------------------------
+# iCal formatting helpers
+# ---------------------------------------------------------------------------
 
 def _ts_to_ical_dt(ts, tz=None):
     if tz:
@@ -225,10 +133,45 @@ def invalidate_calendar_cache(logins):
 
 
 # ---------------------------------------------------------------------------
-# iCal generation helpers
+# VEVENT generators
 # ---------------------------------------------------------------------------
 
-def _reminder_vevents(login, ical_token, now_ts, today_ts, summaries, tz=None):
+def _generate_bookings_vevents(login, ical_token, now_ts, phrases, tz=None):
+    """Return list of VEVENT strings for seat booking events."""
+    lookback = 7 * 24 * 3600
+    min_ts = now_ts - lookback
+    dtstamp = _ts_to_ical_dt(now_ts)
+
+    bookings = (Book.select(Book.id, Book.fromts, Book.tots, Seat.name)
+                    .join(Seat, on=(Book.sid == Seat.id))
+                    .where((Book.login == login) & (Book.tots > min_ts))
+                    .order_by(Book.fromts.asc())
+                    .tuples())
+
+    lines = []
+    for book_id, fromts, tots, seat_name in bookings:
+        nonce = secrets.token_hex(8)
+        tok = delete_token(ical_token, book_id, nonce)
+        del_url = flask.url_for(
+            'ical.delete_seat', login=login,
+            i=book_id, n=nonce, t=tok,
+            _external=True,
+        )
+        url_escaped = _escape_ical_text(del_url)
+        lines.append(_format_vevent(
+            uid=f"{book_id}@warp",
+            dtstamp=dtstamp,
+            dtstart=_ts_to_ical_dt(fromts, tz),
+            dtend=_ts_to_ical_dt(tots, tz),
+            summary=_escape_ical_text(phrases['booking'].format(name=seat_name)),
+            url=del_url,
+            description=_escape_ical_text(phrases['booking_desc']).replace('{url}', url_escaped),
+            tz=tz,
+        ))
+    return lines
+
+
+def _generate_reminders_vevents(login, ical_token, now_ts, today_ts, phrases, tz=None):
     """Return list of VEVENT strings for calendar reminder events."""
 
     row = UserPrefs.select(
@@ -250,11 +193,9 @@ def _reminder_vevents(login, ical_token, now_ts, today_ts, summaries, tz=None):
     missing_enabled = ahead_days > 0
     release_enabled = release_ahead_days > 0
 
-    # Both reminder kinds require monitored zones, so a missing list short-circuits.
     if not reminder_zones or (not missing_enabled and not release_enabled):
         return []
 
-    # Fetch private seats that have a public release row (NULL login with days_in_advance set).
     private_seats = []
     if release_enabled:
         sa_user = SeatAssign.alias('sa_user')
@@ -271,7 +212,6 @@ def _reminder_vevents(login, ical_token, now_ts, today_ts, summaries, tz=None):
     if not missing_enabled and not private_seats:
         return []
 
-    # Horizon: look 30 days ahead (covers practical reminder windows)
     horizon_days = 30
     horizon_ts = today_ts + horizon_days * 24 * 3600
 
@@ -293,7 +233,6 @@ def _reminder_vevents(login, ical_token, now_ts, today_ts, summaries, tz=None):
 
     dtstamp = _ts_to_ical_dt(now_ts)
 
-    # Collect (reminder_ts, uid, summary, kind, zid, action_day_str) tuples
     events = []
 
     for i in range(horizon_days + 1):
@@ -313,7 +252,7 @@ def _reminder_vevents(login, ical_token, now_ts, today_ts, summaries, tz=None):
                     if zid not in booked_zids:
                         uid = f"missing-{zid}-{day_str}@warp"
                         summary = _escape_ical_text(
-                            summaries['missing'].format(zone=zone_names.get(zid, str(zid)))
+                            phrases['missing'].format(zone=zone_names.get(zid, str(zid)))
                         )
                         events.append((reminder_ts, uid, summary, 'missing', zid, action_day_str))
 
@@ -322,10 +261,10 @@ def _reminder_vevents(login, ical_token, now_ts, today_ts, summaries, tz=None):
                 reminder_ts = D - (release_days + release_ahead_days) * 24 * 3600 + reminder_time
                 if reminder_ts >= today_ts and zid not in booked_zids:
                     uid = f"release-{sid}-{day_str}@warp"
-                    summary = _escape_ical_text(summaries['release'].format(name=seat_name))
+                    summary = _escape_ical_text(phrases['release'].format(name=seat_name))
                     events.append((reminder_ts, uid, summary, 'release', zid, action_day_str))
 
-    # When a missing and release event share the same timestamp for the same zone, the release one wins
+    # When missing and release share the same (ts, zone), release wins
     release_keys = {(ts, z) for ts, uid, summary, kind, z, _d in events if kind == 'release'}
 
     lines = []
@@ -346,7 +285,7 @@ def _reminder_vevents(login, ical_token, now_ts, today_ts, summaries, tz=None):
                 _external=True,
             )
             url_escaped = _escape_ical_text(url)
-            description = _escape_ical_text(summaries['missing_desc']).replace('{url}', url_escaped)
+            description = _escape_ical_text(phrases['missing_desc']).replace('{url}', url_escaped)
 
         lines.append(_format_vevent(uid, dtstamp, dtstart, dtend, summary,
                                     url=url, description=description, tz=tz))
@@ -354,64 +293,70 @@ def _reminder_vevents(login, ical_token, now_ts, today_ts, summaries, tz=None):
     return lines
 
 
-# Valid values for the ?kind URL query parameter and the 'kind' column in calendar_cache.
-ICAL_KIND_BOOKINGS  = 'bookings'
-ICAL_KIND_REMINDERS = 'reminders'
-ICAL_KIND_ALL       = 'all'
-ICAL_KINDS = (ICAL_KIND_BOOKINGS, ICAL_KIND_REMINDERS, ICAL_KIND_ALL)
+# ---------------------------------------------------------------------------
+# Cache-aware content assembly
+# ---------------------------------------------------------------------------
 
-VALID_KIND = ICAL_KINDS  # exported for tests/docs
+def _strip_calendar_wrapper(ics):
+    """Extract the VEVENT block(s) from a complete ICS string."""
+    start = ics.find('BEGIN:VEVENT')
+    if start == -1:
+        return ''
+    end = ics.rfind('END:VEVENT\r\n')
+    if end == -1:
+        return ''
+    return ics[start:end + len('END:VEVENT\r\n')]
 
 
-def _generate_ical(login, ical_token, now_ts, today_ts, kind=ICAL_KIND_ALL):
-    """Build and return the iCalendar text for `login`, optionally filtered by kind.
+def _get_or_cache(login, ical_token, now_ts, today_ts, type_):
+    """Return a full ICS string for one type (bookings or reminders), using/updating cache."""
+    row = (CalendarCache.select(CalendarCache.ics, CalendarCache.day)
+                        .where((CalendarCache.login == login) &
+                               (CalendarCache.type == type_))
+                        .first())
 
-    kind: 'all' (default) | 'bookings' | 'reminders'
-    """
-    if kind not in ICAL_KINDS:
-        kind = ICAL_KIND_ALL
+    if row is not None and row['day'] == today_ts:
+        return row['ics']
 
     tz = flask.current_app.config.get('TIMEZONE') or None
-    dtstamp = _ts_to_ical_dt(now_ts)
-    summaries = _summary_templates()
+    phrases = _ical_phrases()
 
-    lines = [ICAL_HEADER]
+    if type_ == ICAL_TYPE_BOOKINGS:
+        vevents = _generate_bookings_vevents(login, ical_token, now_ts, phrases, tz)
+    else:
+        vevents = _generate_reminders_vevents(login, ical_token, now_ts, today_ts, phrases, tz)
 
-    if kind in (ICAL_KIND_ALL, ICAL_KIND_BOOKINGS):
-        lookback = 7 * 24 * 3600
-        min_ts = now_ts - lookback
-        bookings = (Book.select(Book.id, Book.fromts, Book.tots, Seat.name)
-                        .join(Seat, on=(Book.sid == Seat.id))
-                        .where((Book.login == login) & (Book.tots > min_ts))
-                        .order_by(Book.fromts.asc())
-                        .tuples())
-        for book_id, fromts, tots, seat_name in bookings:
-            nonce = secrets.token_hex(8)
-            tok = delete_token(ical_token, book_id, nonce)
-            del_url = flask.url_for(
-                'ical.delete_seat', login=login,
-                i=book_id, n=nonce, t=tok,
-                _external=True,
-            )
-            url_escaped = _escape_ical_text(del_url)
-            lines.append(_format_vevent(
-                uid=f"{book_id}@warp",
-                dtstamp=dtstamp,
-                dtstart=_ts_to_ical_dt(fromts, tz),
-                dtend=_ts_to_ical_dt(tots, tz),
-                summary=_escape_ical_text(summaries['booking'].format(name=seat_name)),
-                url=del_url,
-                description=_escape_ical_text(summaries['booking_desc']).replace('{url}', url_escaped),
-                tz=tz,
-            ))
+    ics = ICAL_HEADER + ''.join(vevents) + ICAL_FOOTER
 
-    if kind in (ICAL_KIND_ALL, ICAL_KIND_REMINDERS):
-        reminder_lines = _reminder_vevents(login, ical_token, now_ts, today_ts, summaries, tz)
-        # _reminder_vevents already returns [] when reminders are disabled
-        lines.extend(reminder_lines)
+    CalendarCache.insert({
+        CalendarCache.login: login,
+        CalendarCache.type: type_,
+        CalendarCache.ics: ics,
+        CalendarCache.day: today_ts,
+        CalendarCache.generated_at: now_ts,
+    }).on_conflict(
+        conflict_target=[CalendarCache.login, CalendarCache.type],
+        update={
+            CalendarCache.ics: ics,
+            CalendarCache.day: today_ts,
+            CalendarCache.generated_at: now_ts,
+        }
+    ).execute()
 
-    lines.append(ICAL_FOOTER)
-    return "".join(lines)
+    return ics
+
+
+def get_ical_content(login, ical_token, now_ts, today_ts, type_=ICAL_TYPE_ALL):
+    """Return complete ICS text for the requested type."""
+    if type_ not in ICAL_TYPES:
+        type_ = ICAL_TYPE_ALL
+
+    if type_ in (ICAL_TYPE_BOOKINGS, ICAL_TYPE_REMINDERS):
+        return _get_or_cache(login, ical_token, now_ts, today_ts, type_)
+
+    bookings_ics = _get_or_cache(login, ical_token, now_ts, today_ts, ICAL_TYPE_BOOKINGS)
+    reminders_ics = _get_or_cache(login, ical_token, now_ts, today_ts, ICAL_TYPE_REMINDERS)
+    return ICAL_HEADER + _strip_calendar_wrapper(bookings_ics) + _strip_calendar_wrapper(reminders_ics) + ICAL_FOOTER
 
 
 # ---------------------------------------------------------------------------
@@ -424,54 +369,25 @@ def ical_feed(login):
     if not t:
         flask.abort(404)
 
-    requested_kind = (flask.request.args.get('kind') or ICAL_KIND_ALL).lower()
-    if requested_kind not in ICAL_KINDS:
-        requested_kind = ICAL_KIND_ALL
+    requested_type = (flask.request.args.get('type') or ICAL_TYPE_ALL).lower()
+    if requested_type not in ICAL_TYPES:
+        requested_type = ICAL_TYPE_ALL
 
     today_ts = utils.today()
     now_ts = utils.now()
 
-    # Single query: validate token + check cache (per kind)
-    row = (UserPrefs.select(
-               UserPrefs.login,
-               CalendarCache.ics,
-               CalendarCache.day,
-               CalendarCache.kind,
-           )
-           .join(CalendarCache, JOIN.LEFT_OUTER,
-                 on=((UserPrefs.login == CalendarCache.login) & (CalendarCache.kind == requested_kind)))
-           .where(
-               (UserPrefs.login == login) &
-               (UserPrefs.ical_token == t) &
-               (UserPrefs.ical_enabled == True)
-           )
-           .first())
+    row = (UserPrefs.select(UserPrefs.login)
+                    .where(
+                        (UserPrefs.login == login) &
+                        (UserPrefs.ical_token == t) &
+                        (UserPrefs.ical_enabled == True)
+                    )
+                    .first())
 
     if row is None:
         flask.abort(404)
 
-    # Cache hit: same calendar day, reuse stored ICS for this kind
-    if row['ics'] is not None and row['day'] == today_ts:
-        return flask.Response(row['ics'], mimetype="text/calendar")
-
-    # Cache miss: regenerate for this kind
-    ics_content = _generate_ical(login, t, now_ts, today_ts, kind=requested_kind)
-
-    CalendarCache.insert({
-        CalendarCache.login: login,
-        CalendarCache.kind: requested_kind,
-        CalendarCache.ics: ics_content,
-        CalendarCache.day: today_ts,
-        CalendarCache.generated_at: now_ts,
-    }).on_conflict(
-        conflict_target=[CalendarCache.login, CalendarCache.kind],
-        update={
-            CalendarCache.ics: ics_content,
-            CalendarCache.day: today_ts,
-            CalendarCache.generated_at: now_ts,
-        }
-    ).execute()
-
+    ics_content = get_ical_content(login, t, now_ts, today_ts, type_=requested_type)
     return flask.Response(ics_content, mimetype="text/calendar")
 
 
@@ -494,7 +410,6 @@ def book_seat(login):
     except (ValueError, TypeError):
         return _render_action(_action_t('Error'), status=400)
 
-    # Validate user and token
     up = (UserPrefs.select(UserPrefs.ical_token, UserPrefs.ical_enabled)
                    .where(UserPrefs.login == login)
                    .first())
@@ -506,7 +421,6 @@ def book_seat(login):
     if not hmac.compare_digest(expected, t):
         return _render_action(_action_t('Forbidden'), status=403)
 
-    # Parse date
     try:
         day_ts = timegm(strptime(d, "%Y-%m-%d"))
     except (ValueError, OverflowError):
@@ -515,7 +429,6 @@ def book_seat(login):
     if day_ts < utils.today():
         return _render_action(_action_t('Requested date is in the past'))
 
-    # Zone role check
     zone_row = (Zone.select(Zone.zone_type, Zone.zone_group, Zone.name)
                     .where(Zone.id == zid)
                     .first())
@@ -531,13 +444,11 @@ def book_seat(login):
     if effective_role is None or effective_role > ZONE_ROLE_USER:
         return _render_action(_action_t('Forbidden'), status=403)
 
-    # Compute booking slot from user's default time preferences
     from warp.xhr.prefs import get_user_prefs
     prefs = get_user_prefs(login)
     time_from, time_to = prefs['default_time']
     slot = {'fromTS': day_ts + time_from, 'toTS': day_ts + time_to}
 
-    # Pre-check: any existing booking in same zone (or same zone group) that overlaps the day
     zone_grp = zone_row['zone_group']
     day_end = day_ts + 86400
     existing_q = (Book.select(Book.id, Book.fromts, Book.tots,
@@ -561,8 +472,6 @@ def book_seat(login):
         )
         return _render_action(_action_t('Seat Already Booked'), details=details)
 
-    # Find any plan that contains a seat in this zone and run autobook.
-    # (Plans no longer have a default zone; a zone may be used by seats on one or more plans.)
     plan_row = (Plan.select(Plan.id)
                     .join(Seat, on=(Seat.pid == Plan.id))
                     .where(Seat.zid == zid)
@@ -572,12 +481,8 @@ def book_seat(login):
     pid = plan_row['id']
 
     from warp.xhr.zone import runAutoBook
-    # The calendar reminder is per-zone, so confine autobook to the requested zone
-    # even though the plan it lives on may span several zones.
     result, err = runAutoBook(login, pid, [slot], allowedZids={zid})
 
-    if err == 103:
-        return _render_action(_action_t('Not possible to book'))
     if err is not None:
         return _render_action(_action_t('Not possible to book'))
 
@@ -585,9 +490,8 @@ def book_seat(login):
     if booked:
         invalidate_calendar_cache(login)
         item = booked[0]
-        zone_name = zone_row['name']
         details = "{zone} – {seat} – {timespan}".format(
-            zone=zone_name,
+            zone=zone_row['name'],
             seat=item['seat_name'],
             timespan=utils.formatTimespan(item['fromTS'], item['toTS']),
         )

@@ -251,12 +251,12 @@ EXECUTE PROCEDURE book_overlap_insert();
 
 CREATE UNLOGGED TABLE calendar_cache (
     login text NOT NULL,
-    kind text NOT NULL,
+    type text NOT NULL CHECK (type IN ('bookings', 'reminders')),
     ics text NOT NULL,
     day integer NOT NULL,
     generated_at integer NOT NULL,
     FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE,
-    PRIMARY KEY (login, kind)
+    PRIMARY KEY (login, type)
 );
 
 CREATE TABLE db_initialized (version INTEGER NOT NULL);

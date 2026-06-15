@@ -64,16 +64,16 @@ async function setReminders(
   });
 }
 
-/** Fetch and parse the iCal feed for login. Optional kind: 'all'|'bookings'|'reminders' (server default = all). */
+/** Fetch and parse the iCal feed for login. Optional type: 'all'|'bookings'|'reminders' (server default = all). */
 async function fetchIcal(
   page: import('@playwright/test').Page,
   login: string,
   token: string,
-  kind?: string,
+  type?: string,
 ): Promise<import('../../helpers/ical').ICalEvent[]> {
   let url = `/calendar/${login}/events.ics?t=${token}`;
-  if (kind && kind !== 'all') {
-    url += `&kind=${encodeURIComponent(kind)}`;
+  if (type && type !== 'all') {
+    url += `&type=${encodeURIComponent(type)}`;
   }
   const resp = await page.request.get(url);
   expect(resp.status()).toBe(200);
@@ -552,11 +552,11 @@ test.describe('calendar settings API', () => {
 
 });
 
-// ─── URL kind filter (?kind=bookings / reminders / all) ───
+// ─── URL type filter (?type=bookings / reminders / all) ───
 
-test.describe('iCal feed kind filter (bookings vs reminders vs all)', () => {
+test.describe('iCal feed type filter (bookings vs reminders vs all)', () => {
 
-  test('no-kind (default) and kind=all return both bookings and reminders', async ({ page }) => {
+  test('no-type (default) and type=all return both bookings and reminders', async ({ page }) => {
     const [seat] = await getZoneSeats(1);
     const ts = futureDayTs(3);
     await querySql(
@@ -572,7 +572,7 @@ test.describe('iCal feed kind filter (bookings vs reminders vs all)', () => {
       reminder_weekdays: 127,
     });
 
-    const all1 = await fetchIcal(page, 'user1', token);           // default
+    const all1 = await fetchIcal(page, 'user1', token);            // default (no type param)
     const all2 = await fetchIcal(page, 'user1', token, 'all');
     const hasBooking = (evs: import('../../helpers/ical').ICalEvent[]) =>
       evs.some(e => /^[0-9]+@warp$/.test(e.uid));
@@ -583,7 +583,7 @@ test.describe('iCal feed kind filter (bookings vs reminders vs all)', () => {
     expect(all1).toEqual(all2);
   });
 
-  test('kind=bookings yields only booking VEVENTs (no reminder UIDs)', async ({ page }) => {
+  test('type=bookings yields only booking VEVENTs (no reminder UIDs)', async ({ page }) => {
     const [seat] = await getZoneSeats(1);
     const ts = futureDayTs(4);
     await querySql(
@@ -600,7 +600,7 @@ test.describe('iCal feed kind filter (bookings vs reminders vs all)', () => {
     expect(bookingsOnly.some(e => e.uid.startsWith('missing-') || e.uid.startsWith('release-'))).toBeFalsy();
   });
 
-  test('kind=reminders yields only reminder VEVENTs (no booking UIDs)', async ({ page }) => {
+  test('type=reminders yields only reminder VEVENTs (no booking UIDs)', async ({ page }) => {
     await logIn(page, USER1);
     const token = await enableIcal(page, 'user1');
     await setReminders(page, { reminder_ahead_days: 1, reminder_zones: [1], reminder_weekdays: 127 });
@@ -611,7 +611,7 @@ test.describe('iCal feed kind filter (bookings vs reminders vs all)', () => {
     expect(remindersOnly.some(e => /^[0-9]+@warp$/.test(e.uid))).toBeFalsy();
   });
 
-  test('kind=invalid falls back to all (server side)', async ({ page }) => {
+  test('type=invalid falls back to all (server side)', async ({ page }) => {
     const [seat] = await getZoneSeats(1);
     const ts = futureDayTs(5);
     await querySql(
@@ -630,41 +630,45 @@ test.describe('iCal feed kind filter (bookings vs reminders vs all)', () => {
 
 });
 
-// Lightweight UI interaction test (drives the calendar modal tabs)
-test.describe('calendar settings modal kind tabs (UI)', () => {
-  test('clicking kind tabs updates the displayed subscription URL', async ({ page }) => {
+// Lightweight UI interaction test (drives the calendar modal type select)
+test.describe('calendar settings modal type select (UI)', () => {
+  test('changing type select updates the displayed subscription URL', async ({ page }) => {
     await logIn(page, USER1);
-    // Ensure a token exists so the URL row is populated when modal opens.
+    // Ensure a token exists and reminders are configured so Reminders option is enabled.
     await page.request.post('/xhr/calendar', {
-      data: { ical_enabled: true, ensure_token: true },
+      data: {
+        ical_enabled: true,
+        ensure_token: true,
+        reminder_weekdays: 127,
+        reminder_ahead_days: 1,
+        reminder_zones: [1],
+      },
       headers: { 'Content-Type': 'application/json' },
     });
 
-    // Open the calendar modal via the menu link (drive UI)
-    // The link text is translated at runtime; use the stable href or visible text.
     await page.getByRole('link', { name: /calendar integration/i }).first().click();
     await page.locator('#calendar_modal').waitFor({ state: 'visible' });
 
     const urlInput = page.locator('#cal_url');
-    // Initially (default selectedKind = 'all') the URL has no &kind
     await expect(urlInput).toBeVisible();
+
+    // Default is 'all' (Both) — no &type suffix
     const initial = await urlInput.inputValue();
-    expect(initial).not.toContain('kind=');
+    expect(initial).not.toContain('type=');
 
-    // Click the Bookings tab (stable selector)
-    await page.locator('a.cal-kind-tab[data-kind="bookings"]').click();
-    await expect(urlInput).toHaveValue(/&kind=bookings/);
+    // Select Bookings via the native select (underlying element, Materialize wraps it)
+    await page.locator('#cal_type_select').selectOption('bookings');
+    await expect(urlInput).toHaveValue(/&type=bookings/);
 
-    // Click Reminders
-    await page.locator('a.cal-kind-tab[data-kind="reminders"]').click();
-    await expect(urlInput).toHaveValue(/&kind=reminders/);
+    // Select Reminders
+    await page.locator('#cal_type_select').selectOption('reminders');
+    await expect(urlInput).toHaveValue(/&type=reminders/);
 
-    // Back to All — no kind suffix
-    await page.locator('a.cal-kind-tab[data-kind="all"]').click();
+    // Back to Both (all) — no type suffix
+    await page.locator('#cal_type_select').selectOption('all');
     const backToAll = await urlInput.inputValue();
-    expect(backToAll).not.toContain('kind=');
+    expect(backToAll).not.toContain('type=');
 
-    // Close without saving (just the cancel button inside the calendar modal)
     await page.locator('#cal_cancel_btn').click();
     await page.locator('#calendar_modal').waitFor({ state: 'hidden' });
   });

@@ -123,6 +123,17 @@
 
             <div class="row">
                 <div class="input-field col s12">
+                    <select id="cal_type_select">
+                        <option value="all" class="TR">Both</option>
+                        <option value="bookings" class="TR">Bookings</option>
+                        <option value="reminders" class="TR">Reminders</option>
+                    </select>
+                    <label class="TR">Show in calendar feed</label>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="input-field col s12">
                     <input type="password" id="cal_url" readonly
                            style="padding-right:9rem;box-sizing:border-box;">
                     <label for="cal_url" class="TR">Calendar subscription URL</label>
@@ -131,18 +142,6 @@
                         <a href="#!" id="cal_copy" class="btn-flat waves-effect" style="padding:0 8px"><i class="material-icons">content_copy</i></a>
                         <a href="#!" id="cal_url_eye_btn" class="btn-flat waves-effect" style="padding:0 8px"><i class="material-icons" id="cal_url_eye">visibility</i></a>
                     </span>
-                </div>
-            </div>
-
-            <!-- Kind selector tabs: controls the ?kind= flag appended to the subscription URL -->
-            <div class="row" style="margin-top:-8px;margin-bottom:4px;">
-                <div class="col s12">
-                    <ul id="cal_kind_tabs" class="tabs cal-kind-tabs" style="height:36px;">
-                        <li class="tab col s4"><a href="#" data-kind="all" class="active cal-kind-tab TR">All</a></li>
-                        <li class="tab col s4"><a href="#" data-kind="bookings" class="cal-kind-tab TR">Bookings</a></li>
-                        <li class="tab col s4"><a href="#" data-kind="reminders" class="cal-kind-tab TR">Reminders</a></li>
-                    </ul>
-                    <div style="font-size:11px;opacity:0.7;margin-top:2px;" class="TR">Choose which events are included in the feed for this URL</div>
                 </div>
             </div>
 
