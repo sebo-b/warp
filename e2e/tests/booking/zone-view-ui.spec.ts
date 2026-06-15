@@ -56,6 +56,17 @@ test.describe('seat name and booking preview labels', () => {
     await expect(page.locator('.seat_label')).toHaveCount(0);
   });
 
+  test('booking labels never show zone info even on multi-zone plans', async ({ page }) => {
+    await logIn(page, USER1);
+    await apiSetPrefs(page, { zone_show_seat_names: true });
+
+    await page.goto('/plan/1');
+    await waitForSeatsLoaded(page);
+
+    // Zone info (.seat_label_zone) must never appear on booking-pane labels
+    await expect(page.locator('.seat_label_zone')).toHaveCount(0);
+  });
+
   test('booking preview labels show who is booked for the selected date', async ({ page }) => {
     const ts = futureDayTs(1);
     const [seat] = await getZoneSeats(1);
