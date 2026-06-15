@@ -687,8 +687,8 @@ test.describe('calendar settings modal UI (full flow + type tabs + disabled tab 
     await expect(urlInput).toBeVisible();
 
     // Initial tab is "No filter" → URL must not carry a type param
+    await expect(urlInput).toHaveValue(/\/events\.ics\?t=/);
     let currentUrl = await urlInput.inputValue();
-    expect(currentUrl).toContain('/events.ics?t=');
     expect(currentUrl).not.toContain('type=');
 
     // Click Bookings only tab → appends &type=bookings and updates the field live

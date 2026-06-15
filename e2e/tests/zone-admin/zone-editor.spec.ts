@@ -8,7 +8,7 @@
  * Clicking the lever element toggles the switch (force-checking the hidden
  * <input> doesn't fire the change event reliably).
  *
- * Translated summary strings (en.js smart_count pluralisation):
+ * Translated summary strings (en.json smart_count pluralisation):
  *   - added one seat / added N seats
  *   - updated data of a seat / updated data of N seats
  *   - deleted a seat / deleted N seats

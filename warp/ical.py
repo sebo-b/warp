@@ -8,8 +8,6 @@ import secrets
 from calendar import timegm
 from time import gmtime, strftime, strptime
 
-from peewee import JOIN
-
 from warp import utils
 from warp.db import UserPrefs, Book, Seat, SeatAssign, Zone, Plan, CalendarCache
 

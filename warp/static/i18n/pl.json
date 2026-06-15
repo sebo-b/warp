@@ -126,7 +126,8 @@
             "Upload map": "Wczytaj mapę",
             "Add seats": "Dodaj miejsca",
             "Restore": "Przywróć",
-            "Edit": "Edycja"
+            "Edit": "Edycja",
+            "Yes, delete": "Tak, usuń"
         },
         "Password": "Hasło",
         "Bookings only": "Tylko rezerwacje",
@@ -173,6 +174,8 @@
         "The seat is available to be booked on the selected dates and time.": "Miejce jest dostępne do zarezerwowania w wybranym czasie",
         "The seat is available to be booked on the selected dates and time. However, you have other bookings at that time which will be automatically updated.": "Miejce jest dostępne do zarezerwowania w wybranym czasie, jednak posiadasz inne rezerwacje w tym samym czasie, które zostaną automatycznie usunięte.",
         "The seat is booked by another person or not available.": "Miejsce jest zarezerwowane przez inną osobą lub niedostępne",
+        "The seat is in a view-only zone — you can see it but cannot book it.": "Miejsce znajduje się w strefie tylko do odczytu — możesz je zobaczyć, ale nie możesz go zarezerwować.",
+        "The seat is booked by someone in a view-only zone — you can see it but cannot book it.": "Miejsce jest zarezerwowane przez kogoś w strefie tylko do odczytu — możesz je zobaczyć, ale nie możesz go zarezerwować.",
         "The seat is booked by you on the selected date and time.": "W wybranym czasie miejsce jest zarezerwowane przez Ciebie.",
         "The seat is booked by you, but not exactly on the selected date or time. You can update booking, all your other reservations at that time will be automatically updated.": "Miejsce jest zarezerwowane przez Ciebie, jednak nie w wybranym czasie. Możesz uaktualnić rezerwację, wszystkie Twoje inne rezerwacje w wybranym czasie zostaną uaktualnione",
         "The seat is booked by you, but not exactly on the selected date or time. You CANNOT update the booking as it is conflicting with another user booking.": "Miejsce jest zarezerwowane przez Ciebie, jednak nie w wybranym czasie. NIE możesz uaktualnić rezerwacji, ponieważ inni użytkownicy maja rezerwacje w wybranym czasie.",
@@ -200,6 +203,7 @@
         "Edit map": "Edytuj mapę",
         "You will delete the log of all past bookings in this zone. It is usually a better idea to unassign all users from the zone to make it inaccessible.": "Usuniesz również historię rezerwacji w tej strefie. Z tego powodu zamiast usuwania strefy zaleca się usunięcie z niej wszystkich użytkowników, co spowoduje, że nie będzie ona dostępna.",
         "Are you sure to delete zone: %{zone_name}": "Czy jesteś pewien, że chesz usunąć strefę: %{zone_name}",
+        "Are you sure to delete plan: %{plan_name}": "Czy na pewno chcesz usunąć plan: %{plan_name}",
         "Zone name and zone group cannot be empty.": "Nazwa strefy oraz grupa nie mogą być puste",
         "Users assigned to: %{zone_name}": "Użytkownicy przypisani do: %{zone_name}",
         "Zone role": "Rola",
@@ -226,15 +230,18 @@
             "Other error. (status=%{status})": "Inny błąd. (status=%{status})"
         },
         "Are you sure to update the zone?": "Czy na pewno chcesz wprowadzić zmiany?",
+        "Are you sure to update the plan?": "Czy na pewno chcesz zaktualizować plan?",
         "The following changes will be applied:<br>": "Następujące zmiany zostaną wprowadzone:<br>",
         "- updated zone map<br>": "- uaktualniono mapę strefy<br>",
+        "- updated plan map<br>": "- uaktualniono mapę planu<br>",
         "- added %{smart_count} seat(s)<br>": "- dodano jedno miejsce<br>||||- dodano %{smart_count} miejsca<br>||||- dodano %{smart_count} miejsc<br>",
         "- updated data of %{smart_count} seat(s)<br>": "- zmienione dane jednego miejsca<br>||||- zmienione dane %{smart_count} miejsc<br>||||- zmienione dane %{smart_count} miejsc<br>",
         "- deleted %{smart_count} seat(s)<br>": "- usunięte jedno miejsce<br>||||- usunięte %{smart_count} miejsca<br>||||- usunięte %{smart_count} miejsc<br>",
         "seatEdit": {
             "Seat name": "Nazwa",
             "X": "X",
-            "Y": "Y"
+            "Y": "Y",
+            "Zone for new seats": "Strefa dla nowych miejsc"
         },
         "All unsaved changes will be lost.": "Wszystkie niezapisane zmiany zostaną utracone.",
         "More than %{smart_count} rows are selected. Report will be limited to that number of rows.": "Wybrano więcej niż jeden wiersz. Raport będzie ograniczony do tej liczby wierszów.||||Wybrano więcej niż %{smart_count} wiersze. Raport będzie ograniczony do tej liczby wierszów.||||Wybrano więcej niż %{smart_count} wierszów. Raport będzie ograniczony do tej liczby wierszów.",
@@ -265,6 +272,7 @@
         },
         "zoneGroup": {
             "Default": "Domyślna",
+            "None": "(brak)",
             "NewGroupWillBeCreated": "Zostanie utworzona nowa grupa"
         },
         "Preferences": "Preferencje",
@@ -302,6 +310,17 @@
         "Error changing password": "Błąd zmiany hasła",
         "Show seat names on zone map": "Pokaż nazwy miejsc na mapie stref",
         "Show booking preview on zone map": "Pokaż podgląd rezerwacji na mapie stref",
+        "Reassign seats from deleted zone": "Przypisz ponownie miejsca z usuniętej strefy",
+        "This zone contains %{smart_count} seat(s). All past booking history for these seats will be permanently deleted.": "Ta strefa zawiera %{smart_count} miejsce. Cała dotychczasowa historia rezerwacji tych miejsc zostanie trwale usunięta. |||| Ta strefa zawiera %{smart_count} miejsca. Cała dotychczasowa historia rezerwacji tych miejsc zostanie trwale usunięta. |||| Ta strefa zawiera %{smart_count} miejsc. Cała dotychczasowa historia rezerwacji tych miejsc zostanie trwale usunięta.",
+        "Select a zone to reassign seats to, or use the button below to delete the seats without reassignment.": "Wybierz strefę, do której chcesz przypisać miejsca, lub użyj przycisku poniżej, aby usunąć miejsca bez ponownego przypisania.",
+        "No other zones exist. You may only delete the seats along with this zone.": "Nie istnieją inne strefy. Możesz usunąć miejsca tylko razem z tą strefą.",
+        "Reassign seats": "Przypisz miejsca ponownie",
+        "Delete seats": "Usuń miejsca",
+        "Delete %{smart_count} seat(s) permanently?": "Trwale usunąć %{smart_count} miejsce? |||| Trwale usunąć %{smart_count} miejsca? |||| Trwale usunąć %{smart_count} miejsc?",
+        "This will remove the seats and all their past booking history. This cannot be undone.": "Spowoduje to usunięcie miejsc oraz całej ich dotychczasowej historii rezerwacji. Tej operacji nie można cofnąć.",
+        "You must create a zone before adding seats.": "Musisz utworzyć strefę przed dodaniem miejsc.",
+        "This action cannot be undone.": "Tej operacji nie można cofnąć.",
+        "Plans": "Plany",
         "Show in calendar feed": "Pokaż w kanale kalendarza",
         "ical": {
             "booking": "Miejsce {name}",

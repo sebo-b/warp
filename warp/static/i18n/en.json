@@ -126,7 +126,8 @@
             "Upload map": "Upload map",
             "Add seats": "Add seats",
             "Restore": "Restore",
-            "Edit": "Edit"
+            "Edit": "Edit",
+            "Yes, delete": "Yes, delete"
         },
         "Password": "Password",
         "Bookings only": "Bookings only",
@@ -239,7 +240,8 @@
         "seatEdit": {
             "Seat name": "Seat name",
             "X": "X",
-            "Y": "Y"
+            "Y": "Y",
+            "Zone for new seats": "Zone for new seats"
         },
         "All unsaved changes will be lost.": "All unsaved changes will be lost.",
         "More than %{smart_count} rows are selected. Report will be limited to that number of rows.": "More than one row is selected. Report will be limited to that number of rows.||||More than %{smart_count} rows are selected. Report will be limited to that number of rows.",
@@ -316,9 +318,7 @@
         "Delete seats": "Delete seats",
         "Delete %{smart_count} seat(s) permanently?": "Delete %{smart_count} seat(s) permanently? |||| Delete %{smart_count} seats permanently?",
         "This will remove the seats and all their past booking history. This cannot be undone.": "This will remove the seats and all their past booking history. This cannot be undone.",
-        "btn.Yes, delete": "Yes, delete",
         "You must create a zone before adding seats.": "You must create a zone before adding seats.",
-        "seatEdit.Zone for new seats": "Zone for new seats",
         "This action cannot be undone.": "This action cannot be undone.",
         "Plans": "Plans",
         "Show in calendar feed": "Show in calendar feed",

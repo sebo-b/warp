@@ -1,5 +1,7 @@
 -- Migration 12: rework calendar_cache for per-type iCal URL filtering.
--- Drops and recreates the table — it only exists on this local branch, no data to migrate.
+-- The old schema keyed the cache by login alone; the new one keys by (login, type).
+-- calendar_cache is a regenerable UNLOGGED cache (created in migration 007), so we
+-- drop and recreate it rather than migrating rows — the feed repopulates on demand.
 
 DROP TABLE IF EXISTS calendar_cache;
 

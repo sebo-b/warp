@@ -126,7 +126,8 @@
             "Upload map": "Télécharger le plan",
             "Add seats": "Ajouter siège",
             "Restore": "Restaurer",
-            "Edit": "Éditer"
+            "Edit": "Éditer",
+            "Yes, delete": "Oui, supprimer"
         },
         "Password": "Mot de passe",
         "Bookings only": "Réservations seulement",
@@ -173,6 +174,8 @@
         "The seat is available to be booked on the selected dates and time.": "Le siège est disponible à la réservation aux dates et horaires sélectionnés.",
         "The seat is available to be booked on the selected dates and time. However, you have other bookings at that time which will be automatically updated.": "Le siège est disponible à la réservation aux dates et horaires sélectionnés. Cependant, vous avez d'autres réservations à cet horaire qui seront mises à jour.",
         "The seat is booked by another person or not available.": "Le siège est réservé par une autre personne ou non disponible.",
+        "The seat is in a view-only zone — you can see it but cannot book it.": "Le siège est dans une zone en lecture seule — vous pouvez le voir mais pas le réserver.",
+        "The seat is booked by someone in a view-only zone — you can see it but cannot book it.": "Le siège est réservé par quelqu'un dans une zone en lecture seule — vous pouvez le voir mais pas le réserver.",
         "The seat is booked by you on the selected date and time.": "Le siège est réservé par vous à la date et l'horaire sélectionnés.",
         "The seat is booked by you, but not exactly on the selected date or time. You can update booking, all your other reservations at that time will be automatically updated.": "Le siège est réservé par vous, mais pas exactement sur la plage horaire sélectionnée. Vous pouvez mettre à jour la réservation, toutes vos autres réservations sur cet horaire seront automatiquement mises à jour.",
         "The seat is booked by you, but not exactly on the selected date or time. You CANNOT update the booking as it is conflicting with another user booking.": "Le siège est réservé par vous, mais pas exactement sur la plage horaire sélectionnée. Vous ne pouvez pas mettre à jour votre réservation car elle est en conflit avec la réservation d'un autre utilisateur.",
@@ -200,6 +203,7 @@
         "Edit map": "Editer plan",
         "You will delete the log of all past bookings in this zone. It is usually a better idea to unassign all users from the zone to make it inaccessible.": "Vous allez supprimer les logs de toutes les réservations passées de cette zone. C'est généralement une meilleure idée de supprimer tous les utilisateurs de la zone pour la rendre inaccessible.",
         "Are you sure to delete zone: %{zone_name}": "Êtes-vous sûr de supprimer la zone: %{zone_name}",
+        "Are you sure to delete plan: %{plan_name}": "Souhaitez-vous vraiment supprimer le plan : %{plan_name}",
         "Zone name and zone group cannot be empty.": "Le nom de la zone et le groupe de zones ne peuvent pas être vides.",
         "Users assigned to: %{zone_name}": "Les utilisateurs affectés à: %{zone_name}",
         "Zone role": "Role",
@@ -226,15 +230,18 @@
             "Other error. (status=%{status})": "Autre erreur. (status=%{status})"
         },
         "Are you sure to update the zone?": "Souhaitez vous vraiment  mettre à jour la zone?",
+        "Are you sure to update the plan?": "Souhaitez-vous vraiment mettre à jour le plan ?",
         "The following changes will be applied:<br>": "Les changements suivants seront appliqués:<br>",
         "- updated zone map<br>": "- plan des zones mise à jour<br>",
-        "- added %{smart_count} siège(s)<br>": "- ajout d'un siège<br>||||- ajout %{smart_count} sièges<br>",
+        "- updated plan map<br>": "- plan mis à jour<br>",
+        "- added %{smart_count} seat(s)<br>": "- ajout d'un siège<br>||||- ajout %{smart_count} sièges<br>",
         "- updated data of %{smart_count} seat(s)<br>": "- données actualisées d'un siège<br>||||- données actualisées %{smart_count} sièges<br>",
         "- deleted %{smart_count} seat(s)<br>": "- un siège supprimé<br>||||- %{smart_count} sièges supprimés<br>",
         "seatEdit": {
             "Seat name": "Nom du siège",
             "X": "X",
-            "Y": "Y"
+            "Y": "Y",
+            "Zone for new seats": "Zone pour les nouveaux sièges"
         },
         "All unsaved changes will be lost.": "Toutes les modifications non enregistrées seront perdues.",
         "More than %{smart_count} rows are selected. Report will be limited to that number of rows.": "Plus d'une ligne est sélectionnée. Le rapport sera limité à ce nombre de lignes.||||Plus de %{smart_count} lignes sont sélectionnées. Le rapport sera limité à ce nombre de lignes..",
@@ -265,6 +272,7 @@
         },
         "zoneGroup": {
             "Default": "Par défaut",
+            "None": "(aucun)",
             "NewGroupWillBeCreated": "Un nouveau groupe sera créé"
         },
         "Preferences": "Préférences",
@@ -302,6 +310,17 @@
         "Error changing password": "Erreur lors du changement de mot de passe",
         "Show seat names on zone map": "Afficher les noms de places sur la carte de zone",
         "Show booking preview on zone map": "Afficher l'aperçu de réservation sur la carte de zone",
+        "Reassign seats from deleted zone": "Réassigner les sièges de la zone supprimée",
+        "This zone contains %{smart_count} seat(s). All past booking history for these seats will be permanently deleted.": "Cette zone contient %{smart_count} siège. Tout l'historique des réservations de ces sièges sera définitivement supprimé. |||| Cette zone contient %{smart_count} sièges. Tout l'historique des réservations de ces sièges sera définitivement supprimé.",
+        "Select a zone to reassign seats to, or use the button below to delete the seats without reassignment.": "Sélectionnez une zone vers laquelle réassigner les sièges, ou utilisez le bouton ci-dessous pour supprimer les sièges sans réassignation.",
+        "No other zones exist. You may only delete the seats along with this zone.": "Aucune autre zone n'existe. Vous pouvez uniquement supprimer les sièges en même temps que cette zone.",
+        "Reassign seats": "Réassigner les sièges",
+        "Delete seats": "Supprimer les sièges",
+        "Delete %{smart_count} seat(s) permanently?": "Supprimer définitivement %{smart_count} siège ? |||| Supprimer définitivement %{smart_count} sièges ?",
+        "This will remove the seats and all their past booking history. This cannot be undone.": "Cela supprimera les sièges et tout leur historique de réservations. Cette action est irréversible.",
+        "You must create a zone before adding seats.": "Vous devez créer une zone avant d'ajouter des sièges.",
+        "This action cannot be undone.": "Cette action est irréversible.",
+        "Plans": "Plans",
         "Show in calendar feed": "Afficher dans le flux de calendrier",
         "ical": {
             "booking": "Place {name}",
