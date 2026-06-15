@@ -35,6 +35,8 @@ I've quickly evaluated a couple of existing solutions, but they were either too 
 - **Translations**: Currently supports English, German, French, Spanish, and Polish.
 - **SAML2.0**: Via Apache [mod_auth_mellon](https://github.com/latchset/mod_auth_mellon) module.
 - **LDAP/Active Directory**: Via LDAP3 library.
+- **Azure AD**: Via Microsoft Authentication Library (MSAL).
+- **OIDC / OpenID Connect**: Generic SSO via any compliant identity provider (Authlib).
 
 See [FEATURES.md](FEATURES.md) for a detailed description of all functionality, roles, booking rules, and configuration options.
 New to the concepts? Start with the [GLOSSARY.md](GLOSSARY.md), and read
@@ -109,7 +111,7 @@ WARP_DATABASE_USER=user
 WARP_DATABASE_PASSWORD=password
 ```
 
-For all configuration options — environment variables, secret key generation, language, and authentication providers (LDAP, Azure AD, SAML) — see [CONFIGURATION.md](CONFIGURATION.md).
+For all configuration options — environment variables, secret key generation, language, and authentication providers (LDAP, Azure AD, OIDC, SAML) — see [CONFIGURATION.md](CONFIGURATION.md).
 
 For ready-to-use deployment examples (Docker Compose, Podman Quadlet with systemd) see [`containers/README.md`](containers/README.md).
 

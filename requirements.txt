@@ -6,4 +6,5 @@ psycopg[binary]
 orjson
 ldap3
 msal
+authlib
 pycryptodome

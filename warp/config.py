@@ -74,6 +74,17 @@ class DefaultSettings(object):
     AAD_GROUP_MAP = [ [None,None] ]
     AAD_GROUP_STRICT_MAPPING = False
 
+    # OIDC defaults
+    OIDC_SCOPES = "openid profile email"
+    OIDC_LOGIN_ATTRIBUTE = "preferred_username"
+    OIDC_USER_NAME_ATTRIBUTE = "name"
+    OIDC_GROUPS_CLAIM = "groups"
+    OIDC_GROUP_MAP = [ [None,None] ]
+    OIDC_GROUP_STRICT_MAPPING = False
+    OIDC_EXCLUDED_USERS = []
+    OIDC_HTTPS_SCHEME = "https"
+    OIDC_USERINFO = False
+
     ### LDAP variables to be configured
     # AUTH_LDAP = True
     # LDAP_SERVER_URL = "ldap://server:port"
@@ -82,6 +93,12 @@ class DefaultSettings(object):
     # LDAP_GROUP_SEARCH_BASE = "ou=groups,dc=example,dc=org"
     # LDAP_TLS_VERSION (optional)
     # LDAP_TLS_CIPHERS (optional)
+
+    ### OIDC variables to be configured
+    # AUTH_OIDC = True
+    # OIDC_DISCOVERY_URL = "https://idp.example.org/.well-known/openid-configuration"
+    # OIDC_CLIENT_ID = "warp"
+    # OIDC_CLIENT_SECRET
 
     # these settings are available, but should not have default value
     # set them up in DevelopmentSettings or via environment
@@ -213,6 +230,7 @@ _ENV_SETTINGS = {
     "AUTH_LDAP":                  _fmt_bool,
     "AUTH_MELLON":                _fmt_bool,
     "AUTH_AAD":                   _fmt_bool,
+    "AUTH_OIDC":                  _fmt_bool,
     # LDAP
     "LDAP_SERVER_URL":            _fmt_str,
     "LDAP_AUTH_TYPE":             _fmt_str,
@@ -238,6 +256,20 @@ _ENV_SETTINGS = {
     "AAD_LOGIN_ATTRIBUTE":        _fmt_str,
     "AAD_GROUP_MAP":              _fmt_json(_GROUP_MAP),
     "AAD_GROUP_STRICT_MAPPING":   _fmt_bool,
+    # OIDC
+    "OIDC_DISCOVERY_URL":         _fmt_str,
+    "OIDC_CLIENT_ID":             _fmt_str,
+    "OIDC_CLIENT_SECRET":         _fmt_str,
+    "OIDC_CLIENT_SECRET_FILE":    _fmt_file,
+    "OIDC_SCOPES":                _fmt_str,
+    "OIDC_LOGIN_ATTRIBUTE":       _fmt_str,
+    "OIDC_USER_NAME_ATTRIBUTE":   _fmt_str,
+    "OIDC_GROUPS_CLAIM":          _fmt_str,
+    "OIDC_GROUP_MAP":             _fmt_json(_GROUP_MAP),
+    "OIDC_GROUP_STRICT_MAPPING":  _fmt_bool,
+    "OIDC_EXCLUDED_USERS":        _fmt_json(_ARRAY_OF_STRINGS),
+    "OIDC_HTTPS_SCHEME":          _fmt_str,
+    "OIDC_USERINFO":              _fmt_bool,
     # Mellon (SAML)
     "MELLON_ENDPOINT":            _fmt_str,
     "MELLON_DEFAULT_GROUP":       _fmt_str,

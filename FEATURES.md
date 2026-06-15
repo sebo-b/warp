@@ -7,7 +7,7 @@
 The behaviour described here is covered by the end-to-end Playwright suite in
 [`e2e/`](e2e/) (see [`e2e/README.md`](e2e/README.md) for how to run it).
 Exceptions that cannot be exercised in a self-contained container: the external
-authentication providers (LDAP §1.2, Azure AD §1.3, SAML §1.4), multi-language
+authentication providers (LDAP §1.2, Azure AD §1.3, OIDC §1.5, SAML §1.4), multi-language
 rendering (§20), mobile layouts (§21), and the map editor's multi-seat marquee
 transforms (§4.3).
 
@@ -50,8 +50,20 @@ Logins are matched case-insensitively by default (`LOGIN_IGNORECASE`): a name en
 - Logging out redirects to the Mellon logout endpoint.
 - Local WARP password is set to `*` (unusable) for SAML-created users.
 
-### 1.5 Changing Password
-- Available from the user menu (only when built-in auth is active — not for SSO/LDAP/AAD users).
+### 1.5 OpenID Connect (OIDC) Authentication
+- When enabled, users are redirected to any OIDC-compliant identity provider (Keycloak, Authentik, Okta, Auth0, Google, Entra ID generic mode, etc.).
+- Configuration is discovery-driven: a single `OIDC_DISCOVERY_URL` loads all endpoints and signing keys from the IdP's `.well-known/openid-configuration`.
+- **Auto-provisioning**: a WARP user account is created automatically on first OIDC login.
+- User name is synced from the IdP on each login.
+- **Group mapping**: IdP groups can be replicated to WARP groups (add/remove), or used purely as access control (allow/deny login). Same semantics as LDAP group mapping.
+- **Strict mapping** mode: removes users from WARP groups that don't match IdP groups on each login.
+- **Excluded users**: specific logins (e.g. local admin) can be excluded from OIDC auth, keeping their local password.
+- A `[null, null]` entry in the group map allows any OIDC user to log in (open access).
+- ID-token verification (signature via JWKS, nonce, issuer, audience, expiry) is handled by Authlib.
+- Optional UserInfo endpoint call for IdPs that only expose groups in the UserInfo response.
+
+### 1.6 Changing Password
+- Available from the user menu (only when built-in auth is active — not for SSO/LDAP/AAD/OIDC users).
 - Requires the current password and a new password.
 - Minimum password length is configurable (default: 6 characters).
 
@@ -758,3 +770,21 @@ Any setting can be provided as an environment variable with the `WARP_` prefix (
 | `AUTH_MELLON`          | unset   | Set to `true` to enable Mellon (SAML) authentication   |
 | `MELLON_ENDPOINT`      | —       | Mellon endpoint path on the Apache proxy, e.g. `/sp`   |
 | `MELLON_DEFAULT_GROUP` | unset   | WARP group assigned to all SAML-provisioned users      |
+
+### 27.4 OIDC Settings (§1.5)
+
+| Setting                    | Default              | Description                                  |
+|----------------------------|----------------------|----------------------------------------------|
+| `AUTH_OIDC`                | unset                | Set to `true` to enable OIDC authentication  |
+| `OIDC_DISCOVERY_URL`       | —                    | Full `.well-known/openid-configuration` URL  |
+| `OIDC_CLIENT_ID`           | —                    | OAuth2 client ID registered at the IdP       |
+| `OIDC_CLIENT_SECRET`       | —                    | OAuth2 client secret (supports `_FILE`)      |
+| `OIDC_SCOPES`              | `openid profile email` | Space-separated scopes requested           |
+| `OIDC_LOGIN_ATTRIBUTE`     | `preferred_username` | Claim used as the WARP login                 |
+| `OIDC_USER_NAME_ATTRIBUTE` | `name`               | Claim used as the display name               |
+| `OIDC_GROUPS_CLAIM`        | `groups`             | Claim holding the user's group list          |
+| `OIDC_GROUP_MAP`           | `[[null, null]]`     | Same semantics as `LDAP_GROUP_MAP`           |
+| `OIDC_GROUP_STRICT_MAPPING`| `false`              | Same semantics as `LDAP_GROUP_STRICT_MAPPING`|
+| `OIDC_EXCLUDED_USERS`      | `[]`                 | Logins kept on local password auth           |
+| `OIDC_HTTPS_SCHEME`        | `https`              | Scheme used for the redirect URI             |
+| `OIDC_USERINFO`            | `false`              | Also call the UserInfo endpoint and merge claims |

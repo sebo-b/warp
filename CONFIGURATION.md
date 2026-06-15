@@ -247,7 +247,7 @@ independent of this system-wide window.
 
 ## Authentication providers
 
-WARP ships with built-in username/password auth. Three optional SSO providers are
+WARP ships with built-in username/password auth. Four optional SSO providers are
 available; only one can be active at a time.
 
 | Provider                | Enable with        | Notes                                                                 |
@@ -255,13 +255,17 @@ available; only one can be active at a time.
 | Built-in (default)      | —                  | Users authenticate with a login + password stored in WARP's database. |
 | LDAP / Active Directory | `AUTH_LDAP=true`   | See [LDAP configuration](#ldap--active-directory).                    |
 | Azure Active Directory  | `AUTH_AAD=true`    | See [Azure AD configuration](#azure-active-directory-aad).            |
+| OpenID Connect (OIDC)   | `AUTH_OIDC=true`   | See [OIDC configuration](#openid-connect-oidc).                      |
 | SAML 2.0                | `AUTH_MELLON=true` | See [SAML configuration](#saml-20-via-apache-mod_auth_mellon).        |
 
 All SSO providers support:
 
 - **Auto-provisioning**: a WARP user account is created automatically on first login.
-- **Group mapping**: SSO groups can be mapped to WARP groups (see [Group mapping](#ldap-group-mapping)).
-- **Excluded users**: specific logins can be kept on local password auth even when SSO is active.
+
+Additionally:
+
+- **Group mapping**: LDAP, Azure AD, and OIDC support mapping identity-provider groups to WARP groups (see [Group mapping](#ldap-group-mapping)). SAML/Mellon only has a single default group.
+- **Excluded users**: LDAP and OIDC allow specific logins to be kept on local password auth even when SSO is active. Azure AD and SAML do not support excluded users.
 
 ### Case-insensitive logins
 
@@ -610,6 +614,138 @@ Features: auto-provisioning, display name sync on every login, same group mappin
 | type:          | `boolean`                                                                                                                              |
 | default value: | `False`                                                                                                                                |
 | description:   | When `True`, removes WARP group memberships not matched by the group map on each login. Same semantics as `LDAP_GROUP_STRICT_MAPPING`. |
+
+---
+
+## OpenID Connect (OIDC)
+
+Set `AUTH_OIDC=true` and configure `OIDC_DISCOVERY_URL`, `OIDC_CLIENT_ID`, and
+`OIDC_CLIENT_SECRET`. WARP discovers all endpoints and keys from the IdP's
+`.well-known/openid-configuration` document, so no per-endpoint configuration is
+needed.
+
+Works with any OIDC-compliant identity provider: Keycloak, Authentik, Okta, Auth0,
+Google, Entra ID (generic OIDC mode), and others.
+
+Features: auto-provisioning, display name sync on every login, same group mapping
+model as LDAP, excluded users, ID-token verification (signature, nonce, issuer,
+audience, expiry).
+
+### Configuration variables
+
+| variable:      | `AUTH_OIDC`                                         |
+| :------------- | :-------------------------------------------------- |
+| type:          | `boolean`                                           |
+| default value: | `False`                                             |
+| description:   | Set to `True` to enable OpenID Connect authentication. |
+
+| variable:      | `OIDC_DISCOVERY_URL`                                                                              |
+| :------------- | :------------------------------------------------------------------------------------------------- |
+| type:          | `string`                                                                                           |
+| default value: | `None` (must be defined)                                                                           |
+| description:   | Full URL of the IdP's `.well-known/openid-configuration` document. WARP loads all endpoints and signing keys from here. |
+| example:       | Keycloak: `https://idp.example.org/realms/warp/.well-known/openid-configuration`                    |
+
+| variable:      | `OIDC_CLIENT_ID`                    |
+| :------------- | :---------------------------------- |
+| type:          | `string`                            |
+| default value: | `None` (must be defined)            |
+| description:   | OAuth2 client ID registered at the IdP. |
+
+| variable:      | `OIDC_CLIENT_SECRET`                                                                                    |
+| :------------- | :------------------------------------------------------------------------------------------------------- |
+| type:          | `string`                                                                                                 |
+| default value: | `None` (required for confidential clients)                                                               |
+| description:   | OAuth2 client secret. Treat this like a password. Public clients (SPA/native) may leave this unset. Supports the `_FILE` convention — see [Secrets / `_FILE` convention](#secrets--_file-convention). |
+
+| variable:      | `OIDC_SCOPES`                                                                             |
+| :------------- | :---------------------------------------------------------------------------------------- |
+| type:          | `string` (space-separated)                                                                |
+| default value: | `openid profile email`                                                                    |
+| description:   | OAuth2 scopes requested during the authorisation request. `openid` is required; add others depending on what claims your IdP provides. |
+
+| variable:      | `OIDC_LOGIN_ATTRIBUTE`                                                                                      |
+| :------------- | :---------------------------------------------------------------------------------------------------------- |
+| type:          | `string`                                                                                                    |
+| default value: | `preferred_username`                                                                                        |
+| description:   | OIDC claim used as the WARP login (username). Change to `email` or `sub` if `preferred_username` is not populated by your IdP. |
+
+| variable:      | `OIDC_USER_NAME_ATTRIBUTE`                           |
+| :------------- | :-------------------------------------------------- |
+| type:          | `string`                                            |
+| default value: | `name`                                              |
+| description:   | OIDC claim used as the user's display name in WARP. |
+
+| variable:      | `OIDC_GROUPS_CLAIM`                                                                    |
+| :------------- | :------------------------------------------------------------------------------------- |
+| type:          | `string`                                                                               |
+| default value: | `groups`                                                                               |
+| description:   | Name of the OIDC claim holding the user's group list. Some IdPs use `roles` or `member`. |
+
+| variable:      | `OIDC_GROUP_MAP`                                                                                                |
+| :------------- | :------------------------------------------------------------------------------------------------------------- |
+| type:          | `array` of `[string\|null, string\|null]` pairs                                                                  |
+| default value: | `[ [null, null] ]`                                                                                              |
+| description:   | Maps OIDC groups to WARP groups. Same semantics as [`LDAP_GROUP_MAP`](#ldap-group-mapping).                     |
+
+| variable:      | `OIDC_GROUP_STRICT_MAPPING`                                                                                                             |
+| :------------- | :-------------------------------------------------------------------------------------------------------------------------------------- |
+| type:          | `boolean`                                                                                                                               |
+| default value: | `False`                                                                                                                                 |
+| description:   | When `True`, removes WARP group memberships not matched by the group map on each login. Same semantics as `LDAP_GROUP_STRICT_MAPPING`. |
+
+| variable:      | `OIDC_EXCLUDED_USERS`                                                                                                                       |
+| :------------- | :------------------------------------------------------------------------------------------------------------------------------------------ |
+| type:          | `array` of `string`                                                                                                                         |
+| default value: | `[]`                                                                                                                                        |
+| description:   | Logins that always authenticate against WARP's local password database, even when OIDC is enabled. Useful for keeping a local admin account. |
+
+| variable:      | `OIDC_HTTPS_SCHEME`                                                                                                                                                   |
+| :------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| type:          | `string`: `https` or `http`                                                                                                                                          |
+| default value: | `https`                                                                                                                                                               |
+| description:   | Scheme used when constructing the OAuth2 redirect URI. Change to `http` only in local development. Behind a reverse proxy that terminates TLS, keep `https` so the redirect URI matches what is registered at the IdP. |
+
+| variable:      | `OIDC_USERINFO`                                                                                                                      |
+| :------------- | :----------------------------------------------------------------------------------------------------------------------------------- |
+| type:          | `boolean`                                                                                                                             |
+| default value: | `False`                                                                                                                               |
+| description:   | When `True`, WARP also calls the UserInfo endpoint after the ID token is validated and merges the returned claims. Some IdPs only expose groups in the UserInfo response, not in the ID token. |
+
+### Redirect URI
+
+Register the following redirect URI at your IdP:
+
+```
+https://<your-warp-host>/oidc/callback
+```
+
+The `OIDC_HTTPS_SCHEME` setting controls the scheme of this URI. In production
+behind a reverse proxy, keep it as `https` (the default) even if WARP itself
+listens on `http`, because the proxy rewrites the scheme.
+
+### Client secret `_FILE` convention
+
+The client secret can be supplied via a file (for Docker/Podman secrets) instead
+of an environment variable:
+
+```
+WARP_OIDC_CLIENT_SECRET_FILE=/run/secrets/oidc_client_secret
+```
+
+See [Secrets / `_FILE` convention](#secrets--_file-convention) for details.
+
+### Example configuration (Keycloak)
+
+```sh
+WARP_AUTH_OIDC="true"
+WARP_OIDC_DISCOVERY_URL="https://idp.example.org/realms/warp/.well-known/openid-configuration"
+WARP_OIDC_CLIENT_ID="warp"
+WARP_OIDC_CLIENT_SECRET_FILE="/run/secrets/warp_oidc_client_secret"
+WARP_OIDC_GROUPS_CLAIM="groups"
+WARP_OIDC_GROUP_MAP="[ ['warp-allowed', null], [null, 'Everyone'] ]"
+WARP_OIDC_EXCLUDED_USERS="['admin']"
+```
 
 ---
 

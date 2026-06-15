@@ -127,7 +127,8 @@
             "Add seats": "Agregar Asientos",
             "Restore": "Restaurar",
             "Edit": "Editar",
-            "Yes, delete": "Sí, eliminar"
+            "Yes, delete": "Sí, eliminar",
+            "Sign in with SSO": "Iniciar sesión con SSO"
         },
         "Password": "Contraseña",
         "Bookings only": "Solo reservas",
@@ -341,6 +342,12 @@
             "Cancel": "Cancelar",
             "Action cancelled": "Acción cancelada"
         },
-        "No filter": "Sin filtro"
+        "No filter": "Sin filtro",
+        "Logout": "Cerrar sesión",
+        "Bookings": "Reservas",
+        "Authentication error": "Error de autenticación",
+        "Access denied: you are not a member of an allowed group.": "Acceso denegado: no es miembro de un grupo permitido.",
+        "Authentication failed: could not exchange the authorisation code.": "Error de autenticación: no se pudo intercambiar el código de autorización.",
+        "Authentication failed: no user claims received.": "Error de autenticación: no se recibieron datos del usuario."
     }
 }
