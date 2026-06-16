@@ -105,6 +105,43 @@ def applyUserMetadata(login, userData, *, strictMapping=False, warnPrefix="SSO")
 
     return login
 
+def buildUserMetadata(login, userName, idpGroups, groupMap):
+    """Apply a [[source_group_or_null, warp_group_or_null], …] map to a set of
+    IdP groups, returning {'login','userName','groups'} or None to deny access.
+
+    Semantics (identical to LDAP/OIDC):
+      * [null, null]            -> open access (login allowed regardless of groups)
+      * [null, 'WarpGroup']     -> unconditionally assign 'WarpGroup' (no access grant)
+      * ['IdpGroup', 'WarpGrp'] -> if user in 'IdpGroup': allow + assign 'WarpGrp'
+      * ['IdpGroup', null]      -> if user in 'IdpGroup': allow, assign nothing
+    Returns None when no entry grants access.
+    """
+    idpGroups = idpGroups or []
+
+    ret = {
+        'login':    login,
+        'userName': userName,
+        'groups':   [],
+    }
+
+    loginAllowed = False
+    for idpGroup, warpGroup in groupMap:
+        if idpGroup is None and warpGroup is None:
+            loginAllowed = True          # [null,null] => open access
+            continue
+        if idpGroup is None:
+            ret['groups'].append(warpGroup)   # unconditional group assignment
+            continue
+        if idpGroup in idpGroups:
+            loginAllowed = True
+            if warpGroup:
+                ret['groups'].append(warpGroup)
+
+    if not loginAllowed:
+        return None                      # no matching group and no [null,null] => deny
+
+    return ret
+
 changePasswordSchema = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
