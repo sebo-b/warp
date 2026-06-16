@@ -8,3 +8,4 @@ ldap3
 msal
 authlib
 pycryptodome
+python3-saml
