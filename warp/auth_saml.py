@@ -83,6 +83,9 @@ def _buildSamlSettings():
         'authnRequestsSigned': config.get('SAML_AUTHN_REQUESTS_SIGNED', False),
         'wantAssertionsSigned': config.get('SAML_WANT_ASSERTIONS_SIGNED', True),
         'wantMessagesSigned': config.get('SAML_WANT_MESSAGES_SIGNED', False),
+        # Allow duplicate attribute names — some IdPs (Keycloak) send the
+        # same attribute twice due to built-in + custom mappers.
+        'allowRepeatAttributeName': True,
     }
 
     return {
@@ -218,7 +221,10 @@ def saml_acs():
 
     if errors or not auth.is_authenticated():
         reason = ', '.join(errors) if errors else 'not authenticated'
-        print(f"SAML WARNING: invalid response: {reason}", file=sys.stderr, flush=True)
+        last_reason = auth.get_last_error_reason()
+        print(f"SAML WARNING: invalid response: {reason}"
+              f"{(' — ' + last_reason) if last_reason else ''}",
+              file=sys.stderr, flush=True)
         return flask.render_template("auth_error.html",
             error="invalid_response",
             application_root_uri=app_root_uri)
