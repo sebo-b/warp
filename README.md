@@ -33,7 +33,7 @@ I've quickly evaluated a couple of existing solutions, but they were either too 
 - **Days-in-Advance Booking Window**: Per-assignment configurable limits on how far in advance users can book seats.
 - **Virtual "Everyone" Access**: Seats and zones can be configured with virtual "everyone" access for flexible seat management.
 - **Translations**: Currently supports English, German, French, Spanish, and Polish.
-- **SAML2.0**: Via Apache [mod_auth_mellon](https://github.com/latchset/mod_auth_mellon) module.
+- **SAML 2.0**: Native SP via python3-saml (recommended) or legacy Apache mod_auth_mellon.
 - **LDAP/Active Directory**: Via LDAP3 library.
 - **Azure AD**: Via Microsoft Authentication Library (MSAL).
 - **OIDC / OpenID Connect**: Generic SSO via any compliant identity provider (Authlib).

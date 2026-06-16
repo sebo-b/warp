@@ -348,6 +348,7 @@
         "Authentication error": "Erreur d'authentification",
         "Access denied: you are not a member of an allowed group.": "Accès refusé : vous n'êtes pas membre d'un groupe autorisé.",
         "Authentication failed: could not exchange the authorisation code.": "Échec de l'authentification : impossible d'échanger le code d'autorisation.",
-        "Authentication failed: no user claims received.": "Échec de l'authentification : aucune donnée utilisateur reçue."
+        "Authentication failed: no user claims received.": "Échec de l'authentification : aucune donnée utilisateur reçue.",
+        "Authentication failed: the SAML response was invalid.": "Échec de l'authentification : la réponse SAML était invalide."
     }
 }

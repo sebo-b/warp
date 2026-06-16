@@ -25,6 +25,7 @@ def create_app():
     from . import auth_ldap
     from . import auth_aad
     from . import auth_oidc
+    from . import auth_saml
     if 'AUTH_MELLON' in app.config \
        and 'MELLON_ENDPOINT' in app.config \
        and app.config['AUTH_MELLON']:
@@ -37,6 +38,8 @@ def create_app():
         app.register_blueprint(auth_aad.bp)
     elif app.config.get('AUTH_OIDC'):
         app.register_blueprint(auth_oidc.bp)
+    elif app.config.get('AUTH_SAML'):
+        app.register_blueprint(auth_saml.bp)
     else:
         app.register_blueprint(auth.bp)
 

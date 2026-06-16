@@ -42,13 +42,14 @@ Logins are matched case-insensitively by default (`LOGIN_IGNORECASE`): a name en
 - Supports the same group mapping / strict mapping model as LDAP.
 - Configurable login and name claim attributes.
 
-### 1.4 SAML 2.0 via Apache mod_auth_mellon
+### 1.4 SAML 2.0 via Apache mod_auth_mellon (legacy)
 - When enabled, login/logout is handled by an Apache reverse proxy with mod_auth_mellon.
 - WARP reads the `MELLON_uid` and `MELLON_cn` environment variables set by Apache.
 - Auto-provisioning on first SAML login.
 - A default group can be assigned to all SAML users.
 - Logging out redirects to the Mellon logout endpoint.
 - Local WARP password is set to `*` (unusable) for SAML-created users.
+- **Legacy**: use native SAML (§1.6) instead for new deployments.
 
 ### 1.5 OpenID Connect (OIDC) Authentication
 - When enabled, users are redirected to any OIDC-compliant identity provider (Keycloak, Authentik, Okta, Auth0, Google, Entra ID generic mode, etc.).
@@ -62,8 +63,32 @@ Logins are matched case-insensitively by default (`LOGIN_IGNORECASE`): a name en
 - ID-token verification (signature via JWKS, nonce, issuer, audience, expiry) is handled by Authlib.
 - Optional UserInfo endpoint call for IdPs that only expose groups in the UserInfo response.
 
-### 1.6 Changing Password
-- Available from the user menu (only when built-in auth is active — not for SSO/LDAP/AAD/OIDC users).
+### 1.6 Native SAML 2.0 Authentication
+- When enabled, users are redirected to any SAML 2.0 identity provider (Keycloak, Authentik, Okta, Auth0, ADFS, Entra ID, Shibboleth, etc.).
+- Configuration is metadata-URL driven: a single `SAML_IDP_METADATA_URL` loads the IdP entity ID, SSO URL, SLO URL, and signing certificate. Manual endpoint configuration is also supported.
+- **No Apache required** — native Python Service Provider via `python3-saml`.
+- **Auto-provisioning**: a WARP user account is created automatically on first SAML login.
+- User name is synced from the IdP on each login.
+- **Group mapping**: IdP groups can be replicated to WARP groups (add/remove), or used purely as access control (allow/deny login). Same semantics as LDAP group mapping.
+- **Strict mapping** mode: removes users from WARP groups that don't match IdP groups on each login.
+- **Excluded users**: specific logins (e.g. local admin) can be excluded from SAML auth, keeping their local password.
+- A `[null, null]` entry in the group map allows any SAML user to log in (open access).
+- **SP-initiated Single Logout (SLO)**: logging out of WARP also ends the IdP session.
+- SP metadata endpoint at `/saml/metadata` for easy IdP registration.
+- Configurable signed AuthnRequests and signed assertion requirements.
+- Local WARP password is set to `*` (unusable) for SAML-created users.
+
+### 1.7 SAML 2.0 via Apache mod_auth_mellon (legacy)
+- When enabled, login/logout is handled by an Apache reverse proxy with mod_auth_mellon.
+- WARP reads the `MELLON_uid` and `MELLON_cn` environment variables set by Apache.
+- Auto-provisioning on first SAML login.
+- A default group can be assigned to all SAML users.
+- Logging out redirects to the Mellon logout endpoint.
+- Local WARP password is set to `*` (unusable) for SAML-created users.
+- **Legacy**: use [native SAML](#16-native-saml-20-authentication) instead for new deployments.
+
+### 1.8 Changing Password
+- Available from the user menu (only when built-in auth is active — not for SSO/LDAP/AAD/OIDC/SAML users).
 - Requires the current password and a new password.
 - Minimum password length is configurable (default: 6 characters).
 
@@ -763,11 +788,11 @@ Any setting can be provided as an environment variable with the `WARP_` prefix (
 | `AAD_GROUP_MAP`            | `[[null, null]]`     | Same semantics as `LDAP_GROUP_MAP`           |
 | `AAD_GROUP_STRICT_MAPPING` | `false`              | Same semantics as `LDAP_GROUP_STRICT_MAPPING`|
 
-### 27.3 SAML / Mellon Settings (§1.4)
+### 27.3 SAML / Mellon Settings (§1.7)
 
 | Setting                | Default | Description                                            |
 |------------------------|---------|--------------------------------------------------------|
-| `AUTH_MELLON`          | unset   | Set to `true` to enable Mellon (SAML) authentication   |
+| `AUTH_MELLON`          | unset   | Set to `true` to enable Mellon (legacy SAML) auth      |
 | `MELLON_ENDPOINT`      | —       | Mellon endpoint path on the Apache proxy, e.g. `/sp`   |
 | `MELLON_DEFAULT_GROUP` | unset   | WARP group assigned to all SAML-provisioned users      |
 
@@ -788,3 +813,28 @@ Any setting can be provided as an environment variable with the `WARP_` prefix (
 | `OIDC_EXCLUDED_USERS`      | `[]`                 | Logins kept on local password auth           |
 | `OIDC_HTTPS_SCHEME`        | `https`              | Scheme used for the redirect URI             |
 | `OIDC_USERINFO`            | `false`              | Also call the UserInfo endpoint and merge claims |
+
+### 27.5 Native SAML Settings (§1.6)
+
+| Setting                      | Default              | Description                                  |
+|------------------------------|----------------------|----------------------------------------------|
+| `AUTH_SAML`                  | unset                | Set to `true` to enable native SAML auth     |
+| `SAML_SP_ENTITY_ID`          | —                    | SP entity ID (issuer)                        |
+| `SAML_IDP_METADATA_URL`      | unset                | IdP metadata URL (auto-discovery)             |
+| `SAML_IDP_ENTITY_ID`         | unset                | Manual IdP entity ID                          |
+| `SAML_IDP_SSO_URL`           | unset                | Manual IdP SSO URL                            |
+| `SAML_IDP_SLO_URL`           | unset                | Manual IdP SLO URL                            |
+| `SAML_IDP_X509_CERT`         | unset                | IdP signing cert (supports `_FILE`)            |
+| `SAML_SP_X509_CERT`          | unset                | SP certificate (supports `_FILE`)              |
+| `SAML_SP_PRIVATE_KEY`        | unset                | SP private key (supports `_FILE`)              |
+| `SAML_NAMEID_FORMAT`        | `urn:oasis:…:unspecified` | Requested NameID format               |
+| `SAML_LOGIN_ATTRIBUTE`       | `""` (use NameID)   | Attribute used as the WARP login              |
+| `SAML_USER_NAME_ATTRIBUTE`   | `cn`                 | Attribute used as the display name            |
+| `SAML_GROUPS_ATTRIBUTE`      | `groups`             | Attribute holding the user's group list       |
+| `SAML_GROUP_MAP`             | `[[null, null]]`     | Same semantics as `LDAP_GROUP_MAP`             |
+| `SAML_GROUP_STRICT_MAPPING`   | `false`              | Same semantics as `LDAP_GROUP_STRICT_MAPPING`|
+| `SAML_EXCLUDED_USERS`        | `[]`                 | Logins kept on local password auth             |
+| `SAML_HTTPS_SCHEME`          | `https`              | Scheme used for SP endpoint URLs               |
+| `SAML_AUTHN_REQUESTS_SIGNED` | `false`              | Sign outgoing AuthnRequests                    |
+| `SAML_WANT_ASSERTIONS_SIGNED`| `true`               | Require signed assertions from the IdP        |
+| `SAML_WANT_MESSAGES_SIGNED`  | `false`              | Require signed SAML messages from the IdP     |

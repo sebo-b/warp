@@ -85,6 +85,19 @@ class DefaultSettings(object):
     OIDC_HTTPS_SCHEME = "https"
     OIDC_USERINFO = False
 
+    # SAML (native) defaults
+    SAML_NAMEID_FORMAT = "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified"
+    SAML_LOGIN_ATTRIBUTE = ""
+    SAML_USER_NAME_ATTRIBUTE = "cn"
+    SAML_GROUPS_ATTRIBUTE = "groups"
+    SAML_GROUP_MAP = [ [None,None] ]
+    SAML_GROUP_STRICT_MAPPING = False
+    SAML_EXCLUDED_USERS = []
+    SAML_HTTPS_SCHEME = "https"
+    SAML_AUTHN_REQUESTS_SIGNED = False
+    SAML_WANT_ASSERTIONS_SIGNED = True
+    SAML_WANT_MESSAGES_SIGNED = False
+
     ### LDAP variables to be configured
     # AUTH_LDAP = True
     # LDAP_SERVER_URL = "ldap://server:port"
@@ -99,6 +112,13 @@ class DefaultSettings(object):
     # OIDC_DISCOVERY_URL = "https://idp.example.org/.well-known/openid-configuration"
     # OIDC_CLIENT_ID = "warp"
     # OIDC_CLIENT_SECRET
+
+    ### SAML (native) variables to be configured
+    # AUTH_SAML = True
+    # SAML_SP_ENTITY_ID = "https://warp.example.org/saml/metadata"
+    # SAML_IDP_METADATA_URL = "https://idp.example.org/realms/warp/protocol/saml/descriptor"
+    # SAML_IDP_ENTITY_ID, SAML_IDP_SSO_URL, SAML_IDP_SLO_URL, SAML_IDP_X509_CERT
+    # SAML_SP_X509_CERT, SAML_SP_PRIVATE_KEY
 
     # these settings are available, but should not have default value
     # set them up in DevelopmentSettings or via environment
@@ -231,6 +251,30 @@ _ENV_SETTINGS = {
     "AUTH_MELLON":                _fmt_bool,
     "AUTH_AAD":                   _fmt_bool,
     "AUTH_OIDC":                  _fmt_bool,
+    # SAML (native)
+    "AUTH_SAML":                  _fmt_bool,
+    "SAML_SP_ENTITY_ID":          _fmt_str,
+    "SAML_IDP_METADATA_URL":      _fmt_str,
+    "SAML_IDP_ENTITY_ID":         _fmt_str,
+    "SAML_IDP_SSO_URL":           _fmt_str,
+    "SAML_IDP_SLO_URL":           _fmt_str,
+    "SAML_IDP_X509_CERT":        _fmt_str,
+    "SAML_IDP_X509_CERT_FILE":   _fmt_file,
+    "SAML_SP_X509_CERT":         _fmt_str,
+    "SAML_SP_X509_CERT_FILE":    _fmt_file,
+    "SAML_SP_PRIVATE_KEY":       _fmt_str,
+    "SAML_SP_PRIVATE_KEY_FILE":  _fmt_file,
+    "SAML_NAMEID_FORMAT":        _fmt_str,
+    "SAML_LOGIN_ATTRIBUTE":       _fmt_str,
+    "SAML_USER_NAME_ATTRIBUTE":   _fmt_str,
+    "SAML_GROUPS_ATTRIBUTE":      _fmt_str,
+    "SAML_GROUP_MAP":             _fmt_json(_GROUP_MAP),
+    "SAML_GROUP_STRICT_MAPPING":  _fmt_bool,
+    "SAML_EXCLUDED_USERS":        _fmt_json(_ARRAY_OF_STRINGS),
+    "SAML_HTTPS_SCHEME":          _fmt_str,
+    "SAML_AUTHN_REQUESTS_SIGNED":  _fmt_bool,
+    "SAML_WANT_ASSERTIONS_SIGNED": _fmt_bool,
+    "SAML_WANT_MESSAGES_SIGNED":  _fmt_bool,
     # LDAP
     "LDAP_SERVER_URL":            _fmt_str,
     "LDAP_AUTH_TYPE":             _fmt_str,

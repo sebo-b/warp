@@ -57,32 +57,11 @@ def oidcGetUserMetadata(claims):
         print("OIDC WARNING: login claim missing from ID token", file=sys.stderr, flush=True)
         return None
 
-    ret = {
-        'login':    login,
-        'userName': claims.get(name_claim, login),
-        'groups':   [],
-    }
-
+    userName = claims.get(name_claim, login)
     idpGroups = claims.get(groups_claim, []) or []
     groupMap = config.get('OIDC_GROUP_MAP', [[None, None]])
 
-    loginAllowed = False
-    for idpGroup, warpGroup in groupMap:
-        if idpGroup is None and warpGroup is None:
-            loginAllowed = True          # [null,null] => open access
-            continue
-        if idpGroup is None:
-            ret['groups'].append(warpGroup)   # unconditional group assignment
-            continue
-        if idpGroup in idpGroups:
-            loginAllowed = True
-            if warpGroup:
-                ret['groups'].append(warpGroup)
-
-    if not loginAllowed:
-        return None                      # no matching group and no [null,null] => deny
-
-    return ret
+    return warp.auth.buildUserMetadata(login, userName, idpGroups, groupMap)
 
 
 # ---------------------------------------------------------------------------
@@ -120,9 +99,11 @@ def login():
             # Delegate to local password auth for excluded users
             return warp.auth.login()
 
-        return flask.render_template('login.html', sso_enabled=True)
+        return flask.render_template('login.html', sso_enabled=True,
+                                       sso_start_url=flask.url_for('auth.oidc_start'))
 
-    return flask.render_template('login.html', sso_enabled=True)
+    return flask.render_template('login.html', sso_enabled=True,
+                                   sso_start_url=flask.url_for('auth.oidc_start'))
 
 
 @bp.route('/oidc/start')
