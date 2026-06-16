@@ -256,7 +256,8 @@ available; only one can be active at a time.
 | LDAP / Active Directory | `AUTH_LDAP=true`   | See [LDAP configuration](#ldap--active-directory).                    |
 | Azure Active Directory  | `AUTH_AAD=true`    | See [Azure AD configuration](#azure-active-directory-aad).            |
 | OpenID Connect (OIDC)   | `AUTH_OIDC=true`   | See [OIDC configuration](#openid-connect-oidc).                      |
-| SAML 2.0                | `AUTH_MELLON=true` | See [SAML configuration](#saml-20-via-apache-mod_auth_mellon).        |
+| SAML 2.0 (native)      | `AUTH_SAML=true`  | See [native SAML configuration](#saml-20-native).                     |
+| SAML 2.0 (legacy/Mellon)| `AUTH_MELLON=true` | See [SAML configuration](#saml-20-via-apache-mod_auth_mellon).        |
 
 All SSO providers support:
 
@@ -264,8 +265,8 @@ All SSO providers support:
 
 Additionally:
 
-- **Group mapping**: LDAP, Azure AD, and OIDC support mapping identity-provider groups to WARP groups (see [Group mapping](#ldap-group-mapping)). SAML/Mellon only has a single default group.
-- **Excluded users**: LDAP and OIDC allow specific logins to be kept on local password auth even when SSO is active. Azure AD and SAML do not support excluded users.
+- **Group mapping**: LDAP, Azure AD, OIDC, and native SAML support mapping identity-provider groups to WARP groups (see [Group mapping](#ldap-group-mapping)). SAML/Mellon only has a single default group.
+- **Excluded users**: LDAP, OIDC, and native SAML allow specific logins to be kept on local password auth even when SSO is active. Azure AD and SAML/Mellon do not support excluded users.
 
 ### Case-insensitive logins
 
@@ -749,10 +750,197 @@ WARP_OIDC_EXCLUDED_USERS="['admin']"
 
 ---
 
+## SAML 2.0 (native)
+
+Set `AUTH_SAML=true` and configure the SP entity ID and at least one IdP configuration
+method (metadata URL preferred, or manual endpoints + certificate). WARP uses
+`python3-saml` as a native SAML Service Provider — **no Apache reverse proxy is
+required**.
+
+Works with any SAML 2.0 identity provider: Keycloak, Authentik, Okta, Auth0,
+ADFS, Entra ID, Shibboleth, and others.
+
+Features: auto-provisioning, display name sync on every login, same group mapping
+model as LDAP/OIDC, excluded users, SP-initiated Single Logout (SLO), SP metadata
+endpoint, signed assertion / signed AuthnRequest support.
+
+### Configuration variables
+
+| variable:      | `AUTH_SAML`                                                       |
+| :------------- | :---------------------------------------------------------------- |
+| type:          | `boolean`                                                         |
+| default value: | `False`                                                           |
+| description:   | Set to `True` to enable native SAML 2.0 authentication.          |
+
+| variable:      | `SAML_SP_ENTITY_ID`                                                                            |
+| :------------- | :--------------------------------------------------------------------------------------------- |
+| type:          | `string`                                                                                       |
+| default value: | `None` (must be defined)                                                                       |
+| description:   | SP entity ID (issuer). Typically `https://<host>/saml/metadata`.                                |
+
+| variable:      | `SAML_IDP_METADATA_URL`                                                                                  |
+| :------------- | :-------------------------------------------------------------------------------------------------------|
+| type:          | `string`                                                                                                |
+| default value: | `None`                                                                                                  |
+| description:   | IdP metadata URL. WARP auto-loads the IdP entity ID, SSO URL, SLO URL, and signing certificate. Prefer this over manual configuration. |
+| example:       | Keycloak: `https://idp.example.org/realms/warp/protocol/saml/descriptor`                                 |
+
+| variable:      | `SAML_IDP_ENTITY_ID`                                            |
+| :------------- | :-------------------------------------------------------------- |
+| type:          | `string`                                                        |
+| default value: | `None`                                                          |
+| description:   | Manual IdP entity ID (when no metadata URL is available).       |
+
+| variable:      | `SAML_IDP_SSO_URL`                                              |
+| :------------- | :-------------------------------------------------------------- |
+| type:          | `string`                                                        |
+| default value: | `None`                                                          |
+| description:   | Manual IdP SSO (redirect) URL.                                  |
+
+| variable:      | `SAML_IDP_SLO_URL`                                              |
+| :------------- | :-------------------------------------------------------------- |
+| type:          | `string`                                                        |
+| default value: | `None`                                                          |
+| description:   | Manual IdP Single Logout URL.                                    |
+
+| variable:      | `SAML_IDP_X509_CERT`                                            |
+| :------------- | :-------------------------------------------------------------- |
+| type:          | `string`                                                        |
+| default value: | `None`                                                          |
+| description:   | IdP signing certificate (PEM body). Supports the `_FILE` convention. |
+
+| variable:      | `SAML_SP_X509_CERT`                                             |
+| :------------- | :-------------------------------------------------------------- |
+| type:          | `string`                                                        |
+| default value: | `None`                                                          |
+| description:   | SP certificate for signed AuthnRequests / metadata. Supports the `_FILE` convention. |
+
+| variable:      | `SAML_SP_PRIVATE_KEY`                                           |
+| :------------- | :-------------------------------------------------------------- |
+| type:          | `string`                                                        |
+| default value: | `None`                                                          |
+| description:   | SP private key (signing/decryption). Supports the `_FILE` convention. |
+
+| variable:      | `SAML_NAMEID_FORMAT`                                                                                                      |
+| :------------- | :------------------------------------------------------------------------------------------------------------------------ |
+| type:          | `string`                                                                                                                  |
+| default value: | `urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified`                                                                   |
+| description:   | Requested NameID format sent in the AuthnRequest. Change only if your IdP requires a specific format (e.g. `urn:oasis:names:tc:SAML:2.0:nameid-format:transient`). |
+
+| variable:      | `SAML_LOGIN_ATTRIBUTE`                                                                                                     |
+| :------------- | :-------------------------------------------------------------------------------------------------------------------------- |
+| type:          | `string`                                                                                                                    |
+| default value: | `""` (empty — use NameID)                                                                                                   |
+| description:   | SAML attribute used as the WARP login. When empty (the default), the assertion NameID is used instead.                      |
+
+| variable:      | `SAML_USER_NAME_ATTRIBUTE`                              |
+| :------------- | :------------------------------------------------------ |
+| type:          | `string`                                                |
+| default value: | `cn`                                                    |
+| description:   | SAML attribute used as the user's display name in WARP. |
+
+| variable:      | `SAML_GROUPS_ATTRIBUTE`                                                          |
+| :------------- | :------------------------------------------------------------------------------- |
+| type:          | `string`                                                                         |
+| default value: | `groups`                                                                         |
+| description:   | SAML attribute holding the user's group list. Some IdPs use `memberOf`.          |
+
+| variable:      | `SAML_GROUP_MAP`                                                                                                    |
+| :------------- | :----------------------------------------------------------------------------------------------------------------- |
+| type:          | `array` of `[string\|null, string\|null]` pairs                                                                      |
+| default value: | `[ [null, null] ]`                                                                                                  |
+| description:   | Maps SAML groups to WARP groups. Same semantics as [`LDAP_GROUP_MAP`](#ldap-group-mapping).                        |
+
+| variable:      | `SAML_GROUP_STRICT_MAPPING`                                                                                                             |
+| :------------- | :-------------------------------------------------------------------------------------------------------------------------------------- |
+| type:          | `boolean`                                                                                                                              |
+| default value: | `False`                                                                                                                                |
+| description:   | When `True`, removes WARP group memberships not matched by the group map on each login. Same semantics as `LDAP_GROUP_STRICT_MAPPING`. |
+
+| variable:      | `SAML_EXCLUDED_USERS`                                                                                                                       |
+| :------------- | :------------------------------------------------------------------------------------------------------------------------------------------ |
+| type:          | `array` of `string`                                                                                                                         |
+| default value: | `[]`                                                                                                                                         |
+| description:   | Logins that always authenticate against WARP's local password database, even when SAML is enabled. Useful for keeping a local admin account. |
+
+| variable:      | `SAML_HTTPS_SCHEME`                                                                                                                                                   |
+| :------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| type:          | `string`: `https` or `http`                                                                                                                                           |
+| default value: | `https`                                                                                                                                                               |
+| description:   | Scheme used when constructing SP endpoint URLs (ACS, SLS, metadata). Behind a reverse proxy that terminates TLS, keep `https` (the default) so the URLs match what is registered at the IdP. |
+
+| variable:      | `SAML_AUTHN_REQUESTS_SIGNED`                                                                    |
+| :------------- | :--------------------------------------------------------------------------------------------- |
+| type:          | `boolean`                                                                                       |
+| default value: | `False`                                                                                         |
+| description:   | When `True`, outgoing AuthnRequests are signed. Requires `SAML_SP_PRIVATE_KEY` and `SAML_SP_X509_CERT`. |
+
+| variable:      | `SAML_WANT_ASSERTIONS_SIGNED`                                                                                       |
+| :------------- | :------------------------------------------------------------------------------------------------------------------ |
+| type:          | `boolean`                                                                                                           |
+| default value: | `True`                                                                                                              |
+| description:   | Require signed assertions from the IdP. **Do not disable in production** unless your IdP cannot sign assertions.   |
+
+| variable:      | `SAML_WANT_MESSAGES_SIGNED`                                                                                         |
+| :------------- | :------------------------------------------------------------------------------------------------------------------ |
+| type:          | `boolean`                                                                                                           |
+| default value: | `False`                                                                                                             |
+| description:   | Require signed SAML messages (response-level signature) from the IdP.                                              |
+
+### SP endpoints
+
+Register the following endpoints at your IdP:
+
+| Endpoint       | URL                                        | Binding       |
+| --------------- | ------------------------------------------ | ------------- |
+| ACS (Assertion Consumer Service) | `https://<host>/saml/acs`  | HTTP-POST     |
+| SLS (Single Logout Service)       | `https://<host>/saml/sls`  | HTTP-Redirect |
+| SP metadata                      | `https://<host>/saml/metadata` | `GET` (browser)  |
+
+The `SAML_HTTPS_SCHEME` setting controls the scheme of these URLs. In production
+behind a reverse proxy, keep it as `https` (the default) even if WARP itself
+listens on `http`, because the proxy rewrites the scheme.
+
+You can also point your IdP to `https://<host>/saml/metadata` to auto-load the
+SP metadata XML (entity ID, ACS URL, SLS URL, SP certificate).
+
+### Secret `_FILE` convention
+
+Secrets can be supplied via files (for Docker/Podman secrets) instead of
+environment variables:
+
+```
+WARP_SAML_SP_PRIVATE_KEY_FILE=/run/secrets/saml_sp_private_key
+WARP_SAML_IDP_X509_CERT_FILE=/run/secrets/saml_idp_cert
+WARP_SAML_SP_X509_CERT_FILE=/run/secrets/saml_sp_cert
+```
+
+See [Secrets / `_FILE` convention](#secrets--_file-convention) for details.
+
+### Example configuration (Keycloak SAML)
+
+```sh
+WARP_AUTH_SAML="true"
+WARP_SAML_SP_ENTITY_ID="https://warp.example.org/saml/metadata"
+WARP_SAML_IDP_METADATA_URL="https://idp.example.org/realms/warp/protocol/saml/descriptor"
+WARP_SAML_SP_PRIVATE_KEY_FILE="/run/secrets/warp_saml_sp_private_key"
+WARP_SAML_GROUPS_ATTRIBUTE="groups"
+WARP_SAML_GROUP_MAP="[ ['warp-allowed', null], [null, 'Everyone'] ]"
+WARP_SAML_EXCLUDED_USERS="['admin']"
+```
+
+---
+
 ## SAML 2.0 via Apache mod_auth_mellon
 
+> **Note:** This is the **legacy** SAML backend. For new deployments, use
+> [native SAML (`AUTH_SAML=true`)](#saml-20-native) instead — it requires no
+> Apache reverse proxy and supports group mapping, excluded users, and
+> SP-initiated Single Logout.
+
 WARP supports SAML 2.0 via the Apache [mod_auth_mellon](https://github.com/latchset/mod_auth_mellon)
-module. Authentication and logout are handled entirely by the Apache reverse proxy; WARP reads
+module. This is the **legacy** backend; use [native SAML](#saml-20-native) for new deployments.
+Authentication and logout are handled entirely by the Apache reverse proxy; WARP reads
 the attributes set by Mellon in the request environment.
 
 Set `AUTH_MELLON=true` and deploy Apache with mod_auth_mellon in front of WARP. Mellon must pass
