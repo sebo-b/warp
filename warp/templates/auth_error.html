@@ -44,6 +44,8 @@
           <p class="TR">Authentication failed: no user claims received.</p>
         {% elif error == 'access_denied' %}
           <p class="TR">Access denied: you are not a member of an allowed group.</p>
+        {% elif error == 'invalid_response' %}
+          <p class="TR">Authentication failed: the SAML response was invalid.</p>
         {% elif result and result.get('error_description') %}
           <p>{{ result.get('error_description') }}</p>
         {% elif result and result.get('error') %}
