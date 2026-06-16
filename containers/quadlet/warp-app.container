@@ -40,5 +40,14 @@ Environment=WARP_LANGUAGE_FILE=i18n/en.js
 # Environment=WARP_OIDC_GROUP_MAP=[ ["warp-allowed", null], [null, "Everyone"] ]
 # Create the podman secret with: podman secret create warp-oidc-client-secret <file>
 
+# Native SAML 2.0 authentication — see CONFIGURATION.md
+# Environment=WARP_AUTH_SAML=true
+# Environment=WARP_SAML_SP_ENTITY_ID=https://warp.example.org/saml/metadata
+# Environment=WARP_SAML_IDP_METADATA_URL=https://idp.example.org/realms/warp/protocol/saml/descriptor
+# Secret=warp-saml-sp-private-key,type=env,target=WARP_SAML_SP_PRIVATE_KEY
+# Environment=WARP_SAML_GROUPS_ATTRIBUTE=groups
+# Environment=WARP_SAML_GROUP_MAP=[ ["warp-allowed", null], [null, "Everyone"] ]
+# Create the podman secret with: podman secret create warp-saml-sp-private-key <file>
+
 [Install]
 WantedBy=multi-user.target default.target

@@ -26,6 +26,12 @@ services:
       # WARP_OIDC_CLIENT_ID: 'warp'
       # WARP_OIDC_CLIENT_SECRET_FILE: /run/secrets/warp_oidc_client_secret
       # WARP_OIDC_GROUP_MAP: '[ ["warp-allowed", null], [null, "Everyone"] ]'
+      # Native SAML 2.0 — uncomment to enable, see CONFIGURATION.md
+      # WARP_AUTH_SAML: 'true'
+      # WARP_SAML_SP_ENTITY_ID: 'https://warp.example.org/saml/metadata'
+      # WARP_SAML_IDP_METADATA_URL: 'https://idp.example.org/realms/warp/protocol/saml/descriptor'
+      # WARP_SAML_SP_PRIVATE_KEY_FILE: /run/secrets/warp_saml_sp_private_key
+      # WARP_SAML_GROUP_MAP: '[ ["warp-allowed", null], [null, "Everyone"] ]'
     secrets:
       - warp_db_password
       - warp_secret_key
@@ -45,3 +51,5 @@ secrets:
     file: ./secrets/secret_key.txt
   # warp_oidc_client_secret:
   #   file: ./secrets/oidc_client_secret.txt
+  # warp_saml_sp_private_key:
+  #   file: ./secrets/saml_sp_private_key.txt

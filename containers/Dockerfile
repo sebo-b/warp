@@ -1,6 +1,8 @@
 FROM alpine:latest AS builder
 
-RUN apk add nodejs npm python3 py3-pip
+RUN apk add nodejs npm python3 py3-pip \
+    # Build dependencies for python3-saml (xmlsec / lxml native extensions)
+    python3-dev build-base libxml2-dev xmlsec-dev libxslt-dev pkgconfig
 
 # WARP Python dependencies
 WORKDIR /warp
@@ -26,7 +28,9 @@ RUN pip wheel -w wheel --no-deps .
 FROM alpine:latest
 
 WORKDIR /warp
-RUN apk add python3 py3-pip uwsgi-python3
+RUN apk add python3 py3-pip uwsgi-python3 \
+    # Runtime libraries for python3-saml
+    libxml2 xmlsec libxslt
 
 RUN \
     --mount=type=bind,from=builder,source=/warp/wheel,target=./wheel \
