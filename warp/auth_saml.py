@@ -1,5 +1,6 @@
 import flask
 import sys
+import urllib.parse
 
 from warp.db import *
 import warp.auth
@@ -52,9 +53,12 @@ def _buildSamlSettings():
         global _idp_metadata_cache
         if _idp_metadata_cache is None:
             from onelogin.saml2.idp_metadata_parser import OneLogin_Saml2_IdPMetadataParser
+            # Validate the metadata server's TLS cert only when fetching over
+            # HTTPS (independent of SAML_HTTPS_SCHEME, which is about building
+            # external SP URLs behind a reverse proxy).
             _idp_metadata_cache = OneLogin_Saml2_IdPMetadataParser.parse_remote(
                 metadata_url,
-                validate_cert=(https_scheme == 'https'),
+                validate_cert=metadata_url.lower().startswith('https'),
             )
         if _idp_metadata_cache:
             idp_settings = _idp_metadata_cache.get('idp', {})
@@ -102,7 +106,6 @@ def _prepareFlaskRequest():
     config = flask.current_app.config
     https_scheme = config.get('SAML_HTTPS_SCHEME', 'https')
 
-    url_data = flask.request.url.split('?')
     return {
         'https': 'on' if https_scheme == 'https' else 'off',
         'http_host': flask.request.host,
@@ -117,6 +120,21 @@ def _prepareFlaskRequest():
 # ---------------------------------------------------------------------------
 # Attribute → metadata mapping
 # ---------------------------------------------------------------------------
+
+def _isSafeRedirect(target):
+    """Return True only for redirect targets that stay within this application.
+
+    Accepts a same-site relative path (``/foo``) or an absolute URL whose host
+    matches the current request host. Rejects scheme-relative (``//evil``),
+    backslash-obfuscated, and cross-origin targets to prevent open redirects.
+    """
+    if not target or '\\' in target:
+        return False
+    parsed = urllib.parse.urlparse(target)
+    if not parsed.scheme and not parsed.netloc:
+        return target.startswith('/') and not target.startswith('//')
+    return parsed.scheme in ('http', 'https') and parsed.netloc == flask.request.host
+
 
 def _firstAttr(attributes, name):
     """Extract the first value of a SAML attribute.
@@ -216,7 +234,11 @@ def saml_acs():
     req = _prepareFlaskRequest()
     auth = OneLogin_Saml2_Auth(req, _buildSamlSettings())
 
-    auth.process_response()
+    # Validate InResponseTo against the AuthnRequest we issued (SP-initiated).
+    # When request_id is None (unsolicited / IdP-initiated response) python3-saml
+    # skips the check, so IdP-initiated SSO still works.
+    request_id = flask.session.pop('saml_request_id', None)
+    auth.process_response(request_id=request_id)
     errors = auth.get_errors()
 
     if errors or not auth.is_authenticated():
@@ -253,9 +275,11 @@ def saml_acs():
     if session_index:
         flask.session['saml_session_index'] = session_index
 
-    # RelayState from the IdP (or redirect to the app root)
+    # RelayState from the IdP (or redirect to the app root). Only honour it when
+    # it points back to this application — never redirect to an attacker-supplied
+    # external URL (open-redirect / phishing defence).
     relay_state = flask.request.form.get('RelayState')
-    if relay_state:
+    if relay_state and _isSafeRedirect(relay_state):
         return flask.redirect(relay_state)
 
     return flask.redirect(app_root_uri)
@@ -292,6 +316,10 @@ def saml_sls():
 
     # process_slo handles both logout request and response
     auth.process_slo(delete_session_cb=lambda: flask.session.clear())
+    errors = auth.get_errors()
+    if errors:
+        print(f"SAML WARNING: SLO error: {', '.join(errors)}",
+              file=sys.stderr, flush=True)
 
     flask.session.clear()
     return flask.redirect(flask.url_for('auth.login'))
@@ -311,7 +339,12 @@ def _start_saml_flow():
 
     return_to = flask.url_for('view.index', _external=True,
                               _scheme=config.get('SAML_HTTPS_SCHEME', 'https'))
-    return flask.redirect(auth.login(return_to=return_to))
+    redirect_url = auth.login(return_to=return_to)
+
+    # Remember the AuthnRequest ID so the ACS can validate InResponseTo.
+    flask.session['saml_request_id'] = auth.get_last_request_id()
+
+    return flask.redirect(redirect_url)
 
 
 # ---------------------------------------------------------------------------
