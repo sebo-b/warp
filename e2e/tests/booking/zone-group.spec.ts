@@ -13,7 +13,7 @@
 
 import { test, expect } from '../../fixtures';
 import { logIn } from '../../helpers/auth';
-import { ADMIN, USER1 } from '../../helpers/users';
+import { ADMIN, USER1, USER2 } from '../../helpers/users';
 import { querySql } from '../../helpers/db';
 import { adminPost } from '../../helpers/admin';
 import {
@@ -286,6 +286,269 @@ test.describe('zone group constraint (non-null zone_group)', () => {
 
     const cnt = await querySql('SELECT COUNT(*)::int AS c FROM book WHERE login = $1', [USER1.login]);
     expect(cnt.rows[0].c).toBe(2);
+  });
+
+  test('UI: seat shows rebook icon when same-group booking exists on another plan', async ({ page }) => {
+    const ts = futureDayTs(1);
+    const zone1Seat = (await getZoneSeats(1))[0];
+    const zone2Seat = (await getZoneSeats(2))[0];
+
+    // Both zones in the same group
+    await querySql("UPDATE zone SET zone_group = 'floor-1' WHERE id IN (1, 2)");
+
+    // Give user1 access to Zone 1B
+    await logIn(page, ADMIN);
+    await adminPost(page, '/xhr/zones/assign', { zid: 2, change: [{ login: USER1.login, role: 20 }] });
+
+    // Book Zone 1A on plan 1
+    await logIn(page, USER1);
+    await bookSeatUI(page, 1, zone1Seat, [ts]);
+
+    // Navigate to plan 2 (Zone 1B) — seat should show rebook, not plain book
+    await page.goto('/plan/2');
+    await waitForSeatsLoaded(page);
+    await selectOnlyDates(page, [ts]);
+    await page.waitForTimeout(400);
+    await clickZoneSeat(page, zone2Seat);
+    await expect(page.locator('#action_modal')).toHaveClass(/open/);
+    // Same zone_group → action should be "update" (rebook), not just "book"
+    await expect(page.locator('.zone_action_btn[data-action="update"]')).toBeVisible();
+
+    // Confirming the rebook should move the booking from Zone 1A to Zone 1B
+    await clickActionBtn(page, 'update');
+    const rows = await querySql('SELECT sid FROM book WHERE login = $1', [USER1.login]);
+    expect(rows.rowCount).toBe(1);
+    expect(Number(rows.rows[0].sid)).toBe(zone2Seat.id);
+  });
+
+  test('UI: same-plan seat shows rebook icon when same-group booking exists', async ({ page }) => {
+    const ts = futureDayTs(1);
+    const zone1Seat = (await getZoneSeats(1))[0];
+    const zone2Seat = (await getZoneSeats(2))[0];
+
+    // Both zones in the same group
+    await querySql("UPDATE zone SET zone_group = 'floor-1' WHERE id IN (1, 2)");
+
+    // Move zone2Seat onto plan 1 to create a mixed-zone plan
+    await querySql('UPDATE seat SET pid = 1 WHERE id = $1', [zone2Seat.id]);
+
+    // Give user1 access to Zone 1B
+    await logIn(page, ADMIN);
+    await adminPost(page, '/xhr/zones/assign', { zid: 2, change: [{ login: USER1.login, role: 20 }] });
+
+    // Book Zone 1A on plan 1
+    await logIn(page, USER1);
+    await bookSeatUI(page, 1, zone1Seat, [ts]);
+
+    // On the same plan, Zone 1B's seat should show rebook (not plain book)
+    await page.goto('/plan/1');
+    await waitForSeatsLoaded(page);
+    await selectOnlyDates(page, [ts]);
+    await page.waitForTimeout(400);
+    await clickZoneSeat(page, zone2Seat);
+    await expect(page.locator('#action_modal')).toHaveClass(/open/);
+    await expect(page.locator('.zone_action_btn[data-action="update"]')).toBeVisible();
+
+    // Confirming should move the booking
+    await clickActionBtn(page, 'update');
+    const rows = await querySql('SELECT sid FROM book WHERE login = $1', [USER1.login]);
+    expect(rows.rowCount).toBe(1);
+    expect(Number(rows.rows[0].sid)).toBe(zone2Seat.id);
+  });
+
+  test('UI: book-as shows rebook icon when target has same-group booking on another plan', async ({ page }) => {
+    const ts = futureDayTs(1);
+    const zone1Seat = (await getZoneSeats(1))[0];
+    const zone2Seat = (await getZoneSeats(2))[0];
+    const fromTS = ts + 9 * 3600;
+    const toTS = ts + 17 * 3600;
+
+    // Both zones in the same group
+    await querySql("UPDATE zone SET zone_group = 'floor-1' WHERE id IN (1, 2)");
+
+    // user2 has access to both zones; user1 is admin of zone 1A and zone 1B
+    await logIn(page, ADMIN);
+    await adminPost(page, '/xhr/zones/assign', { zid: 2, change: [{ login: USER2.login, role: 20 }] });
+    await adminPost(page, '/xhr/zones/assign', { zid: 2, change: [{ login: USER1.login, role: 10 }] });
+
+    // user2 books Zone 1A on plan 1
+    await logIn(page, USER2);
+    await apiApply(page, { book: { sid: zone1Seat.id, dates: [{ fromTS, toTS }] } });
+
+    // user1 (admin of zone 1B) opens plan 2 and book-as user2
+    await logIn(page, USER1);
+    await page.goto('/plan/2');
+    await waitForSeatsLoaded(page);
+    await selectOnlyDates(page, [ts]);
+    await page.waitForTimeout(400);
+
+    // Activate book-as for user2
+    const bookAsInput = page.locator('#book-as');
+    await bookAsInput.click();
+    await bookAsInput.pressSequentially('Bar', { delay: 50 });
+    const item = page.locator('ul.autocomplete-content li', { hasText: 'Bar [user2]' });
+    await expect(item).toBeVisible({ timeout: 5000 });
+    await item.click();
+    await page.waitForTimeout(400);
+
+    // Click Zone 1B's seat — should show "update" (rebook) because user2
+    // already has a same-group booking on plan 1
+    await clickZoneSeat(page, zone2Seat);
+    await expect(page.locator('#action_modal')).toHaveClass(/open/);
+    await expect(page.locator('.zone_action_btn[data-action="update"]')).toBeVisible();
+    // Plain "book" should NOT be shown (only "update" for CAN_REBOOK)
+    await expect(page.locator('.zone_action_btn[data-action="book"]')).not.toBeVisible();
+  });
+
+  test('UI: seat shows rebook icon when same-group booking exists on a disabled seat', async ({ page }) => {
+    const ts = futureDayTs(1);
+    const zone1Seat = (await getZoneSeats(1))[0];
+    const zone2Seat = (await getZoneSeats(2))[0];
+
+    // Both zones in the same group
+    await querySql("UPDATE zone SET zone_group = 'floor-1' WHERE id IN (1, 2)");
+
+    // Move zone2Seat onto plan 1 so both seats are on the same plan
+    await querySql('UPDATE seat SET pid = 1 WHERE id = $1', [zone2Seat.id]);
+
+    // Give user2 (not admin) access to both zones. Using a non-admin is
+    // important: admins can see disabled seats, so the booking is already
+    // in res['seats'] and picked up by the bookQuery. For non-admins the
+    // disabled seat is invisible and only the conflictBookQuery can surface it.
+    await logIn(page, ADMIN);
+    await adminPost(page, '/xhr/zones/assign', { zid: 1, change: [{ login: USER2.login, role: 20 }] });
+    await adminPost(page, '/xhr/zones/assign', { zid: 2, change: [{ login: USER2.login, role: 20 }] });
+
+    // user2 books Zone 1A on plan 1
+    await logIn(page, USER2);
+    const fromTS = ts + 9 * 3600;
+    const toTS = ts + 17 * 3600;
+    await apiApply(page, { book: { sid: zone1Seat.id, dates: [{ fromTS, toTS }] } });
+
+    // Disable the Zone 1A seat — it disappears from the map for non-admins,
+    // but the booking still exists and the zone-group conflict should still
+    // be detected for Zone 1B's seat.
+    await querySql('UPDATE seat SET enabled = false WHERE id = $1', [zone1Seat.id]);
+
+    // Reload the plan — Zone 1B's seat should show rebook for user2
+    await page.goto('/plan/1');
+    await waitForSeatsLoaded(page);
+    await selectOnlyDates(page, [ts]);
+    await page.waitForTimeout(400);
+    await clickZoneSeat(page, zone2Seat);
+    await expect(page.locator('#action_modal')).toHaveClass(/open/);
+    await expect(page.locator('.zone_action_btn[data-action="update"]')).toBeVisible();
+  });
+
+  test('UI: three zones in same group across two plans — all detect conflict', async ({ page }) => {
+    const ts = futureDayTs(1);
+    const zone1Seat = (await getZoneSeats(1))[0];
+    const zone2Seat = (await getZoneSeats(2))[0];
+    const zone3Seat = (await getZoneSeats(3))[0];
+    const fromTS = ts + 9 * 3600;
+    const toTS = ts + 17 * 3600;
+
+    // Put all three zones in the same group
+    await querySql("UPDATE zone SET zone_group = 'all-same' WHERE id IN (1, 2, 3)");
+
+    // Give user1 access to Zone 1B and Parking
+    await logIn(page, ADMIN);
+    await adminPost(page, '/xhr/zones/assign', { zid: 2, change: [{ login: USER1.login, role: 20 }] });
+    await adminPost(page, '/xhr/zones/assign', { zid: 3, change: [{ login: USER1.login, role: 20 }] });
+
+    // Book Zone 1A on plan 1
+    await logIn(page, USER1);
+    await bookSeatUI(page, 1, zone1Seat, [ts]);
+
+    // Plan 2 (Zone 1B): should show rebook
+    await page.goto('/plan/2');
+    await waitForSeatsLoaded(page);
+    await selectOnlyDates(page, [ts]);
+    await page.waitForTimeout(400);
+    await clickZoneSeat(page, zone2Seat);
+    await expect(page.locator('#action_modal')).toHaveClass(/open/);
+    await expect(page.locator('.zone_action_btn[data-action="update"]')).toBeVisible();
+    // Dismiss modal (Escape closes Materialize modals)
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(200);
+
+    // Plan 3 (Parking): should also show rebook
+    await page.goto('/plan/3');
+    await waitForSeatsLoaded(page);
+    await selectOnlyDates(page, [ts]);
+    await page.waitForTimeout(400);
+    await clickZoneSeat(page, zone3Seat);
+    await expect(page.locator('#action_modal')).toHaveClass(/open/);
+    await expect(page.locator('.zone_action_btn[data-action="update"]')).toBeVisible();
+  });
+
+  test('UI: no conflict when booking exists in a different zone group on another plan', async ({ page }) => {
+    const ts = futureDayTs(1);
+    const zone1Seat = (await getZoneSeats(1))[0];
+    const zone2Seat = (await getZoneSeats(2))[0];
+
+    // Zone 1A in group-a, Zone 1B in group-b — different groups
+    await querySql("UPDATE zone SET zone_group = 'group-a' WHERE id = 1");
+    await querySql("UPDATE zone SET zone_group = 'group-b' WHERE id = 2");
+
+    // Give user1 access to Zone 1B
+    await logIn(page, ADMIN);
+    await adminPost(page, '/xhr/zones/assign', { zid: 2, change: [{ login: USER1.login, role: 20 }] });
+
+    // Book Zone 1A on plan 1
+    await logIn(page, USER1);
+    await bookSeatUI(page, 1, zone1Seat, [ts]);
+
+    // Navigate to plan 2 — Zone 1B is in a DIFFERENT group, so it should
+    // show "book" (no conflict), not "update"
+    await page.goto('/plan/2');
+    await waitForSeatsLoaded(page);
+    await selectOnlyDates(page, [ts]);
+    await page.waitForTimeout(400);
+    await clickZoneSeat(page, zone2Seat);
+    await expect(page.locator('#action_modal')).toHaveClass(/open/);
+    await expect(page.locator('.zone_action_btn[data-action="book"]')).toBeVisible();
+    await expect(page.locator('.zone_action_btn[data-action="update"]')).not.toBeVisible();
+  });
+
+  test('UI: inaccessible same-plan zone with same group still shows rebook', async ({ page }) => {
+    const ts = futureDayTs(1);
+    const zone2Seat = (await getZoneSeats(2))[0];
+
+    // Both zones in the same group
+    await querySql("UPDATE zone SET zone_group = 'floor-1' WHERE id IN (1, 2)");
+
+    // Move zone2Seat onto plan 1 — both zones on the same plan
+    await querySql('UPDATE seat SET pid = 1 WHERE id = $1', [zone2Seat.id]);
+
+    // Do NOT give user1 access to Zone 1B (it becomes an inaccessible zone).
+    // user1 only has access to Zone 1A (admin).
+
+    // Put the user's booking on the INACCESSIBLE zone (Zone 1B). user1 cannot
+    // book it through the UI, so insert it directly. The seat is on this plan
+    // but in a zone user1 can't see — only conflictBookQuery can surface it.
+    const fromTS = ts + 9 * 3600;
+    const toTS = ts + 17 * 3600;
+    await querySql(
+      'INSERT INTO book (login, sid, fromts, tots) VALUES ($1, $2, $3, $4)',
+      [USER1.login, zone2Seat.id, fromTS, toTS]);
+
+    // A different, UNBOOKED, accessible Zone 1A seat. Without the fix this
+    // shows CAN_BOOK (plain "book"); with the fix the same-group conflict from
+    // the inaccessible Zone 1B booking makes it CAN_REBOOK ("update").
+    const otherZone1Seat = (await getZoneSeats(1))[1];
+
+    await logIn(page, USER1);
+    await page.goto('/plan/1');
+    await waitForSeatsLoaded(page);
+    await selectOnlyDates(page, [ts]);
+    await page.waitForTimeout(400);
+
+    await clickZoneSeat(page, otherZone1Seat);
+    await expect(page.locator('#action_modal')).toHaveClass(/open/);
+    // Same-group conflict on an inaccessible seat → rebook, not plain book
+    await expect(page.locator('.zone_action_btn[data-action="update"]')).toBeVisible();
+    await expect(page.locator('.zone_action_btn[data-action="book"]')).not.toBeVisible();
   });
 
 });

@@ -80,7 +80,6 @@ def getSeats(pid):
         return {"msg": "Forbidden", "code": 130}, 403
 
     accessible_zids = set(effective_roles.keys())
-    inaccessible_zids = all_plan_zids - accessible_zids
     is_plan_admin = any(r <= ZONE_ROLE_ADMIN for r in effective_roles.values())
 
     if 'login' in flask.request.args or 'onlyOtherZone' in flask.request.args:
@@ -172,18 +171,39 @@ def getSeats(pid):
             })
             usedUsers.add(b[1])
 
-    # Conflict bookings: user's bookings in inaccessible zones of the same plan
+    # Conflict bookings: the user's bookings that share an exclusivity scope
+    # with a zone on this plan but are not already visible above. The scope
+    # mirrors book_overlap_insert: a named zone_group spans every zone in that
+    # group (across plans), an ungrouped zone is exclusive only to itself.
+    # Returning these lets the frontend flag CAN_REBOOK instead of CAN_BOOK for
+    # inaccessible same-plan zones AND for same-group zones on other plans.
+    # We scan all_plan_zids (not usedZids) so it also works under
+    # onlyOtherZone=1, where usedZids only covers inaccessible zones.
     login = flask.request.args.get('login', flask.g.login)
 
-    if inaccessible_zids:
-        otherBookQuery = Book.select(Book.sid, Seat.name, Seat.zid, Book.id, Book.fromts, Book.tots) \
+    conflict_zids = set()
+    plan_zone_groups = set()
+    for z in Zone.select(Zone.id, Zone.zone_group).where(Zone.id.in_(list(all_plan_zids))).iterator():
+        if z['zone_group'] is None:
+            conflict_zids.add(z['id'])          # ungrouped: exclusive to itself
+        else:
+            plan_zone_groups.add(z['zone_group'])
+
+    if plan_zone_groups:
+        for z in Zone.select(Zone.id).where(Zone.zone_group.in_(list(plan_zone_groups))).iterator():
+            conflict_zids.add(z['id'])          # grouped: every zone in the group
+
+    if conflict_zids:
+        already_present_sids = [int(sid) for sid in res['seats']]
+        conflictBookQuery = Book.select(Book.sid, Seat.name, Seat.zid, Book.id, Book.fromts, Book.tots) \
             .join(Seat, on=(Book.sid == Seat.id)) \
-            .where(Seat.pid == pid) \
-            .where(Seat.zid.in_(list(inaccessible_zids))) \
+            .where(Seat.zid.in_(list(conflict_zids))) \
             .where(Book.login == login) \
+            .where((Book.fromts < tr['toTS']) & (Book.tots > tr['fromTS'])) \
+            .where(Seat.id.not_in(already_present_sids)) \
             .order_by(Book.fromts).tuples()
 
-        for b in otherBookQuery.iterator():
+        for b in conflictBookQuery.iterator():
             sid = str(b[0])
             if sid not in res['seats']:
                 res['seats'][sid] = {
