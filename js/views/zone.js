@@ -901,13 +901,15 @@ function initBookAs(seatFactory) {
 
     BookAs.getInstance().on('change', function(newLogin) {
 
-        var url = window.warpGlobals.URLs['getSeat'] + "?onlyOtherZone=1&login=" + newLogin;
-        Utils.xhr.get(url,{toastOnSuccess: false})
-        .then( function(v) {
-            seatFactory.updateLogin(newLogin, v.response);
-            seatFactory.updateAllStates( getSelectedDates());
-
-        });
+        // Full refresh under the new acting login. downloadSeatData adds
+        // ?login= when newLogin differs from our own, so the server returns a
+        // self-consistent view: accessible seats (admin's access, target's
+        // bookable) plus the target's conflict bookings in inaccessible
+        // same-group zones. A partial onlyOtherZone update is unsafe — it could
+        // return a booking in an *accessible* same-group zone and overwrite that
+        // seat's live instance with a div-less ghost.
+        seatFactory.setLogin(newLogin);
+        downloadSeatData(seatFactory);
     })
 
 }

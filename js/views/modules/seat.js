@@ -119,6 +119,15 @@ WarpSeatFactory.prototype.getLogin = function() {
     return this.login;
 }
 
+// Switch the "acting" login (book-as). Callers must follow this with a full
+// downloadSeatData()/setSeatsData() refresh so every seat — accessible and
+// conflict — is rebuilt consistently for the new login. (The old partial
+// onlyOtherZone path is gone: it overwrote accessible seats that happened to
+// share a conflict zone-group with a div-less ghost, orphaning their sprite.)
+WarpSeatFactory.prototype.setLogin = function(login) {
+    this.login = login;
+}
+
 /**
  * @param {Object[]} selectedDates - list of selected dates [ {from: timestamp, to: timestamp}, ... ]
  */
@@ -178,30 +187,6 @@ WarpSeatFactory.prototype.setSeatsData = function(seatsData = {}) {
         l.call(this);
     }
 };
-
-// NOTE: seatsData is not cloned
-// you have to call updateAllStates after this method
-WarpSeatFactory.prototype.updateLogin = function(login, seatsData) {
-
-    //delete all other zones seats
-    for (let sid in this.instances) {
-        if (this.instances[sid].isOtherZone()) {
-            this.instances[sid]._destroy();
-            delete this.instances[sid]; //according to the spec it is safe to delete property during iteration
-        }
-    }
-
-    this.login = login;
-
-    // Partial (onlyOtherZone) response — merge so accessible-zone groups survive.
-    Object.assign(this.zoneGroups, seatsData.zoneGroups || {});
-
-    //create new seats (all in other zone)
-    for (var sid in seatsData.seats) {
-        var s = new WarpSeat(sid,seatsData.seats[sid],seatsData.zones,seatsData.users,this);
-        this.instances[sid] = s;
-    }
-}
 
 /**
  * Returns the list of my bookings that conflict with the given seat's booking,
@@ -634,9 +619,8 @@ WarpSeat.prototype._setData = function(seatData,usersNames) {
         this.enabled = true;
         this.bookable = false;
         this.assignments = {}
-        for (let b in this.book) {
-            this.book[b].login = this.factory.login;
-        }
+        // book[].login comes from the server (getSeats conflict query selects it);
+        // no client-side back-fill from factory.login is needed.
     }
     else {
         this.enabled = ('enabled' in seatData)? seatData.enabled: true;
