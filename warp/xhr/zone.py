@@ -26,10 +26,13 @@ bp = flask.Blueprint('zone', __name__, url_prefix='zone')
 #       }
 #   }
 #
-# bookable: true if the user's effective role for this seat's zone is ≤ ZONE_ROLE_USER
-#           (i.e. the user can actually book the seat). False for VIEWER-only access
-#           or for seats in DISABLED zones (even if the user is admin there — disabled
-#           zones are fully locked down and should not allow booking from the UI).
+# bookable: true if the relevant user's effective role for this seat's zone is
+#           ≤ ZONE_ROLE_USER (i.e. they can actually book the seat). False for
+#           VIEWER-only access or for seats in DISABLED zones (even if admin there
+#           — disabled zones are fully locked down and should not allow booking
+#           from the UI). The "relevant user" is normally the authenticated user,
+#           but under book-as (?login=target) it is the target user, so the UI
+#           only offers seats apply()/autoBook would actually let them book.
 #
 # Optional query args:
 #   login=string       – use this login for conflict bookings (requires plan admin)
@@ -105,6 +108,27 @@ def getSeats(pid):
                 if loginInPlan is None:
                     return {"msg": "Forbidden", "code": 132}, 403
 
+    # Whose booking permission decides `bookable`. Normally the authenticated
+    # user. Under book-as (?login=target) the admin views the plan through the
+    # target's eyes, so `bookable` must reflect whether *target* can book each
+    # seat — otherwise seats the target can't book (e.g. VIEWER-only zones) would
+    # look bookable yet apply()/autoBook would reject them (code 104). Visibility
+    # of seats still follows the admin's (effective_roles) access.
+    bookable_roles = effective_roles
+    targetLogin = flask.request.args.get('login')
+    if targetLogin is not None and targetLogin != flask.g.login:
+        target_specific = {}
+        if accessible_zids:
+            for row in UserToZoneRoles.select(UserToZoneRoles.zid, UserToZoneRoles.zone_role) \
+                                      .where(UserToZoneRoles.zid.in_(list(accessible_zids))) \
+                                      .where(UserToZoneRoles.login == targetLogin) \
+                                      .iterator():
+                target_specific[row['zid']] = row['zone_role']
+        bookable_roles = {
+            zid: effectiveZoneRole(zone_type_map[zid], target_specific.get(zid))
+            for zid in accessible_zids
+        }
+
     tr = utils.getTimeRange()
     usedZids = set()
     usedUsers = set()
@@ -137,13 +161,14 @@ def getSeats(pid):
             if not s['enabled'] and zone_role > ZONE_ROLE_ADMIN:
                 continue
 
+            book_role = bookable_roles.get(zid)
             seatD = {
                 "name": s['name'],
                 "x": s['x'],
                 "y": s['y'],
                 "zid": zid,
                 "enabled": s['enabled'] != 0,
-                "bookable": zone_role <= ZONE_ROLE_USER and zone_type_map[zid] != ZONE_TYPE_DISABLED,
+                "bookable": book_role is not None and book_role <= ZONE_ROLE_USER and zone_type_map[zid] != ZONE_TYPE_DISABLED,
                 "book": []
             }
             if s['id'] in assignments:
