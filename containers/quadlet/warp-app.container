@@ -44,9 +44,16 @@ Environment=WARP_LANGUAGE_FILE=i18n/en.js
 # Environment=WARP_AUTH_SAML=true
 # Environment=WARP_SAML_SP_ENTITY_ID=https://warp.example.org/saml/metadata
 # Environment=WARP_SAML_IDP_METADATA_URL=https://idp.example.org/realms/warp/protocol/saml/descriptor
+# Or, for IdPs that only offer a downloadable metadata file (e.g. Okta):
+# Environment=WARP_SAML_IDP_METADATA_FILE=/etc/warp/idp-metadata.xml
 # Secret=warp-saml-sp-private-key,type=env,target=WARP_SAML_SP_PRIVATE_KEY
 # Environment=WARP_SAML_GROUPS_ATTRIBUTE=groups
 # Environment=WARP_SAML_GROUP_MAP=[ ["warp-allowed", null], [null, "Everyone"] ]
+# Optional: custom SP endpoint base path (default /saml)
+# Environment=WARP_SAML_ENDPOINT_PATH=/saml
+# Required for the IdP→ACS cross-site POST (SameSite=None needs Secure/HTTPS):
+# Environment=WARP_SESSION_COOKIE_SAMESITE=None
+# Environment=WARP_SESSION_COOKIE_SECURE=true
 # Create the podman secret with: podman secret create warp-saml-sp-private-key <file>
 
 [Install]

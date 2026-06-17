@@ -30,8 +30,15 @@ services:
       # WARP_AUTH_SAML: 'true'
       # WARP_SAML_SP_ENTITY_ID: 'https://warp.example.org/saml/metadata'
       # WARP_SAML_IDP_METADATA_URL: 'https://idp.example.org/realms/warp/protocol/saml/descriptor'
+      # # Or a downloadable IdP metadata file (e.g. Okta):
+      # WARP_SAML_IDP_METADATA_FILE: /etc/warp/idp-metadata.xml
       # WARP_SAML_SP_PRIVATE_KEY_FILE: /run/secrets/warp_saml_sp_private_key
       # WARP_SAML_GROUP_MAP: '[ ["warp-allowed", null], [null, "Everyone"] ]'
+      # # Optional custom SP endpoint base path (default /saml):
+      # WARP_SAML_ENDPOINT_PATH: /saml
+      # # Required for the IdP→ACS cross-site POST (SameSite=None needs Secure/HTTPS):
+      # WARP_SESSION_COOKIE_SAMESITE: 'None'
+      # WARP_SESSION_COOKIE_SECURE: 'true'
     secrets:
       - warp_db_password
       - warp_secret_key

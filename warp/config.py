@@ -97,6 +97,7 @@ class DefaultSettings(object):
     SAML_AUTHN_REQUESTS_SIGNED = False
     SAML_WANT_ASSERTIONS_SIGNED = True
     SAML_WANT_MESSAGES_SIGNED = False
+    SAML_ENDPOINT_PATH = "/saml"
 
     ### LDAP variables to be configured
     # AUTH_LDAP = True
@@ -117,8 +118,10 @@ class DefaultSettings(object):
     # AUTH_SAML = True
     # SAML_SP_ENTITY_ID = "https://warp.example.org/saml/metadata"
     # SAML_IDP_METADATA_URL = "https://idp.example.org/realms/warp/protocol/saml/descriptor"
+    # SAML_IDP_METADATA_FILE = "/etc/warp/idp-metadata.xml"  (local file alternative to the URL)
     # SAML_IDP_ENTITY_ID, SAML_IDP_SSO_URL, SAML_IDP_SLO_URL, SAML_IDP_X509_CERT
     # SAML_SP_X509_CERT, SAML_SP_PRIVATE_KEY
+    # SAML_ENDPOINT_PATH (defaults to /saml; SP endpoints live under it)
 
     # these settings are available, but should not have default value
     # set them up in DevelopmentSettings or via environment
@@ -235,6 +238,9 @@ _ENV_SETTINGS = {
     "MAX_REPORT_ROWS":            _fmt_int,
     "MIN_PASSWORD_LENGTH":        _fmt_int,
     "LOGIN_IGNORECASE":           _fmt_bool,
+    # session cookie (Flask-native; relevant to SAML POST binding, see CONFIGURATION.md)
+    "SESSION_COOKIE_SAMESITE":    _fmt_str,
+    "SESSION_COOKIE_SECURE":      _fmt_bool,
     # database
     "DATABASE_ADDRESS":           _fmt_str,
     "DATABASE_NAME":              _fmt_str,
@@ -253,8 +259,11 @@ _ENV_SETTINGS = {
     "AUTH_OIDC":                  _fmt_bool,
     # SAML (native)
     "AUTH_SAML":                  _fmt_bool,
+    "SAML_ENDPOINT_PATH":         _fmt_str,
     "SAML_SP_ENTITY_ID":          _fmt_str,
     "SAML_IDP_METADATA_URL":      _fmt_str,
+    "SAML_IDP_METADATA":          _fmt_str,
+    "SAML_IDP_METADATA_FILE":     _fmt_file,
     "SAML_IDP_ENTITY_ID":         _fmt_str,
     "SAML_IDP_SSO_URL":           _fmt_str,
     "SAML_IDP_SLO_URL":           _fmt_str,

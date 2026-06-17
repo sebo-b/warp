@@ -778,12 +778,30 @@ endpoint, signed assertion / signed AuthnRequest support.
 | default value: | `None` (must be defined)                                                                       |
 | description:   | SP entity ID (issuer). Typically `https://<host>/saml/metadata`.                                |
 
+| variable:      | `SAML_ENDPOINT_PATH`                                                                                       |
+| :------------- | :-------------------------------------------------------------------------------------------------------- |
+| type:          | `string`                                                                                                  |
+| default value: | `/saml`                                                                                                   |
+| description:   | Base path under which the SP endpoints are mounted (ACS `<path>/acs`, SLS `<path>/sls`, metadata `<path>/metadata`, SSO-start `<path>/login`). Equivalent to Mellon's `MellonEndpointPath`. `/login` and `/logout` always stay at the root. |
+
 | variable:      | `SAML_IDP_METADATA_URL`                                                                                  |
 | :------------- | :-------------------------------------------------------------------------------------------------------|
 | type:          | `string`                                                                                                |
 | default value: | `None`                                                                                                  |
 | description:   | IdP metadata URL. WARP auto-loads the IdP entity ID, SSO URL, SLO URL, and signing certificate. Prefer this over manual configuration. |
 | example:       | Keycloak: `https://idp.example.org/realms/warp/protocol/saml/descriptor`                                 |
+
+| variable:      | `SAML_IDP_METADATA_FILE`                                                                                  |
+| :------------- | :-------------------------------------------------------------------------------------------------------- |
+| type:          | `string` (file path)                                                                                     |
+| default value: | `None`                                                                                                   |
+| description:   | Path to a local IdP metadata XML file — the same role as Mellon's `MellonIdPMetadataFile`. Use this when the IdP only offers a downloadable metadata file (e.g. Okta) or the WARP host has no egress to fetch `SAML_IDP_METADATA_URL`. The file contents are loaded into `SAML_IDP_METADATA` via the `_FILE` convention. Precedence: `SAML_IDP_METADATA_URL` > file/inline metadata > manual `SAML_IDP_*` fields. |
+
+| variable:      | `SAML_IDP_METADATA`                                                                                       |
+| :------------- | :-------------------------------------------------------------------------------------------------------- |
+| type:          | `string` (XML)                                                                                           |
+| default value: | `None`                                                                                                   |
+| description:   | IdP metadata XML provided inline (alternative to the file/URL). Usually set indirectly via `SAML_IDP_METADATA_FILE`. |
 
 | variable:      | `SAML_IDP_ENTITY_ID`                                            |
 | :------------- | :-------------------------------------------------------------- |
@@ -889,7 +907,8 @@ endpoint, signed assertion / signed AuthnRequest support.
 
 ### SP endpoints
 
-Register the following endpoints at your IdP:
+Register the following endpoints at your IdP (the `/saml` base path is
+[`SAML_ENDPOINT_PATH`](#configuration-variables-6), shown here at its default):
 
 | Endpoint       | URL                                        | Binding       |
 | --------------- | ------------------------------------------ | ------------- |
@@ -903,6 +922,41 @@ listens on `http`, because the proxy rewrites the scheme.
 
 You can also point your IdP to `https://<host>/saml/metadata` to auto-load the
 SP metadata XML (entity ID, ACS URL, SLS URL, SP certificate).
+
+### Session cookie and the SAML POST binding
+
+The IdP returns the assertion as a **cross-site POST** to the ACS endpoint, so
+the browser must include WARP's session cookie on that POST for RelayState and
+replay (`InResponseTo`) protection to work. Flask's default makes the cookie
+`SameSite=Lax`, which browsers do **not** send on cross-site POSTs. For SAML,
+set the cookie to `SameSite=None; Secure` — the native equivalent of Mellon's
+`MellonCookieSameSite none` / `MellonSecureCookie On`:
+
+```
+WARP_SESSION_COOKIE_SAMESITE=None
+WARP_SESSION_COOKIE_SECURE=true
+```
+
+`SameSite=None` **requires** `Secure`, so WARP must be served over HTTPS. If you
+leave the default `Lax`, SSO still works but falls back to the unsolicited path
+(no `InResponseTo` validation, unreliable RelayState).
+
+### Migrating from `mod_auth_mellon`
+
+| Mellon directive            | Native SAML setting |
+| --------------------------- | ------------------- |
+| `MellonEnable auth`         | `WARP_AUTH_SAML=true` |
+| `MellonUser "uid"`          | `WARP_SAML_LOGIN_ATTRIBUTE=uid` (omit / leave empty to use the NameID) |
+| `MellonSPPrivateKeyFile`    | `WARP_SAML_SP_PRIVATE_KEY_FILE` |
+| `MellonSPCertFile`          | `WARP_SAML_SP_X509_CERT_FILE` |
+| `MellonIdPMetadataFile`     | `WARP_SAML_IDP_METADATA_FILE` (or `WARP_SAML_IDP_METADATA_URL`) |
+| `MellonEndpointPath /sp`    | `WARP_SAML_ENDPOINT_PATH=/sp` |
+| `MellonSecureCookie On`     | `WARP_SESSION_COOKIE_SECURE=true` |
+| `MellonCookieSameSite none` | `WARP_SESSION_COOKIE_SAMESITE=None` |
+
+Note the SP endpoint paths differ from Mellon's: the ACS is `<path>/acs` (not
+`<path>/postResponse`) and SLS is `<path>/sls`, so re-register the SP at your IdP
+(easiest: import `https://<host>/saml/metadata`).
 
 ### Secret `_FILE` convention
 
