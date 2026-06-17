@@ -35,8 +35,8 @@ bp = flask.Blueprint('zone', __name__, url_prefix='zone')
 #           only offers seats apply()/autoBook would actually let them book.
 #
 # Optional query args:
-#   login=string       – use this login for conflict bookings (requires plan admin)
-#   onlyOtherZone=1   – return only conflict seats (used by BookAs on login change)
+#   login=string       – view/operate the plan as this login (book-as; requires
+#                        plan admin). Conflict bookings are scoped to this login.
 @bp.route("getSeats/<int:pid>")
 def getSeats(pid):
 
@@ -85,28 +85,30 @@ def getSeats(pid):
     accessible_zids = set(effective_roles.keys())
     is_plan_admin = any(r <= ZONE_ROLE_ADMIN for r in effective_roles.values())
 
-    if 'login' in flask.request.args or 'onlyOtherZone' in flask.request.args:
+    # Book-as: ?login=target lets a plan admin view and operate the plan as
+    # another user (requires plan admin). Fetched once and reused below.
+    targetLogin = flask.request.args.get('login')
+
+    if targetLogin is not None:
         if not is_plan_admin:
             return {"msg": "Forbidden", "code": 131}, 403
 
-        targetLogin = flask.request.args.get('login')
-        if targetLogin is not None:
-            # Validate target login is accessible on this plan
-            any_public = any(
-                t in (ZONE_TYPE_PUBLIC_VIEW, ZONE_TYPE_PUBLIC_BOOK)
-                for t in zone_type_map.values()
-            )
-            if any_public:
-                userExists = Users.select(SQL_ONE).where(Users.login == targetLogin).scalar()
-                if userExists is None:
-                    return {"msg": "Forbidden", "code": 132}, 403
-            else:
-                loginInPlan = UserToZoneRoles.select(SQL_ONE) \
-                    .where(UserToZoneRoles.zid.in_(list(accessible_zids))) \
-                    .where(UserToZoneRoles.login == targetLogin) \
-                    .scalar()
-                if loginInPlan is None:
-                    return {"msg": "Forbidden", "code": 132}, 403
+        # Validate target login is accessible on this plan
+        any_public = any(
+            t in (ZONE_TYPE_PUBLIC_VIEW, ZONE_TYPE_PUBLIC_BOOK)
+            for t in zone_type_map.values()
+        )
+        if any_public:
+            userExists = Users.select(SQL_ONE).where(Users.login == targetLogin).scalar()
+            if userExists is None:
+                return {"msg": "Forbidden", "code": 132}, 403
+        else:
+            loginInPlan = UserToZoneRoles.select(SQL_ONE) \
+                .where(UserToZoneRoles.zid.in_(list(accessible_zids))) \
+                .where(UserToZoneRoles.login == targetLogin) \
+                .scalar()
+            if loginInPlan is None:
+                return {"msg": "Forbidden", "code": 132}, 403
 
     # Whose booking permission decides `bookable`. Normally the authenticated
     # user. Under book-as (?login=target) the admin views the plan through the
@@ -115,7 +117,6 @@ def getSeats(pid):
     # look bookable yet apply()/autoBook would reject them (code 104). Visibility
     # of seats still follows the admin's (effective_roles) access.
     bookable_roles = effective_roles
-    targetLogin = flask.request.args.get('login')
     if targetLogin is not None and targetLogin != flask.g.login:
         target_specific = {}
         if accessible_zids:
@@ -133,68 +134,66 @@ def getSeats(pid):
     usedZids = set()
     usedUsers = set()
 
-    if flask.request.args.get('onlyOtherZone') not in {'1', 'True', 'true'}:
+    # Assignments for accessible seats
+    assignCursor = SeatAssign.select(SeatAssign.sid, SeatAssign.login, SeatAssign.days_in_advance) \
+        .join(Seat, on=(SeatAssign.sid == Seat.id)) \
+        .where(Seat.pid == pid) \
+        .where(Seat.zid.in_(list(accessible_zids)))
 
-        # Assignments for accessible seats
-        assignCursor = SeatAssign.select(SeatAssign.sid, SeatAssign.login, SeatAssign.days_in_advance) \
-            .join(Seat, on=(SeatAssign.sid == Seat.id)) \
-            .where(Seat.pid == pid) \
-            .where(Seat.zid.in_(list(accessible_zids)))
+    assignments = defaultdict(list)
+    for r in assignCursor:
+        entry = {'login': r['login'], 'days_in_advance': r['days_in_advance']}
+        if r['login'] is None:
+            entry['isEveryone'] = True
+        else:
+            usedUsers.add(r['login'])
+        assignments[r['sid']].append(entry)
 
-        assignments = defaultdict(list)
-        for r in assignCursor:
-            entry = {'login': r['login'], 'days_in_advance': r['days_in_advance']}
-            if r['login'] is None:
-                entry['isEveryone'] = True
-            else:
-                usedUsers.add(r['login'])
-            assignments[r['sid']].append(entry)
+    seatsCursor = Seat.select(Seat.id, Seat.name, Seat.x, Seat.y, Seat.zid, Seat.enabled) \
+        .where(Seat.pid == pid) \
+        .where(Seat.zid.in_(list(accessible_zids)))
 
-        seatsCursor = Seat.select(Seat.id, Seat.name, Seat.x, Seat.y, Seat.zid, Seat.enabled) \
-            .where(Seat.pid == pid) \
-            .where(Seat.zid.in_(list(accessible_zids)))
+    for s in seatsCursor.iterator():
+        zid = s['zid']
+        zone_role = effective_roles[zid]
+        # Non-admins of this zone don't see disabled seats
+        if not s['enabled'] and zone_role > ZONE_ROLE_ADMIN:
+            continue
 
-        for s in seatsCursor.iterator():
-            zid = s['zid']
-            zone_role = effective_roles[zid]
-            # Non-admins of this zone don't see disabled seats
-            if not s['enabled'] and zone_role > ZONE_ROLE_ADMIN:
-                continue
+        book_role = bookable_roles.get(zid)
+        seatD = {
+            "name": s['name'],
+            "x": s['x'],
+            "y": s['y'],
+            "zid": zid,
+            "enabled": s['enabled'] != 0,
+            "bookable": book_role is not None and book_role <= ZONE_ROLE_USER and zone_type_map[zid] != ZONE_TYPE_DISABLED,
+            "book": []
+        }
+        if s['id'] in assignments:
+            seatD['assignments'] = [*assignments[s['id']]]
+        res['seats'][str(s['id'])] = seatD
+        usedZids.add(zid)
 
-            book_role = bookable_roles.get(zid)
-            seatD = {
-                "name": s['name'],
-                "x": s['x'],
-                "y": s['y'],
-                "zid": zid,
-                "enabled": s['enabled'] != 0,
-                "bookable": book_role is not None and book_role <= ZONE_ROLE_USER and zone_type_map[zid] != ZONE_TYPE_DISABLED,
-                "book": []
-            }
-            if s['id'] in assignments:
-                seatD['assignments'] = [*assignments[s['id']]]
-            res['seats'][str(s['id'])] = seatD
-            usedZids.add(zid)
+    bookQuery = Book.select(Book.id, Book.login, Book.sid, Users.name.alias('username'), Book.fromts, Book.tots) \
+        .join(Users, on=(Book.login == Users.login)) \
+        .join(Seat, on=(Book.sid == Seat.id)) \
+        .where((Book.fromts < tr['toTS']) & (Book.tots > tr['fromTS'])) \
+        .where(Seat.pid == pid) \
+        .where(Seat.zid.in_(list(accessible_zids))) \
+        .order_by(Book.fromts)
 
-        bookQuery = Book.select(Book.id, Book.login, Book.sid, Users.name.alias('username'), Book.fromts, Book.tots) \
-            .join(Users, on=(Book.login == Users.login)) \
-            .join(Seat, on=(Book.sid == Seat.id)) \
-            .where((Book.fromts < tr['toTS']) & (Book.tots > tr['fromTS'])) \
-            .where(Seat.pid == pid) \
-            .where(Seat.zid.in_(list(accessible_zids))) \
-            .order_by(Book.fromts)
-
-        for b in DB.execute(bookQuery):
-            sid = str(b[2])
-            if sid not in res['seats']:
-                continue
-            res['seats'][sid]['book'].append({
-                "bid": b[0],
-                "login": b[1],
-                "fromTS": b[4],
-                "toTS": b[5]
-            })
-            usedUsers.add(b[1])
+    for b in DB.execute(bookQuery):
+        sid = str(b[2])
+        if sid not in res['seats']:
+            continue
+        res['seats'][sid]['book'].append({
+            "bid": b[0],
+            "login": b[1],
+            "fromTS": b[4],
+            "toTS": b[5]
+        })
+        usedUsers.add(b[1])
 
     # Conflict bookings: the user's bookings that share an exclusivity scope
     # with a zone on this plan but are not already visible above. The scope
@@ -202,9 +201,9 @@ def getSeats(pid):
     # group (across plans), an ungrouped zone is exclusive only to itself.
     # Returning these lets the frontend flag CAN_REBOOK instead of CAN_BOOK for
     # inaccessible same-plan zones AND for same-group zones on other plans.
-    # We scan all_plan_zids (not usedZids) so it also works under
-    # onlyOtherZone=1, where usedZids only covers inaccessible zones.
-    login = flask.request.args.get('login', flask.g.login)
+    # We scan all_plan_zids (not usedZids) so inaccessible same-group zones are
+    # covered even when no booking made them appear in usedZids yet.
+    login = targetLogin if targetLogin is not None else flask.g.login
 
     conflict_zids = set()
     plan_zone_groups = set()

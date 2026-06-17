@@ -31,7 +31,7 @@
  *        D2 ungrouped zones ⇒ a user may hold a seat in each simultaneously
  *
  *   E. getSeats book-as guard:
- *        E1 a non-admin cannot use the ?login= / ?onlyOtherZone= parameters
+ *        E1 a non-admin cannot use the ?login= book-as parameter
  */
 import { test, expect } from '../../fixtures';
 import { logIn } from '../../helpers/auth';
@@ -428,7 +428,7 @@ test.describe('getSeats book-as guard', () => {
   test('E1: a non-admin cannot use the book-as query parameters', async ({ page }) => {
     // Zone 1A is enabled by default; user2 is a USER there (via group_1a), not an admin.
     await logIn(page, USER2);
-    const resp = await page.request.get('/xhr/zone/getSeats/1?login=user1&onlyOtherZone=1', { maxRedirects: 0 });
+    const resp = await page.request.get('/xhr/zone/getSeats/1?login=user1', { maxRedirects: 0 });
     expect(resp.status()).toBe(403);
     expect((await resp.json()).code).toBe(131);
   });
