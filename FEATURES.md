@@ -819,8 +819,10 @@ Any setting can be provided as an environment variable with the `WARP_` prefix (
 | Setting                      | Default              | Description                                  |
 |------------------------------|----------------------|----------------------------------------------|
 | `AUTH_SAML`                  | unset                | Set to `true` to enable native SAML auth     |
+| `SAML_ENDPOINT_PATH`         | `/saml`              | Base path for SP endpoints (Mellon `MellonEndpointPath`) |
 | `SAML_SP_ENTITY_ID`          | —                    | SP entity ID (issuer)                        |
 | `SAML_IDP_METADATA_URL`      | unset                | IdP metadata URL (auto-discovery)             |
+| `SAML_IDP_METADATA_FILE`     | unset                | Local IdP metadata XML file (→ `SAML_IDP_METADATA`) |
 | `SAML_IDP_ENTITY_ID`         | unset                | Manual IdP entity ID                          |
 | `SAML_IDP_SSO_URL`           | unset                | Manual IdP SSO URL                            |
 | `SAML_IDP_SLO_URL`           | unset                | Manual IdP SLO URL                            |
@@ -838,3 +840,9 @@ Any setting can be provided as an environment variable with the `WARP_` prefix (
 | `SAML_AUTHN_REQUESTS_SIGNED` | `false`              | Sign outgoing AuthnRequests                    |
 | `SAML_WANT_ASSERTIONS_SIGNED`| `true`               | Require signed assertions from the IdP        |
 | `SAML_WANT_MESSAGES_SIGNED`  | `false`              | Require signed SAML messages from the IdP     |
+
+> The IdP delivers the assertion via a cross-site POST to the ACS endpoint. For
+> RelayState and `InResponseTo` validation to work in browsers, set
+> `WARP_SESSION_COOKIE_SAMESITE=None` and `WARP_SESSION_COOKIE_SECURE=true`
+> (HTTPS required) — the native equivalent of Mellon's `MellonCookieSameSite none`.
+> See [CONFIGURATION.md](CONFIGURATION.md#session-cookie-and-the-saml-post-binding).

@@ -45,21 +45,30 @@ def _buildSamlSettings():
     if sp_key:
         sp_settings['privateKey'] = sp_key
 
-    # Build IdP settings — prefer metadata URL (discovery), fall back to manual
+    # Build IdP settings — prefer metadata (URL, then local file/inline XML),
+    # fall back to manually configured endpoints.
     idp_settings = {}
 
     metadata_url = config.get('SAML_IDP_METADATA_URL')
-    if metadata_url:
+    # SAML_IDP_METADATA holds the IdP metadata XML directly, or is populated from
+    # SAML_IDP_METADATA_FILE via the _FILE convention (parity with Mellon's
+    # MellonIdPMetadataFile; useful when the IdP exposes a downloadable file or
+    # the WARP host has no egress to fetch the URL).
+    metadata_xml = config.get('SAML_IDP_METADATA')
+    if metadata_url or metadata_xml:
         global _idp_metadata_cache
         if _idp_metadata_cache is None:
             from onelogin.saml2.idp_metadata_parser import OneLogin_Saml2_IdPMetadataParser
-            # Validate the metadata server's TLS cert only when fetching over
-            # HTTPS (independent of SAML_HTTPS_SCHEME, which is about building
-            # external SP URLs behind a reverse proxy).
-            _idp_metadata_cache = OneLogin_Saml2_IdPMetadataParser.parse_remote(
-                metadata_url,
-                validate_cert=metadata_url.lower().startswith('https'),
-            )
+            if metadata_url:
+                # Validate the metadata server's TLS cert only when fetching over
+                # HTTPS (independent of SAML_HTTPS_SCHEME, which is about building
+                # external SP URLs behind a reverse proxy).
+                _idp_metadata_cache = OneLogin_Saml2_IdPMetadataParser.parse_remote(
+                    metadata_url,
+                    validate_cert=metadata_url.lower().startswith('https'),
+                )
+            else:
+                _idp_metadata_cache = OneLogin_Saml2_IdPMetadataParser.parse(metadata_xml)
         if _idp_metadata_cache:
             idp_settings = _idp_metadata_cache.get('idp', {})
     else:
@@ -214,7 +223,6 @@ def login():
                                  sso_start_url=flask.url_for('.saml_login'))
 
 
-@bp.route('/saml/login')
 def saml_login():
     """Dedicated route for the "Sign in with SSO" button (used when
     SAML_EXCLUDED_USERS is non-empty and the local form is shown).
@@ -223,7 +231,6 @@ def saml_login():
     return _start_saml_flow()
 
 
-@bp.route('/saml/acs', methods=['POST'])
 def saml_acs():
     """SAML Assertion Consumer Service — processes the IdP response."""
     config = flask.current_app.config
@@ -285,7 +292,6 @@ def saml_acs():
     return flask.redirect(app_root_uri)
 
 
-@bp.route('/saml/metadata')
 def saml_metadata():
     """Serve the SP metadata XML so admins can register the SP at the IdP."""
     from onelogin.saml2.settings import OneLogin_Saml2_Settings
@@ -306,7 +312,6 @@ def saml_metadata():
         return "Could not generate SP metadata", 500
 
 
-@bp.route('/saml/sls')
 def saml_sls():
     """SAML Single Logout Service — processes the IdP logout response/request."""
     from onelogin.saml2.auth import OneLogin_Saml2_Auth
@@ -356,6 +361,7 @@ def logout():
 
     # If the IdP has an SLO endpoint, try SP-initiated SLO
     slo_configured = (config.get('SAML_IDP_METADATA_URL')
+                      or config.get('SAML_IDP_METADATA')
                       or config.get('SAML_IDP_SLO_URL'))
 
     if slo_configured:
@@ -387,3 +393,21 @@ def logout():
 
 bp.route('/logout')(logout)
 bp.before_app_request(warp.auth.session)
+
+
+# The SP endpoints (ACS / SLS / metadata / SSO-start) live under a configurable
+# base path (SAML_ENDPOINT_PATH, default "/saml") — parity with Mellon's
+# MellonEndpointPath. They are registered at blueprint-registration time so the
+# path can come from config. Endpoint names stay stable, so url_for('.saml_acs')
+# etc. resolve regardless of the configured path. /login and /logout remain at
+# the root, like the other auth backends.
+def _registerSamlEndpoints(state):
+    base = '/' + state.app.config.get('SAML_ENDPOINT_PATH', '/saml').strip('/')
+    state.add_url_rule(f'{base}/login', endpoint='saml_login', view_func=saml_login)
+    state.add_url_rule(f'{base}/acs', endpoint='saml_acs', view_func=saml_acs,
+                       methods=['POST'])
+    state.add_url_rule(f'{base}/metadata', endpoint='saml_metadata',
+                       view_func=saml_metadata)
+    state.add_url_rule(f'{base}/sls', endpoint='saml_sls', view_func=saml_sls)
+
+bp.record(_registerSamlEndpoints)
