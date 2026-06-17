@@ -18,7 +18,7 @@
 
 import { test, expect } from '../../fixtures';
 import { logIn } from '../../helpers/auth';
-import { ADMIN, USER1, USER2 } from '../../helpers/users';
+import { ADMIN, USER1, USER2, USER3 } from '../../helpers/users';
 import { querySql } from '../../helpers/db';
 import { adminPost } from '../../helpers/admin';
 import {
@@ -42,6 +42,36 @@ async function activateBookAs(page: any, label: string): Promise<void> {
   // book-as fires a full getSeats?login= refresh; wait for it to settle.
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(400);
+}
+
+/** Clear book-as (Enter on an empty input resets to the admin's own login). */
+async function clearBookAs(page: any): Promise<void> {
+  const bookAsInput = page.locator('#book-as');
+  await bookAsInput.click();
+  await bookAsInput.fill('');
+  await bookAsInput.press('Enter');
+  await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(400);
+}
+
+/** Open the action modal for a seat and return the set of visible action labels. */
+async function seatActions(page: any, seat: any): Promise<string[]> {
+  await clickZoneSeat(page, seat);
+  const modal = page.locator('#action_modal');
+  // VIEW_ONLY / NOT_AVAILABLE short-circuit the handler: the modal never opens.
+  try {
+    await expect(modal).toHaveClass(/open/, { timeout: 1500 });
+  } catch {
+    return [];
+  }
+  const actions: string[] = [];
+  for (const a of ['book', 'update', 'delete', 'enable', 'disable']) {
+    if (await page.locator(`.zone_action_btn[data-action="${a}"]`).isVisible())
+      actions.push(a);
+  }
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
+  return actions;
 }
 
 test.describe('book-as + zone group', () => {
@@ -165,6 +195,80 @@ test.describe('book-as + zone group', () => {
     await clickZoneSeat(page, parkingSeat);
     await page.waitForTimeout(300);
     await expect(page.locator('#action_modal')).not.toHaveClass(/open/);
+  });
+
+});
+
+test.describe('book-as target switching', () => {
+
+  // Helper: zones 1 & 2 share group 'floor-1'; user1 admins both; the given
+  // users get USER access to Zone 1B (zid 2). Returns the two seats of interest.
+  async function setupGroup(page: any, extraUsers: string[] = []) {
+    const zone1Seat = (await getZoneSeats(1))[0];
+    const zone2Seat = (await getZoneSeats(2))[0];
+    await querySql("UPDATE zone SET zone_group = 'floor-1' WHERE id IN (1, 2)");
+    await logIn(page, ADMIN);
+    await adminPost(page, '/xhr/zones/assign', { zid: 1, change: [{ login: USER1.login, role: 10 }] });
+    await adminPost(page, '/xhr/zones/assign', { zid: 2, change: [{ login: USER1.login, role: 10 }] });
+    for (const u of [USER2.login, ...extraUsers])
+      await adminPost(page, '/xhr/zones/assign', { zid: 2, change: [{ login: u, role: 20 }] });
+    return { zone1Seat, zone2Seat };
+  }
+
+  test('switching book-as back to self restores the admin\'s own (conflict-free) view', async ({ page }) => {
+    const ts = futureDayTs(1);
+    const { zone1Seat, zone2Seat } = await setupGroup(page);
+    const fromTS = ts + 9 * 3600, toTS = ts + 17 * 3600;
+
+    // user2 holds a Zone 1A seat (same group as the Zone 1B we'll view).
+    await logIn(page, USER2);
+    expect((await apiApply(page, { book: { sid: zone1Seat.id, dates: [{ fromTS, toTS }] } })).status()).toBe(200);
+
+    await logIn(page, USER1);
+    await page.goto('/plan/2');
+    await waitForSeatsLoaded(page);
+    await selectOnlyDates(page, [ts]);
+    await page.waitForTimeout(400);
+
+    // As user2: Zone 1B seat is a rebook (user2's same-group Zone 1A booking).
+    await activateBookAs(page, 'Bar [user2]');
+    expect(await seatActions(page, zone2Seat)).toContain('update');
+    expect(await seatActions(page, zone2Seat)).not.toContain('book');
+
+    // Back to self (admin user1, who holds nothing): plain book, no rebook.
+    await clearBookAs(page);
+    const selfActions = await seatActions(page, zone2Seat);
+    expect(selfActions).toContain('book');
+    expect(selfActions).not.toContain('update');
+  });
+
+  test('switching book-as between two targets reflects each target\'s own conflicts', async ({ page }) => {
+    const ts = futureDayTs(1);
+    const { zone1Seat, zone2Seat } = await setupGroup(page, [USER3.login]);
+    const fromTS = ts + 9 * 3600, toTS = ts + 17 * 3600;
+
+    // Only user2 has a same-group booking; user3 has none.
+    await logIn(page, USER2);
+    expect((await apiApply(page, { book: { sid: zone1Seat.id, dates: [{ fromTS, toTS }] } })).status()).toBe(200);
+
+    await logIn(page, USER1);
+    await page.goto('/plan/2');
+    await waitForSeatsLoaded(page);
+    await selectOnlyDates(page, [ts]);
+    await page.waitForTimeout(400);
+
+    // user2 → rebook (has conflict); user3 → plain book (no conflict).
+    await activateBookAs(page, 'Bar [user2]');
+    expect(await seatActions(page, zone2Seat)).toContain('update');
+
+    await activateBookAs(page, 'Baz [user3]');
+    const u3 = await seatActions(page, zone2Seat);
+    expect(u3).toContain('book');
+    expect(u3).not.toContain('update');
+
+    // Back to user2 → rebook again (no stale ghost from the user3 view).
+    await activateBookAs(page, 'Bar [user2]');
+    expect(await seatActions(page, zone2Seat)).toContain('update');
   });
 
 });
