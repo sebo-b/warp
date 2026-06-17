@@ -619,9 +619,8 @@ WarpSeat.prototype._setData = function(seatData,usersNames) {
         this.enabled = true;
         this.bookable = false;
         this.assignments = {}
-        for (let b in this.book) {
-            this.book[b].login = this.factory.login;
-        }
+        // book[].login comes from the server (getSeats conflict query selects it);
+        // no client-side back-fill from factory.login is needed.
     }
     else {
         this.enabled = ('enabled' in seatData)? seatData.enabled: true;

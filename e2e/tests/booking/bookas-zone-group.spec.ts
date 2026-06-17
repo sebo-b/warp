@@ -197,6 +197,78 @@ test.describe('book-as + zone group', () => {
     await expect(page.locator('#action_modal')).not.toHaveClass(/open/);
   });
 
+  test('GUARD: getSeats sends login on book-as conflict seats (Fix 1 server contract)', async ({ page }) => {
+    // Deterministic contract guard. The target's only booking is in a zone the
+    // admin cannot access, so it reaches the response purely via the conflict
+    // query (an other-zone seat: no x/y). Fix 1 requires that conflict booking
+    // to carry its owner login explicitly, so the client (Fix 2) never has to
+    // infer it from factory.login. If the server stopped sending login this
+    // assertion fails directly on the JSON.
+    //
+    // Zone 3 (Parking) is the inaccessible zone: user1 has no role there
+    // (group_parking has no members), unlike Zone 1B where user1 is in group_1b.
+    const ts = futureDayTs(1);
+    const parkingSeat = (await getZoneSeats(3))[0];
+    const fromTS = ts + 9 * 3600, toTS = ts + 17 * 3600;
+
+    // Zone 1A and Parking share a group; move the Parking seat onto plan 1.
+    await querySql("UPDATE zone SET zone_group = 'floor-1' WHERE id IN (1, 3)");
+    await querySql('UPDATE seat SET pid = 1 WHERE id = $1', [parkingSeat.id]);
+    await logIn(page, ADMIN);
+    await adminPost(page, '/xhr/zones/assign', { zid: 1, change: [{ login: USER1.login, role: 10 }] });
+    await querySql(
+      'INSERT INTO book (login, sid, fromts, tots) VALUES ($1, $2, $3, $4)',
+      [USER2.login, parkingSeat.id, fromTS, toTS]);
+
+    await logIn(page, USER1);
+    const resp = await page.request.get(`/xhr/zone/getSeats/1?login=${USER2.login}`, { maxRedirects: 0 });
+    expect(resp.status()).toBe(200);
+    const body = await resp.json();
+    const conflictSeat = body.seats[String(parkingSeat.id)];
+
+    // Surfaced as a conflict-only (other-zone) seat: no coordinates.
+    expect(conflictSeat).toBeTruthy();
+    expect(conflictSeat.x).toBeUndefined();
+    expect(conflictSeat.y).toBeUndefined();
+    // The contract: the conflict booking carries the owner login explicitly.
+    expect(conflictSeat.book.length).toBeGreaterThan(0);
+    expect(conflictSeat.book[0].login).toBe(USER2.login);
+  });
+
+  test('book-as conflict seat in an inaccessible same-group zone drives rebook (client uses server login)', async ({ page }) => {
+    // UI counterpart of the contract guard: the inaccessible Parking booking
+    // must make the accessible Zone 1A seat a rebook under book-as. This passes
+    // only if the conflict seat is recognised as the target's, i.e. its login
+    // arrived from the server and the client honoured it.
+    const ts = futureDayTs(1);
+    const zone1Seat = (await getZoneSeats(1))[0];
+    const parkingSeat = (await getZoneSeats(3))[0];
+    const fromTS = ts + 9 * 3600, toTS = ts + 17 * 3600;
+
+    await querySql("UPDATE zone SET zone_group = 'floor-1' WHERE id IN (1, 3)");
+    await querySql('UPDATE seat SET pid = 1 WHERE id = $1', [parkingSeat.id]);
+    await logIn(page, ADMIN);
+    await adminPost(page, '/xhr/zones/assign', { zid: 1, change: [{ login: USER1.login, role: 10 }] });
+    await querySql(
+      'INSERT INTO book (login, sid, fromts, tots) VALUES ($1, $2, $3, $4)',
+      [USER2.login, parkingSeat.id, fromTS, toTS]);
+
+    await logIn(page, USER1);
+    await page.goto('/plan/1');
+    await waitForSeatsLoaded(page);
+    await selectOnlyDates(page, [ts]);
+    await page.waitForTimeout(400);
+    await activateBookAs(page, 'Bar [user2]');
+
+    await clickZoneSeat(page, zone1Seat);
+    await expect(page.locator('#action_modal')).toHaveClass(/open/);
+    await expect(page.locator('.zone_action_btn[data-action="update"]')).toBeVisible();
+    await expect(page.locator('.zone_action_btn[data-action="book"]')).not.toBeVisible();
+    // The conflicting Parking booking is listed for removal (built by
+    // getMyConflictingBookings, which matches on the acting login).
+    await expect(page.locator('#action_modal_msg2')).toContainText('Parking');
+  });
+
 });
 
 test.describe('book-as target switching', () => {

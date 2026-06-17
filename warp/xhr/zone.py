@@ -22,7 +22,7 @@ bp = flask.Blueprint('zone', __name__, url_prefix='zone')
 #       }
 #       sidM: {          # seat in an inaccessible zone of the same plan (conflict display only)
 #          name, zid,
-#          book: [ { bid, fromTS, toTS } ]
+#          book: [ { bid, login, fromTS, toTS } ]
 #       }
 #   }
 #
@@ -220,7 +220,7 @@ def getSeats(pid):
 
     if conflict_zids:
         already_present_sids = [int(sid) for sid in res['seats']]
-        conflictBookQuery = Book.select(Book.sid, Seat.name, Seat.zid, Book.id, Book.fromts, Book.tots) \
+        conflictBookQuery = Book.select(Book.sid, Seat.name, Seat.zid, Book.id, Book.login, Book.fromts, Book.tots) \
             .join(Seat, on=(Book.sid == Seat.id)) \
             .where(Seat.zid.in_(list(conflict_zids))) \
             .where(Book.login == login) \
@@ -237,11 +237,16 @@ def getSeats(pid):
                     "book": []
                 }
                 usedZids.add(b[2])
+            # login is sent explicitly (all rows are `login`'s own bookings) so the
+            # client never has to infer it from factory.login — keeping the booking
+            # shape identical to accessible seats.
             res['seats'][sid]['book'].append({
                 "bid": b[3],
-                "fromTS": b[4],
-                "toTS": b[5]
+                "login": b[4],
+                "fromTS": b[5],
+                "toTS": b[6]
             })
+            usedUsers.add(b[4])
 
     usedZonesQuery = Zone.select(Zone.id, Zone.name, Zone.zone_group).where(Zone.id.in_(usedZids)).tuples()
     res['zones'] = {}
