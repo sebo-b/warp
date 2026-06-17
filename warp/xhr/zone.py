@@ -572,12 +572,15 @@ autoBookSchema = {
 }
 
 
-def runAutoBook(login, pid, dates, allowedZids=None):
+def runAutoBook(login, pid, dates, allowedZids=None, releaseZids=None):
     """Core autobook algorithm.
 
     Selects the best seat on the plan (pid) for the given login and dates.
     When allowedZids is given, only seats in those zones are eligible — used to
     confine a zone admin booking *as* another user to the zones they administer.
+    When releaseZids is given, existing bookings may only be deleted if they are
+    in one of those zones — used to confine the release side of a book-as operation.
+    None means no confinement (current behaviour for self-book / iCal / site admin).
     Returns (result_dict, None) on success or (None, error_code) on failure.
     Error codes: 103 (time out of window), 140 (overlapping dates), 109 (DB conflict), 130 (bad pid).
     """
@@ -608,7 +611,7 @@ def runAutoBook(login, pid, dates, allowedZids=None):
 
     # Existing bookings for this user on this plan within the slot range
     existingQ = list(Book.select(Book.id, Book.sid, Book.fromts, Book.tots, Seat.zid,
-                                 Seat.name.alias('seat_name'), Zone.name.alias('zone_name'))
+                                 Seat.name.alias('seat_name'), Zone.name.alias('zone_name'), Zone.zone_group)
                      .join(Seat, on=(Book.sid == Seat.id))
                      .join(Zone, on=(Seat.zid == Zone.id))
                      .where(Seat.pid == pid)
@@ -810,12 +813,18 @@ def runAutoBook(login, pid, dates, allowedZids=None):
                 return [eb['id'] for eb in day_overlaps if eb['zone_group'] == sid_zgroup]
             return [eb['id'] for eb in day_overlaps if eb['zid'] == sid_zid]
 
+        def can_release(bids):
+            if releaseZids is None:
+                return True
+            bidset = set(bids)
+            return all(eb['zid'] in releaseZids for eb in day_overlaps if eb['id'] in bidset)
+
         for sid in preferred_sids:
             if sid in seatInfo and seatInfo[sid][0] != 'blocked':
                 sid_zid = seat_zids[sid]
                 sid_zgroup = zone_group_map.get(sid_zid)
                 bids = conflict_bids(sid)
-                if covers_all(sid, sid_zid, sid_zgroup, seatInfo[sid][1], day_slots, bids):
+                if can_release(bids) and covers_all(sid, sid_zid, sid_zgroup, seatInfo[sid][1], day_slots, bids):
                     candidate_sid = sid
                     candidate_seat_name = seats[sid]
                     candidate_ignore_bids = bids
@@ -827,7 +836,7 @@ def runAutoBook(login, pid, dates, allowedZids=None):
                 sid_zid = seat_zids[sid]
                 sid_zgroup = zone_group_map.get(sid_zid)
                 bids = conflict_bids(sid)
-                if covers_all(sid, sid_zid, sid_zgroup, seatInfo[sid][1], day_slots, bids):
+                if can_release(bids) and covers_all(sid, sid_zid, sid_zgroup, seatInfo[sid][1], day_slots, bids):
                     candidate_sid = sid
                     candidate_seat_name = seats[sid]
                     candidate_ignore_bids = bids
@@ -923,33 +932,34 @@ def autoBook(pid):
             roles[r['zid']] = r['zone_role']
         return roles
 
-    # Auto-book is always a regular-user action: it picks a seat the *subject* (the
-    # booking's owner) could pick themselves — no site-admin bypass, no confinement
-    # to the actor's zones (runAutoBook keys its seat pool off `login`). The actor's
-    # role only gates *who may book for whom*: booking for someone else requires the
-    # actor to be a site admin or a zone admin of some zone on this plan.
+    # Confine book-as to zones the actor administers: the seat pool
+    # (allowedZids) and the set of bookings that may be released
+    # (releaseZids) are both limited to manageableZids.  None means
+    # unconfined (self-book, site admin, iCal).
+    manageableZids = None
     if is_book_as and not flask.g.isAdmin:
         actor_roles = _rolesFor(flask.g.login)
-        is_plan_admin = any(
-            effectiveZoneRole(zone_type_map[zid], actor_roles.get(zid)) == ZONE_ROLE_ADMIN
-            for zid in zone_type_map)
-        if not is_plan_admin:
+        manageableZids = {
+            zid for zid in zone_type_map
+            if effectiveZoneRole(zone_type_map[zid], actor_roles.get(zid)) == ZONE_ROLE_ADMIN
+        }
+        if not manageableZids:
             return {"msg": "Forbidden", "code": 104}, 403
 
-    # The subject must be able to book in at least one (non-disabled) zone on the plan.
     subject_roles = _rolesFor(login)
-    can_book = False
-    for zid, zone_type in zone_type_map.items():
-        if zone_type == ZONE_TYPE_DISABLED:
-            continue
-        eff = effectiveZoneRole(zone_type, subject_roles.get(zid))
-        if eff is not None and eff <= ZONE_ROLE_USER:
-            can_book = True
-            break
+    zone_iter = manageableZids if manageableZids is not None else zone_type_map.keys()
+    can_book = any(
+        zone_type_map[zid] != ZONE_TYPE_DISABLED
+        and (eff := effectiveZoneRole(zone_type_map[zid], subject_roles.get(zid))) is not None
+        and eff <= ZONE_ROLE_USER
+        for zid in zone_iter
+    )
     if not can_book:
         return {"msg": "Forbidden", "code": 104}, 403
 
-    result, err = runAutoBook(login, pid, dates)
+    result, err = runAutoBook(login, pid, dates,
+                              allowedZids=manageableZids,
+                              releaseZids=manageableZids)
 
     if err == 103:
         return {"msg": "Forbidden", "code": 103}, 403

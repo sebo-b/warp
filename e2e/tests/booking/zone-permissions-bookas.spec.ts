@@ -51,6 +51,7 @@ import {
   assignZoneRole,
   clearZoneRoles,
   countBookings,
+  insertBooking,
 } from '../../helpers/zone-setup';
 
 /** A standard 09:00–17:00 slot N days from now. */
@@ -228,24 +229,45 @@ test.describe('auto-book as another user', () => {
     expect(r.rows[0].cnt).toBeGreaterThan(0);
   });
 
-  test('C2: auto-book-as acts as the target — even into a zone the actor does not administer', async ({ page }) => {
-    // user1 administers zone A but NOT zone B; user2 can only book zone B. Auto-book
-    // runs as user2, so it books user2 in zone B (where *they* have access) — the
-    // actor's own zones do not constrain the seat pool.
-    const pid = await createPlan('AutoBookAs ActsAsTarget Plan');
-    const zidA = await createZone('AAT A', ZONE_TYPE_ENABLED); // user1 admin, user2 NO role
-    const zidB = await createZone('AAT B', ZONE_TYPE_ENABLED); // user1 NOT admin, user2 user
+  test('C2: auto-book-as is confined — cannot book into a zone the actor does not administer', async ({ page }) => {
+    const pid = await createPlan('AutoBookAs Confined Plan');
+    const zidA = await createZone('Conf A', ZONE_TYPE_ENABLED);
+    const zidB = await createZone('Conf B', ZONE_TYPE_ENABLED);
     const [seatA] = await addSeats(pid, zidA, ['CA.1']);
     const [seatB] = await addSeats(pid, zidB, ['CB.1']);
-    await assignZoneRole(zidA, 'user1', ZONE_ROLE_ADMIN); // user1 is a plan admin (admins zone A)
+    await assignZoneRole(zidA, 'user1', ZONE_ROLE_ADMIN);
     await assignZoneRole(zidB, 'user2', ZONE_ROLE_USER);
+    // user2 has no role in zone A, and user1 is not admin of zone B.
+    // user1 auto-books-as user2: subject has no accessible seat in user1's managed zone A,
+    // so the endpoint rejects with 403/104.
+
+    await logIn(page, USER1);
+    const resp = await autoBook(page, pid, [slot(1)], 'user2');
+    expect(resp.status()).toBe(403);
+    expect((await resp.json()).code).toBe(104);
+    expect(await countBookings('user2', seatA)).toBe(0);
+    expect(await countBookings('user2', seatB)).toBe(0);
+  });
+
+  test('C2b: auto-book-as lands the subject in a zone the actor administers', async ({ page }) => {
+    const pid = await createPlan('AutoBookAs Positive Plan');
+    const zidA = await createZone('Pos A', ZONE_TYPE_ENABLED);
+    const zidB = await createZone('Pos B', ZONE_TYPE_ENABLED);
+    const [seatA] = await addSeats(pid, zidA, ['PA.1']);
+    const [seatB] = await addSeats(pid, zidB, ['PB.1']);
+    await assignZoneRole(zidA, 'user1', ZONE_ROLE_ADMIN);
+    await assignZoneRole(zidA, 'user2', ZONE_ROLE_USER);
+    await assignZoneRole(zidB, 'user2', ZONE_ROLE_USER);
+    // user1 administers zone A only; user2 has USER in both A and B.
+    // Auto-book-as must confine to zone A — user2 lands in A, never B.
 
     await logIn(page, USER1);
     const resp = await autoBook(page, pid, [slot(1)], 'user2');
     expect(resp.status()).toBe(200);
-    expect((await resp.json()).booked.length).toBe(1);
-    expect(await countBookings('user2', seatB)).toBe(1); // booked where user2 can book
-    expect(await countBookings('user2', seatA)).toBe(0); // never in user1's-only zone
+    const body = await resp.json();
+    expect(body.booked.length).toBe(1);
+    expect(await countBookings('user2', seatA)).toBe(1);
+    expect(await countBookings('user2', seatB)).toBe(0);
   });
 
   test('C3: a site admin can auto-book as anyone', async ({ page }) => {
@@ -368,6 +390,67 @@ test.describe('auto-book as another user', () => {
     expect((await resp.json()).booked.length).toBe(1);
     expect(await countBookings('user3', seatId)).toBe(1);
   });
+
+  test('C10: release gate — auto-book-as cannot release a booking in an unmanaged same-group zone', async ({ page }) => {
+    const pid = await createPlan('Release Gate Plan');
+    const zidA = await createZone('RelGrp A', ZONE_TYPE_ENABLED, 'relGrp');
+    const zidB = await createZone('RelGrp B', ZONE_TYPE_ENABLED, 'relGrp');
+    const [seatA] = await addSeats(pid, zidA, ['RA.1']);
+    const [seatB] = await addSeats(pid, zidB, ['RB.1']);
+    await assignZoneRole(zidA, 'user1', ZONE_ROLE_ADMIN);
+    await assignZoneRole(zidA, 'user2', ZONE_ROLE_USER);
+    await assignZoneRole(zidB, 'user2', ZONE_ROLE_USER);
+    // user1 administers zone A only; zone B is in the same group but not administered.
+    const s = slot(1);
+    // Pre-book user2 in zone B for the morning only (09:00-13:00). Auto-book-as
+    // requests the full day (09:00-17:00) — the exact-match shortcut won't fire
+    // because the times differ. A candidate in zone A would conflict with B's
+    // same-group booking, and can_release must block releasing B's booking.
+    await insertBooking('user2', seatB, s.fromTS, s.fromTS + 4 * 3600);
+    expect(await countBookings('user2', seatB)).toBe(1);
+
+    await logIn(page, USER1);
+    const resp = await autoBook(page, pid, [s], 'user2');
+    expect(resp.status()).toBe(200);
+    const body = await resp.json();
+    expect(body.booked.length).toBe(0);
+    expect(body.not_extended.length + body.unbookable.length).toBeGreaterThan(0);
+    expect(await countBookings('user2', seatB)).toBe(1);
+    expect(await countBookings('user2', seatA)).toBe(0);
+  });
+
+  test('C11: preservation — auto-book rolls back on cross-plan same-group conflict, original booking kept', async ({ page }) => {
+    // Plan P1 / zone A (group 'xgrp'): user2 has a partial-day booking (09-13)
+    // on seat A1. Plan P2 / zone B (same group): user2 has an afternoon booking
+    // (14-17) on seat B1. These don't overlap each other, so the trigger allows
+    // both. Auto-book on P1 requests the full day (09-17); it doesn't see the
+    // P2 booking (allBookings is plan-scoped), finds seat A1 as a candidate,
+    // deletes the 09-13 booking and tries to insert 09-17. The DB trigger
+    // rejects the insert (cross-plan same-group overlap with the 14-17 booking)
+    // → atomic rollback. The original 09-13 booking on P1 survives.
+    const pid1 = await createPlan('Rollback Plan 1');
+    const zidA = await createZone('Rollback A', ZONE_TYPE_ENABLED, 'xgrp');
+    const [seatA] = await addSeats(pid1, zidA, ['RA.1']);
+    await assignZoneRole(zidA, 'user2', ZONE_ROLE_USER);
+
+    const pid2 = await createPlan('Rollback Plan 2');
+    const zidB = await createZone('Rollback B', ZONE_TYPE_ENABLED, 'xgrp');
+    const [seatB] = await addSeats(pid2, zidB, ['RB.1']);
+    await assignZoneRole(zidB, 'user2', ZONE_ROLE_USER);
+
+    const s = slot(1);
+    await insertBooking('user2', seatA, s.fromTS, s.fromTS + 4 * 3600);
+    await insertBooking('user2', seatB, s.fromTS + 5 * 3600, s.toTS);
+    expect(await countBookings('user2', seatA)).toBe(1);
+    expect(await countBookings('user2', seatB)).toBe(1);
+
+    await logIn(page, USER2);
+    const resp = await autoBook(page, pid1, [s]);
+    expect(resp.status()).toBe(400);
+    expect((await resp.json()).code).toBe(109);
+    expect(await countBookings('user2', seatA)).toBe(1);
+    expect(await countBookings('user2', seatB)).toBe(1);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -416,6 +499,36 @@ test.describe('multi-zone exclusivity with book-as', () => {
     expect(resp.status()).toBe(200);
     expect(await countBookings('user2', seatA)).toBe(1);
     expect(await countBookings('user2', seatB)).toBe(1);
+  });
+
+  test('D3: manual rebook cannot release a booking in an unmanaged same-group zone', async ({ page }) => {
+    const pid = await createPlan('Manual Release Gate Plan');
+    const zidA = await createZone('MRelGrp A', ZONE_TYPE_ENABLED, 'mrelGrp');
+    const zidB = await createZone('MRelGrp B', ZONE_TYPE_ENABLED, 'mrelGrp');
+    const [seatA] = await addSeats(pid, zidA, ['MA.1']);
+    const [seatB] = await addSeats(pid, zidB, ['MB.1']);
+    await assignZoneRole(zidA, 'user1', ZONE_ROLE_ADMIN);
+    await assignZoneRole(zidA, 'user2', ZONE_ROLE_USER);
+    await assignZoneRole(zidB, 'user2', ZONE_ROLE_USER);
+    const s = slot(1);
+    await insertBooking('user2', seatB, s.fromTS, s.toTS);
+    expect(await countBookings('user2', seatB)).toBe(1);
+
+    const bookData = await querySql(
+      'SELECT id FROM book WHERE login = $1 AND sid = $2',
+      ['user2', seatB],
+    );
+    const removeBid = bookData.rows[0].id;
+
+    await logIn(page, USER1);
+    const resp = await apiApply(page, {
+      book: { sid: seatA, login: 'user2', dates: [s] },
+      remove: [removeBid],
+    });
+    expect(resp.status()).toBe(403);
+    expect((await resp.json()).code).toBe(102);
+    expect(await countBookings('user2', seatB)).toBe(1);
+    expect(await countBookings('user2', seatA)).toBe(0);
   });
 });
 
