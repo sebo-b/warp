@@ -35,6 +35,7 @@ test.describe('preferences modal', () => {
     await expect(page.locator('#pref_default_day')).toBeAttached();
     await expect(page.locator('#pref_zone_show_seat_names')).toBeAttached();
     await expect(page.locator('#pref_zone_show_booking_preview')).toBeAttached();
+    await expect(page.locator('#pref_zone_show_assigned_names')).toBeAttached();
     await expect(page.locator('#pref_save_btn')).toBeVisible();
   });
 
@@ -64,6 +65,16 @@ test.describe('preferences modal', () => {
     const prefs = await resp.json();
     expect(prefs.zone_show_seat_names).toBe(true);
     expect(prefs.default_day).toBe('tomorrow');
+  });
+
+  test('zone_show_assigned_names persists via API', async ({ page }) => {
+    await logIn(page, USER1);
+    await apiSetPrefs(page, { zone_show_assigned_names: true });
+
+    const resp = await page.request.get('/xhr/prefs');
+    expect(resp.status()).toBe(200);
+    const prefs = await resp.json();
+    expect(prefs.zone_show_assigned_names).toBe(true);
   });
 
   test('each user has independent preferences', async ({ page }) => {

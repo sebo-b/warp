@@ -413,6 +413,14 @@ The old "Already booked in another zone" section is gone; an existing booking on
 - Labels update in real-time when the date/time selection changes.
 - When both seat names and booking preview are on, labels show both.
 
+### 10.4 Assigned-Names Labels (User Preference)
+- Users can toggle **"Show assigned names on zone map"** to display the names of users a seat is exclusively assigned to (permanent personal-desk assignments with `days_in_advance IS NULL`).
+- Only real-user assignments with no `days_in_advance` limit (unlimited) are shown. Limited-window assignments and everyone-only assignments are excluded.
+- A seat assigned to multiple real users (all unlimited) shows all of their names.
+- **Booking-wins precedence**: when both booking preview and assigned-names are enabled, if a seat has any booking overlapping the currently selected date/time, only the booking preview is shown (the assigned name is suppressed for that seat).
+- Assigned-name labels are date-independent (they reflect the static seat assignment, not the selected date), and are only suppressed by overlapping bookings when booking preview is also on.
+- Cross-reference: §14.4.
+
 ---
 
 ## 11. Bookings List & Report
@@ -514,6 +522,7 @@ Accessible from the user menu (dropdown in the top-right corner).
 ### 14.4 Zone Display Preferences
 - **Show seat names on zone map**: toggle permanent seat name labels.
 - **Show booking preview on zone map**: toggle labels showing who is booked on each seat for the selected time.
+- **Show assigned names on zone map**: toggle labels showing the names of users exclusively assigned to each seat (unlimited assignments only). When booking preview is also on, seats with overlapping bookings show the booking instead.
 
 ---
 

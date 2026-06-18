@@ -432,10 +432,19 @@ NAV {
 }
 
 .seat_label_booking {
-    color: #616161;
+    color: #3949ab;
+    font-weight: bold;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.seat_label_assigned {
+    color: #757575;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-style: italic;
 }
 
 .seat_label_zone {

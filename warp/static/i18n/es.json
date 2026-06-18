@@ -311,6 +311,7 @@
         "Error changing password": "Error al cambiar la contraseña",
         "Show seat names on zone map": "Mostrar nombres de asientos en el mapa de zonas",
         "Show booking preview on zone map": "Mostrar vista previa de reservas en el mapa de zonas",
+        "Show assigned names on zone map": "Mostrar nombres asignados en el mapa de zonas",
         "Reassign seats from deleted zone": "Reasignar asientos de la zona eliminada",
         "This zone contains %{smart_count} seat(s). All past booking history for these seats will be permanently deleted.": "Esta zona contiene %{smart_count} asiento. Todo el historial de reservas de estos asientos se eliminará permanentemente. |||| Esta zona contiene %{smart_count} asientos. Todo el historial de reservas de estos asientos se eliminará permanentemente.",
         "Select a zone to reassign seats to, or use the button below to delete the seats without reassignment.": "Seleccione una zona a la que reasignar los asientos, o use el botón de abajo para eliminar los asientos sin reasignarlos.",

@@ -23,8 +23,9 @@ prefsSchema = {
         },
         "zone_show_seat_names": {"type": "boolean"},
         "zone_show_booking_preview": {"type": "boolean"},
+        "zone_show_assigned_names": {"type": "boolean"},
     },
-    "required": ["default_day", "default_time", "zone_show_seat_names", "zone_show_booking_preview"],
+    "required": ["default_day", "default_time", "zone_show_seat_names", "zone_show_booking_preview", "zone_show_assigned_names"],
     "additionalProperties": False
 }
 
@@ -36,6 +37,7 @@ def _row_to_prefs(row):
         "default_time": [row['default_time_from'], row['default_time_to']],
         "zone_show_seat_names": row['zone_show_seat_names'],
         "zone_show_booking_preview": row['zone_show_booking_preview'],
+        "zone_show_assigned_names": row['zone_show_assigned_names'],
     }
 
 
@@ -56,6 +58,7 @@ def get_user_prefs(login):
         UserPrefs.default_time_to,
         UserPrefs.zone_show_seat_names,
         UserPrefs.zone_show_booking_preview,
+        UserPrefs.zone_show_assigned_names,
     ).where(UserPrefs.login == login).first()
 
     if row:
@@ -67,6 +70,7 @@ def get_user_prefs(login):
         "default_time": [DEFAULT_TIME_FROM, DEFAULT_TIME_TO],
         "zone_show_seat_names": False,
         "zone_show_booking_preview": False,
+        "zone_show_assigned_names": False,
     }
 
 
@@ -91,6 +95,7 @@ def prefs_set():
         UserPrefs.default_time_to: time_to,
         UserPrefs.zone_show_seat_names: jsonData['zone_show_seat_names'],
         UserPrefs.zone_show_booking_preview: jsonData['zone_show_booking_preview'],
+        UserPrefs.zone_show_assigned_names: jsonData['zone_show_assigned_names'],
     }
 
     update = {
@@ -100,6 +105,7 @@ def prefs_set():
         UserPrefs.default_time_to: values[UserPrefs.default_time_to],
         UserPrefs.zone_show_seat_names: values[UserPrefs.zone_show_seat_names],
         UserPrefs.zone_show_booking_preview: values[UserPrefs.zone_show_booking_preview],
+        UserPrefs.zone_show_assigned_names: values[UserPrefs.zone_show_assigned_names],
     }
 
     UserPrefs.insert(values).on_conflict(

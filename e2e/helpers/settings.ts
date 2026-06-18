@@ -30,6 +30,7 @@ export const defaultPrefsPayload = {
   default_time: [9 * 3600, 17 * 3600],
   zone_show_seat_names: false,
   zone_show_booking_preview: false,
+  zone_show_assigned_names: false,
 };
 
 /** POST to /xhr/prefs with the given overrides, return the response. */

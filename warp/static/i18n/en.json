@@ -311,6 +311,7 @@
         "Error changing password": "Error changing password",
         "Show seat names on zone map": "Show seat names on zone map",
         "Show booking preview on zone map": "Show booking preview on zone map",
+        "Show assigned names on zone map": "Show assigned names on zone map",
         "Reassign seats from deleted zone": "Reassign seats from deleted zone",
         "This zone contains %{smart_count} seat(s). All past booking history for these seats will be permanently deleted.": "This zone contains %{smart_count} seat(s). All past booking history for these seats will be permanently deleted. |||| This zone contains %{smart_count} seats. All past booking history for these seats will be permanently deleted.",
         "Select a zone to reassign seats to, or use the button below to delete the seats without reassignment.": "Select a zone to reassign seats to, or use the button below to delete the seats without reassignment.",

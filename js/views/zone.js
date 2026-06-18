@@ -112,7 +112,19 @@ function initSeatLabels(seatFactory) {
         div.style.top = (pands.y + WarpSeat.Sprites.spriteSize - TITLE_HEIGHT) + "px";
     }
 
-    function computeSignature(seat, showSeatNames, showBookingPreview) {
+    function getAssignedLabelUsers(seat) {
+        var assignments = seat.getAssignments();
+        var users = [];
+        for (var key in assignments) {
+            var a = assignments[key];
+            if (a.isEveryone) continue;
+            if (a.days_in_advance !== null) continue;
+            users.push(a.name);
+        }
+        return users;
+    }
+
+    function computeSignature(seat, showSeatNames, showBookingPreview, showAssignedNames) {
         var bookings = showBookingPreview ? seat.getBookings() : [];
         var users = [];
         var seen = new Set();
@@ -121,14 +133,29 @@ function initSeatLabels(seatFactory) {
             seen.add(b.username);
             users.push(b.username);
         }
-        return (showSeatNames ? seat.getName() : '') + '\x00' + users.join('\x01');
+        var bookingPart = users.join('\x01');
+
+        var assignedPart = '';
+        if (showAssignedNames && (!showBookingPreview || bookings.length === 0)) {
+            var assignedUsers = getAssignedLabelUsers(seat);
+            if (assignedUsers.length) {
+                assignedPart = '\x02' + assignedUsers.join('\x03');
+            }
+        }
+
+        return (showSeatNames ? seat.getName() : '') + '\x00' + bookingPart + assignedPart;
     }
 
-    function buildContentDiv(seat, showSeatNames, showBookingPreview) {
+    function buildContentDiv(seat, showSeatNames, showBookingPreview, showAssignedNames) {
 
         var bookings = showBookingPreview ? seat.getBookings() : [];
 
-        if (!showSeatNames && !bookings.length) return null;
+        var assignedUsers = [];
+        if (showAssignedNames && (!showBookingPreview || bookings.length === 0)) {
+            assignedUsers = getAssignedLabelUsers(seat);
+        }
+
+        if (!showSeatNames && !bookings.length && !assignedUsers.length) return null;
 
         var div = document.createElement("div");
         div.className = "seat_label";
@@ -137,6 +164,17 @@ function initSeatLabels(seatFactory) {
             var title = div.appendChild(document.createElement("div"));
             title.className = "seat_label_title";
             title.textContent = seat.getName();
+        }
+
+        if (assignedUsers.length) {
+            var content = div.appendChild(document.createElement("div"));
+            content.className = "seat_label_content";
+
+            for (var name of assignedUsers) {
+                var row = content.appendChild(document.createElement("div"));
+                row.className = "seat_label_assigned";
+                row.textContent = name;
+            }
         }
 
         if (showBookingPreview && bookings.length) {
@@ -166,8 +204,9 @@ function initSeatLabels(seatFactory) {
 
         var showSeatNames = prefs.show_seat_names;
         var showBookingPreview = prefs.show_booking_preview;
+        var showAssignedNames = prefs.show_assigned_names;
 
-        if (!showSeatNames && !showBookingPreview) {
+        if (!showSeatNames && !showBookingPreview && !showAssignedNames) {
             needsFullRender = false;
             return;
         }
@@ -176,7 +215,7 @@ function initSeatLabels(seatFactory) {
             var seat = seatFactory.instances[sid];
             if (seat.isOtherZone()) continue;
 
-            var div = buildContentDiv(seat, showSeatNames, showBookingPreview);
+            var div = buildContentDiv(seat, showSeatNames, showBookingPreview, showAssignedNames);
             if (!div) continue;
 
             positionLabel(div, seat.getPositionAndSize());
@@ -184,7 +223,7 @@ function initSeatLabels(seatFactory) {
 
             labelsContainer.appendChild(div);
             labelData[sid] = div;
-            labelSignatures[sid] = computeSignature(seat, showSeatNames, showBookingPreview);
+            labelSignatures[sid] = computeSignature(seat, showSeatNames, showBookingPreview, showAssignedNames);
         }
 
         needsFullRender = false;
@@ -199,6 +238,7 @@ function initSeatLabels(seatFactory) {
 
         var showSeatNames = prefs.show_seat_names;
         var showBookingPreview = prefs.show_booking_preview;
+        var showAssignedNames = prefs.show_assigned_names;
 
         for (var sid in seatFactory.instances) {
             var seat = seatFactory.instances[sid];
@@ -207,7 +247,7 @@ function initSeatLabels(seatFactory) {
             var bookings = showBookingPreview ? seat.getBookings() : [];
             var existingDiv = labelData[sid];
 
-            if (!showSeatNames && !bookings.length) {
+            if (!showSeatNames && !bookings.length && !(showAssignedNames && getAssignedLabelUsers(seat).length)) {
                 if (existingDiv) {
                     existingDiv.remove();
                     delete labelData[sid];
@@ -216,10 +256,10 @@ function initSeatLabels(seatFactory) {
                 continue;
             }
 
-            var newSig = computeSignature(seat, showSeatNames, showBookingPreview);
+            var newSig = computeSignature(seat, showSeatNames, showBookingPreview, showAssignedNames);
             if (existingDiv && labelSignatures[sid] === newSig) continue;
 
-            var div = buildContentDiv(seat, showSeatNames, showBookingPreview);
+            var div = buildContentDiv(seat, showSeatNames, showBookingPreview, showAssignedNames);
             if (!div) {
                 if (existingDiv) {
                     existingDiv.remove();
@@ -262,6 +302,14 @@ function initSeatLabels(seatFactory) {
 
         if (prefs.show_seat_names && !hasAssignments && !hasBookings) {
             suppressTooltip = true;
+        } else if (prefs.show_assigned_names && !hasBookings) {
+            var assignedUsers = getAssignedLabelUsers(this);
+            if (assignedUsers.length && assignedUsers.length === Object.keys(this.getAssignments()).length) {
+                suppressTooltip = true;
+            } else {
+                suppressTooltip = false;
+                if (labelData[sid]) labelData[sid].classList.add("seat_label_hidden");
+            }
         } else {
             suppressTooltip = false;
             if (labelData[sid]) labelData[sid].classList.add("seat_label_hidden");
@@ -279,6 +327,7 @@ function initSeatLabels(seatFactory) {
         if (!newPrefs) return;
         prefs.show_seat_names = !!newPrefs.show_seat_names;
         prefs.show_booking_preview = !!newPrefs.show_booking_preview;
+        prefs.show_assigned_names = !!newPrefs.show_assigned_names;
         refreshAllLabels();
     });
 

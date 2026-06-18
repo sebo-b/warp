@@ -73,6 +73,7 @@ function initPrefs() {
   var maxDiv = document.getElementById('pref_timeslider-max');
   var showSeatNamesEl = document.getElementById('pref_zone_show_seat_names');
   var showBookingPreviewEl = document.getElementById('pref_zone_show_booking_preview');
+  var showAssignedNamesEl = document.getElementById('pref_zone_show_assigned_names');
 
   if (!prefModalEl || !planSelectEl || !daySelectEl || !saveBtn || !sliderEl)
     return;
@@ -90,6 +91,7 @@ function initPrefs() {
     if (slider) slider.set(time);
     if (showSeatNamesEl) showSeatNamesEl.checked = loadedPrefs ? loadedPrefs.zone_show_seat_names : false;
     if (showBookingPreviewEl) showBookingPreviewEl.checked = loadedPrefs ? loadedPrefs.zone_show_booking_preview : false;
+    if (showAssignedNamesEl) showAssignedNamesEl.checked = loadedPrefs ? loadedPrefs.zone_show_assigned_names : false;
   }
 
   function ensureSlider() {
@@ -142,7 +144,8 @@ function initPrefs() {
       default_day: daySelectEl.value,
       default_time: slider.get(true).map(function(v) { return Math.round(v); }),
       zone_show_seat_names: showSeatNamesEl ? showSeatNamesEl.checked : false,
-      zone_show_booking_preview: showBookingPreviewEl ? showBookingPreviewEl.checked : false
+      zone_show_booking_preview: showBookingPreviewEl ? showBookingPreviewEl.checked : false,
+      zone_show_assigned_names: showAssignedNamesEl ? showAssignedNamesEl.checked : false
     };
     if (extraPayload) Object.assign(payload, extraPayload);
 
@@ -161,7 +164,8 @@ function initPrefs() {
       window.warpGlobals = window.warpGlobals || {};
       window.warpGlobals['zonePreviewPrefs'] = {
         show_seat_names: prefs.zone_show_seat_names,
-        show_booking_preview: prefs.zone_show_booking_preview
+        show_booking_preview: prefs.zone_show_booking_preview,
+        show_assigned_names: prefs.zone_show_assigned_names
       };
       document.dispatchEvent(new CustomEvent('warp:prefsSaved', {
         detail: { zonePreviewPrefs: window.warpGlobals['zonePreviewPrefs'] }

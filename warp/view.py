@@ -141,6 +141,7 @@ def plan(pid):
     zonePreviewPrefs = {
         'show_seat_names': prefs.get('zone_show_seat_names', False),
         'show_booking_preview': prefs.get('zone_show_booking_preview', False),
+        'show_assigned_names': prefs.get('zone_show_assigned_names', False),
     }
 
     defaultSelectedDates = {"slider": default_time}

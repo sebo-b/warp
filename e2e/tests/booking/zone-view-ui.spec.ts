@@ -6,7 +6,7 @@
 
 import { test, expect } from '../../fixtures';
 import { logIn } from '../../helpers/auth';
-import { USER1, USER2 } from '../../helpers/users';
+import { USER1, USER2, USER3 } from '../../helpers/users';
 import { apiSetPrefs } from '../../helpers/settings';
 import { insertBooking } from '../../helpers/bookings-page';
 import {
@@ -15,6 +15,7 @@ import {
   selectOnlyDates,
   waitForSeatsLoaded,
 } from '../../helpers/booking';
+import { assignSeat } from '../../helpers/zone-setup';
 
 test.describe('zone map help legend', () => {
 
@@ -204,5 +205,98 @@ test.describe('date selection UX', () => {
         await expect(cb).not.toBeChecked();
       }
     }
+  });
+});
+
+test.describe('assigned-names labels', () => {
+
+  test('no assigned label when pref is off', async ({ page }) => {
+    const [seat] = await getZoneSeats(1);
+    await assignSeat(seat.id, USER2.login, null);
+
+    await logIn(page, USER1);
+    await apiSetPrefs(page, { zone_show_assigned_names: false });
+
+    await page.goto('/plan/1');
+    await waitForSeatsLoaded(page);
+
+    await expect(page.locator('.seat_label_assigned')).toHaveCount(0);
+  });
+
+  test('assigned label shown when pref is on', async ({ page }) => {
+    const [seat] = await getZoneSeats(1);
+    await assignSeat(seat.id, USER2.login, null);
+
+    await logIn(page, USER1);
+    await apiSetPrefs(page, { zone_show_assigned_names: true });
+
+    await page.goto('/plan/1');
+    await waitForSeatsLoaded(page);
+
+    await expect(page.locator('.seat_label_assigned', { hasText: USER2.name })).toBeVisible();
+  });
+
+  test('booking preview wins over assigned names', async ({ page }) => {
+    const ts = futureDayTs(1);
+    const [seat] = await getZoneSeats(1);
+    await assignSeat(seat.id, USER2.login, null);
+    await insertBooking(USER2.login, seat.id, 1);
+
+    await logIn(page, USER1);
+    await apiSetPrefs(page, {
+      zone_show_booking_preview: true,
+      zone_show_assigned_names: true,
+    });
+
+    await page.goto('/plan/1');
+    await waitForSeatsLoaded(page);
+    await selectOnlyDates(page, [ts]);
+    await page.waitForTimeout(400);
+
+    // The seat has a booking overlapping the selected date, so booking preview wins.
+    await expect(page.locator('.seat_label_booking', { hasText: USER2.name })).toBeVisible();
+    await expect(page.locator('.seat_label_assigned')).toHaveCount(0);
+  });
+
+  test('everyone-only seat not shown', async ({ page }) => {
+    const [seat] = await getZoneSeats(1);
+    await assignSeat(seat.id, null, null);
+
+    await logIn(page, USER1);
+    await apiSetPrefs(page, { zone_show_assigned_names: true });
+
+    await page.goto('/plan/1');
+    await waitForSeatsLoaded(page);
+
+    await expect(page.locator('.seat_label_assigned')).toHaveCount(0);
+  });
+
+  test('limited days_in_advance not shown', async ({ page }) => {
+    const [seat] = await getZoneSeats(1);
+    await assignSeat(seat.id, USER2.login, 3);
+
+    await logIn(page, USER1);
+    await apiSetPrefs(page, { zone_show_assigned_names: true });
+
+    await page.goto('/plan/1');
+    await waitForSeatsLoaded(page);
+
+    await expect(page.locator('.seat_label_assigned')).toHaveCount(0);
+  });
+
+  test('multi-user assignment shows all names', async ({ page }) => {
+    const [seat] = await getZoneSeats(1);
+    await assignSeat(seat.id, USER2.login, null);
+    // USER3 needs to be a real user in the DB — sample_data.sql creates user3.
+    await assignSeat(seat.id, USER3.login, null);
+
+    await logIn(page, USER1);
+    await apiSetPrefs(page, { zone_show_assigned_names: true });
+
+    await page.goto('/plan/1');
+    await waitForSeatsLoaded(page);
+
+    await expect(page.locator('.seat_label_assigned', { hasText: USER2.name })).toBeVisible();
+    await expect(page.locator('.seat_label_assigned', { hasText: USER3.name })).toBeVisible();
   });
 });
