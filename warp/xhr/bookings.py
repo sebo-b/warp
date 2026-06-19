@@ -65,12 +65,30 @@ def listW(report = False):      # list is a built-in type
                       .join(Users, on=(Book.login == Users.login))
 
     # user restrictions (in non-report mode)
-    # visibility only on assigned zones and not in the past
+    # visibility: accessible zones (assigned or public) and not in the past
     if not report:
 
-        query = query.select_extend(UserToZoneRoles.zone_role) \
-                     .join(UserToZoneRoles, on=(UserToZoneRoles.zid == Seat.zid)) \
-                     .where( (UserToZoneRoles.login == flask.g.login) & (Book.fromts >= utils.today()) )
+        # Visibility: bookings in zones the user can access. This mirrors
+        # view.headerDataInit / calendar._accessible_zone_ids: public zones
+        # (PUBLIC_VIEW / PUBLIC_BOOK) are open to everyone; ENABLED zones require
+        # an explicit role (<= VIEWER); ADMIN role grants access to any zone
+        # type (including DISABLED).  A LEFT OUTER join is used so that users
+        # with no zone_assign entry (i.e. no row in the materialized view) still
+        # see bookings in public zones.
+        query = query.select_extend(
+                    UserToZoneRoles.zone_role,
+                    Zone.zone_type.alias('zone_type')
+                ) \
+                .join(UserToZoneRoles, peewee.JOIN.LEFT_OUTER,
+                      on=((UserToZoneRoles.zid == Seat.zid) &
+                          (UserToZoneRoles.login == flask.g.login))) \
+                .where(Book.fromts >= utils.today()) \
+                .where(
+                    Zone.zone_type.in_([ZONE_TYPE_PUBLIC_VIEW, ZONE_TYPE_PUBLIC_BOOK]) |
+                    ((Zone.zone_type == ZONE_TYPE_ENABLED) &
+                     (UserToZoneRoles.zone_role <= ZONE_ROLE_VIEWER)) |
+                    (UserToZoneRoles.zone_role == ZONE_ROLE_ADMIN)
+                )
 
     columnsMap = {
         "id": Book.id,
@@ -170,9 +188,11 @@ def listW(report = False):      # list is a built-in type
 
             if not report:
 
-                d['rw'] = \
-                    (row["login"] == flask.g.login and row["zone_role"] <= ZONE_ROLE_USER) \
-                    or row["zone_role"] <= ZONE_ROLE_ADMIN
+                eff_role = effectiveZoneRole(row['zone_type'], row['zone_role'])
+                d['rw'] = eff_role is not None and (
+                    (row["login"] == flask.g.login and eff_role <= ZONE_ROLE_USER) or
+                    eff_role <= ZONE_ROLE_ADMIN
+                )
 
             else:
                 d["login"] = row["login"]
