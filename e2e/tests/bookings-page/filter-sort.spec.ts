@@ -21,7 +21,7 @@ test.describe('bookings page filtering', () => {
     await expect(page.locator('.tabulator-row').first()).toContainText(seats[0].name);
   });
 
-  test('filtering by zone name shows only matching rows', async ({ page }) => {
+  test('filtering by plan name shows only matching rows', async ({ page }) => {
     const zone1Seats = await getZoneSeats(1);
     const zone2Seats = await getZoneSeats(2);
     await insertBooking('user1', zone1Seats[0].id);
@@ -32,9 +32,9 @@ test.describe('bookings page filtering', () => {
     await page.waitForLoadState('networkidle');
     await expect(page.locator('.tabulator-row')).toHaveCount(2);
 
-    await fillHeaderFilter(page, 'zone_name', 'Zone 1A');
+    await fillHeaderFilter(page, 'plan_name', 'Plan 1A');
     await expect(page.locator('.tabulator-row')).toHaveCount(1);
-    await expect(page.locator('.tabulator-row').first()).toContainText('Zone 1A');
+    await expect(page.locator('.tabulator-row').first()).toContainText('Plan 1A');
   });
 
   test('filtering by user name shows only matching rows (zone admin view)', async ({ page }) => {
@@ -98,7 +98,7 @@ test.describe('bookings page sorting', () => {
     await expect(rows.first()).toContainText(seats[1].name);
   });
 
-  test('clicking zone_name column header changes row order', async ({ page }) => {
+  test('clicking plan_name column header changes row order', async ({ page }) => {
     const zone1Seats = await getZoneSeats(1);
     const zone2Seats = await getZoneSeats(2);
     await insertBooking('user1', zone1Seats[0].id, 1);
@@ -108,16 +108,16 @@ test.describe('bookings page sorting', () => {
     await page.goto('/bookings');
     await page.waitForLoadState('networkidle');
 
-    await clickColumnHeader(page, 'zone_name'); // sort ascending
+    await clickColumnHeader(page, 'plan_name'); // sort ascending
     const firstAfterAsc = await page
       .locator('.tabulator-row').first()
-      .locator('.tabulator-cell[tabulator-field="zone_name"]')
+      .locator('.tabulator-cell[tabulator-field="plan_name"]')
       .innerText();
 
-    await clickColumnHeader(page, 'zone_name'); // sort descending
+    await clickColumnHeader(page, 'plan_name'); // sort descending
     const firstAfterDesc = await page
       .locator('.tabulator-row').first()
-      .locator('.tabulator-cell[tabulator-field="zone_name"]')
+      .locator('.tabulator-cell[tabulator-field="plan_name"]')
       .innerText();
 
     expect(firstAfterAsc).not.toEqual(firstAfterDesc);

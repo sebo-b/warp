@@ -143,7 +143,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         }
 
         var msg = TR('User name')+": "+data['user_name']+"<br>"+
-              TR("Zone")+": "+data['zone_name']+"<br>"+
+              TR("Plan")+": "+data['plan_name']+"<br>"+
               TR("Seat")+": "+data['seat_name']+"<br>"+
               TR("Time")+": "+mergedTsFormatter(cell);
 
@@ -153,7 +153,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     var columns = [
         {title:TR("User name"), field: "user_name", headerFilter:"input", headerFilterFunc:"starts"},
-        {title:TR("Zone"), field: "zone_name", headerFilter:"input", headerFilterFunc:"starts"},
+        {title:TR("Plan"), field: "plan_name", headerFilter:"input", headerFilterFunc:"starts"},
         {title:TR("Seat"), field: "seat_name", headerFilter:"input", headerFilterFunc:"starts"}
     ];
 

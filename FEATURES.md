@@ -427,9 +427,9 @@ The old "Already booked in another zone" section is gone; an existing booking on
 
 ### 11.1 Bookings List (available to all users)
 - Shows **future** bookings in zones the user is assigned to.
-- Columns: User name, Zone, Seat, Time (merged from/to into one column).
+- Columns: User name, Plan, Seat, Time (merged from/to into one column).
 - A **delete button** (🗑) appears for bookings the user can remove (own bookings where they have User role, or any booking where they have Zone Admin role).
-- Filtering by user name, zone, seat, and date range.
+- Filtering by user name, plan, seat, and date range.
 - Sorting by time and user name.
 - Paginated with remote data loading.
 

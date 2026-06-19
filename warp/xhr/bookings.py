@@ -59,8 +59,9 @@ def listW(report = False):      # list is a built-in type
     if not report and 'export' in requestData:
         flask.abort(403)
 
-    query = Book.select(Book.id, Users.name.alias('user_name'), Users.login, Zone.name.alias('zone_name'), Seat.name.alias('seat_name'), Book.fromts, Book.tots) \
+    query = Book.select(Book.id, Users.name.alias('user_name'), Users.login, Plan.name.alias('plan_name'), Seat.name.alias('seat_name'), Book.fromts, Book.tots) \
                       .join(Seat, on=(Book.sid == Seat.id)) \
+                      .join(Plan, on=(Seat.pid == Plan.id)) \
                       .join(Zone, on=(Seat.zid == Zone.id)) \
                       .join(Users, on=(Book.login == Users.login))
 
@@ -94,7 +95,7 @@ def listW(report = False):      # list is a built-in type
         "id": Book.id,
         "user_name": Users.name,
         "login": Users.login,
-        "zone_name": Zone.name,
+        "plan_name": Plan.name,
         "seat_name": Seat.name,
         "fromTS": Book.fromts,
         "toTS": Book.tots
@@ -135,8 +136,8 @@ def listW(report = False):      # list is a built-in type
         worksheet = workbook.add_worksheet()
 
         # TODO_TR
-        columnsHeader = [ "User name", "Login", "Zone name", "Seat name", "From", "To" ]
-        columnsContent = [ "user_name", "login", "zone_name", "seat_name", "fromts", "tots" ]
+        columnsHeader = [ "User name", "Login", "Plan name", "Seat name", "From", "To" ]
+        columnsContent = [ "user_name", "login", "plan_name", "seat_name", "fromts", "tots" ]
 
         worksheet.write_row(0,0,columnsHeader)
 
@@ -180,7 +181,7 @@ def listW(report = False):      # list is a built-in type
             d = {
                 "id": row["id"],
                 "user_name": row["user_name"],
-                "zone_name": row["zone_name"],
+                "plan_name": row["plan_name"],
                 "seat_name": row["seat_name"],
                 "fromTS": row["fromts"],
                 "toTS": row["tots"]

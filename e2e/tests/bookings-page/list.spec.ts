@@ -131,7 +131,7 @@ test.describe('delete booking from the bookings page', () => {
 
     const modal = page.locator('.modal', { hasText: 'Are you sure to delete this booking?' });
     await expect(modal).toContainText(seat.name);
-    await expect(modal).toContainText('Zone 1A');
+    await expect(modal).toContainText('Plan 1A');
   });
 
   test('confirming delete removes the booking from the table and the DB', async ({ page }) => {

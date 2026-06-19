@@ -66,9 +66,9 @@ test.describe('booking report', () => {
 
     await logIn(page, ADMIN);
     const resp = await adminPost(page, '/xhr/bookings/report', TAB);
-    const zoneNames = (await resp.json()).data.map((r: any) => r.zone_name);
-    expect(zoneNames).toContain('Zone 1A');
-    expect(zoneNames).toContain('Zone 1B');
+    const planNames = (await resp.json()).data.map((r: any) => r.plan_name);
+    expect(planNames).toContain('Plan 1A');
+    expect(planNames).toContain('Plan 1B');
   });
 
   test('non-admin cannot call the report API (403)', async ({ page }) => {
