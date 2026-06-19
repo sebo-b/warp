@@ -345,6 +345,8 @@
         },
         "No filter": "Kein Filter",
         "Logout": "Abmelden",
+        "Users & groups": "Benutzer & Gruppen",
+        "Zones & plans": "Zonen & Pläne",
         "Bookings": "Buchungen",
         "Authentication error": "Authentifizierungsfehler",
         "Access denied: you are not a member of an allowed group.": "Zugriff verweigert: Sie sind kein Mitglied einer zulässigen Gruppe.",

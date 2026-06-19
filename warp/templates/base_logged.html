@@ -24,27 +24,57 @@
     <div id="spinner"></div>
 
     <ul class="sidenav" id="mobile-nav">
-        <li><a href="#pref_modal" class="modal-trigger TR">Preferences</a></li>
-        <li><a href="#calendar_modal" class="modal-trigger TR">Calendar integration</a></li>
-        {% if hasChangePassword %}
-        <li><a href="#change_password_modal" class="modal-trigger TR">Change password</a></li>
-        {% endif %}
-        {% if hasLogout %}
-        <li><a href="{{ url_for('auth.logout') }}" class="TR">Logout</a></li>
-        {% endif %}
-        <li class="divider"></li>
+        {# Bookings + accessible plans (zones the user can book) #}
         {% for i in headerDataL %}
         <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}" class="TR">{{i['text']}}</a></li>
         {% endfor %}
+
         {% if g.isAdmin %}
         <li class="divider"></li>
         <li><a href="{{ url_for('view.bookings', report='report') }}" class="TR">Report</a></li>
+        <li>
+            <ul class="collapsible collapsible-accordion">
+                <li>
+                    <a class="collapsible-header"><span class="TR">Users &amp; groups</span><i class="material-icons">arrow_drop_down</i></a>
+                    <div class="collapsible-body">
+                        <ul>
+                            <li><a href="{{ url_for('view.users') }}" class="TR">Users</a></li>
+                            <li><a href="{{ url_for('view.groups') }}" class="TR">Groups</a></li>
+                        </ul>
+                    </div>
+                </li>
+                <li>
+                    <a class="collapsible-header"><span class="TR">Zones &amp; plans</span><i class="material-icons">arrow_drop_down</i></a>
+                    <div class="collapsible-body">
+                        <ul>
+                            <li><a href="{{ url_for('view.zones') }}" class="TR">Zones</a></li>
+                            <li><a href="{{ url_for('view.plans') }}" class="TR">Plans</a></li>
+                        </ul>
+                    </div>
+                </li>
+            </ul>
+        </li>
+        {% endif %}
+
         <li class="divider"></li>
-        <li><a href="{{ url_for('view.users') }}" class="TR">Users</a></li>
-        <li><a href="{{ url_for('view.groups') }}" class="TR">Groups</a></li>
-        <li class="divider"></li>
-        <li><a href="{{ url_for('view.zones') }}" class="TR">Zones</a></li>
-        <li><a href="{{ url_for('view.plans') }}" class="TR">Plans</a></li>
+        <li>
+            <ul class="collapsible collapsible-accordion">
+                <li>
+                    <a class="collapsible-header">{{ g.login }}<i class="material-icons">arrow_drop_down</i></a>
+                    <div class="collapsible-body">
+                        <ul>
+                            <li><a href="#pref_modal" class="modal-trigger TR">Preferences</a></li>
+                            <li><a href="#calendar_modal" class="modal-trigger TR">Calendar integration</a></li>
+                            {% if hasChangePassword %}
+                            <li><a href="#change_password_modal" class="modal-trigger TR">Change password</a></li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </li>
+            </ul>
+        </li>
+        {% if hasLogout %}
+        <li><a href="{{ url_for('auth.logout') }}" class="TR">Logout</a></li>
         {% endif %}
     </ul>
 
@@ -234,6 +264,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             var e = document.getElementById('mobile-nav');
             M.Sidenav.init(e);
+            M.Collapsible.init(e.querySelectorAll('.collapsible'), { accordion: false });
         });
     </script>
 
@@ -275,7 +306,7 @@
         {% endif %}
         {% if hasLogout %}
         <li class="divider" tabindex="-1"></li>
-        <li><a href="{{ url_for('auth.logout') }}" class="TR">Logout</a></li>
+        <li><a href="{{ url_for('auth.logout') }}"><span class="TR">Logout</span> ({{ g.login }})</a></li>
         {% endif %}
     </ul>
 
