@@ -80,7 +80,11 @@ def signin_oidc():
 def aadGetUserMetadata(userData):
 	ret = {
 		'login': userData[flask.current_app.config.get('AAD_LOGIN_ATTRIBUTE')],
-		'userName': userData[flask.current_app.config.get('AAD_USER_NAME_ATTRIBUTE')],
+		'userName': ' '.join(
+		    userData[attr]
+		    for attr in flask.current_app.config.get('AAD_USER_NAME_ATTRIBUTE').split(',')
+		    if attr.strip() in userData
+		),
 		'groups': [],
 	}
 
