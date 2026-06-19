@@ -122,33 +122,58 @@ ON book(fromts);
 CREATE INDEX book_toTS
 ON book(tots);
 
+-- Single source of truth for zone access.  A row exists iff the user has
+-- effective access to the zone; zone_role is the effective (minimum) role,
+-- already resolving the public-zone "everyone" role.  No row means no access
+-- (except the flask.g.isAdmin site-admin bypass, which stays in Python).
+--
+-- DISABLED zones keep ADMIN rows only — a user with explicit USER/VIEWER on a
+-- DISABLED zone gets no row (no access).  PUBLIC_BOOK (type 40) grants every
+-- user with account_type < 100 a synthetic USER (20) row; PUBLIC_VIEW (type 30)
+-- grants VIEWER (30).  MIN(zone_role) merges explicit and synthetic: a user
+-- with explicit ADMIN on a PUBLIC_BOOK zone keeps ADMIN (10), not USER (20).
+-- Blocked users (account_type = 90) are included (same < 100 filter); blocked
+-- status is enforced only at the auth layer.
 CREATE MATERIALIZED VIEW user_to_zone_roles ("login",zid,zone_role) AS
-    with recursive zone_assign_expanded("login",zid,zone_role,account_type) as (
-        select za."login",za.zid,za.zone_role,u.account_type from zone_assign za
-        join users u on za."login" = u."login"
-    union
-        select g."login",za.zid, za.zone_role,u.account_type from zone_assign_expanded za
-        join groups g on g."group" = za."login"
-        join users u on g."login" = u."login"
-    )
-    select login,zid,MIN(zone_role) from zone_assign_expanded
-    where account_type < 100
-    group by zid,login;
-
--- CREATE MATERIALIZED VIEW user_to_zone_roles (login,zid,zone_role) AS
--- with recursive user_group(login,"group") as (
---   select login,login from users
---   where account_type < 100
---   union
---   select u.login,g."group" from user_group u
---   join "groups" g on g.login = u."group"
--- )
--- select ug."login", za.zid, MIN(za.zone_role) from user_group ug
--- join zone_assign za on za.login = ug."group"
--- group by ug."login", za.zid;
+WITH RECURSIVE zone_assign_expanded("login",zid,zone_role,account_type,zone_type) AS (
+    SELECT za."login", za.zid, za.zone_role, u.account_type, z.zone_type
+    FROM zone_assign za
+    JOIN users u ON za."login" = u."login"
+    JOIN zone z  ON za.zid = z.id
+  UNION
+    SELECT g."login", za.zid, za.zone_role, u.account_type, za.zone_type
+    FROM zone_assign_expanded za
+    JOIN groups g ON g."group" = za."login"
+    JOIN users u ON g."login" = u."login"
+),
+explicit_roles AS (
+    SELECT "login", zid, MIN(zone_role) AS zone_role
+    FROM zone_assign_expanded
+    WHERE account_type < 100
+      -- DISABLED zones keep ADMIN only: filter out non-ADMIN rows before MIN.
+      AND (zone_type != 10 OR zone_role = 10)
+    GROUP BY "login", zid
+),
+synthetic_public AS (
+    SELECT u."login", z.id AS zid,
+           CASE WHEN z.zone_type = 40 THEN 20
+                WHEN z.zone_type = 30 THEN 30
+           END AS zone_role
+    FROM users u
+    CROSS JOIN zone z
+    WHERE u.account_type < 100
+      AND z.zone_type IN (30, 40)
+)
+SELECT "login", zid, MIN(zone_role) AS zone_role
+FROM (
+    SELECT "login", zid, zone_role FROM explicit_roles
+    UNION ALL
+    SELECT "login", zid, zone_role FROM synthetic_public
+) combined
+GROUP BY "login", zid;
 
 CREATE UNIQUE INDEX user_to_zone_roles_idx
-ON user_to_zone_roles("login",zid,zone_role);
+ON user_to_zone_roles("login",zid);
 
 CREATE INDEX user_to_zone_roles_zid_idx
 ON user_to_zone_roles(zid);
@@ -173,23 +198,20 @@ AFTER INSERT OR UPDATE OR DELETE ON groups
 FOR STATEMENT
 EXECUTE PROCEDURE update_user_to_zone_roles();
 
+-- Zone type changes (e.g. ENABLED -> PUBLIC_BOOK) add/remove synthetic rows,
+-- so a zone INSERT/UPDATE/DELETE must also refresh the view.
+CREATE TRIGGER zone_update
+AFTER INSERT OR UPDATE OR DELETE ON zone
+FOR STATEMENT
+EXECUTE PROCEDURE update_user_to_zone_roles();
 
--- with recursive user_group(login,"group") as (
---   select login,login from users
---   where account_type < 100
---   union
---   select u.login,g."group" from user_group u
---   join "groups" g on g.login = u."group"
---
--- )
--- select * from user_group;
-
--- CREATE VIEW user_to_zone_roles (login,zid,zone_role) AS
--- SELECT u.login,za.zid,MIN(za.zone_role) FROM users u
--- LEFT JOIN "groups" g ON g.login = u.login
--- JOIN zone_assign za ON za.login = g."group" OR za.login = u.login
--- WHERE u.account_type < 100
--- GROUP BY u.login, za.zid
+-- User creation/deletion adds/removes synthetic public-zone rows.  No UPDATE
+-- trigger: the app prevents User<->Group conversion, so account_type stays
+-- within < 100 and synthetic rows are unchanged by an UPDATE.
+CREATE TRIGGER users_insert_delete
+AFTER INSERT OR DELETE ON users
+FOR STATEMENT
+EXECUTE PROCEDURE update_user_to_zone_roles();
 
 
 CREATE FUNCTION book_overlap_insert()
@@ -262,4 +284,4 @@ CREATE UNLOGGED TABLE calendar_cache (
 
 CREATE TABLE db_initialized (version INTEGER NOT NULL);
 
-INSERT INTO db_initialized(version) VALUES(14);
+INSERT INTO db_initialized(version) VALUES(15);

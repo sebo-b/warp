@@ -180,6 +180,8 @@ The zone type influences what role a user effectively has:
 | **Public — View**     |    30 | Everyone can see the zone and its bookings. Only assigned users (with User role or better) can book. Unassigned visitors get Viewer role. |
 | **Public — Book**     |    40 | Everyone can see and book in the zone. Assignment is not required. Unassigned visitors get User role.            |
 
+> **Zone access counts on the /zones page.** The admin zones page shows per-zone admin/user/viewer counts from the `user_to_zone_roles` view. Because the view is the single source of truth (it includes synthetic rows for public zones), a public zone's counts reflect the **full eligible population** (every non-group user), not just explicit assignees — this is the intended meaning of "who can use this zone." Explicit-assignment (Enabled) zones still count only their assignees. The explicit-member list on a zone's assign page (`zones.members`) is unaffected and continues to show only explicit `zone_assign` entries.
+
 ---
 
 ## 4. Plan Map Editor (Admin Only)
@@ -240,7 +242,7 @@ Accessible via the user icon on the Zones management page.
 ### 5.1 Assigning Users or Groups to a Zone
 - Add individual users or existing user groups to the zone with a chosen role (Zone Admin, User, or Viewer).
 - Adding a group: all members of that group inherit the group's zone role (via the `user_to_zone_roles` materialized view).
-- A user's effective role is the **most permissive** across all their direct assignments and group memberships.
+- A user's effective role is the **most permissive** across all their direct assignments and group memberships. For public zones a synthetic baseline role (User for public-book, Viewer for public-view) is folded in via `MIN(zone_role)`, so a user with no explicit grant still gets the public baseline.
 
 ### 5.2 Changing a User's Zone Role
 - Inline editing: click the role cell to change between Zone Admin, User, and Viewer.
@@ -388,7 +390,7 @@ The old "Already booked in another zone" section is gone; an existing booking on
 ## 9. "Book As" (Zone Admin Feature)
 
 - A "Book As" input field appears in the plan-view side panel (the booking map) for zone admins.
-- It is an autocomplete field listing all users assigned to the zones on that plan (or all non-blocked users for public zones on the plan).
+- It is an autocomplete field listing all users with access to the zones on that plan (resolved through the `user_to_zone_roles` view — the single source of truth). For a public zone that is every non-group user, including blocked users (an admin can manage and book on behalf of blocked users); for an enabled zone it is the explicitly assigned users.
 - Selecting a user switches the entire plan view to show what that user sees, including their bookings and conflicting bookings across the plan.
 - When the admin books, updates, or removes a booking, it is performed **on behalf of the selected user**.
 - The admin can also auto-book for the selected user.
@@ -493,9 +495,9 @@ The old "Already booked in another zone" section is gone; an existing booking on
 - Nested groups are supported: if group A is a member of group B, all of A's members transitively inherit B's zone roles.
 
 ### 13.3 Group Inheritance
-- The `user_to_zone_roles` materialized view expands group memberships recursively.
-- A user's effective zone role considers both direct assignments and group memberships.
-- Changes to group assignments automatically refresh the materialized view.
+- The `user_to_zone_roles` materialized view is the **single source of truth** for zone access: a row exists iff the user has effective access to the zone, and `zone_role` is the effective (minimum) role.
+- It expands group memberships recursively and unions synthetic rows for public zones (public-book → User, public-view → Viewer) for every user with `account_type < 100` (including blocked users). A user with an explicit grant on a public zone keeps the more permissive role (`MIN`). DISABLED zones keep ADMIN rows only.
+- Changes to zone assignments, groups, zone type, and user creation/deletion automatically refresh the materialized view. (No `users` UPDATE trigger is needed: the app prevents user↔group conversion, and blocked users are included in the view, so an `account_type` change within `< 100` produces the same synthetic rows.)
 
 ---
 

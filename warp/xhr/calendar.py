@@ -1,12 +1,9 @@
 import flask
-from peewee import JOIN
 import uuid
 
 from warp import utils
 
-from warp.db import (DB, UserPrefs, UserToZoneRoles, Zone,
-                     ZONE_ROLE_ADMIN, ZONE_ROLE_VIEWER,
-                     ZONE_TYPE_ENABLED, ZONE_TYPE_PUBLIC_VIEW, ZONE_TYPE_PUBLIC_BOOK)
+from warp.db import (DB, UserPrefs, UserToZoneRoles, Zone)
 
 bp = flask.Blueprint('calendar', __name__)
 
@@ -60,17 +57,11 @@ def _get_calendar_data(login):
 
 
 def _accessible_zone_ids(login, zids):
-    # Mirrors view.headerDataInit zone visibility: public zones, or ENABLED zones
-    # with any role, or ADMIN role on any zone_type (including DISABLED).
-    rows = (Zone.select(Zone.id)
-                .join(UserToZoneRoles, JOIN.LEFT_OUTER,
-                      on=((Zone.id == UserToZoneRoles.zid) & (UserToZoneRoles.login == login)))
-                .where(Zone.id.in_(list(zids)))
-                .where(
-                    Zone.zone_type.in_([ZONE_TYPE_PUBLIC_VIEW, ZONE_TYPE_PUBLIC_BOOK]) |
-                    ((Zone.zone_type == ZONE_TYPE_ENABLED) & (UserToZoneRoles.zone_role <= ZONE_ROLE_VIEWER)) |
-                    (UserToZoneRoles.zone_role == ZONE_ROLE_ADMIN)
-                )
+    # A row in the view means effective access — the view is the single source
+    # of truth and includes synthetic rows for public zones.
+    rows = (UserToZoneRoles.select(UserToZoneRoles.zid)
+                .where(UserToZoneRoles.login == login)
+                .where(UserToZoneRoles.zid.in_(list(zids)))
                 .tuples())
     return {r[0] for r in rows}
 

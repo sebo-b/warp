@@ -100,6 +100,15 @@ Things worth noting in the matrix:
 - A **disabled** zone ignores _viewer_/_user_ grants entirely; only an explicit
   _admin_ keeps any access at all (and even then, not booking).
 
+> **Implementation:** this matrix is now materialized directly in the
+> `user_to_zone_roles` view, which is the single source of truth for zone
+> access. A row exists iff the user has effective access, and `zone_role` is
+> the effective role above. Application code reads `zone_role` straight from the
+> view — no per-call `zone_type ⊕ role` recomputation. Blocked users
+> (account_type 90) are included in the view (same `< 100` filter); blocked
+> status is enforced only at the auth layer (sign-in / session), so admins can
+> still manage and book on their behalf.
+
 ---
 
 ## 4. Site administrators are super-users

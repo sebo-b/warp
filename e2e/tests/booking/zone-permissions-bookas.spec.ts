@@ -546,3 +546,121 @@ test.describe('getSeats book-as guard', () => {
     expect((await resp.json()).code).toBe(131);
   });
 });
+
+// ---------------------------------------------------------------------------
+// F. Cross-zone book-as release confinement (security regression)
+//
+// Guards the invariant that a zone admin who administers only Z1 (but is a
+// mere USER in Z2, same zone group) can NEVER release another user's Z2 booking
+// by booking them in Z1 — even though the same-group conflict_bids() would
+// otherwise collect the Z2 booking for release.  This must fail if
+// releaseZids=manageableZids is dropped from the runAutoBook call, or if
+// manageableZids is widened beyond zones where the actor is ADMIN.
+// (See plan-expand-user-to-zone-roles.md §3.3.)
+// ---------------------------------------------------------------------------
+
+test.describe('cross-zone book-as release confinement', () => {
+
+  async function autoBook(page: any, pid: number, dates: object[], login?: string) {
+    const data: any = { dates };
+    if (login) data.login = login;
+    return page.request.post(`/xhr/zone/autoBook/${pid}`, {
+      data,
+      headers: { 'Content-Type': 'application/json' },
+      maxRedirects: 0,
+    });
+  }
+
+  test('F1: auto-book-as never releases a booking in an unmanaged same-group zone', async ({ page }) => {
+    // Z1 and Z2 share a zone group.  A1 (user1) is ADMIN on Z1 but only USER on
+    // Z2.  U (user2) has USER access to both.  U already holds a seat in Z2.
+    // A1 auto-books-as U for the same day: a Z1 candidate would conflict with U's
+    // same-group Z2 booking, but can_release must reject releasing it (Z2 is not
+    // in A1's manageableZids).  The day is returned unbookable / not_extended, and
+    // U's Z2 booking survives untouched.
+    const pid = await createPlan('XConf Release Plan');
+    const zid1 = await createZone('XConf Z1', ZONE_TYPE_ENABLED, 'xconf');
+    const zid2 = await createZone('XConf Z2', ZONE_TYPE_ENABLED, 'xconf');
+    const [seat1] = await addSeats(pid, zid1, ['X1.1']);
+    const [seat2] = await addSeats(pid, zid2, ['X2.1']);
+    await assignZoneRole(zid1, 'user1', ZONE_ROLE_ADMIN); // A1 administers Z1
+    await assignZoneRole(zid2, 'user1', ZONE_ROLE_USER);  // A1 is only USER in Z2
+    await assignZoneRole(zid1, 'user2', ZONE_ROLE_USER);  // U can book Z1
+    await assignZoneRole(zid2, 'user2', ZONE_ROLE_USER);  // U can book Z2
+
+    const s = slot(1);
+    // U holds a partial-day booking in Z2 (09:00-13:00).  Auto-book-as requests
+    // the full day (09:00-17:00), so the exact-match shortcut won't fire and a
+    // Z1 candidate would conflict with U's same-group Z2 booking — can_release
+    // must block releasing it (Z2 is not in A1's manageableZids).
+    await insertBooking('user2', seat2, s.fromTS, s.fromTS + 4 * 3600);
+    expect(await countBookings('user2', seat2)).toBe(1);
+
+    await logIn(page, USER1);
+    const resp = await autoBook(page, pid, [s], 'user2');
+    expect(resp.status()).toBe(200);
+    const body = await resp.json();
+    // Not booked by release: no new booking was created.
+    expect(body.booked.length).toBe(0);
+    expect(body.not_extended.length + body.unbookable.length).toBeGreaterThan(0);
+    // Regression guard: U's Z2 booking must still exist, and no Z1 booking.
+    expect(await countBookings('user2', seat2)).toBe(1);
+    expect(await countBookings('user2', seat1)).toBe(0);
+  });
+
+  test('F2: apply() remove cannot delete a booking in an unadministered same-group zone', async ({ page }) => {
+    // The per-seat zone-admin check in apply() must reject A1 removing U's Z2
+    // booking (A1 does not administer Z2).
+    const pid = await createPlan('XConf Remove Plan');
+    const zid1 = await createZone('XRem Z1', ZONE_TYPE_ENABLED, 'xrem');
+    const zid2 = await createZone('XRem Z2', ZONE_TYPE_ENABLED, 'xrem');
+    const [seat1] = await addSeats(pid, zid1, ['R1.1']);
+    const [seat2] = await addSeats(pid, zid2, ['R2.1']);
+    await assignZoneRole(zid1, 'user1', ZONE_ROLE_ADMIN);
+    await assignZoneRole(zid2, 'user1', ZONE_ROLE_USER);
+    await assignZoneRole(zid1, 'user2', ZONE_ROLE_USER);
+    await assignZoneRole(zid2, 'user2', ZONE_ROLE_USER);
+
+    const s = slot(1);
+    await insertBooking('user2', seat2, s.fromTS, s.toTS);
+    const bidRow = await querySql(
+      'SELECT id FROM book WHERE login = $1 AND sid = $2',
+      ['user2', seat2],
+    );
+    const removeBid = bidRow.rows[0].id;
+
+    await logIn(page, USER1);
+    const resp = await apiApply(page, { remove: [removeBid] });
+    expect(resp.status()).toBe(403);
+    expect((await resp.json()).code).toBe(102);
+    expect(await countBookings('user2', seat2)).toBe(1);
+  });
+
+  test('F3: apply() book only inserts — a same-group conflict is rejected, never silently released', async ({ page }) => {
+    // The book action never releases a conflicting booking: it inserts only, and
+    // the DB trigger rejects a same-group overlap (109).  A1 books-as U on Z1 for
+    // the same slot U already holds in Z2 (same group) → 109, and U's Z2 booking
+    // is untouched.
+    const pid = await createPlan('XConf Book Plan');
+    const zid1 = await createZone('XBook Z1', ZONE_TYPE_ENABLED, 'xbook');
+    const zid2 = await createZone('XBook Z2', ZONE_TYPE_ENABLED, 'xbook');
+    const [seat1] = await addSeats(pid, zid1, ['B1.1']);
+    const [seat2] = await addSeats(pid, zid2, ['B2.1']);
+    await assignZoneRole(zid1, 'user1', ZONE_ROLE_ADMIN);
+    await assignZoneRole(zid2, 'user1', ZONE_ROLE_USER);
+    await assignZoneRole(zid1, 'user2', ZONE_ROLE_USER);
+    await assignZoneRole(zid2, 'user2', ZONE_ROLE_USER);
+
+    const s = slot(1);
+    await insertBooking('user2', seat2, s.fromTS, s.toTS);
+    expect(await countBookings('user2', seat2)).toBe(1);
+
+    await logIn(page, USER1);
+    const resp = await apiApply(page, { book: { sid: seat1, login: 'user2', dates: [s] } });
+    expect(resp.status()).toBe(400);
+    expect((await resp.json()).code).toBe(109);
+    // Z2 booking untouched, no Z1 booking created.
+    expect(await countBookings('user2', seat2)).toBe(1);
+    expect(await countBookings('user2', seat1)).toBe(0);
+  });
+});

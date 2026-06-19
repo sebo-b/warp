@@ -433,13 +433,13 @@ def book_seat(login):
     if zone_row is None:
         return _render_action(_action_t('Not possible to book'))
 
-    from warp.db import UserToZoneRoles, effectiveZoneRole, ZONE_ROLE_USER
+    from warp.db import UserToZoneRoles, ZONE_ROLE_USER
     specific_role = (UserToZoneRoles.select(UserToZoneRoles.zone_role)
                                     .where((UserToZoneRoles.zid == zid) &
                                            (UserToZoneRoles.login == login))
                                     .scalar())
-    effective_role = effectiveZoneRole(zone_row['zone_type'], specific_role)
-    if effective_role is None or effective_role > ZONE_ROLE_USER:
+    # specific_role from the expanded view IS the effective role.
+    if specific_role is None or specific_role > ZONE_ROLE_USER:
         return _render_action(_action_t('Forbidden'), status=403)
 
     from warp.xhr.prefs import get_user_prefs

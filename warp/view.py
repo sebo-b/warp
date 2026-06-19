@@ -1,5 +1,4 @@
 import flask
-from peewee import JOIN
 
 from warp.db import *
 from . import utils
@@ -21,14 +20,11 @@ def headerDataInit():
     # Plans accessible to user (for default_plan preference)
     accessible_plans = []
 
+    # A row in the view means effective access (the view is the single source
+    # of truth — it includes synthetic rows for public zones).
     accessible_zone_rows = Zone.select(Zone.id, Zone.name) \
-        .join(UserToZoneRoles, join_type=JOIN.LEFT_OUTER,
+        .join(UserToZoneRoles,
               on=((Zone.id == UserToZoneRoles.zid) & (UserToZoneRoles.login == flask.g.login))) \
-        .where(
-            Zone.zone_type.in_([ZONE_TYPE_PUBLIC_VIEW, ZONE_TYPE_PUBLIC_BOOK]) |
-            ((Zone.zone_type == ZONE_TYPE_ENABLED) & (UserToZoneRoles.zone_role <= ZONE_ROLE_VIEWER)) |
-            (UserToZoneRoles.zone_role == ZONE_ROLE_ADMIN)
-        ) \
         .order_by(Zone.name)
 
     for z in accessible_zone_rows:
@@ -77,18 +73,16 @@ def index():
     default_plan = get_user_prefs(flask.g.login).get('default_plan')
 
     if default_plan is not None:
-        # Check if the plan is still accessible to the user
-        plan_zones = list(Zone.select(Zone.id, Zone.zone_type)
-                         .join(Seat, on=(Seat.zid == Zone.id))
-                         .where(Seat.pid == default_plan)
-                         .group_by(Zone.id, Zone.zone_type)
-                         .iterator())
-        for z in plan_zones:
-            specificRole = UserToZoneRoles.select(UserToZoneRoles.zone_role) \
-                .where((UserToZoneRoles.zid == z['id']) & (UserToZoneRoles.login == flask.g.login)) \
-                .scalar()
-            if effectiveZoneRole(z['zone_type'], specificRole) is not None:
-                return flask.redirect(flask.url_for('view.plan', pid=default_plan))
+        # Check if the plan is still accessible to the user: a row in the view
+        # for any zone on the plan means access.
+        has_access = UserToZoneRoles.select(SQL_ONE) \
+            .where(UserToZoneRoles.login == flask.g.login) \
+            .where(UserToZoneRoles.zid.in_(
+                Zone.select(Zone.id).join(Seat, on=(Seat.zid == Zone.id))
+                  .where(Seat.pid == default_plan)
+            )).exists()
+        if has_access:
+            return flask.redirect(flask.url_for('view.plan', pid=default_plan))
 
     return flask.render_template('index.html')
 
@@ -107,10 +101,10 @@ def bookings(report):
 def plan(pid):
 
     # Collect zones on this plan and check user access
-    zone_rows = list(Zone.select(Zone.id, Zone.zone_type)
+    zone_rows = list(Zone.select(Zone.id)
                      .join(Seat, on=(Seat.zid == Zone.id))
                      .where(Seat.pid == pid)
-                     .group_by(Zone.id, Zone.zone_type)
+                     .group_by(Zone.id)
                      .iterator())
 
     if not zone_rows:
@@ -121,14 +115,16 @@ def plan(pid):
         if not flask.g.isAdmin:
             flask.abort(403)
 
+    plan_zids = [z['id'] for z in zone_rows]
+
+    # Effective roles from the view (single source of truth — already resolves
+    # public-zone "everyone" roles and DISABLED ADMIN-only filtering).
     effective_roles = {}
-    for z in zone_rows:
-        specificRole = UserToZoneRoles.select(UserToZoneRoles.zone_role) \
-            .where((UserToZoneRoles.zid == z['id']) & (UserToZoneRoles.login == flask.g.login)) \
-            .scalar()
-        eff = effectiveZoneRole(z['zone_type'], specificRole)
-        if eff is not None:
-            effective_roles[z['id']] = eff
+    if plan_zids:
+        for row in UserToZoneRoles.select(UserToZoneRoles.zid, UserToZoneRoles.zone_role) \
+                .where(UserToZoneRoles.login == flask.g.login) \
+                .where(UserToZoneRoles.zid.in_(plan_zids)).dicts():
+            effective_roles[row['zid']] = row['zone_role']
 
     if not effective_roles and not flask.g.isAdmin:
         flask.abort(403)
@@ -185,19 +181,13 @@ def plan(pid):
 def planImage(pid):
 
     if not flask.g.isAdmin:
-        zone_rows = list(Zone.select(Zone.id, Zone.zone_type)
-                         .join(Seat, on=(Seat.zid == Zone.id))
-                         .where(Seat.pid == pid)
-                         .group_by(Zone.id, Zone.zone_type)
-                         .iterator())
-        has_access = False
-        for z in zone_rows:
-            specificRole = UserToZoneRoles.select(UserToZoneRoles.zone_role) \
-                .where((UserToZoneRoles.zid == z['id']) & (UserToZoneRoles.login == flask.g.login)) \
-                .scalar()
-            if effectiveZoneRole(z['zone_type'], specificRole) is not None:
-                has_access = True
-                break
+        # A row in the view for any zone on the plan means access.
+        has_access = UserToZoneRoles.select(SQL_ONE) \
+            .where(UserToZoneRoles.login == flask.g.login) \
+            .where(UserToZoneRoles.zid.in_(
+                Zone.select(Zone.id).join(Seat, on=(Seat.zid == Zone.id))
+                  .where(Seat.pid == pid)
+            )).exists()
         if not has_access:
             flask.abort(403)
 

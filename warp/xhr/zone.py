@@ -57,27 +57,24 @@ def getSeats(pid):
     zone_type_map = {z['id']: z['zone_type'] for z in zone_rows}
     all_plan_zids = set(zone_type_map.keys())
 
-    # User's specific role per zone (from materialized view)
-    specific_roles = {}
+    # User's effective role per zone (the view is the single source of truth —
+    # it already resolves public-zone "everyone" roles and DISABLED ADMIN-only
+    # filtering).
+    effective_roles = {}
     if all_plan_zids:
         for row in UserToZoneRoles.select(UserToZoneRoles.zid, UserToZoneRoles.zone_role) \
                                   .where(UserToZoneRoles.zid.in_(list(all_plan_zids))) \
                                   .where(UserToZoneRoles.login == flask.g.login) \
                                   .iterator():
-            specific_roles[row['zid']] = row['zone_role']
+            effective_roles[row['zid']] = row['zone_role']
 
-    # Compute effective role per zone. A site admin (flask.g.isAdmin) administers
-    # every zone, even ones they are not explicitly assigned to — this mirrors the
-    # bypasses in view.plan / view.planImage / zone.getUsers, so a site admin can
-    # actually open and manage any plan.
-    effective_roles = {}
-    for zid, zone_type in zone_type_map.items():
-        if flask.g.isAdmin:
+    # A site admin (flask.g.isAdmin) administers every zone, even ones they are
+    # not explicitly assigned to — this mirrors the bypasses in view.plan /
+    # view.planImage / zone.getUsers, so a site admin can actually open and
+    # manage any plan.
+    if flask.g.isAdmin:
+        for zid in all_plan_zids:
             effective_roles[zid] = ZONE_ROLE_ADMIN
-            continue
-        eff = effectiveZoneRole(zone_type, specific_roles.get(zid))
-        if eff is not None:
-            effective_roles[zid] = eff
 
     if not effective_roles:
         return {"msg": "Forbidden", "code": 130}, 403
@@ -93,22 +90,19 @@ def getSeats(pid):
         if not is_plan_admin:
             return {"msg": "Forbidden", "code": 131}, 403
 
-        # Validate target login is accessible on this plan
-        any_public = any(
-            t in (ZONE_TYPE_PUBLIC_VIEW, ZONE_TYPE_PUBLIC_BOOK)
-            for t in zone_type_map.values()
-        )
-        if any_public:
-            userExists = Users.select(SQL_ONE).where(Users.login == targetLogin).scalar()
-            if userExists is None:
-                return {"msg": "Forbidden", "code": 132}, 403
-        else:
-            loginInPlan = UserToZoneRoles.select(SQL_ONE) \
-                .where(UserToZoneRoles.zid.in_(list(accessible_zids))) \
-                .where(UserToZoneRoles.login == targetLogin) \
-                .scalar()
-            if loginInPlan is None:
-                return {"msg": "Forbidden", "code": 132}, 403
+        # Validate the target login is accessible on this plan: a row in the
+        # view against the actor's OWN accessible zones means the target shares
+        # at least one administered zone (non-public) or, for a public plan, the
+        # admin has a synthetic row on the public zone and every user has one
+        # too — so any non-group user validates.  The view's account_type < 100
+        # filter excludes group logins (more correct for book-as than the old
+        # any_public branch, which only checked Users.login existence).
+        loginInPlan = UserToZoneRoles.select(SQL_ONE) \
+            .where(UserToZoneRoles.zid.in_(list(accessible_zids))) \
+            .where(UserToZoneRoles.login == targetLogin) \
+            .scalar()
+        if loginInPlan is None:
+            return {"msg": "Forbidden", "code": 132}, 403
 
     # Whose booking permission decides `bookable`. Normally the authenticated
     # user. Under book-as (?login=target) the admin views the plan through the
@@ -118,17 +112,15 @@ def getSeats(pid):
     # of seats still follows the admin's (effective_roles) access.
     bookable_roles = effective_roles
     if targetLogin is not None and targetLogin != flask.g.login:
-        target_specific = {}
+        # Roles from the view are already effective — query once for the target.
+        target_roles = {}
         if accessible_zids:
             for row in UserToZoneRoles.select(UserToZoneRoles.zid, UserToZoneRoles.zone_role) \
                                       .where(UserToZoneRoles.zid.in_(list(accessible_zids))) \
                                       .where(UserToZoneRoles.login == targetLogin) \
                                       .iterator():
-                target_specific[row['zid']] = row['zone_role']
-        bookable_roles = {
-            zid: effectiveZoneRole(zone_type_map[zid], target_specific.get(zid))
-            for zid in accessible_zids
-        }
+                target_roles[row['zid']] = row['zone_role']
+        bookable_roles = target_roles
 
     tr = utils.getTimeRange()
     usedZids = set()
@@ -378,13 +370,10 @@ def apply():
                                     .where((UserToZoneRoles.zid == seatZone['zid']) & (UserToZoneRoles.login == login)) \
                                     .scalar()
 
-        # A site admin booking for themselves can book any (non-disabled) seat,
-        # even in a zone they are not explicitly assigned to. Booking *as* another
-        # user still requires that user to have booking access to the zone.
+        # bookerRole from the view IS the effective role.
         isSelfAdminBooking = flask.g.isAdmin and login == flask.g.login
 
-        effectiveRole = effectiveZoneRole(seatZone['zone_type'], bookerRole)
-        if not isSelfAdminBooking and (effectiveRole is None or effectiveRole > ZONE_ROLE_USER):
+        if not isSelfAdminBooking and (bookerRole is None or bookerRole > ZONE_ROLE_USER):
             return {"msg": "Forbidden", "code": 104}, 403
 
         # Disabled zones cannot be booked at all — even by admins.
@@ -623,7 +612,9 @@ def runAutoBook(login, pid, dates, allowedZids=None, releaseZids=None):
         day_key = d['fromTS'] - d['fromTS'] % (24 * 3600)
         slots_by_day[day_key].append(d)
 
-    # Seats accessible to this user on this plan (excluding DISABLED zones)
+    # Seats accessible to this user on this plan (excluding DISABLED zones).
+    # The expanded view includes synthetic USER rows for PUBLIC_BOOK zones, so
+    # a single INNER JOIN captures both assigned and public-bookable seats.
     accessibleSeatQ = Seat.select(Seat.id, Seat.name, Seat.zid) \
         .join(Zone, on=(Seat.zid == Zone.id)) \
         .join(UserToZoneRoles, on=(Seat.zid == UserToZoneRoles.zid)) \
@@ -633,24 +624,13 @@ def runAutoBook(login, pid, dates, allowedZids=None, releaseZids=None):
         .where(UserToZoneRoles.login == login) \
         .where(UserToZoneRoles.zone_role <= ZONE_ROLE_USER)
 
-    # Also include public zones
-    publicZoneQ = Zone.select(Zone.id).where(Zone.zone_type == ZONE_TYPE_PUBLIC_BOOK)
-    publicSeatQ = Seat.select(Seat.id, Seat.name, Seat.zid) \
-        .where(Seat.pid == pid) \
-        .where(Seat.enabled == True) \
-        .where(Seat.zid.in_(publicZoneQ))
-
     if allowedZids is not None:
         allowedZidsList = list(allowedZids)
         accessibleSeatQ = accessibleSeatQ.where(Seat.zid.in_(allowedZidsList))
-        publicSeatQ = publicSeatQ.where(Seat.zid.in_(allowedZidsList))
 
     seats = {}
     seat_zids = {}
     for s in accessibleSeatQ.dicts():
-        seats[s['id']] = s['name']
-        seat_zids[s['id']] = s['zid']
-    for s in publicSeatQ.dicts():
         seats[s['id']] = s['name']
         seat_zids[s['id']] = s['zid']
 
@@ -939,19 +919,23 @@ def autoBook(pid):
     manageableZids = None
     if is_book_as and not flask.g.isAdmin:
         actor_roles = _rolesFor(flask.g.login)
+        # Roles from the view are already effective — synthetic public-zone rows
+        # are always USER/VIEWER (never ADMIN), so they cannot inflate
+        # manageableZids beyond zones the actor actually administers.
         manageableZids = {
             zid for zid in zone_type_map
-            if effectiveZoneRole(zone_type_map[zid], actor_roles.get(zid)) == ZONE_ROLE_ADMIN
+            if actor_roles.get(zid) == ZONE_ROLE_ADMIN
         }
         if not manageableZids:
             return {"msg": "Forbidden", "code": 104}, 403
 
     subject_roles = _rolesFor(login)
     zone_iter = manageableZids if manageableZids is not None else zone_type_map.keys()
+    # Roles from the view are already effective; DISABLED is a business rule.
     can_book = any(
         zone_type_map[zid] != ZONE_TYPE_DISABLED
-        and (eff := effectiveZoneRole(zone_type_map[zid], subject_roles.get(zid))) is not None
-        and eff <= ZONE_ROLE_USER
+        and subject_roles.get(zid) is not None
+        and subject_roles.get(zid) <= ZONE_ROLE_USER
         for zid in zone_iter
     )
     if not can_book:
@@ -1006,11 +990,12 @@ def _seatBookTime(pid, fromTS, toTS, login=None):
 @bp.route("getUsers/<int:pid>")
 def getUsers(pid):
 
-    # Collect zone types for all zones on this plan
-    zone_rows = list(Zone.select(Zone.id, Zone.zone_type)
+    # Collect zones that have seats on this plan (zone_type not needed for the
+    # access check — the view is the single source of truth).
+    zone_rows = list(Zone.select(Zone.id)
                      .join(Seat, on=(Seat.zid == Zone.id))
                      .where(Seat.pid == pid)
-                     .group_by(Zone.id, Zone.zone_type)
+                     .group_by(Zone.id)
                      .iterator())
 
     if not zone_rows:
@@ -1020,34 +1005,27 @@ def getUsers(pid):
         return flask.current_app.response_class(
             response=orjson.dumps({}), status=200, mimetype='application/json')
 
-    zone_type_map = {z['id']: z['zone_type'] for z in zone_rows}
-    all_zids = list(zone_type_map.keys())
+    all_zids = [z['id'] for z in zone_rows]
 
-    specific_roles = {}
-    for row in UserToZoneRoles.select(UserToZoneRoles.zid, UserToZoneRoles.zone_role) \
-                              .where(UserToZoneRoles.zid.in_(all_zids)) \
-                              .where(UserToZoneRoles.login == flask.g.login) \
-                              .iterator():
-        specific_roles[row['zid']] = row['zone_role']
-
-    is_plan_admin = any(
-        effectiveZoneRole(zone_type_map[zid], specific_roles.get(zid)) == ZONE_ROLE_ADMIN
-        for zid in all_zids
-    )
+    # Admin check: a row with role == ADMIN on any plan zone.  Roles from the
+    # view are already effective.
+    is_plan_admin = UserToZoneRoles.select(SQL_ONE) \
+        .where(UserToZoneRoles.login == flask.g.login) \
+        .where(UserToZoneRoles.zid.in_(all_zids)) \
+        .where(UserToZoneRoles.zone_role == ZONE_ROLE_ADMIN) \
+        .exists()
 
     if not flask.g.isAdmin and not is_plan_admin:
         return {"msg": "Forbidden", "code": 120}, 403
 
-    has_public = any(t in (ZONE_TYPE_PUBLIC_VIEW, ZONE_TYPE_PUBLIC_BOOK) for t in zone_type_map.values())
-
-    if has_public:
-        userQuery = Users.select(Users.login, Users.name) \
-                         .where(Users.account_type < ACCOUNT_TYPE_BLOCKED)
-    else:
-        userQuery = UserToZoneRoles.select(Users.login, Users.name) \
-                                   .join(Users, on=(UserToZoneRoles.login == Users.login)) \
-                                   .where(UserToZoneRoles.zid.in_(all_zids)) \
-                                   .group_by(Users.login, Users.name)
+    # All users with access on this plan, via the unified view.  The view
+    # includes blocked users (account_type < 100) and excludes group logins
+    # (account_type >= 100).  This removes the old has_public branch, which
+    # inconsistently filtered out blocked users only for public-zone plans.
+    userQuery = UserToZoneRoles.select(Users.login, Users.name) \
+                               .join(Users, on=(UserToZoneRoles.login == Users.login)) \
+                               .where(UserToZoneRoles.zid.in_(all_zids)) \
+                               .group_by(Users.login, Users.name)
 
     res = {u['login']: u['name'] for u in userQuery.iterator()}
 

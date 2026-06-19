@@ -54,32 +54,12 @@ EVERYONE_KEY = '__everyone__:550e8400-e29b-41d4-a716-446655440000'
 # (window.warpGlobals.ungroupedFilterKey); never duplicated as a JS literal.
 UNGROUPED_FILTER_KEY = '__ungrouped__:088891f7-4de2-4b08-a8a7-fa2d0d035fa3'
 
-def effectiveZoneRole(zone_type, specificRole):
-    """Compute effective zone role from zone_type and the user's specific role.
-
-    Returns the role (lowest number = most permissive), or None if no access.
-    DISABLED zones only grant access to ZONE_ROLE_ADMIN.
-    """
-    if zone_type == ZONE_TYPE_DISABLED:
-        return specificRole if specificRole == ZONE_ROLE_ADMIN else None
-
-    if zone_type == ZONE_TYPE_PUBLIC_BOOK:
-        everyoneRole = ZONE_ROLE_USER
-    elif zone_type == ZONE_TYPE_PUBLIC_VIEW:
-        everyoneRole = ZONE_ROLE_VIEWER
-    else:
-        everyoneRole = None
-
-    candidates = [r for r in (specificRole, everyoneRole) if r is not None]
-    return min(candidates) if candidates else None
-
 __all__ = ["DB", "Blobs", "Users", "Groups", "Plan", "Seat", "Zone", "ZoneAssign", "Book", "SeatAssign", "UserPrefs", "UserToZoneRoles", "CalendarCache",
            "EVERYONE_KEY", "UNGROUPED_FILTER_KEY",
            "IntegrityError", "COUNT_STAR", "SQL_ONE",
            'ACCOUNT_TYPE_ADMIN','ACCOUNT_TYPE_USER','ACCOUNT_TYPE_BLOCKED','ACCOUNT_TYPE_GROUP',
            'ZONE_ROLE_ADMIN', 'ZONE_ROLE_USER', 'ZONE_ROLE_VIEWER',
-           'ZONE_TYPE_DISABLED', 'ZONE_TYPE_ENABLED', 'ZONE_TYPE_PUBLIC_VIEW', 'ZONE_TYPE_PUBLIC_BOOK',
-           'effectiveZoneRole']
+           'ZONE_TYPE_DISABLED', 'ZONE_TYPE_ENABLED', 'ZONE_TYPE_PUBLIC_VIEW', 'ZONE_TYPE_PUBLIC_BOOK']
 
 DB_SCHEMA_FILE = "sql/schema.sql"
 DB_MIGRATIONS = [
@@ -97,6 +77,7 @@ DB_MIGRATIONS = [
     (12, "sql/migration_012_calendar_type_filter.sql"),
     (13, "sql/migration_013_default_plan.sql"),
     (14, "sql/migration_014_show_assigned_names.sql"),
+    (15, "sql/migration_015_expand_user_to_zone_roles.sql"),
 ]
 
 DB_ADVISORY_LOCK_KEY = 7484381
