@@ -592,11 +592,11 @@ Features: auto-provisioning, display name sync on every login, same group mappin
 | default value: | `https`                                                                                                                                                              |
 | description:   | Scheme used when constructing the OAuth2 redirect URI sent to Azure. Change to `http` only in local development (Azure requires HTTPS for production redirect URIs). |
 
-| variable:      | `AAD_USER_NAME_ATTRIBUTE`                           |
-| :------------- | :-------------------------------------------------- |
-| type:          | `string`                                            |
-| default value: | `name`                                              |
-| description:   | OIDC claim used as the user's display name in WARP. |
+| variable:      | `AAD_USER_NAME_ATTRIBUTE`                                                                                       |
+| :------------- | :--------------------------------------------------                                                             |
+| type:          | `string`                                                                                                        |
+| default value: | `name` or `given_name,family_name`                                                                              |
+| description:   | OIDC claim used as the user's display name in WARP, supports comma-separated list of attributes to concatenate. |
 
 | variable:      | `AAD_LOGIN_ATTRIBUTE`                                                                                                    |
 | :------------- | :----------------------------------------------------------------------------------------------------------------------- |
