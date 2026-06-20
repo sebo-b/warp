@@ -7,7 +7,8 @@ RUN apk add nodejs npm python3 py3-pip \
 # WARP Python dependencies
 WORKDIR /warp
 COPY requirements.txt .
-RUN pip wheel -w wheel --no-binary lxml,xmlsec -r requirements.txt
+RUN pip wheel -w wheel -r requirements.txt \
+    && rm -f wheel/lxml-*.whl wheel/xmlsec-*.whl
 
 # webpack dependencies
 WORKDIR /warp/js
@@ -33,8 +34,8 @@ ENV WARPAPP_GID=200
 ENV WARPAPP_RUN_DIR=/run/warp
 
 RUN apk add python3 py3-pip uwsgi-python3 \
-    # Runtime libraries for python3-saml
-    libxml2 xmlsec libxslt
+    # Alpine-native py3-lxml/py3-xmlsec share the same libxml2.so as uWSGI (no version mismatch)
+    py3-lxml py3-xmlsec libxslt
 
 RUN --mount=type=bind,from=builder,source=/warp/wheel,target=./wheel \
     pip install \
