@@ -11,6 +11,11 @@ cp -r "${WARP_PKG_STATIC}" ${WARPAPP_RUN_DIR}
 chown -R ${WARPAPP_UID}:${WARPAPP_GID} ${WARPAPP_RUN_DIR}/static
 
 if [ "$#" -eq 0 ]; then
+    # Four endpoints are exposed so the app fits either reverse-proxy topology:
+    #   - TCP  0.0.0.0:8000  uWSGI protocol  ) for an EXTERNAL reverse proxy,
+    #   - TCP  0.0.0.0:8080  plain HTTP      )   published via warp.pod
+    #   - unix uwsgi.sock      uWSGI protocol ) for an IN-POD proxy (Caddy) over
+    #   - unix uwsgi-http.sock plain HTTP     )   the shared /run/warp volume
     /usr/sbin/uwsgi \
         --plugin=python3 \
         --uid=${WARPAPP_UID} \

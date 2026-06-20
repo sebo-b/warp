@@ -11,9 +11,11 @@ Image=docker.io/library/postgres
 AutoUpdate=registry
 
 # Persist database files across container restarts.
-# Create the directory and ensure it is owned by the postgres UID (999) before
-# starting the pod, if you used UserNS in pod definition make sure it is
-# shifted accordingly
+# Create the directory before starting the pod and give it to the postgres user
+# inside the container (UID/GID 999). With the default UserNS mapping in warp.pod
+# (base 100000) that means host UID/GID 100999:
+#   sudo install -d -o 100999 -g 100999 /srv/warp/postgresql
+# Without UserNS, use plain 999 instead.
 Volume=/srv/warp/postgresql:/var/lib/postgresql
 
 # Database password is injected from the podman secret "warp-db-password".

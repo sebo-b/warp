@@ -11,7 +11,10 @@ Pod=warp.pod
 StartWithPod=true
 ContainerName=warp-app
 
-# Image is built by warp-app.build / warp-app-build.service.
+# Build the image locally from containers/Dockerfile and tag it warp:latest:
+#   podman build -f containers/Dockerfile -t warp:latest .
+# Once the image is published to the registry, switch this to the pullable
+# reference (e.g. ghcr.io/<owner>/warp:latest) and add AutoUpdate=registry.
 Image=warp:latest
 
 Volume=warp-shared.volume:/run/warp
