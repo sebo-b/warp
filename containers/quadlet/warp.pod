@@ -8,14 +8,19 @@ Restart=always
 # the pod starts. Install nftables_init.sh to a permanent path first:
 #   sudo install -Dm755 containers/quadlet/nftables_init.sh /etc/warp/nftables_init.sh
 # Then uncomment the line below and configure ALLOWED_HTTP_SOURCE inside the script.
-# ExecStartPost=/etc/warp/nftables_init.sh
+# ExecStartPost=/srv/warp/nftables_init.sh
 
 [Install]
 WantedBy=multi-user.target default.target
 
 [Pod]
-# Expose nginx to the host on port 8080.
-PublishPort=8080:80
+# Expose uwsgi http endpoint to be used through rev-proxy
+#PublishPort=8080:8080
+# Expose uwsgi endpoint to be used through rev-proxy which supports uwsgi protocol
+#PublishPort=8080:8080
+# Expose http server (caddy) if rev-proxy is on the same host
+PublishPort=0.0.0.0:80:80
+PublishPort=0.0.0.0:443:443
 
 # Optional: attach to a specific Podman network.
 # Network=your-network.network
@@ -23,9 +28,6 @@ PublishPort=8080:80
 # Optional: assign a fixed IP within that network.
 # IP=x.x.x.x
 
-# Optional: custom hostname visible inside the pod.
-PodmanArgs=--hostname=warp
-
 # Optional: rootless UID/GID mapping for user namespaces.
 # Adjust the host UID/GID ranges to match your /etc/subuid and /etc/subgid entries.
-# UserNS=auto:uidmapping=0:<host-uid-start>:<count>,gidmapping=0:<host-gid-start>:<count>
+UserNS=auto:uidmapping=0:100000:65536,gidmapping=0:100000:65536

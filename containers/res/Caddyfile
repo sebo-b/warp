@@ -1,0 +1,18 @@
+{
+    # comment out if caddy should manage certificates
+	auto_https off
+}
+
+# if Caddy manages certificates, replace :80
+# with the real domain name
+:80 {
+
+	handle_path /static/* {
+		root * /run/warp/static
+		file_server
+	}
+
+	handle {
+		reverse_proxy unix//run/warp/uwsgi-http.sock
+	}
+}

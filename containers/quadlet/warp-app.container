@@ -12,49 +12,25 @@ StartWithPod=true
 ContainerName=warp-app
 
 # Image is built by warp-app.build / warp-app-build.service.
-Image=warp-app.build
+Image=warp:latest
+
+Volume=warp-shared.volume:/run/warp
 
 # Database connection. If PostgreSQL runs in the same pod, use localhost.
 # For an external host, set DATABASE_ADDRESS to its host[:port].
 Environment=WARP_DATABASE_ADDRESS=localhost:5432
 Environment=WARP_DATABASE_NAME=warp
 Environment=WARP_DATABASE_USER=postgres
-Secret=warp-db-password,type=env,target=WARP_DATABASE_PASSWORD
+
+Secret=warp-db-password
+Environment=WARP_DATABASE_PASSWORD_FILE=/run/secrets/warp-db-password
 
 # Cookie signing key — injected from the podman secret "warp-secret-key".
-Secret=warp-secret-key,type=env,target=WARP_SECRET_KEY
+Secret=warp-secret-key
+Environment=WARP_SECRET_KEY_FILE=/run/secrets/warp-secret-key
 
 # UI language. Available: en, de, fr, es, pl.
-Environment=WARP_LANGUAGE_FILE=i18n/en.js
-
-# Uncomment and adjust any additional settings from CONFIGURATION.md:
-# Environment=WARP_WEEKS_IN_ADVANCE=1
-# Environment=WARP_OMITTED_WEEKDAYS=[5, 6]
-# Environment=WARP_MIN_PASSWORD_LENGTH=8
-
-# OpenID Connect (OIDC) authentication — see CONFIGURATION.md
-# Environment=WARP_AUTH_OIDC=true
-# Environment=WARP_OIDC_DISCOVERY_URL=https://idp.example.org/realms/warp/.well-known/openid-configuration
-# Environment=WARP_OIDC_CLIENT_ID=warp
-# Secret=warp-oidc-client-secret,type=env,target=WARP_OIDC_CLIENT_SECRET
-# Environment=WARP_OIDC_GROUP_MAP=[ ["warp-allowed", null], [null, "Everyone"] ]
-# Create the podman secret with: podman secret create warp-oidc-client-secret <file>
-
-# Native SAML 2.0 authentication — see CONFIGURATION.md
-# Environment=WARP_AUTH_SAML=true
-# Environment=WARP_SAML_SP_ENTITY_ID=https://warp.example.org/saml/metadata
-# Environment=WARP_SAML_IDP_METADATA_URL=https://idp.example.org/realms/warp/protocol/saml/descriptor
-# Or, for IdPs that only offer a downloadable metadata file (e.g. Okta):
-# Environment=WARP_SAML_IDP_METADATA_FILE=/etc/warp/idp-metadata.xml
-# Secret=warp-saml-sp-private-key,type=env,target=WARP_SAML_SP_PRIVATE_KEY
-# Environment=WARP_SAML_GROUPS_ATTRIBUTE=groups
-# Environment=WARP_SAML_GROUP_MAP=[ ["warp-allowed", null], [null, "Everyone"] ]
-# Optional: custom SP endpoint base path (default /saml)
-# Environment=WARP_SAML_ENDPOINT_PATH=/saml
-# Required for the IdP→ACS cross-site POST (SameSite=None needs Secure/HTTPS):
-# Environment=WARP_SESSION_COOKIE_SAMESITE=None
-# Environment=WARP_SESSION_COOKIE_SECURE=true
-# Create the podman secret with: podman secret create warp-saml-sp-private-key <file>
+Environment=WARP_LANGUAGE_FILE=i18n/en.json
 
 [Install]
 WantedBy=multi-user.target default.target

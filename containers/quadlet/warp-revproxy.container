@@ -1,0 +1,37 @@
+[Unit]
+Description=WARP caddy reverse proxy
+Requires=warp-app.service
+After=warp-app.service
+
+[Container]
+Pod=warp.pod
+StartWithPod=true
+ContainerName=warp-revproxy
+
+Image=docker.io/library/caddy
+AutoUpdate=registry
+
+# Mount the caddy configuration file.
+# Copy containers/res/Caddyfile from the repository to a permanent location on the
+# host and adjust the path below. Mount directory to /etc/caddy not config itself
+# as while editting inode may change and reload won't work
+Volume=/srv/caddy:/etc/caddy:ro
+
+# Make sure a permament location is mounted on /data
+# Caddy stores https certificates there and if this is
+# not permamant it will renew every time it starts which
+# may exceed the requests limits quickly
+# if you used UserNS in pod file remember about the right ownership of these dirs
+Volume=/srv/caddy_data:/data
+Volume=caddy_config:/config
+
+# Shared volume with warp http socket and static files
+Volume=warp-shared.volume:/run/warp
+
+Volume=/etc/localtime:/etc/localtime:ro
+
+[Service]
+ExecReload=/bin/sh -c 'podman exec $(cat %t/%N.cid) caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile'
+
+[Install]
+WantedBy=multi-user.target default.target

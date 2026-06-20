@@ -25,19 +25,27 @@ COPY setup.py MANIFEST.in .
 COPY warp/ warp/
 RUN pip wheel -w wheel --no-deps .
 
+###########################################
 FROM alpine:latest
 
-WORKDIR /warp
+ENV WARPAPP_UID=200
+ENV WARPAPP_GID=200
+ENV WARPAPP_RUN_DIR=/run/warp
+
 RUN apk add python3 py3-pip uwsgi-python3 \
     # Runtime libraries for python3-saml
     libxml2 xmlsec libxslt
 
-RUN \
-    --mount=type=bind,from=builder,source=/warp/wheel,target=./wheel \
-    pip install --break-system-packages --no-index --no-deps wheel/*.whl
+RUN --mount=type=bind,from=builder,source=/warp/wheel,target=./wheel \
+    pip install \
+        --no-index \
+        --no-deps \
+        --break-system-packages \
+        --no-warn-script-location \
+        wheel/*.whl
 
-COPY --from=builder /warp/warp/static ./static
-COPY containers/warp_uwsgi.ini .
+#COPY containers/res/uwsgi.ini /uwsgi.ini
+COPY --chmod=755 containers/res/entrypoint.sh /entrypoint.sh
 
-EXPOSE 8000/tcp
-ENTRYPOINT ["/usr/sbin/uwsgi", "warp_uwsgi.ini"]
+EXPOSE 8000/tcp 8080/tcp
+ENTRYPOINT ["/entrypoint.sh"]

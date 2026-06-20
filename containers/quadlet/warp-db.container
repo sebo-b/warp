@@ -12,11 +12,13 @@ AutoUpdate=registry
 
 # Persist database files across container restarts.
 # Create the directory and ensure it is owned by the postgres UID (999) before
-# starting the pod: sudo install -d -o 999 -g 999 /var/lib/warp/pgdata
-Volume=/var/lib/warp/pgdata:/var/lib/postgresql/data
+# starting the pod, if you used UserNS in pod definition make sure it is
+# shifted accordingly
+Volume=/srv/warp/postgresql:/var/lib/postgresql
 
 # Database password is injected from the podman secret "warp-db-password".
-Secret=warp-db-password,type=env,target=POSTGRES_PASSWORD
+Secret=warp-db-password
+Environment=POSTGRES_PASSWORD_FILE=/run/secrets/warp-db-password
 
 # Name of the database to create on first init. Must match WARP_DATABASE_NAME
 # in warp-app.container.
