@@ -11,11 +11,12 @@ Pod=warp.pod
 StartWithPod=true
 ContainerName=warp-app
 
-# Build the image locally from containers/Dockerfile and tag it warp:latest:
-#   podman build -f containers/Dockerfile -t warp:latest .
-# Once the image is published to the registry, switch this to the pullable
-# reference (e.g. ghcr.io/<owner>/warp:latest) and add AutoUpdate=registry.
-Image=warp:latest
+# Application image, built and published by the GitHub Actions workflow
+# (.github/workflows/containers.yml) to the GitHub Container Registry:
+#   https://github.com/sebo-b/warp/pkgs/container/warp
+# Pin a version tag (e.g. :v1.2.3) in production instead of :latest.
+Image=ghcr.io/sebo-b/warp:latest
+AutoUpdate=registry
 
 Volume=warp-shared.volume:/run/warp
 

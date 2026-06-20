@@ -10,7 +10,6 @@ command below if that is your runtime.
 containers/
   Dockerfile          — production image (uWSGI, no database)
   Dockerfile_debug    — all-in-one debug/test image (Flask + PostgreSQL)
-  nginx.conf          — minimal nginx config used by the compose demo
   res/
     entrypoint.sh     — production image entrypoint (starts uWSGI)
     Caddyfile         — Caddy reverse-proxy config (static files + unix socket)
@@ -51,8 +50,9 @@ docker run -d \
   warp:latest
 ```
 
-uWSGI listens on port 8000. Place nginx or another reverse proxy in front of it
-(see `nginx.conf` below).
+uWSGI listens on port 8000 (uWSGI protocol) and 8080 (HTTP). Place a reverse
+proxy in front of it — see [`res/Caddyfile`](#rescaddyfile) for the Caddy config
+used by the compose and Quadlet deployments.
 
 ---
 
@@ -96,22 +96,12 @@ docker run --rm -p 5000:5000 -p 5432:5432 -e EXPOSE_POSTGRES=1 warp-debug
 
 ---
 
-## `nginx.conf`
-
-Minimal nginx configuration that reverse-proxies traffic to the WARP uWSGI
-process over the uWSGI protocol on port 8000. Used only by the
-`compose/compose.yaml` demo (mounted automatically). The Quadlet deployment uses
-Caddy instead — see [`res/Caddyfile`](#rescaddyfile) and the
-[Podman Quadlet](#podman-quadlet-systemd-integration) section.
-
----
-
 ## `res/Caddyfile`
 
-Reverse-proxy configuration for the Caddy container used by the Quadlet
-deployment. It serves WARP's static assets directly from the shared `/run/warp`
-volume and forwards every other request to the app over the
-`/run/warp/uwsgi-http.sock` unix socket. By default it listens on plain HTTP
+Reverse-proxy configuration for the Caddy container, shared by the Quadlet
+deployment and the compose demo. It serves WARP's static assets directly from
+the shared `/run/warp` volume and forwards every other request to the app over
+the `/run/warp/uwsgi-http.sock` unix socket. By default it listens on plain HTTP
 (`auto_https off`); to let Caddy manage TLS certificates, set a real domain as
 the site address and remove `auto_https off`.
 
@@ -119,14 +109,16 @@ the site address and remove `auto_https off`.
 
 ## `compose/compose.yaml`
 
-**Example production-style deployment** using Docker / Podman Compose. Brings up
-three services:
+**Example production deployment** using Docker / Podman Compose. It mirrors the
+Quadlet architecture (app behind Caddy, sharing a tmpfs `/run/warp` volume for
+the unix socket and static files) and brings up three services from published
+images:
 
 | Service | Image | Role |
 |---|---|---|
-| `warp-demo-db` | `postgres` (official) | PostgreSQL database |
-| `warp-demo-wsgi` | built from `Dockerfile` | WARP application (uWSGI) |
-| `warp-demo-nginx` | `nginx` (official) | Reverse proxy, port 8080 |
+| `warp-db` | `postgres` (official) | PostgreSQL database |
+| `warp-app` | `ghcr.io/sebo-b/warp` | WARP application (uWSGI) |
+| `warp-revproxy` | `caddy` (official) | Reverse proxy, published on port 8080 |
 
 **Quick start** (from the `compose/` directory):
 ```sh
@@ -134,18 +126,25 @@ cd containers/compose
 docker compose up
 ```
 
-Open http://127.0.0.1:8080 and log in as `admin` / `noneshallpass`.
+Then open http://127.0.0.1:8080 and log in as `admin` / `noneshallpass` — the
+schema and this initial admin account are created automatically on an empty
+database; **change the password immediately**. Uncomment
+`WARP_DATABASE_POST_INIT_SCRIPTS` in `compose.yaml` to also seed sample
+zones/users, or use the [debug image](#dockerfile_debug) for a throwaway
+all-in-one demo.
 
-**Before using in production**, change at minimum:
+The compose file is intentionally minimal. To enable auth backends (OIDC, SAML,
+LDAP, …) or any other feature, add the relevant `WARP_*` variables under
+`warp-app.environment` — see [CONFIGURATION.md](../CONFIGURATION.md).
+
+**Before deploying for real**, change at minimum:
 
 | Variable | Current value | What to set |
 |---|---|---|
-| `WARP_SECRET_KEY` | `mysecretkey` | A random secret — see [CONFIGURATION.md](../CONFIGURATION.md#secret-key) |
-| `POSTGRES_PASSWORD` | `postgres_password` (via shared secret) | A strong database password (set once in the secret file, used by both services) |
-| `WARP_DATABASE_POST_INIT_SCRIPTS` | loads sample data | Remove or replace with your own seed |
-| `WARP_LANGUAGE_FILE` | `i18n/en.js` | Your preferred language |
-
-For all available settings see [CONFIGURATION.md](../CONFIGURATION.md).
+| `warp_secret_key` secret | `mysecretkey` | A random secret — see [CONFIGURATION.md](../CONFIGURATION.md#secret-key) |
+| `warp_db_password` secret | `postgres_password` | A strong database password (used by both the DB and the app) |
+| `warp-app` image tag | `:latest` | A pinned version, e.g. `:v1.2.3` |
+| `WARP_LANGUAGE_FILE` | `i18n/en.json` | Your preferred language (`de`/`fr`/`es`/`pl`) |
 
 ---
 
@@ -201,11 +200,13 @@ in `warp-app.container` with the external host.
 The examples below use system-wide (root) Podman. For rootless, drop `sudo` and
 install the unit files under `~/.config/containers/systemd/` instead.
 
-1. **Build the application image** (until a published image is available, see the
-   note in `warp-app.container`). From the repository root:
-   ```sh
-   sudo podman build -f containers/Dockerfile -t warp:latest .
-   ```
+1. **Image.** `warp-app.container` pulls the application image from the GitHub
+   Container Registry (`ghcr.io/sebo-b/warp:latest`), built and published by the
+   [`containers.yml`](../.github/workflows/containers.yml) GitHub Actions
+   workflow — `AutoUpdate=registry` keeps it current via `podman auto-update`.
+   No local build is required; pin a version tag for production. (To build from
+   source instead, run `podman build -f containers/Dockerfile -t warp:latest .`
+   and set `Image=warp:latest`.)
 
 2. **Create the podman secrets**:
    ```sh
