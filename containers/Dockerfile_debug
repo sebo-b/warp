@@ -7,7 +7,7 @@ RUN apk add nodejs npm python3 py3-pip \
 # WARP Python dependencies
 WORKDIR /warp
 COPY requirements.txt .
-RUN pip wheel -w wheel -r requirements.txt
+RUN pip wheel -w wheel --no-binary lxml,xmlsec -r requirements.txt
 
 # webpack dependencies
 WORKDIR /warp/js
