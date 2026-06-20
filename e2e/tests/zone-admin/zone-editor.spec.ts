@@ -154,6 +154,14 @@ test.describe('selecting and editing a seat', () => {
     expect(Number(result.rows[0].y)).toBe(newY);
   });
 
+  test('selecting a seat focuses the name field', async ({ page }) => {
+    await logIn(page, ADMIN);
+    const [seat] = await getZoneSeats(ZID);
+    await openEditor(page);
+    await selectSeat(page, seat);
+    await expect(page.locator('#seat_name')).toBeFocused();
+  });
+
 });
 
 // ─── Delete ───────────────────────────────────────────────────────────────────
@@ -281,6 +289,40 @@ test.describe('adding a seat', () => {
     const modal = page.locator('.modal.open', { hasText: /update the plan/ });
     await expect(modal).toContainText('added one seat');
     await modal.locator('a', { hasText: /No/i }).click();
+  });
+
+  test('adding a seat focuses the name field for immediate typing', async ({ page }) => {
+    await logIn(page, ADMIN);
+    await openEditor(page);
+
+    await toggleMode(page);                                  // → Add mode
+    await page.locator('#zone_map').click({ position: EMPTY_SPOT });
+
+    await expect(page.locator('#seat_edit_panel')).toBeVisible();
+    await expect(page.locator('#seat_name')).toBeFocused();
+
+    // Placeholder text is selected → typing replaces it (no manual clear).
+    await page.keyboard.type('TypedName');
+    await expect(page.locator('#seat_name')).toHaveValue('TypedName');
+  });
+
+  test('add mode keeps the edit panel directly below the zone dropdown', async ({ page }) => {
+    await logIn(page, ADMIN);
+    await openEditor(page);
+
+    await toggleMode(page);                                  // → Add mode
+    await page.locator('#zone_map').click({ position: EMPTY_SPOT });
+    await expect(page.locator('#seat_edit_panel')).toBeVisible();
+
+    const dropdown = await page.locator('#add_seat_zone_selector').boundingBox();
+    const panel = await page.locator('#seat_edit_panel').boundingBox();
+    expect(dropdown).not.toBeNull();
+    expect(panel).not.toBeNull();
+
+    // The panel should start just below the dropdown, not floating in the middle.
+    const gap = panel!.y - (dropdown!.y + dropdown!.height);
+    expect(gap).toBeGreaterThanOrEqual(0);
+    expect(gap).toBeLessThanOrEqual(40);   // tolerance for normal margins/padding
   });
 
 });

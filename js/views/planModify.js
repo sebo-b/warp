@@ -352,6 +352,16 @@ document.addEventListener("DOMContentLoaded", function(e) {
         populateZoneSelect(zid !== undefined ? zid : null);
         M.updateTextFields();
         seatEditPanel.style.visibility = "visible";
+
+        // Place keyboard focus in the name field so the user can type right away.
+        // For brand-new seats (auto-generated placeholder name) select the text so
+        // typing replaces it; for existing seats just focus (caret at end) to
+        // avoid an accidental overwrite.
+        requestAnimationFrame(() => {
+            seatNameEl.focus();
+            if (seat.isNew())
+                seatNameEl.select();
+        });
     });
 
     seatFactory.on('unselect', (seat) => {
