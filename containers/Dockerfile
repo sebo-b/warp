@@ -1,8 +1,6 @@
 FROM alpine:3.24 AS builder
 
-RUN apk add nodejs npm python3 py3-pip \
-    # Build dependencies for python3-saml (xmlsec / lxml native extensions)
-    python3-dev build-base libxml2-dev xmlsec-dev libxslt-dev pkgconfig
+RUN apk add nodejs npm python3 py3-pip
 
 # WARP Python dependencies
 WORKDIR /warp
