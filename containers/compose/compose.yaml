@@ -1,53 +1,65 @@
+# Example production WARP deployment, mirroring the Podman Quadlet setup in
+# ../quadlet:
+#   - warp-db        PostgreSQL
+#   - warp-app       WARP application (uWSGI)
+#   - warp-revproxy  Caddy reverse proxy
+#
+# The app and Caddy share the "warp-shared" tmpfs volume mounted at /run/warp:
+# the app exposes its HTTP socket there and copies its static assets into it on
+# start, and Caddy serves static directly while proxying everything else over
+# the unix socket.
+#
+# The application image is built and published by the GitHub Actions workflow
+# (.github/workflows/containers.yml) to the GitHub Container Registry:
+#   https://github.com/sebo-b/warp/pkgs/container/warp
+# For a self-contained demo with bundled PostgreSQL and sample data, use the
+# debug image instead (containers/Dockerfile_debug).
+#
+# For the full list of configuration options (auth backends, reminders, etc.)
+# see ../../CONFIGURATION.md and add the relevant WARP_* variables under
+# warp-app.environment below.
+
 services:
-  warp-demo-db:
+  warp-db:
     image: postgres
     environment:
+      POSTGRES_DB: warp
       POSTGRES_PASSWORD_FILE: /run/secrets/warp_db_password
-      POSTGRES_DB: postgres
     secrets:
       - warp_db_password
-  warp-demo-wsgi:
-    build:
-      context: ../..
-      dockerfile: containers/Dockerfile
+    volumes:
+      - warp-db-data:/var/lib/postgresql
+
+  warp-app:
+    image: ghcr.io/sebo-b/warp:latest  # pin a version in production, e.g. :v1.2.3
     depends_on:
-    - warp-demo-db
+      - warp-db
     environment:
-      WARP_DATABASE_ADDRESS: "warp-demo-db:5432"
-      WARP_DATABASE_NAME: "postgres"
+      WARP_DATABASE_ADDRESS: "warp-db:5432"
+      WARP_DATABASE_NAME: "warp"
       WARP_DATABASE_USER: "postgres"
       WARP_DATABASE_PASSWORD_FILE: /run/secrets/warp_db_password
       WARP_SECRET_KEY_FILE: /run/secrets/warp_secret_key
-      WARP_DATABASE_POST_INIT_SCRIPTS: '["sql/sample_data.sql"]'
-      WARP_LANGUAGE_FILE: 'i18n/en.js'
-      # OpenID Connect (OIDC) — uncomment to enable, see CONFIGURATION.md
-      # WARP_AUTH_OIDC: 'true'
-      # WARP_OIDC_DISCOVERY_URL: 'https://idp.example.org/realms/warp/.well-known/openid-configuration'
-      # WARP_OIDC_CLIENT_ID: 'warp'
-      # WARP_OIDC_CLIENT_SECRET_FILE: /run/secrets/warp_oidc_client_secret
-      # WARP_OIDC_GROUP_MAP: '[ ["warp-allowed", null], [null, "Everyone"] ]'
-      # Native SAML 2.0 — uncomment to enable, see CONFIGURATION.md
-      # WARP_AUTH_SAML: 'true'
-      # WARP_SAML_SP_ENTITY_ID: 'https://warp.example.org/saml/metadata'
-      # WARP_SAML_IDP_METADATA_URL: 'https://idp.example.org/realms/warp/protocol/saml/descriptor'
-      # # Or a downloadable IdP metadata file (e.g. Okta):
-      # WARP_SAML_IDP_METADATA_FILE: /etc/warp/idp-metadata.xml
-      # WARP_SAML_SP_PRIVATE_KEY_FILE: /run/secrets/warp_saml_sp_private_key
-      # WARP_SAML_GROUP_MAP: '[ ["warp-allowed", null], [null, "Everyone"] ]'
-      # # Optional custom SP endpoint base path (default /saml):
-      # WARP_SAML_ENDPOINT_PATH: /saml
-      # # Required for the IdP→ACS cross-site POST (SameSite=None needs Secure/HTTPS):
-      # WARP_SESSION_COOKIE_SAMESITE: 'None'
-      # WARP_SESSION_COOKIE_SECURE: 'true'
+      WARP_LANGUAGE_FILE: "i18n/en.json"
+      # Seed sample zones/users on first start. Uncomment for a quick demo; leave
+      # commented for production (the schema is created automatically and the
+      # initial admin is set up on an empty database).
+      # WARP_DATABASE_POST_INIT_SCRIPTS: '["sql/sample_data.sql"]'
     secrets:
       - warp_db_password
       - warp_secret_key
-  warp-demo-nginx:
-    image: nginx
-    depends_on:
-    - warp-demo-wsgi
     volumes:
-      - ../nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - warp-shared:/run/warp
+
+  warp-revproxy:
+    image: caddy
+    depends_on:
+      - warp-app
+    volumes:
+      - ../res/Caddyfile:/etc/caddy/Caddyfile:ro
+      - warp-shared:/run/warp
+      - caddy_data:/data
+      - caddy_config:/config
     ports:
       - "8080:80"
 
@@ -56,7 +68,12 @@ secrets:
     file: ./secrets/db_password.txt
   warp_secret_key:
     file: ./secrets/secret_key.txt
-  # warp_oidc_client_secret:
-  #   file: ./secrets/oidc_client_secret.txt
-  # warp_saml_sp_private_key:
-  #   file: ./secrets/saml_sp_private_key.txt
+
+volumes:
+  warp-db-data:
+  caddy_data:
+  caddy_config:
+  warp-shared:
+    driver_opts:
+      type: tmpfs
+      device: tmpfs

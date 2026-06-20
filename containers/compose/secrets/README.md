@@ -5,5 +5,7 @@ These files provide default values for `docker compose up` out of the box.
 
 - `db_password.txt` — PostgreSQL superuser password (shared by the DB and app services)
 - `secret_key.txt` — Flask session signing key (generate with `python -c 'import os; print(os.urandom(16))'`)
-- `oidc_client_secret.txt` (optional) — OAuth2 client secret for OIDC authentication; only needed when `WARP_AUTH_OIDC=true`
-- `saml_sp_private_key.txt` (optional) — SAML SP private key for native SAML authentication; only needed when `WARP_AUTH_SAML=true`
+
+To enable auth backends (OIDC, SAML, …), add their `WARP_*` variables and any
+extra secret files to `compose.yaml` yourself — see
+[CONFIGURATION.md](../../../CONFIGURATION.md).

@@ -6,26 +6,34 @@ Restart=always
 
 # Optional: apply nftables firewall rules to the pod's network namespace after
 # the pod starts. Install nftables_init.sh to a permanent path first:
-#   sudo install -Dm755 containers/quadlet/nftables_init.sh /etc/warp/nftables_init.sh
-# Then uncomment the line below and configure ALLOWED_HTTP_SOURCE inside the script.
-# ExecStartPost=/etc/warp/nftables_init.sh
+#   sudo install -Dm755 containers/quadlet/nftables_init.sh /srv/warp/nftables_init.sh
+# Then uncomment the line below and configure ALLOWED_HTTP_SOURCE inside the
+# script. %t/%N.pod-id is the pod-id-file Quadlet generates, which lets the
+# script find the infra container regardless of how it is named.
+# ExecStartPost=/srv/warp/nftables_init.sh %t/%N.pod-id
 
 [Install]
 WantedBy=multi-user.target default.target
 
 [Pod]
-# Expose nginx to the host on port 8080.
-PublishPort=8080:80
+# Choose how the pod is reached. The two models are mutually exclusive in
+# practice — publish whichever ports your topology needs.
+#
+# A) Reverse proxy on the SAME host (the bundled Caddy / warp-revproxy).
+#    Caddy terminates HTTP/HTTPS inside the pod and talks to the app over the
+#    shared unix socket, so only these need publishing:
+PublishPort=0.0.0.0:80:80
+PublishPort=0.0.0.0:443:443
+#
+# B) Reverse proxy on an EXTERNAL host. Drop warp-revproxy and instead publish
+#    one of the app's own endpoints (see Dockerfile EXPOSE). Use 8080 for a
+#    plain-HTTP proxy, or 8000 for a proxy that speaks the uWSGI protocol:
+#PublishPort=8080:8080
+#PublishPort=8000:8000
 
 # Optional: attach to a specific Podman network.
 # Network=your-network.network
 
-# Optional: assign a fixed IP within that network.
-# IP=x.x.x.x
-
-# Optional: custom hostname visible inside the pod.
-PodmanArgs=--hostname=warp
-
 # Optional: rootless UID/GID mapping for user namespaces.
 # Adjust the host UID/GID ranges to match your /etc/subuid and /etc/subgid entries.
-# UserNS=auto:uidmapping=0:<host-uid-start>:<count>,gidmapping=0:<host-gid-start>:<count>
+UserNS=auto:uidmapping=0:100000:65536,gidmapping=0:100000:65536
