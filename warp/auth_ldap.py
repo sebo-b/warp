@@ -88,7 +88,11 @@ def ldapGetUserMetadata(login,ldapConnection):
     userSearchFilter = flask.current_app.config.get("LDAP_USER_SEARCH_FILTER_TEMPLATE","")
     userSearchFilter = userSearchFilter.format(login=escape_rdn(login))
 
+    # LDAP_USER_NAME_ATTRIBUTE is a single attribute name or a list of them; we
+    # request them all and join the ones present on the entry below.
     ldapNameAtt = flask.current_app.config.get('LDAP_USER_NAME_ATTRIBUTE')
+    if isinstance(ldapNameAtt, str):
+        ldapNameAtt = [ldapNameAtt]
     ldapConnection.search(search_base=userSearchBase,
                           search_filter=userSearchFilter,
                           attributes=ldapNameAtt)
@@ -96,9 +100,13 @@ def ldapGetUserMetadata(login,ldapConnection):
     if len(ldapConnection.entries) != 1:
         raise Exception(f"LDAP: Wrong number of enties returned for the user: {len(ldapConnection.entries)}")
 
+    entry = ldapConnection.entries[0]
+    # Join the attributes that are present, falling back to the login when none
+    # resolve (consistent with the OIDC/SAML backends).
+    userName = ' '.join(str(entry[a].value) for a in ldapNameAtt if a in entry) or login
 
     ret = {
-        "userName": ldapConnection.entries[0][ldapNameAtt].value,
+        "userName": userName,
         "groups": []
     }
 

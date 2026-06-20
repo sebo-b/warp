@@ -775,7 +775,7 @@ Any setting can be provided as an environment variable with the `WARP_` prefix (
 | `LDAP_TLS_VERSION` / `LDAP_TLS_CIPHERS` | unset                           | Optional TLS protocol version and cipher list        |
 | `LDAP_USER_TEMPLATE`                 | —                                  | Bind DN template, e.g. `uid={login},ou=users,…`      |
 | `LDAP_USER_SEARCH_BASE`              | unset                              | Search base for user lookup (falls back to template) |
-| `LDAP_USER_NAME_ATTRIBUTE`           | `cn`                               | Attribute used as the display name                   |
+| `LDAP_USER_NAME_ATTRIBUTE`           | `cn`                               | Attribute(s) used as the display name; a JSON array joins several |
 | `LDAP_USER_SEARCH_FILTER_TEMPLATE`   | `(objectClass=person)`             | Filter for the user lookup                           |
 | `LDAP_GROUP_SEARCH_BASE`             | unset                              | Search base for group membership checks              |
 | `LDAP_GROUP_SEARCH_FILTER_TEMPLATE`  | `(&(memberUid={login})(cn={group}))` | Filter for group membership checks                 |
@@ -793,7 +793,7 @@ Any setting can be provided as an environment variable with the `WARP_` prefix (
 | `AAD_CLIENT_SECRET`        | —                    | OAuth2 client secret                         |
 | `AAD_HTTPS_SCHEME`         | `https`              | Scheme used for the redirect URI             |
 | `AAD_LOGIN_ATTRIBUTE`      | `preferred_username` | Claim used as the WARP login                 |
-| `AAD_USER_NAME_ATTRIBUTE`  | `name`               | Claim used as the display name               |
+| `AAD_USER_NAME_ATTRIBUTE`  | `name`               | Claim(s) used as the display name; a JSON array joins several |
 | `AAD_GROUP_MAP`            | `[[null, null]]`     | Same semantics as `LDAP_GROUP_MAP`           |
 | `AAD_GROUP_STRICT_MAPPING` | `false`              | Same semantics as `LDAP_GROUP_STRICT_MAPPING`|
 

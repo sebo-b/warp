@@ -211,6 +211,8 @@ def _fmt_file(v):
 
 # JSON shapes for the collection-valued settings.
 _ARRAY_OF_STRINGS = {"type": "array", "items": {"type": "string"}}
+# A single claim/attribute name, or a JSON array of them to concatenate.
+_STRING_OR_ARRAY_OF_STRINGS = {"type": ["string", "array"], "items": {"type": "string"}}
 _ARRAY_OF_WEEKDAYS = {"type": "array", "items": {"type": "integer", "minimum": 0, "maximum": 6}}
 _GROUP_MAP = {  # list of [source_group_or_null, warp_group_or_null] pairs
     "type": "array",
@@ -292,7 +294,7 @@ _ENV_SETTINGS = {
     "LDAP_TLS_VERSION":           _fmt_str,
     "LDAP_TLS_CIPHERS":           _fmt_str,
     "LDAP_USER_TEMPLATE":         _fmt_str,
-    "LDAP_USER_NAME_ATTRIBUTE":   _fmt_str,
+    "LDAP_USER_NAME_ATTRIBUTE":   _fmt_json(_STRING_OR_ARRAY_OF_STRINGS),
     "LDAP_USER_SEARCH_BASE":      _fmt_str,
     "LDAP_USER_SEARCH_FILTER_TEMPLATE":  _fmt_str,
     "LDAP_GROUP_SEARCH_BASE":     _fmt_str,
@@ -305,7 +307,7 @@ _ENV_SETTINGS = {
     "AAD_CLIENT_ID":              _fmt_str,
     "AAD_CLIENT_SECRET":          _fmt_str,
     "AAD_HTTPS_SCHEME":           _fmt_str,
-    "AAD_USER_NAME_ATTRIBUTE":    _fmt_str,
+    "AAD_USER_NAME_ATTRIBUTE":    _fmt_json(_STRING_OR_ARRAY_OF_STRINGS),
     "AAD_LOGIN_ATTRIBUTE":        _fmt_str,
     "AAD_GROUP_MAP":              _fmt_json(_GROUP_MAP),
     "AAD_GROUP_STRICT_MAPPING":   _fmt_bool,
