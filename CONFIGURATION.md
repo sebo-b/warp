@@ -364,11 +364,11 @@ Please note that every variable can be set either in the config file or via the 
 | description:   | LDAP filter for the user lookup. May contain a `{login}` placeholder.               |
 | example:       | OpenLDAP: `(objectClass=*)`<br/>AD: `(&(sAMAccountName={login})(objectClass=user))` |
 
-| variable:      | `LDAP_USER_NAME_ATTRIBUTE`                              |
-| :------------- | :------------------------------------------------------ |
-| type:          | `string`                                                |
-| default value: | `cn`                                                    |
-| description:   | LDAP attribute used as the user's display name in WARP. |
+| variable:      | `LDAP_USER_NAME_ATTRIBUTE`                                                                                                                                                              |
+| :------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| type:          | `string` or `array of string`                                                                                                                                                          |
+| default value: | `cn`                                                                                                                                                                                    |
+| description:   | LDAP attribute used as the user's display name in WARP. May be a JSON array of attributes (e.g. `["givenName","sn"]`); their values are joined with a space. Falls back to the login when none are present. |
 
 | variable:      | `LDAP_GROUP_SEARCH_BASE`                                                               |
 | :------------- | :------------------------------------------------------------------------------------- |
@@ -511,7 +511,7 @@ WARP_LDAP_EXCLUDED_USERS="['admin']"
 # The following are defaults — shown here for clarity
 WARP_LDAP_STARTTLS="true"
 WARP_LDAP_VALIDATE_CERT="false"
-WARP_LDAP_USER_NAME_ATTRIBUTE="cn"
+WARP_LDAP_USER_NAME_ATTRIBUTE='"cn"'   # or a JSON array, e.g. '["givenName","sn"]'
 WARP_LDAP_GROUP_SEARCH_FILTER_TEMPLATE="(&(memberUid={login})(cn={group}))"
 ```
 
@@ -592,11 +592,11 @@ Features: auto-provisioning, display name sync on every login, same group mappin
 | default value: | `https`                                                                                                                                                              |
 | description:   | Scheme used when constructing the OAuth2 redirect URI sent to Azure. Change to `http` only in local development (Azure requires HTTPS for production redirect URIs). |
 
-| variable:      | `AAD_USER_NAME_ATTRIBUTE`                           |
-| :------------- | :-------------------------------------------------- |
-| type:          | `string`                                            |
-| default value: | `name`                                              |
-| description:   | OIDC claim used as the user's display name in WARP. |
+| variable:      | `AAD_USER_NAME_ATTRIBUTE`                                                                                                                                                              |
+| :------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| type:          | `string` or `array of string`                                                                                                                                                          |
+| default value: | `name`                                                                                                                                                                                  |
+| description:   | OIDC claim used as the user's display name in WARP. May be a JSON array of claims (e.g. `["given_name","family_name"]`); their values are joined with a space. Falls back to the login when none are present. |
 
 | variable:      | `AAD_LOGIN_ATTRIBUTE`                                                                                                    |
 | :------------- | :----------------------------------------------------------------------------------------------------------------------- |
