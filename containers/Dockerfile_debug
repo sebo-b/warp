@@ -1,4 +1,4 @@
-FROM alpine:latest AS builder
+FROM alpine:3.24 AS builder
 
 RUN apk add nodejs npm python3 py3-pip \
     # Build dependencies for python3-saml (xmlsec / lxml native extensions)
@@ -25,9 +25,9 @@ COPY setup.py MANIFEST.in .
 COPY warp/ warp/
 RUN pip wheel -w wheel --no-deps .
 
-FROM alpine:latest
+FROM alpine:3.24
 
-RUN apk add python3 py3-pip postgresql18 \
+RUN apk add python3 py3-pip postgresql16 \
     # Runtime libraries for python3-saml
     libxml2 xmlsec libxslt
 RUN \

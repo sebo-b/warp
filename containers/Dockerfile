@@ -1,4 +1,4 @@
-FROM alpine:latest AS builder
+FROM alpine:3.24 AS builder
 
 RUN apk add nodejs npm python3 py3-pip \
     # Build dependencies for python3-saml (xmlsec / lxml native extensions)
@@ -26,7 +26,7 @@ COPY warp/ warp/
 RUN pip wheel -w wheel --no-deps .
 
 ###########################################
-FROM alpine:latest
+FROM alpine:3.24
 
 ENV WARPAPP_UID=200
 ENV WARPAPP_GID=200
