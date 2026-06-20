@@ -417,7 +417,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         let x = e.clientX - rect.left;
         let y = e.clientY - rect.top;
 
-        if (marquee.getHandleAt(x, y) === 'box')
+        if (marquee.isInsideBox(x, y))
             seatFactory.suppressDeselect = true;
     };
 
