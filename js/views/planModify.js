@@ -353,13 +353,13 @@ document.addEventListener("DOMContentLoaded", function(e) {
         M.updateTextFields();
         seatEditPanel.style.visibility = "visible";
 
-        // Place keyboard focus in the name field so the user can type right away.
-        // For brand-new seats (auto-generated placeholder name) select the text so
-        // typing replaces it; for existing seats just focus (caret at end) to
-        // avoid an accidental overwrite.
+        // Focus the name field so the user can type right away. For new
+        // seats whose name is still the auto-generated placeholder, select-all
+        // so typing replaces it. Once the user has edited the name (or for
+        // existing seats), place the caret at the end for normal editing.
         requestAnimationFrame(() => {
             seatNameEl.focus();
-            if (seat.isNew())
+            if (seat.isNew() && !seat.nameChangedFromPlaceholder)
                 seatNameEl.select();
         });
     });
@@ -539,6 +539,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
             let selSeat = seatFactory.getSelectedSeat();
             if (!selSeat) return;
             selSeat[prop] = e.target.value;
+            if (prop === 'name')
+                selSeat.nameChangedFromPlaceholder = true;
         };
     };
 

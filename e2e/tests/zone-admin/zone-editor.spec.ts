@@ -325,6 +325,64 @@ test.describe('adding a seat', () => {
     expect(gap).toBeLessThanOrEqual(40);   // tolerance for normal margins/padding
   });
 
+  test('re-selecting a renamed added seat places caret at end, not select-all', async ({ page }) => {
+    await logIn(page, ADMIN);
+    await openEditor(page);
+
+    // Add a seat — first select selects all text (verified by existing test).
+    await toggleMode(page);                                  // → Add mode
+    await page.locator('#zone_map').click({ position: EMPTY_SPOT });
+    await expect(page.locator('#seat_edit_panel')).toBeVisible();
+
+    // Type a name so the placeholder is replaced.
+    await page.keyboard.type('FirstRename');
+
+    // Click an existing seat to deselect the new one.
+    const [existing] = await getZoneSeats(ZID);
+    await selectSeat(page, existing);
+
+    // Click back to the newly added seat. The seat was created at EMPTY_SPOT
+    // (createNewSeat centers the sprite on the click point), so its div center
+    // is at EMPTY_SPOT within the container.
+    await page.locator('#zone_map_container').click({
+      position: { x: EMPTY_SPOT.x, y: EMPTY_SPOT.y },
+    });
+    await expect(page.locator('#seat_edit_panel')).toBeVisible();
+    await expect(page.locator('#seat_name')).toBeFocused();
+
+    // The name was changed from the placeholder, so the caret should be at the
+    // end (not select-all). Typing appends; if text were selected it would replace.
+    await page.keyboard.type('X');
+    await expect(page.locator('#seat_name')).toHaveValue('FirstRenameX');
+  });
+
+  test('re-selecting an added seat with unchanged placeholder still selects all text', async ({ page }) => {
+    await logIn(page, ADMIN);
+    await openEditor(page);
+
+    // Add a seat — placeholder name is auto-generated (NEW_x).
+    await toggleMode(page);                                  // → Add mode
+    await page.locator('#zone_map').click({ position: EMPTY_SPOT });
+    await expect(page.locator('#seat_edit_panel')).toBeVisible();
+
+    // Do NOT type anything — leave the placeholder name as-is.
+    // Click an existing seat to deselect the new one.
+    const [existing] = await getZoneSeats(ZID);
+    await selectSeat(page, existing);
+
+    // Click back to the newly added seat.
+    await page.locator('#zone_map_container').click({
+      position: { x: EMPTY_SPOT.x, y: EMPTY_SPOT.y },
+    });
+    await expect(page.locator('#seat_edit_panel')).toBeVisible();
+    await expect(page.locator('#seat_name')).toBeFocused();
+
+    // The name is still the placeholder, so all text should be selected.
+    // Typing replaces the placeholder entirely.
+    await page.keyboard.type('Replaced');
+    await expect(page.locator('#seat_name')).toHaveValue('Replaced');
+  });
+
 });
 
 // ─── Combined changes and summary ─────────────────────────────────────────────

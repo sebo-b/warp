@@ -389,6 +389,7 @@ SeatFactory.prototype.createNewSeat = function(name,x,y) {
     };
 
     let seat = this._createSeat(newSid,{});
+    seat.nameChangedFromPlaceholder = false;  // set true when the user edits the name
 
     this._resetSelectionState();
     this.selectedSeat = seat;
