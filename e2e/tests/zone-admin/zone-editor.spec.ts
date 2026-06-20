@@ -154,6 +154,14 @@ test.describe('selecting and editing a seat', () => {
     expect(Number(result.rows[0].y)).toBe(newY);
   });
 
+  test('selecting a seat focuses the name field', async ({ page }) => {
+    await logIn(page, ADMIN);
+    const [seat] = await getZoneSeats(ZID);
+    await openEditor(page);
+    await selectSeat(page, seat);
+    await expect(page.locator('#seat_name')).toBeFocused();
+  });
+
 });
 
 // ─── Delete ───────────────────────────────────────────────────────────────────
@@ -283,6 +291,98 @@ test.describe('adding a seat', () => {
     await modal.locator('a', { hasText: /No/i }).click();
   });
 
+  test('adding a seat focuses the name field for immediate typing', async ({ page }) => {
+    await logIn(page, ADMIN);
+    await openEditor(page);
+
+    await toggleMode(page);                                  // → Add mode
+    await page.locator('#zone_map').click({ position: EMPTY_SPOT });
+
+    await expect(page.locator('#seat_edit_panel')).toBeVisible();
+    await expect(page.locator('#seat_name')).toBeFocused();
+
+    // Placeholder text is selected → typing replaces it (no manual clear).
+    await page.keyboard.type('TypedName');
+    await expect(page.locator('#seat_name')).toHaveValue('TypedName');
+  });
+
+  test('add mode keeps the edit panel directly below the zone dropdown', async ({ page }) => {
+    await logIn(page, ADMIN);
+    await openEditor(page);
+
+    await toggleMode(page);                                  // → Add mode
+    await page.locator('#zone_map').click({ position: EMPTY_SPOT });
+    await expect(page.locator('#seat_edit_panel')).toBeVisible();
+
+    const dropdown = await page.locator('#add_seat_zone_selector').boundingBox();
+    const panel = await page.locator('#seat_edit_panel').boundingBox();
+    expect(dropdown).not.toBeNull();
+    expect(panel).not.toBeNull();
+
+    // The panel should start just below the dropdown, not floating in the middle.
+    const gap = panel!.y - (dropdown!.y + dropdown!.height);
+    expect(gap).toBeGreaterThanOrEqual(0);
+    expect(gap).toBeLessThanOrEqual(40);   // tolerance for normal margins/padding
+  });
+
+  test('re-selecting a renamed added seat places caret at end, not select-all', async ({ page }) => {
+    await logIn(page, ADMIN);
+    await openEditor(page);
+
+    // Add a seat — first select selects all text (verified by existing test).
+    await toggleMode(page);                                  // → Add mode
+    await page.locator('#zone_map').click({ position: EMPTY_SPOT });
+    await expect(page.locator('#seat_edit_panel')).toBeVisible();
+
+    // Type a name so the placeholder is replaced.
+    await page.keyboard.type('FirstRename');
+
+    // Click an existing seat to deselect the new one.
+    const [existing] = await getZoneSeats(ZID);
+    await selectSeat(page, existing);
+
+    // Click back to the newly added seat. The seat was created at EMPTY_SPOT
+    // (createNewSeat centers the sprite on the click point), so its div center
+    // is at EMPTY_SPOT within the container.
+    await page.locator('#zone_map_container').click({
+      position: { x: EMPTY_SPOT.x, y: EMPTY_SPOT.y },
+    });
+    await expect(page.locator('#seat_edit_panel')).toBeVisible();
+    await expect(page.locator('#seat_name')).toBeFocused();
+
+    // The name was changed from the placeholder, so the caret should be at the
+    // end (not select-all). Typing appends; if text were selected it would replace.
+    await page.keyboard.type('X');
+    await expect(page.locator('#seat_name')).toHaveValue('FirstRenameX');
+  });
+
+  test('re-selecting an added seat with unchanged placeholder still selects all text', async ({ page }) => {
+    await logIn(page, ADMIN);
+    await openEditor(page);
+
+    // Add a seat — placeholder name is auto-generated (NEW_x).
+    await toggleMode(page);                                  // → Add mode
+    await page.locator('#zone_map').click({ position: EMPTY_SPOT });
+    await expect(page.locator('#seat_edit_panel')).toBeVisible();
+
+    // Do NOT type anything — leave the placeholder name as-is.
+    // Click an existing seat to deselect the new one.
+    const [existing] = await getZoneSeats(ZID);
+    await selectSeat(page, existing);
+
+    // Click back to the newly added seat.
+    await page.locator('#zone_map_container').click({
+      position: { x: EMPTY_SPOT.x, y: EMPTY_SPOT.y },
+    });
+    await expect(page.locator('#seat_edit_panel')).toBeVisible();
+    await expect(page.locator('#seat_name')).toBeFocused();
+
+    // The name is still the placeholder, so all text should be selected.
+    // Typing replaces the placeholder entirely.
+    await page.keyboard.type('Replaced');
+    await expect(page.locator('#seat_name')).toHaveValue('Replaced');
+  });
+
 });
 
 // ─── Combined changes and summary ─────────────────────────────────────────────
@@ -406,13 +506,18 @@ test.describe('marquee transform and rotation', () => {
     await logIn(page, ADMIN);
     const seats = await getZoneSeats(ZID);
     await openEditor(page);
-    const map = await mapOrigin(page);
 
-    // EMPTY_SPOT is inside the group bounds but not on any seat sprite
-    const from = { x: map.x + EMPTY_SPOT.x, y: map.y + EMPTY_SPOT.y };
-    await page.mouse.move(from.x, from.y);
+    // Drag from a point on the marquee border (top edge, 25% across) — clear of
+    // the nw/ne corner handles and the centred 'n' edge handle. Page coords
+    // from the DOM box, so no map-origin offset is needed.
+    const boxEl = page.locator('.zone_modify_marquee_box');
+    const box = await boxEl.boundingBox();
+    expect(box).not.toBeNull();
+    const borderPoint = { x: box!.x + box!.width * 0.25, y: box!.y };
+
+    await page.mouse.move(borderPoint.x, borderPoint.y);
     await page.mouse.down();
-    await page.mouse.move(from.x + 20, from.y + 15, { steps: 5 });
+    await page.mouse.move(borderPoint.x + 20, borderPoint.y + 15, { steps: 5 });
     await page.mouse.up();
 
     await saveAndConfirm(page);
@@ -422,6 +527,36 @@ test.describe('marquee transform and rotation', () => {
       const a = after.find((t) => t.id === s.id)!;
       expect(Math.abs(a.x - (s.x + 20))).toBeLessThanOrEqual(1);
       expect(Math.abs(a.y - (s.y + 15))).toBeLessThanOrEqual(1);
+    }
+  });
+
+  test('clicking inside the marquee interior keeps the selection and does not move seats', async ({ page }) => {
+    await logIn(page, ADMIN);
+    const seats = await getZoneSeats(ZID);
+    await openEditor(page);
+    const map = await mapOrigin(page);
+
+    // EMPTY_SPOT is inside the group bounds but not on any seat sprite — i.e. an
+    // interior point of the marquee. After the border-grip change, clicking
+    // here must NOT start a move and must NOT clear the selection.
+    const spot = { x: map.x + EMPTY_SPOT.x, y: map.y + EMPTY_SPOT.y };
+    await page.mouse.move(spot.x, spot.y);
+    await page.mouse.down();
+    await page.mouse.move(spot.x + 20, spot.y + 15, { steps: 5 });
+    await page.mouse.up();
+
+    // The marquee (selection) must still be visible — interior clicks suppress
+    // deselection, so the selection is preserved.
+    await expect(page.locator('.zone_modify_marquee_box')).toBeVisible();
+
+    // No save occurred (save button stays disabled — no changes made), so DB
+    // coordinates must be unchanged.
+    await expect(page.locator('#saveBtn')).toHaveClass(/disabled/);
+    const after = await getZoneSeats(ZID);
+    for (const s of seats) {
+      const a = after.find((t) => t.id === s.id)!;
+      expect(a.x).toBe(s.x);
+      expect(a.y).toBe(s.y);
     }
   });
 

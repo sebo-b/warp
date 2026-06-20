@@ -352,6 +352,16 @@ document.addEventListener("DOMContentLoaded", function(e) {
         populateZoneSelect(zid !== undefined ? zid : null);
         M.updateTextFields();
         seatEditPanel.style.visibility = "visible";
+
+        // Focus the name field so the user can type right away. For new
+        // seats whose name is still the auto-generated placeholder, select-all
+        // so typing replaces it. Once the user has edited the name (or for
+        // existing seats), place the caret at the end for normal editing.
+        requestAnimationFrame(() => {
+            seatNameEl.focus();
+            if (seat.isNew() && !seat.nameChangedFromPlaceholder)
+                seatNameEl.select();
+        });
     });
 
     seatFactory.on('unselect', (seat) => {
@@ -417,7 +427,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         let x = e.clientX - rect.left;
         let y = e.clientY - rect.top;
 
-        if (marquee.getHandleAt(x, y) === 'box')
+        if (marquee.isInsideBox(x, y))
             seatFactory.suppressDeselect = true;
     };
 
@@ -529,6 +539,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
             let selSeat = seatFactory.getSelectedSeat();
             if (!selSeat) return;
             selSeat[prop] = e.target.value;
+            if (prop === 'name')
+                selSeat.nameChangedFromPlaceholder = true;
         };
     };
 

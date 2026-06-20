@@ -646,6 +646,11 @@ INPUT[type="text"] ~ .show_password_btn::after {
     flex: none !important;
 }
 
+#add_seat_zone_selector,
+#add_seat_zone_error {
+    flex: none;
+}
+
 .switch-container {
     display: flex;
     align-items: center;

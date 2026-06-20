@@ -17,6 +17,7 @@ function MarqueeController(parentDiv, spriteSize) {
     this._createElements();
 }
 
+MarqueeController.BORDER_GRIP_WIDTH = 8; // half-width of the draggable border band on each side of the 2px dashed line
 MarqueeController.CORNER_SIZE    = 10;
 MarqueeController.H_EDGE_W       = 18;
 MarqueeController.H_EDGE_H       = 10;
@@ -324,10 +325,36 @@ MarqueeController.prototype.getHandleAt = function(px, py) {
         return 'rotate';
 
     var br = this._boxRect;
-    if (px >= br.x && px <= br.x + br.w && py >= br.y && py <= br.y + br.h)
+    var bw = MarqueeController.BORDER_GRIP_WIDTH;
+
+    // Only the border band (the ring between the outer inflated rect and the
+    // inner deflated rect) counts as the draggable "box" grip. Points strictly
+    // inside the inner rect (the box interior) return null so that clicking
+    // empty space inside the marquee does NOT start a move.
+    var insideOuter = px >= br.x - bw && px <= br.x + br.w + bw &&
+                      py >= br.y - bw && py <= br.y + br.h + bw;
+    var insideInner = px >= br.x + bw && px <= br.x + br.w - bw &&
+                      py >= br.y + bw && py <= br.y + br.h - bw;
+
+    if (insideOuter && !insideInner)
         return 'box';
 
     return null;
+};
+
+/**
+ * Full-rect containment test (border + interior). Used by the capture-phase
+ * mousedown handler to suppress deselection when the user clicks anywhere
+ * inside the marquee box — including the interior — so that the selection
+ * and marquee stay visible even though an interior click no longer starts a
+ * move (getHandleAt returns null for interior points).
+ */
+MarqueeController.prototype.isInsideBox = function(px, py) {
+    if (!this.active || !this._boxRect)
+        return false;
+    var br = this._boxRect;
+    return px >= br.x && px <= br.x + br.w &&
+           py >= br.y && py <= br.y + br.h;
 };
 
 MarqueeController.prototype.onHandleMouseDown = function(callback) {
