@@ -16,7 +16,7 @@ if [ "$#" -eq 0 ]; then
     #   - TCP  0.0.0.0:8080  plain HTTP      )   published via warp.pod
     #   - unix uwsgi.sock      uWSGI protocol ) for an IN-POD proxy (Caddy) over
     #   - unix uwsgi-http.sock plain HTTP     )   the shared /run/warp volume
-    /usr/sbin/uwsgi \
+    exec /usr/sbin/uwsgi \
         --plugin=python3 \
         --uid=${WARPAPP_UID} \
         --gid=${WARPAPP_GID} \
