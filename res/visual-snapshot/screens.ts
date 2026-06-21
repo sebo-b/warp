@@ -62,6 +62,16 @@ async function openZoneModal(page: Page): Promise<void> {
   await page.locator('#edit_modal').waitFor({ state: 'visible' });
 }
 
+/** Open the reassign-seats modal by deleting the first zone (which has seats). */
+async function openReassignModal(page: Page): Promise<void> {
+  await page.goto('/zones');
+  await page.locator('.tabulator-row').first().waitFor({ state: 'visible' });
+  await page.locator('.tabulator-row .warp-icon-edit', { hasText: 'edit' }).first().click();
+  await page.locator('#edit_modal').waitFor({ state: 'visible' });
+  await page.locator('#edit_modal_delete_btn').click();
+  await page.locator('#reassign_modal[open]').waitFor({ state: 'visible' });
+}
+
 /** Open the edit dialog for the second user (user1) on /users. */
 async function openEditUserModal(page: Page): Promise<void> {
   await page.goto('/users');
@@ -240,6 +250,8 @@ export const SCREENS: Screen[] = [
     path: '/users', prepare: openConfirmModal, fullPage: false },
   { id: 'modal-zone-edit', title: 'Modal: zone edit', role: 'admin',
     path: '/zones', prepare: openZoneModal, fullPage: false },
+  { id: 'modal-reassign', title: 'Modal: reassign seats from deleted zone', role: 'admin',
+    path: '/zones', prepare: openReassignModal, fullPage: false },
   { id: 'modal-plan-add', title: 'Modal: plan add', role: 'admin',
     path: '/plans', prepare: openPlanModal, fullPage: false },
   { id: 'modal-group-add', title: 'Modal: group add', role: 'admin',

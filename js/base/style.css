@@ -440,6 +440,69 @@ nav .dropdown-content li > span {
     background-color: rgba(0, 0, 0, 0.05);
 }
 
+/* Reassign-seats modal is built dynamically in zones.js; style it like the
+   named form modals and keep its FormSelect dropdown inside the dialog. */
+#reassign_modal {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    color: #212121;
+    max-width: 560px;
+}
+#reassign_modal .modal-content {
+    padding: 24px;
+}
+#reassign_modal .modal-content > h5 {
+    color: #212121;
+    font-weight: 500;
+    margin: 0 0 20px;
+}
+#reassign_modal .modal-content > p {
+    margin: 0 0 16px;
+}
+#reassign_modal .modal-content > p:last-child {
+    margin-bottom: 0;
+}
+#reassign_modal .modal-footer {
+    background-color: #fafafa;
+    border-top: 1px solid #e0e0e0;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    padding: 12px 24px;
+}
+#reassign_modal .modal-footer .btn,
+#reassign_modal .modal-footer .btn-flat {
+    height: 36px;
+    line-height: 36px;
+    padding: 0 16px;
+}
+#reassign_modal .select-wrapper input.select-dropdown {
+    background-color: #f0f0f0;
+    border: 1px solid #9e9e9e;
+    border-radius: 4px;
+    box-sizing: border-box;
+    color: #212121;
+    font-size: 1rem;
+    overflow: hidden;
+    padding: 18px 36px 8px 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 100%;
+}
+#reassign_modal .dropdown-content.select-dropdown {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+#reassign_modal .dropdown-content.select-dropdown li {
+    color: #212121;
+}
+#reassign_modal .dropdown-content.select-dropdown li.active,
+#reassign_modal .dropdown-content.select-dropdown li:not(.disabled):hover {
+    background-color: #f0f0f0;
+}
+
 /* Materialize 2.x: the M3 "surface-tint" dialog + border-bottom-only fields
    make form modals look muddy/scrambled. Give the main form modals a classic,
    readable form-sheet look. */

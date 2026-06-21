@@ -194,7 +194,6 @@ document.addEventListener("DOMContentLoaded", function(e) {
             let delBtn = document.createElement('a');
             delBtn.href = '#!';
             delBtn.className = 'waves-effect waves-light btn warp-btn-danger';
-            delBtn.style.marginLeft = '6px';
             delBtn.id = 'reassign_delete_seats';
             delBtn.textContent = TR('Delete seats');
             footer.appendChild(delBtn);
@@ -203,7 +202,6 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 let moveBtn = document.createElement('a');
                 moveBtn.href = '#!';
                 moveBtn.className = 'waves-effect waves-light btn';
-                moveBtn.style.marginLeft = '6px';
                 moveBtn.id = 'reassign_move_btn';
                 moveBtn.textContent = TR('Reassign seats');
                 footer.appendChild(moveBtn);
@@ -212,7 +210,6 @@ document.addEventListener("DOMContentLoaded", function(e) {
             let cancelBtn = document.createElement('a');
             cancelBtn.href = '#!';
             cancelBtn.className = 'modal-close waves-effect waves-light btn-flat';
-            cancelBtn.style.marginLeft = '6px';
             cancelBtn.textContent = TR('btn.Cancel');
             footer.appendChild(cancelBtn);
 
@@ -225,7 +222,12 @@ document.addEventListener("DOMContentLoaded", function(e) {
             // Initialize Materialize select (must be after attached to DOM)
             let reassignSelect = document.getElementById('reassign_zone_select');
             if (reassignSelect) {
-                M.FormSelect.init(reassignSelect);
+                M.FormSelect.init(reassignSelect, {
+                    dropdownOptions: {
+                        container: modalDiv,
+                        constrainWidth: false
+                    }
+                });
             }
 
             let moveBtnEl = document.getElementById('reassign_move_btn');
@@ -355,7 +357,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 M.Autocomplete.init(zoneGroupEl, {
                     data: acData,
                     minLength: 0,
-                    dropdownOptions: { constrainWidth: false, container: document.body },
+                    dropdownOptions: { constrainWidth: false, container: zoneGroupEl.closest('dialog') || document.body },
                     onAutocomplete: updateGroupHelper
                 });
                 zoneGroupEl._warpGroups = groups;
