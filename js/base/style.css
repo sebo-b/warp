@@ -876,15 +876,16 @@ nav .dropdown-content li > span {
     box-shadow: none;
 }
 
-/* Keep Materialize 2.x's rounded-square M3 FAB shape, but make sure the icon
+/* Keep Materialize 2.x's rounded-square M3 FAB shape and make sure the icon
    is reliably centered in our markup. 2.x's grid can shift if our icon styles
-   conflict, so we force grid centering. */
+   conflict, so we force grid centering and explicitly pin the M2 radius. */
 .btn-floating,
 .btn-floating.btn-large,
 .btn-floating.btn-small {
     display: inline-grid;
     place-items: center;
     padding: 0;
+    border-radius: 16px;
 }
 .btn-floating i,
 .btn-floating.btn-large i,
