@@ -301,20 +301,32 @@ nav .dropdown-content li > span {
    readable form-sheet look. */
 #pref_modal,
 #calendar_modal,
-#change_password_modal {
+#change_password_modal,
+#edit_modal,
+#add_to_group_modal,
+#assign_to_zone_modal,
+#assigned_seat_modal {
     background-color: #ffffff;
     border-radius: 8px;
     border: 1px solid #e0e0e0;
 }
 #pref_modal .modal-content,
 #calendar_modal .modal-content,
-#change_password_modal .modal-content {
+#change_password_modal .modal-content,
+#edit_modal .modal-content,
+#add_to_group_modal .modal-content,
+#assign_to_zone_modal .modal-content,
+#assigned_seat_modal .modal-content {
     padding: 24px;
     color: #212121;
 }
 #pref_modal .modal-content > h4,
 #calendar_modal .modal-content > h4,
-#change_password_modal .modal-content > h4 {
+#change_password_modal .modal-content > h4,
+#edit_modal .modal-content > h4,
+#add_to_group_modal .modal-content > h4,
+#assign_to_zone_modal .modal-content > h4,
+#assigned_seat_modal .modal-content > h4 {
     margin: 0 0 20px;
     color: #212121;
     font-weight: 500;
@@ -322,18 +334,30 @@ nav .dropdown-content li > span {
 /* 2.x .row is a grid with no vertical margin; add breathing room between rows. */
 #pref_modal .modal-content > .row,
 #calendar_modal .modal-content > .row,
-#change_password_modal .modal-content > .row {
+#change_password_modal .modal-content > .row,
+#edit_modal .modal-content > .row,
+#add_to_group_modal .modal-content > .row,
+#assign_to_zone_modal .modal-content > .row,
+#assigned_seat_modal .modal-content > .row {
     margin-bottom: 18px;
 }
 #pref_modal .modal-content > .row:last-of-type,
 #calendar_modal .modal-content > .row:last-of-type,
-#change_password_modal .modal-content > .row:last-of-type {
+#change_password_modal .modal-content > .row:last-of-type,
+#edit_modal .modal-content > .row:last-of-type,
+#add_to_group_modal .modal-content > .row:last-of-type,
+#assign_to_zone_modal .modal-content > .row:last-of-type,
+#assigned_seat_modal .modal-content > .row:last-of-type {
     margin-bottom: 0;
 }
 /* Restore visible select triggers so they read as dropdowns, not stray labels. */
 #pref_modal .select-wrapper input.select-dropdown,
 #calendar_modal .select-wrapper input.select-dropdown,
-#change_password_modal .select-wrapper input.select-dropdown {
+#change_password_modal .select-wrapper input.select-dropdown,
+#edit_modal .select-wrapper input.select-dropdown,
+#add_to_group_modal .select-wrapper input.select-dropdown,
+#assign_to_zone_modal .select-wrapper input.select-dropdown,
+#assigned_seat_modal .select-wrapper input.select-dropdown {
     background-color: #f0f0f0;
     border: 1px solid #9e9e9e;
     border-radius: 4px;
@@ -352,7 +376,15 @@ nav .dropdown-content li > span {
 #calendar_modal .input-field > input:not(.select-dropdown),
 #calendar_modal .input-field > textarea,
 #change_password_modal .input-field > input:not(.select-dropdown),
-#change_password_modal .input-field > textarea {
+#change_password_modal .input-field > textarea,
+#edit_modal .input-field > input:not(.select-dropdown),
+#edit_modal .input-field > textarea,
+#add_to_group_modal .input-field > input:not(.select-dropdown),
+#add_to_group_modal .input-field > textarea,
+#assign_to_zone_modal .input-field > input:not(.select-dropdown),
+#assign_to_zone_modal .input-field > textarea,
+#assigned_seat_modal .input-field > input:not(.select-dropdown),
+#assigned_seat_modal .input-field > textarea {
     background-color: #f0f0f0;
     border: 1px solid #9e9e9e;
     border-radius: 4px;
@@ -374,14 +406,34 @@ nav .dropdown-content li > span {
 #change_password_modal .input-field > label,
 #change_password_modal .input-field input.select-dropdown + label,
 #change_password_modal .input-field input.select-dropdown:not(:placeholder-shown) + label,
-#change_password_modal .input-field input.select-dropdown:focus + label {
+#change_password_modal .input-field input.select-dropdown:focus + label,
+#edit_modal .input-field > label,
+#edit_modal .input-field input.select-dropdown + label,
+#edit_modal .input-field input.select-dropdown:not(:placeholder-shown) + label,
+#edit_modal .input-field input.select-dropdown:focus + label,
+#add_to_group_modal .input-field > label,
+#add_to_group_modal .input-field input.select-dropdown + label,
+#add_to_group_modal .input-field input.select-dropdown:not(:placeholder-shown) + label,
+#add_to_group_modal .input-field input.select-dropdown:focus + label,
+#assign_to_zone_modal .input-field > label,
+#assign_to_zone_modal .input-field input.select-dropdown + label,
+#assign_to_zone_modal .input-field input.select-dropdown:not(:placeholder-shown) + label,
+#assign_to_zone_modal .input-field input.select-dropdown:focus + label,
+#assigned_seat_modal .input-field > label,
+#assigned_seat_modal .input-field input.select-dropdown + label,
+#assigned_seat_modal .input-field input.select-dropdown:not(:placeholder-shown) + label,
+#assigned_seat_modal .input-field input.select-dropdown:focus + label {
     top: 4px;
     left: 12px;
     color: #616161;
 }
 #pref_modal .input-field input.select-dropdown:focus + label,
 #calendar_modal .input-field input.select-dropdown:focus + label,
-#change_password_modal .input-field input.select-dropdown:focus + label {
+#change_password_modal .input-field input.select-dropdown:focus + label,
+#edit_modal .input-field input.select-dropdown:focus + label,
+#add_to_group_modal .input-field input.select-dropdown:focus + label,
+#assign_to_zone_modal .input-field input.select-dropdown:focus + label,
+#assigned_seat_modal .input-field input.select-dropdown:focus + label {
     color: var(--warp-indigo);
 }
 /* The <dialog> autofocuses the first field, which paints Materialize's
@@ -392,7 +444,15 @@ nav .dropdown-content li > span {
 #calendar_modal .select-wrapper:focus-within,
 #calendar_modal .select-wrapper input.select-dropdown:focus,
 #change_password_modal .select-wrapper:focus-within,
-#change_password_modal .select-wrapper input.select-dropdown:focus {
+#change_password_modal .select-wrapper input.select-dropdown:focus,
+#edit_modal .select-wrapper:focus-within,
+#edit_modal .select-wrapper input.select-dropdown:focus,
+#add_to_group_modal .select-wrapper:focus-within,
+#add_to_group_modal .select-wrapper input.select-dropdown:focus,
+#assign_to_zone_modal .select-wrapper:focus-within,
+#assign_to_zone_modal .select-wrapper input.select-dropdown:focus,
+#assigned_seat_modal .select-wrapper:focus-within,
+#assigned_seat_modal .select-wrapper input.select-dropdown:focus {
     outline: none !important;
 }
 /* When a FormSelect dropdown opens inside a form modal, its default surface
@@ -400,14 +460,22 @@ nav .dropdown-content li > span {
    border + stronger shadow so it reads as a floating menu. */
 #pref_modal .dropdown-content.select-dropdown,
 #calendar_modal .dropdown-content.select-dropdown,
-#change_password_modal .dropdown-content.select-dropdown {
+#change_password_modal .dropdown-content.select-dropdown,
+#edit_modal .dropdown-content.select-dropdown,
+#add_to_group_modal .dropdown-content.select-dropdown,
+#assign_to_zone_modal .dropdown-content.select-dropdown,
+#assigned_seat_modal .dropdown-content.select-dropdown {
     background-color: #ffffff;
     border: 1px solid #e0e0e0;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 #pref_modal .dropdown-content.select-dropdown li,
 #calendar_modal .dropdown-content.select-dropdown li,
-#change_password_modal .dropdown-content.select-dropdown li {
+#change_password_modal .dropdown-content.select-dropdown li,
+#edit_modal .dropdown-content.select-dropdown li,
+#add_to_group_modal .dropdown-content.select-dropdown li,
+#assign_to_zone_modal .dropdown-content.select-dropdown li,
+#assigned_seat_modal .dropdown-content.select-dropdown li {
     color: #212121;
 }
 #pref_modal .dropdown-content.select-dropdown li.active,
@@ -415,9 +483,58 @@ nav .dropdown-content li > span {
 #calendar_modal .dropdown-content.select-dropdown li.active,
 #calendar_modal .dropdown-content.select-dropdown li:not(.disabled):hover,
 #change_password_modal .dropdown-content.select-dropdown li.active,
-#change_password_modal .dropdown-content.select-dropdown li:not(.disabled):hover {
+#change_password_modal .dropdown-content.select-dropdown li:not(.disabled):hover,
+#edit_modal .dropdown-content.select-dropdown li.active,
+#edit_modal .dropdown-content.select-dropdown li:not(.disabled):hover,
+#add_to_group_modal .dropdown-content.select-dropdown li.active,
+#add_to_group_modal .dropdown-content.select-dropdown li:not(.disabled):hover,
+#assign_to_zone_modal .dropdown-content.select-dropdown li.active,
+#assign_to_zone_modal .dropdown-content.select-dropdown li:not(.disabled):hover,
+#assigned_seat_modal .dropdown-content.select-dropdown li.active,
+#assigned_seat_modal .dropdown-content.select-dropdown li:not(.disabled):hover {
     background-color: #f0f0f0;
 }
+
+/* Autocomplete dropdowns inside group/zone/assignment modals. */
+#add_to_group_modal .dropdown-content.autocomplete-content,
+#assign_to_zone_modal .dropdown-content.autocomplete-content,
+#assigned_seat_modal .dropdown-content.autocomplete-content {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+#add_to_group_modal .dropdown-content.autocomplete-content li,
+#add_to_group_modal .dropdown-content.autocomplete-content li > span,
+#assign_to_zone_modal .dropdown-content.autocomplete-content li,
+#assign_to_zone_modal .dropdown-content.autocomplete-content li > span,
+#assigned_seat_modal .dropdown-content.autocomplete-content li,
+#assigned_seat_modal .dropdown-content.autocomplete-content li > span {
+    color: #212121;
+}
+#add_to_group_modal .dropdown-content.autocomplete-content li:hover,
+#add_to_group_modal .dropdown-content.autocomplete-content li.selected,
+#assign_to_zone_modal .dropdown-content.autocomplete-content li:hover,
+#assign_to_zone_modal .dropdown-content.autocomplete-content li.selected,
+#assigned_seat_modal .dropdown-content.autocomplete-content li:hover,
+#assigned_seat_modal .dropdown-content.autocomplete-content li.selected {
+    background-color: #f0f0f0;
+}
+
+/* Date/time picker dialogs in 2.x use [open] on a child <dialog>.  The
+   ModalDisplayPlugin only sets [open] instead of calling showModal(), so the
+   element is not promoted to the top layer and renders off-screen at the end
+   of <body>.  Force the picker to be centered/fixed until the upstream plugin
+   is corrected. */
+.datepicker-modal[open],
+.timepicker-modal[open] {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10000;
+    margin: 0;
+}
+
 /* The calendar modal contains taller sections (reminder selects + weekday chips
    + timepicker trigger) that can exceed 2.x's default max-height:70%. Let the
    whole dialog scroll so nothing is pushed off-screen, which also keeps any
@@ -440,15 +557,15 @@ nav .dropdown-content li > span {
     color: #424242;
     border-color: #757575;
 }
-/* Keep the switch labels from looking like placeholder text. */
-.pref-feature-row > span {
-    color: #424242;
-}
 /* 2.x .modal-footer is justify-content:space-between and padding:24px,
    which splits buttons and makes the footer huge. Group right, compact. */
 #pref_modal .modal-footer,
 #calendar_modal .modal-footer,
-#change_password_modal .modal-footer {
+#change_password_modal .modal-footer,
+#edit_modal .modal-footer,
+#add_to_group_modal .modal-footer,
+#assign_to_zone_modal .modal-footer,
+#assigned_seat_modal .modal-footer {
     justify-content: flex-end;
     gap: 8px;
     padding: 12px 24px;
@@ -459,17 +576,34 @@ nav .dropdown-content li > span {
 #calendar_modal .modal-footer .btn,
 #calendar_modal .modal-footer .btn-flat,
 #change_password_modal .modal-footer .btn,
-#change_password_modal .modal-footer .btn-flat {
+#change_password_modal .modal-footer .btn-flat,
+#edit_modal .modal-footer .btn,
+#edit_modal .modal-footer .btn-flat,
+#add_to_group_modal .modal-footer .btn,
+#add_to_group_modal .modal-footer .btn-flat,
+#assign_to_zone_modal .modal-footer .btn,
+#assign_to_zone_modal .modal-footer .btn-flat,
+#assigned_seat_modal .modal-footer .btn,
+#assigned_seat_modal .modal-footer .btn-flat {
     height: 36px;
     line-height: 36px;
     padding: 0 16px;
 }
 #pref_modal .modal-content label,
 #calendar_modal .modal-content label,
-#change_password_modal .modal-content label {
+#change_password_modal .modal-content label,
+#edit_modal .modal-content label,
+#add_to_group_modal .modal-content label,
+#assign_to_zone_modal .modal-content label,
+#assigned_seat_modal .modal-content label {
     font-size: 1rem;
 }
-
+/* Keep the switch labels from looking like placeholder text. */
+.pref-feature-row > span {
+    color: #424242;
+}
+/* 2.x .modal-footer is justify-content:space-between and padding:24px,
+   which splits buttons and makes the footer huge. Group right, compact. */
 .pref-feature-row {
     display: flex;
     align-items: center;

@@ -62,6 +62,49 @@ async function openZoneModal(page: Page): Promise<void> {
   await page.locator('#edit_modal').waitFor({ state: 'visible' });
 }
 
+/** Open the plan add modal on /plans. */
+async function openPlanModal(page: Page): Promise<void> {
+  await page.locator('#add_plan_btn').click();
+  await page.locator('#edit_modal').waitFor({ state: 'visible' });
+}
+
+/** Open the group add modal on /groups. */
+async function openGroupModal(page: Page): Promise<void> {
+  await page.locator('#add_user_btn').click();
+  await page.locator('#edit_modal').waitFor({ state: 'visible' });
+}
+
+/** Open the "add to group" modal on /groups/assign/:login. */
+async function openAddToGroupModal(page: Page): Promise<void> {
+  await page.locator('#add_to_group_btn').click();
+  await page.locator('#add_to_group_modal').waitFor({ state: 'visible' });
+}
+
+/** Open the "assign to zone" modal on /zones/assign/:zid. */
+async function openAssignToZoneModal(page: Page): Promise<void> {
+  await page.locator('#assign_to_zone_btn').click();
+  await page.locator('#assign_to_zone_modal').waitFor({ state: 'visible' });
+}
+
+/** Open the seat action modal on /plan/:pid by clicking the first seat. */
+async function openSeatActionModal(page: Page): Promise<void> {
+  await page.locator('#zonemap div[style*="background-image"]').first().click();
+  await page.locator('#action_modal').waitFor({ state: 'visible' });
+}
+
+/** Open the assigned-seat modal from the seat action modal (admin only). */
+async function openAssignedSeatModal(page: Page): Promise<void> {
+  await openSeatActionModal(page);
+  await page.locator('#action_modal .zone_action_btn[data-action="assign-modal"]').click();
+  await page.locator('#assigned_seat_modal').waitFor({ state: 'visible' });
+}
+
+/** Open the zone-map help modal on /plan/:pid. */
+async function openZoneHelpModal(page: Page): Promise<void> {
+  await page.locator('.zonemap_help').click();
+  await page.locator('#zonemap_help_modal').waitFor({ state: 'visible' });
+}
+
 /** Open the mobile sidenav (mobile viewport expected). */
 async function openSidenav(page: Page): Promise<void> {
   await page.locator('.sidenav-trigger').first().click();
@@ -176,6 +219,25 @@ export const SCREENS: Screen[] = [
     path: '/users', prepare: openUserModal, fullPage: false },
   { id: 'modal-zone-edit', title: 'Modal: zone edit', role: 'admin',
     path: '/zones', prepare: openZoneModal, fullPage: false },
+  { id: 'modal-plan-add', title: 'Modal: plan add', role: 'admin',
+    path: '/plans', prepare: openPlanModal, fullPage: false },
+  { id: 'modal-group-add', title: 'Modal: group add', role: 'admin',
+    path: '/groups', prepare: openGroupModal, fullPage: false },
+  { id: 'modal-group-assign', title: 'Modal: add to group', role: 'admin',
+    path: (ctx) => firstGroupLogin(ctx).then((g) => `/groups/assign/${g}`),
+    prepare: openAddToGroupModal, fullPage: false },
+  { id: 'modal-zone-assign', title: 'Modal: assign to zone', role: 'admin',
+    path: (ctx) => firstZid(ctx).then((zid) => `/zones/assign/${zid}`),
+    prepare: openAssignToZoneModal, fullPage: false },
+  { id: 'modal-seat-action', title: 'Modal: seat action', role: 'admin',
+    path: (ctx) => firstPid(ctx).then((pid) => `/plan/${pid}`),
+    prepare: openSeatActionModal, fullPage: false },
+  { id: 'modal-assigned-seat', title: 'Modal: assigned seat', role: 'admin',
+    path: (ctx) => firstPid(ctx).then((pid) => `/plan/${pid}`),
+    prepare: openAssignedSeatModal, fullPage: false },
+  { id: 'modal-zonemap-help', title: 'Modal: zone map help', role: 'admin',
+    path: (ctx) => firstPid(ctx).then((pid) => `/plan/${pid}`),
+    prepare: openZoneHelpModal, fullPage: false },
   { id: 'sidenav', title: 'Sidenav (mobile)', role: 'admin',
     path: '/',
     prepare: openSidenav,
