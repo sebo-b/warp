@@ -104,7 +104,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         ajaxConfig: "POST",
         ajaxContentType: "json",
         columns: [
-            {formatter:iconFormater, formatterParams:{icon:"person_remove",colorClass:"red-text text-darken-3"}, width:40, hozAlign:"center", cellClick:deleteClicked, headerSort:false},
+            {formatter:iconFormater, formatterParams:{icon:"person_remove",colorClass:"warp-icon-danger"}, width:40, hozAlign:"center", cellClick:deleteClicked, headerSort:false},
             {title:TR("Login"), field: "login", formatter:userGroupFormatter, headerFilter:"input", headerFilterFunc:"starts"},
             {title:TR("User/group name"), field: "name", formatter:userGroupFormatter, headerFilter:"input", headerFilterFunc:"starts"},
             {
@@ -167,7 +167,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 layout:"fitDataFill",
                 headerVisible: false,
                 columns: [
-                    {formatter:iconFormater, formatterParams:{icon:"disabled_by_default",colorClass:"red-text text-darken-3"}, width:40, hozAlign:"center", cellClick:assignToZoneTableRemoveClicked},
+                    {formatter:iconFormater, formatterParams:{icon:"disabled_by_default",colorClass:"warp-icon-danger"}, width:40, hozAlign:"center", cellClick:assignToZoneTableRemoveClicked},
                     {field: "name"},
                     {field: "zone_role", editor:Utils.makeSelect(zoneRoles), formatter:zoneRoleFormatter},
                 ],

@@ -18,7 +18,7 @@
 {% block overlays %}
     {{ super() }}
 
-    <div id="assign_to_zone_modal" class="modal">
+    <dialog id="assign_to_zone_modal" class="modal">
         <div class="modal-content">
             <h4>
                 <script>TR.inline("Assign to zone: %{zone_name}",{zone_name: "{{zoneName}}" })</script>
@@ -35,11 +35,11 @@
             <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn TR" id="assign_to_zone_modal_addbtn">btn.Add</a>
             <a href="#!" class="modal-close waves-effect waves-light btn-flat TR">btn.Cancel</a>
           </div>
-    </div>
+    </dialog>
 
 
     <div class="fixed-action-btn">
-        <a class="btn-floating btn-large waves-effect waves-light orange accent-4" id="assign_to_zone_btn">
+        <a class="btn-floating btn-large waves-effect waves-light warp-fab-add" id="assign_to_zone_btn">
             <i class="material-icons-outlined">person_add_alt</i>
         </a>
     </div>

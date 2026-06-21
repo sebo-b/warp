@@ -1,9 +1,111 @@
 'use strict';
 
+// Materialize 2.x — CSS first so app rules win the cascade, then JS.
+// The published sass/materialize.scss is unusable (forwards non-shipped
+// files), so we consume the prebuilt dist CSS+JS from the one pinned package.
+import '@materializecss/materialize/dist/css/materialize.css';
 import './style.css';
 import 'nouislider/dist/nouislider.css';
+import * as Materialize from '@materializecss/materialize';
 import Polyglot from 'node-polyglot';
 import noUiSlider from 'nouislider';
+
+// Expose Materialize as the global `M` the inline template scripts expect.
+// `import * as` yields a frozen module namespace, so we spread it into a
+// plain object and add the two 1.x helpers 2.x renamed/removed:
+//   M.toast(opts)        -> 2.x dropped the `toast` function; construct a Toast.
+//   M.updateTextFields() -> 2.x floats labels via CSS :not(:placeholder-shown);
+//      we just ensure inputs carry placeholder=" " so empty-state labels rest.
+//   M.Modal              -> 2.x Modal is a no-op stub (open/close do nothing,
+//      options are dead). Replace with a compat layer over native <dialog>
+//      so the ~25 existing M.Modal.init/getInstance/open/close call sites and
+//      the onOpenStart/onOpenEnd/onCloseStart/onCloseEnd options keep working.
+//   M.Autocomplete.init  -> 2.x changed `data` to [{id,text}] and onAutocomplete
+//      to receive AutocompleteData[]; wrap to accept the 1.x {key:null} map and
+//      pass the selected string back, so call sites are unchanged.
+const _AcInit = Materialize.Autocomplete.init.bind(Materialize.Autocomplete);
+function warpAutocompleteInit(els, options) {
+  if (options && options.data && !Array.isArray(options.data)) {
+    var map = options.data;
+    options.data = Object.keys(map).map(function (k) {
+      return { id: k, text: k, image: map[k] || undefined };
+    });
+  }
+  if (options && options.onAutocomplete) {
+    var orig = options.onAutocomplete;
+    options.onAutocomplete = function (entries) {
+      var e = entries && entries[0];
+      return orig.call(this, e ? (e.text || e.id) : e);
+    };
+  }
+  return _AcInit(els, options);
+}
+
+class WarpModalCompat {
+  constructor(el, options) {
+    this.el = el;
+    this.options = Object.assign({
+      dismissible: true,
+      onOpenStart: null, onOpenEnd: null,
+      onCloseStart: null, onCloseEnd: null
+    }, options || {});
+    this._onClose = this._onClose.bind(this);
+    this._onCancel = this._onCancel.bind(this);
+    this._onBackdrop = this._onBackdrop.bind(this);
+    el.addEventListener('click', this._onBackdrop);
+    el.addEventListener('cancel', this._onCancel);
+    el.addEventListener('close', this._onClose);
+  }
+  _onBackdrop(ev) { if (this.options.dismissible !== false && ev.target === this.el) this.close(); }
+  _onCancel(ev) { if (this.options.dismissible === false) ev.preventDefault(); }
+  _onClose() { this.el.classList.remove('open'); if (this.options.onCloseEnd) this.options.onCloseEnd.call(this.el); }
+  open() {
+    if (this.options.onOpenStart) this.options.onOpenStart.call(this.el);
+    this.el.classList.add('open');
+    this.el.showModal();
+    var self = this;
+    requestAnimationFrame(function () {
+      if (self.options.onOpenEnd) self.options.onOpenEnd.call(self.el);
+    });
+    return this;
+  }
+  close() {
+    if (this.options.onCloseStart) this.options.onCloseStart.call(this.el);
+    this.el.close();
+    return this;
+  }
+  destroy() {
+    this.el.removeEventListener('click', this._onBackdrop);
+    this.el.removeEventListener('cancel', this._onCancel);
+    this.el.removeEventListener('close', this._onClose);
+    this.el._warpModal = undefined;
+  }
+  static init(els, options) {
+    var single = els && els.nodeType === 1; // HTMLElement
+    var list = single ? [els] : (els || []);
+    var out = [];
+    for (var i = 0; i < list.length; i++) {
+      var el = list[i];
+      if (!el || el._warpModal) { out.push(el && el._warpModal); continue; }
+      el._warpModal = new WarpModalCompat(el, options);
+      out.push(el._warpModal);
+    }
+    return single ? out[0] : out;
+  }
+  static getInstance(el) { return el && el._warpModal ? el._warpModal : null; }
+}
+
+const M = Object.assign({}, Materialize, {
+  toast: function (opts) { return new Materialize.Toast(opts); },
+  updateTextFields: function () {
+    document.querySelectorAll(
+      '.input-field input:not([placeholder]), .input-field textarea:not([placeholder])'
+    ).forEach(function (el) { el.setAttribute('placeholder', ' '); });
+  },
+  Modal: WarpModalCompat,
+  Autocomplete: Object.assign({}, Materialize.Autocomplete, { init: warpAutocompleteInit }),
+});
+window.M = M;
 
 if (!window?.warpGlobals?.i18nUrl)
   throw Error('warpGlobals.i18nUrl must be defined');
@@ -666,6 +768,7 @@ function initChangePassword() {
 
 document.addEventListener("DOMContentLoaded", function(e) {
   window.TR.updateDOM();
+  M.updateTextFields(); // ensure placeholder=" " so 2.x CSS label-float works
 
   let pendingToast = window.sessionStorage.getItem('pendingToast');
   if (pendingToast) {
@@ -677,4 +780,49 @@ document.addEventListener("DOMContentLoaded", function(e) {
   initPrefs();
   initCalendar();
   initChangePassword();
+  initTriggerClasses();
 });
+
+// Materialize 2.x removed the .modal-trigger / .sidenav-trigger auto-init
+// classes (click-to-open was automatic in 1.x). Replicate that behaviour with
+// delegated listeners so it covers triggers added dynamically by view JS, and
+// so it works regardless of init order. Sidenav triggers are guarded to real
+// .sidenav elements only — WARP reuses sidenav-trigger on the zone sidepanel
+// (a plain div, not a Materialize sidenav), which must keep its own handling.
+function initTriggerClasses() {
+  document.addEventListener('click', function(ev) {
+    var modalTrig = ev.target.closest && ev.target.closest('.modal-trigger');
+    if (modalTrig) {
+      var sel = modalTrig.getAttribute('href');
+      if (sel && sel !== '#') {
+        var modalEl = document.querySelector(sel);
+        if (modalEl) {
+          ev.preventDefault();
+          (M.Modal.getInstance(modalEl) || M.Modal.init(modalEl, {})).open();
+        }
+      }
+      return;
+    }
+    var sidenavTrig = ev.target.closest && ev.target.closest('.sidenav-trigger');
+    if (sidenavTrig) {
+      var id = sidenavTrig.getAttribute('data-target');
+      var sn = id && document.getElementById(id);
+      if (sn && sn.classList.contains('sidenav')) {
+        ev.preventDefault();
+        (M.Sidenav.getInstance(sn) || M.Sidenav.init(sn, {})).open();
+      }
+      return;
+    }
+    // .modal-close: 2.x dropped the auto-close class behaviour; close the
+    // enclosing <dialog class="modal"> (instance.close() if init'd, else native close).
+    var modalClose = ev.target.closest && ev.target.closest('.modal-close');
+    if (modalClose) {
+      var dlg = modalClose.closest('.modal');
+      if (dlg) {
+        ev.preventDefault();
+        var inst = M.Modal.getInstance(dlg);
+        if (inst) inst.close(); else dlg.close();
+      }
+    }
+  });
+}

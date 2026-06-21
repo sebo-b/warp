@@ -8,6 +8,20 @@ NAV {
     z-index: 5;
 }
 
+/* Top app bar: Materialize 2.x styles .nav-wrapper with the surface colour and
+   dark text. WARP's nav is brand-purple with white text, so restore it via the
+   M3 primary tokens (defined in theme.css). */
+nav,
+.nav-wrapper {
+    background-color: var(--md-sys-color-primary);
+}
+nav .nav-wrapper,
+nav .nav-wrapper a,
+nav .nav-wrapper i.material-icons,
+nav .nav-wrapper li a {
+    color: var(--md-sys-color-on-primary);
+}
+
 .nav-wrapper DIV,A {
     height: 100%;
 }

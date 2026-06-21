@@ -31,7 +31,7 @@
 
 
     {% if not isZoneViewer %}
-    <div id="action_modal" class="modal bottom-sheet">
+    <dialog id="action_modal" class="modal bottom-sheet">
         <div class="modal-content">
             <h4 id="action_modal_title" style="display: none;"></h4>
             <div class="row">
@@ -47,18 +47,18 @@
                     <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn TR" data-action="delete">btn.Remove</a>
                     {% if isZoneAdmin %}
                     <br>
-                    <a href="#!" class="modal-close waves-effect waves-light btn red darken-2 zone_action_btn TR" data-action="assign-modal">btn.Assign</a>
-                    <a href="#!" class="modal-close waves-effect waves-light btn red darken-2 zone_action_btn TR" data-action="enable">btn.Enable</a>
-                    <a href="#!" class="modal-close waves-effect waves-light btn red darken-2 zone_action_btn TR" data-action="disable">btn.Disable</a>
+                    <a href="#!" class="modal-close waves-effect waves-light btn warp-btn-danger zone_action_btn TR" data-action="assign-modal">btn.Assign</a>
+                    <a href="#!" class="modal-close waves-effect waves-light btn warp-btn-danger zone_action_btn TR" data-action="enable">btn.Enable</a>
+                    <a href="#!" class="modal-close waves-effect waves-light btn warp-btn-danger zone_action_btn TR" data-action="disable">btn.Disable</a>
                     {% endif %}
                 </div>
             </div>
         </div>
-    </div>
+    </dialog>
     {% endif %}
 
     {% if isZoneAdmin %}
-    <div id="assigned_seat_modal" class="modal">
+    <dialog id="assigned_seat_modal" class="modal">
         <div class="modal-content">
             <h4 class="TR">Seat assignment</h4>
             <p class="TR">Select users to which the seat will be assigned:</p>
@@ -72,10 +72,10 @@
             <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn TR" data-action="assign">btn.Set</a>
             <a href="#!" class="modal-close waves-effect waves-light btn-flat TR">btn.Cancel</a>
         </div>
-    </div>
+    </dialog>
     {% endif %}
 
-    <div id="zonemap_help_modal" class="modal modal-fixed-footer">
+    <dialog id="zonemap_help_modal" class="modal modal-fixed-footer">
         <div class="modal-content">
             <table>
                 <tr>
@@ -147,7 +147,7 @@
                 <a href="#!" class="modal-close waves-effect waves-light btn TR">btn.Ok</a>
             </div>
         </div>
-    </div>
+    </dialog>
 
 {% endblock %}
 

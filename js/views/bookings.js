@@ -20,7 +20,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
             autoClose: true,
             showClearBtn: true,
             format: "yyyy-mm-dd",
-            onClose: function() {
+            onSelect: function() {
                 success(picker.value? Math.round(Date.parse(picker.value)/1000)+offset: null)
             }
         };
@@ -71,7 +71,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
             autoClose: true,
             showClearBtn: true,
             format: "yyyy-mm-dd",
-            onClose: function() {
+            onSelect: function() {
                 success({
                     fromTS: fromDatePicker.value ? Math.round(Date.parse(fromDatePicker.value)/1000) : null,
                     toTS: toDatePicker.value ? Math.round(Date.parse(toDatePicker.value)/1000)+24*3600-1 : null
@@ -107,7 +107,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     var removeFormatter = function(cell, formatterParams) {
         if (cell.getRow().getData().rw)
-            return '<i class="material-icons red-text text-darken-3">delete_forever</i>';
+            return '<i class="material-icons warp-icon-danger">delete_forever</i>';
         else
             return "";
     }

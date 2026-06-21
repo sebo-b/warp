@@ -28,7 +28,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
     }
 
     var editFormater = function(cell) {
-        return '<i class="material-icons-outlined green-text text-darken-3">edit</i>';
+        return '<i class="material-icons-outlined warp-icon-edit-alt">edit</i>';
     }
 
     var editClicked = function(e,cell) {

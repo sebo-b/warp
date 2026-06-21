@@ -16,7 +16,7 @@
 {% block overlays %}
     {{ super() }}
 
-<div id="edit_modal" class="modal">
+<dialog id="edit_modal" class="modal">
     <div class="modal-content">
         <div class="row">
             <div class="input-field col s12 m4">
@@ -34,14 +34,14 @@
         </div>
     </div>
     <div class="modal-footer">
-        <a href="#!" class="modal-close waves-effect waves-light btn red darken-2 TR" id="edit_modal_delete_btn">btn.Delete</a>
+        <a href="#!" class="modal-close waves-effect waves-light btn warp-btn-danger TR" id="edit_modal_delete_btn">btn.Delete</a>
         <a href="#!" class="waves-effect waves-light btn TR" id="edit_modal_save_btn">btn.Save</a>
         <a href="#!" class="modal-close waves-effect waves-light btn-flat TR">btn.Cancel</a>
     </div>
-</div>
+</dialog>
 
 <div class="fixed-action-btn">
-    <a class="btn-floating btn-large waves-effect waves-light orange accent-4" id="add_user_btn">
+    <a class="btn-floating btn-large waves-effect waves-light warp-fab-add" id="add_user_btn">
         <i class="material-icons-outlined">group_add</i>
     </a>
 </div>

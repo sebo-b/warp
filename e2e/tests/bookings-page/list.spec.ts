@@ -73,7 +73,7 @@ test.describe('bookings list visibility', () => {
     await page.waitForLoadState('networkidle');
     await expect(page.locator('.tabulator-row').first()).toBeVisible();
     await expect(
-      page.locator('.tabulator-row').first().locator('.material-icons.red-text'),
+      page.locator('.tabulator-row').first().locator('.material-icons.warp-icon-danger'),
     ).toBeVisible();
   });
 
@@ -87,7 +87,7 @@ test.describe('bookings list visibility', () => {
     await page.waitForLoadState('networkidle');
 
     const user1Row = page.locator('.tabulator-row', { hasText: 'Foo' });
-    await expect(user1Row.locator('.material-icons.red-text')).toHaveCount(0);
+    await expect(user1Row.locator('.material-icons.warp-icon-danger')).toHaveCount(0);
   });
 
   test('zone admin sees delete icon on other users bookings in their zone', async ({ page }) => {
@@ -99,7 +99,7 @@ test.describe('bookings list visibility', () => {
     await page.waitForLoadState('networkidle');
     await expect(page.locator('.tabulator-row').first()).toBeVisible();
     await expect(
-      page.locator('.tabulator-row').first().locator('.material-icons.red-text'),
+      page.locator('.tabulator-row').first().locator('.material-icons.warp-icon-danger'),
     ).toBeVisible();
   });
 
@@ -116,7 +116,7 @@ test.describe('delete booking from the bookings page', () => {
     await page.waitForLoadState('networkidle');
     await expect(page.locator('.tabulator-row').first()).toBeVisible();
 
-    await page.locator('.tabulator-row').first().locator('.material-icons.red-text').click();
+    await page.locator('.tabulator-row').first().locator('.material-icons.warp-icon-danger').click();
     await expect(page.locator('.modal', { hasText: 'Are you sure to delete this booking?' })).toBeVisible();
   });
 
@@ -127,7 +127,7 @@ test.describe('delete booking from the bookings page', () => {
     await logIn(page, USER1);
     await page.goto('/bookings');
     await page.waitForLoadState('networkidle');
-    await page.locator('.tabulator-row').first().locator('.material-icons.red-text').click();
+    await page.locator('.tabulator-row').first().locator('.material-icons.warp-icon-danger').click();
 
     const modal = page.locator('.modal', { hasText: 'Are you sure to delete this booking?' });
     await expect(modal).toContainText(seat.name);
@@ -141,7 +141,7 @@ test.describe('delete booking from the bookings page', () => {
     await logIn(page, USER1);
     await page.goto('/bookings');
     await page.waitForLoadState('networkidle');
-    await page.locator('.tabulator-row').first().locator('.material-icons.red-text').click();
+    await page.locator('.tabulator-row').first().locator('.material-icons.warp-icon-danger').click();
 
     const modal = page.locator('.modal', { hasText: 'Are you sure to delete this booking?' });
     await expect(modal).toBeVisible();
@@ -164,7 +164,7 @@ test.describe('delete booking from the bookings page', () => {
     await logIn(page, USER1);
     await page.goto('/bookings');
     await page.waitForLoadState('networkidle');
-    await page.locator('.tabulator-row').first().locator('.material-icons.red-text').click();
+    await page.locator('.tabulator-row').first().locator('.material-icons.warp-icon-danger').click();
 
     const modal = page.locator('.modal', { hasText: 'Are you sure to delete this booking?' });
     await expect(modal).toBeVisible();
@@ -183,7 +183,7 @@ test.describe('delete booking from the bookings page', () => {
     await logIn(page, USER1);
     await page.goto('/bookings');
     await page.waitForLoadState('networkidle');
-    await page.locator('.tabulator-row').first().locator('.material-icons.red-text').click();
+    await page.locator('.tabulator-row').first().locator('.material-icons.warp-icon-danger').click();
 
     const modal = page.locator('.modal', { hasText: 'Are you sure to delete this booking?' });
     await Promise.all([

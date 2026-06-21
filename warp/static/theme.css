@@ -1,0 +1,146 @@
+/*
+ * WARP theme — the single source of truth for colours.
+ *
+ * Loaded in base.html before the webpack base bundle (which contains
+ * Materialize 2.x's CSS). Materialize 2.x themes through Material Design 3
+ * CSS custom properties (--md-sys-color-*); we override the *-light variants
+ * here so the framework renders in WARP's brand palette. Light is pinned via
+ * <html theme="light">, which activates Materialize's :root[theme=light]
+ * alias block and defeats its prefers-color-scheme:dark rule — so the UI never
+ * flips to dark unexpectedly.
+ *
+ * The :root[theme="light"] selector is intentionally higher-specificity than
+ * Materialize's :root defaults, so this file wins even though it loads first.
+ *
+ * The --warp-* tokens below are the app's own colours (indigo accents, the
+ * grey ramp, semantic affordances). The future theming step routes every
+ * scattered hex in style.scss/tabulator/nouislider/JS/templates through these.
+ * Re-theming a deployment = edit this one file (or mount a replacement via
+ * WARP_THEME_FILE).
+ */
+
+/* ---- Material Design 3 tokens (light, pinned) ---------------------------- */
+:root[theme="light"] {
+  /* primary — brand purple (was $primary-color #8f1f8c: nav, tabs, pagination) */
+  --md-sys-color-primary-light:               #8f1f8c;
+  --md-sys-color-on-primary-light:            #ffffff;
+  --md-sys-color-primary-container-light:     #f8d8f4;  /* btn-floating bg, .btn:focus */
+  --md-sys-color-on-primary-container-light:  #360a34;   /* btn-floating icon/text */
+  --md-sys-color-inverse-primary-light:       #f8d8f4;
+
+  /* secondary — brand orange (was $secondary-color #ef7f21: .btn filled, FABs,
+     input focus, checkboxes, switches, chips, datepicker/timepicker) */
+  --md-sys-color-secondary-light:               #ef7f21;
+  --md-sys-color-on-secondary-light:            #ffffff;
+  --md-sys-color-secondary-container-light:     #ffdbcc;  /* .btn.tonal bg */
+  --md-sys-color-on-secondary-container-light:  #3a1500;
+
+  /* error — brand red (was $error-color #e42025: invalid inputs) */
+  --md-sys-color-error-light:               #e42025;
+  --md-sys-color-on-error-light:            #ffffff;
+  --md-sys-color-error-container-light:     #ffdad6;
+  --md-sys-color-on-error-container-light:  #410002;
+
+  /* Tones referenced directly by a few component rules (not via the aliases):
+     select:focus outline, .btn-floating:focus, slider/carousel indicators. */
+  --md-ref-palette-primary80:    #c69dc4;
+  --md-ref-palette-secondary80:  #ffb074;
+  --md-ref-palette-primary100:  #ffffff;
+}
+
+/* ---- App tokens (--warp-*) ---------------------------------------------- */
+/* Current exact colours preserved; a rebrand edits these. The future theming
+ * step points every scattered hex at these. */
+:root {
+  /* brand semantic aliases (also referenced by affordance classes below) */
+  --warp-primary:       #8f1f8c;
+  --warp-primary-light: #cd2dc8;  /* was lighten($primary-color,15%) — tab indicator */
+  --warp-secondary:     #ef7f21;  /* orange; FAB add */
+  --warp-error:         #e42025;
+  --warp-success:        #78be20;
+  --warp-link:          #0c9dd9;
+
+  /* app's own indigo accent (#3949ab, indigo darken-2) used across the zone
+   * editor, seat labels, marquee, weekday chips, sliders. */
+  --warp-indigo:        #3949ab;
+  --warp-indigo-light:  #c5cae9;  /* indigo lighten-4 — slider track, zone border */
+  --warp-indigo-pale:   #e8eaf6;  /* indigo lighten-5 — seat-label zone bg */
+  --warp-indigo-dark:   #283593;  /* indigo darken-3 — seat-label zone text */
+
+  /* app accent orange (#ff6d00, materialize-orange accent-4) — sliders, spinner,
+   * calendar tabs. Distinct from the brand secondary #ef7f21. */
+  --warp-accent:        #ff6d00;
+  --warp-accent-light:  #ffe0b2;  /* spinner top/right/bottom */
+
+  /* semantic affordance roles (replace the Material palette utility classes
+   * that Materialize 2.x removed). Values preserve the current exact colours. */
+  --warp-danger-btn:    #d32f2f;  /* was .red.darken-2 — delete button bg */
+  --warp-danger-icon:   #c62828;  /* was .red-text.text-darken-3 — delete icon */
+  --warp-edit-icon:     #1b5e20;  /* was .green-text.text-darken-4 — edit/manage icon */
+  --warp-edit-icon-alt: #2e7d32;  /* was .green-text.text-darken-3 — edit icon (1 use) */
+
+  /* grey ramp (Materialize grey palette, used in style.css/tabulator) */
+  --warp-grey-1: #f5f5f5;  /* grey lighten-4 */
+  --warp-grey-2: #e0e0e0;  /* grey lighten-2 */
+  --warp-grey-3: #9e9e9e;  /* grey base */
+  --warp-grey-4: #616161;  /* grey darken-1 */
+  --warp-grey-5: #757575;  /* grey darken-2 */
+
+  /* odds the inventory surfaced */
+  --warp-seat-preview-text: #6e6e6e;
+  --warp-disabled-fab:      #dfdfdf;
+  --warp-slider-handle-border: #d9d9d9;
+  --warp-slider-handle-shadow:  #ebebeb;
+  --warp-slider-handle-shadow-outer: #bbb;
+
+  /* RGB channels for app rgba() rules that need a brand colour + alpha. */
+  --warp-primary-rgb: 143, 31, 140;
+  --warp-secondary-rgb: 239, 127, 33;
+  --warp-error-rgb: 228, 32, 37;
+}
+
+/* ---- Affordance classes (replace removed Material palette utility classes) */
+/* Materialize 2.x ships no .red/.green/.orange palette classes, so the ~33
+ * markup/JS usages that styled delete buttons, delete/edit icons, and add FABs
+ * now style nothing. These classes restore them, driven by the tokens above. */
+.warp-btn-danger {
+  background-color: var(--warp-danger-btn) !important;
+  color: #fff !important;
+}
+.warp-btn-danger:hover { background-color: var(--warp-danger-btn) !important; }
+
+.warp-icon-danger { color: var(--warp-danger-icon) !important; }
+.warp-icon-edit   { color: var(--warp-edit-icon) !important; }
+.warp-icon-edit-alt { color: var(--warp-edit-icon-alt) !important; }
+
+/* add FABs were .btn-floating.orange.accent-4; restore the orange. */
+.warp-fab-add,
+.warp-fab-add:hover {
+  background-color: var(--warp-secondary) !important;
+  color: var(--md-sys-color-on-secondary) !important;
+}
+
+/* ---- Restore Materialize 1.x button defaults ----------------------------- */
+/* 2.x's .btn / .btn-floating carry NO background unless given a variant class
+ * (.filled/.tonal/.elevated/.text). WARP's existing markup uses bare .btn /
+ * .btn-floating and relied on 1.x's default secondary-coloured background, so
+ * restore that here. The .warp-btn-danger / .warp-fab-add affordance classes
+ * (and 2.x's own variant classes) keep overriding via higher specificity /
+ * !important. .disabled FABs keep their grey via the .auto_book_fab rule in
+ * style.css (!important). */
+.btn:not(.btn-floating):not(.btn-flat):not(.text):not(.filled):not(.tonal):not(.outlined):not(.elevated):not(.warp-btn-danger) {
+  background-color: var(--md-sys-color-secondary);
+  color: var(--md-sys-color-on-secondary);
+}
+.btn:not(.btn-floating):not(.btn-flat):not(.text):not(.filled):not(.tonal):not(.outlined):not(.elevated):not(.warp-btn-danger):hover {
+  background-color: color-mix(in srgb, var(--md-sys-color-secondary), var(--md-sys-color-on-secondary) 16%);
+  color: var(--md-sys-color-on-secondary);
+}
+
+.btn-floating:not(.warp-fab-add) {
+  background-color: var(--md-sys-color-secondary);
+  color: var(--md-sys-color-on-secondary);
+}
+.btn-floating:not(.warp-fab-add):hover {
+  background-color: color-mix(in srgb, var(--md-sys-color-secondary), var(--md-sys-color-on-secondary) 16%);
+}

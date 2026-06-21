@@ -532,7 +532,7 @@ function initActionMenu(seatFactory) {
                 var delBtn = document.createElement('a');
                 delBtn.href = '#!';
                 delBtn.className = 'btn-flat assigned_seat_delete_btn';
-                delBtn.innerHTML = '<i class="material-icons small red-text text-darken-3">delete</i>';
+                delBtn.innerHTML = '<i class="material-icons small warp-icon-danger">delete</i>';
                 delBtn.addEventListener('click', function(e) {
                     e.preventDefault();
                     assignedData = assignedData.filter(d => d.login !== item.login);

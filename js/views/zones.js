@@ -143,7 +143,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
             let seatCount = responseData.seat_count || 0;
             const hasAlternatives = otherZones.length > 0;
 
-            let modalDiv = document.createElement('div');
+            let modalDiv = document.createElement('dialog');
             modalDiv.className = 'modal';
             modalDiv.id = 'reassign_modal';
 
@@ -193,7 +193,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
             // Red delete seats button (always shown when we reached this modal)
             let delBtn = document.createElement('a');
             delBtn.href = '#!';
-            delBtn.className = 'waves-effect waves-light btn red darken-2';
+            delBtn.className = 'waves-effect waves-light btn warp-btn-danger';
             delBtn.style.marginLeft = '6px';
             delBtn.id = 'reassign_delete_seats';
             delBtn.textContent = TR('Delete seats');
@@ -302,8 +302,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
         ajaxConfig: "POST",
         ajaxContentType: "json",
         columns: [
-            {formatter: iconFormater, formatterParams: {icon: "manage_accounts", colorClass: "green-text text-darken-4"}, width: 40, hozAlign: "center", cellClick: clickFuncFactory('zoneAssign'), headerSort: false, tooltip: TR('Manage users')},
-            {formatter: iconFormater, formatterParams: {icon: "edit", colorClass: "green-text text-darken-4"}, width: 40, hozAlign: "center", cellClick: addEditClicked, headerSort: false, tooltip: TR('Edit zone')},
+            {formatter: iconFormater, formatterParams: {icon: "manage_accounts", colorClass: "warp-icon-edit"}, width: 40, hozAlign: "center", cellClick: clickFuncFactory('zoneAssign'), headerSort: false, tooltip: TR('Manage users')},
+            {formatter: iconFormater, formatterParams: {icon: "edit", colorClass: "warp-icon-edit"}, width: 40, hozAlign: "center", cellClick: addEditClicked, headerSort: false, tooltip: TR('Edit zone')},
             {title: TR("Zone name"), field: "name", headerFilter: "input", headerFilterFunc: "starts"},
             {title: TR("Zone type"), field: "zone_type", formatter: zoneTypeFormatter,
                 headerFilter: Utils.makeSelect(zoneTypeLabels), headerFilterFunc: "="},

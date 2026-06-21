@@ -51,7 +51,7 @@ test.describe('bookings page — public zone visibility', () => {
     await expect(page.locator('.tabulator-row').first()).toContainText(seat.name);
     // PUBLIC_BOOK grants USER → rw=true → delete icon visible
     await expect(
-      page.locator('.tabulator-row').first().locator('.material-icons.red-text'),
+      page.locator('.tabulator-row').first().locator('.material-icons.warp-icon-danger'),
     ).toBeVisible();
   });
 
@@ -69,7 +69,7 @@ test.describe('bookings page — public zone visibility', () => {
     await expect(page.locator('.tabulator-row').first()).toContainText(seat.name);
     // PUBLIC_VIEW grants VIEWER only → rw=false → no delete icon
     await expect(
-      page.locator('.tabulator-row').first().locator('.material-icons.red-text'),
+      page.locator('.tabulator-row').first().locator('.material-icons.warp-icon-danger'),
     ).toHaveCount(0);
   });
 
@@ -86,7 +86,7 @@ test.describe('bookings page — public zone visibility', () => {
     await expect(page.locator('.tabulator-row')).toHaveCount(1);
     // Not own booking → rw=false even though PUBLIC_BOOK grants USER
     await expect(
-      page.locator('.tabulator-row').first().locator('.material-icons.red-text'),
+      page.locator('.tabulator-row').first().locator('.material-icons.warp-icon-danger'),
     ).toHaveCount(0);
   });
 
