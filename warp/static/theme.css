@@ -19,34 +19,11 @@
  * WARP_THEME_FILE).
  */
 
-/* ---- Material Design 3 tokens (light, pinned) ---------------------------- */
-:root[theme="light"] {
-  /* primary — brand purple (was $primary-color #8f1f8c: nav, tabs, pagination) */
-  --md-sys-color-primary-light:               #8f1f8c;
-  --md-sys-color-on-primary-light:            #ffffff;
-  --md-sys-color-primary-container-light:     #f8d8f4;  /* btn-floating bg, .btn:focus */
-  --md-sys-color-on-primary-container-light:  #360a34;   /* btn-floating icon/text */
-  --md-sys-color-inverse-primary-light:       #f8d8f4;
-
-  /* secondary — brand orange (was $secondary-color #ef7f21: .btn filled, FABs,
-     input focus, checkboxes, switches, chips, datepicker/timepicker) */
-  --md-sys-color-secondary-light:               #ef7f21;
-  --md-sys-color-on-secondary-light:            #ffffff;
-  --md-sys-color-secondary-container-light:     #ffdbcc;  /* .btn.tonal bg */
-  --md-sys-color-on-secondary-container-light:  #3a1500;
-
-  /* error — brand red (was $error-color #e42025: invalid inputs) */
-  --md-sys-color-error-light:               #e42025;
-  --md-sys-color-on-error-light:            #ffffff;
-  --md-sys-color-error-container-light:     #ffdad6;
-  --md-sys-color-on-error-container-light:  #410002;
-
-  /* Tones referenced directly by a few component rules (not via the aliases):
-     select:focus outline, .btn-floating:focus, slider/carousel indicators. */
-  --md-ref-palette-primary80:    #c69dc4;
-  --md-ref-palette-secondary80:  #ffb074;
-  --md-ref-palette-primary100:  #ffffff;
-}
+/* ---- Material Design 3 tokens ------------------------------------------- */
+/* No brand override for now: Materialize 2.x ships its own light M3 palette
+   (primary #006495, etc.), pinned light by <html theme="light"> in base.html.
+   Re-branding is a later step — override the --md-sys-color-*-light tokens in
+   the :root[theme="light"] block below. */
 
 /* ---- App tokens (--warp-*) ---------------------------------------------- */
 /* Current exact colours preserved; a rebrand edits these. The future theming
@@ -127,12 +104,17 @@
  * restore that here. The .warp-btn-danger / .warp-fab-add affordance classes
  * (and 2.x's own variant classes) keep overriding via higher specificity /
  * !important. .disabled FABs keep their grey via the .auto_book_fab rule in
- * style.css (!important). */
-.btn:not(.btn-floating):not(.btn-flat):not(.text):not(.filled):not(.tonal):not(.outlined):not(.elevated):not(.warp-btn-danger) {
+ * style.css (!important).
+ * Exclude .month-prev/.month-next: Materialize 2.x's datepicker month arrows
+ * carry .btn too, and should stay transparent icon buttons — without the
+ * exclusion this rule (specificity 0,9,0) out-specifies their own
+ * `.month-prev{background:transparent}` and fills them with the secondary
+ * colour (the "weird grey arrow buttons"). */
+.btn:not(.btn-floating):not(.btn-flat):not(.text):not(.filled):not(.tonal):not(.outlined):not(.elevated):not(.warp-btn-danger):not(.month-prev):not(.month-next) {
   background-color: var(--md-sys-color-secondary);
   color: var(--md-sys-color-on-secondary);
 }
-.btn:not(.btn-floating):not(.btn-flat):not(.text):not(.filled):not(.tonal):not(.outlined):not(.elevated):not(.warp-btn-danger):hover {
+.btn:not(.btn-floating):not(.btn-flat):not(.text):not(.filled):not(.tonal):not(.outlined):not(.elevated):not(.warp-btn-danger):not(.month-prev):not(.month-next):hover {
   background-color: color-mix(in srgb, var(--md-sys-color-secondary), var(--md-sys-color-on-secondary) 16%);
   color: var(--md-sys-color-on-secondary);
 }

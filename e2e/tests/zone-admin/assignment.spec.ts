@@ -192,7 +192,12 @@ test.describe('assign seat modal UI', () => {
     const addInput = page.locator('#assigned_seat_add_input');
     await addInput.click();
     await addInput.pressSequentially('Bar', { delay: 50 });
-    const dropdownItem = page.locator('ul.autocomplete-content li', { hasText: 'Bar [user2]' });
+    // 2.x renders every autocomplete's dropdown items on init (not only when
+    // typed into), and the dropdown is moved to document.body, so a bare
+    // `ul.autocomplete-content li` also matches the BookAs dropdown on this
+    // page. Scope to this input's own dropdown via its data-target id.
+    const dropdownId = await addInput.getAttribute('data-target');
+    const dropdownItem = page.locator(`ul#${dropdownId} li`, { hasText: 'Bar [user2]' });
     await expect(dropdownItem).toBeVisible({ timeout: 5000 });
     await dropdownItem.click();
 

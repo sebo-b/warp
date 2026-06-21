@@ -565,7 +565,7 @@ function initActionMenu(seatFactory) {
 
         M.Autocomplete.init(addInputEl, {
             data: autocompleteData,
-            dropdownOptions: { constrainWidth: false, container: document.body },
+            dropdownOptions: { constrainWidth: false, container: addInputEl.closest('dialog') || document.body },
             minLength: 2,
             limit: 10,
             onAutocomplete: function(selectedText) {

@@ -17,11 +17,18 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
         var pickerOptions = {
             container: document.body,
+            // Materialize 2.x defaults the calendar to an inline "docked" widget
+            // placed before the input — unusable inside a tiny Tabulator header
+            // cell. 'modal' restores the 1.x full-overlay calendar (opens on
+            // input focus/click; inst.open() is deprecated in 2.x).
+            displayPlugin: 'modal',
             autoClose: true,
             showClearBtn: true,
             format: "yyyy-mm-dd",
-            onSelect: function() {
-                success(picker.value? Math.round(Date.parse(picker.value)/1000)+offset: null)
+            onSelect: function(selectedDate) {
+                // 2.x's setSingleDate never writes the input's .value on selection,
+                // so read the selectedDate arg (a Date) instead of picker.value.
+                success(selectedDate ? Math.round(selectedDate.getTime()/1000)+offset : null)
             }
         };
 
@@ -66,17 +73,28 @@ document.addEventListener("DOMContentLoaded", function(e) {
         var fromDatePicker = container.appendChild( createPicker(TR('From')));
         var toDatePicker = container.appendChild( createPicker(TR('To')));
 
+        var fromTS = null, toTS = null;
         var pickerOptions = {
             container: document.body,
+            // Materialize 2.x defaults the calendar to an inline "docked" widget
+            // placed before the input — unusable inside a tiny Tabulator header
+            // cell. 'modal' restores the 1.x full-overlay calendar (opens on
+            // input focus/click; inst.open() is deprecated in 2.x).
+            displayPlugin: 'modal',
             autoClose: true,
             showClearBtn: true,
             format: "yyyy-mm-dd",
-            onSelect: function() {
-                success({
-                    fromTS: fromDatePicker.value ? Math.round(Date.parse(fromDatePicker.value)/1000) : null,
-                    toTS: toDatePicker.value ? Math.round(Date.parse(toDatePicker.value)/1000)+24*3600-1 : null
-                });
-             }
+            onSelect: function(selectedDate) {
+                // 2.x's setSingleDate never writes the input's .value on selection,
+                // so track the chosen timestamp here (per-picker via this.el) and
+                // send the combined {fromTS,toTS} filter.
+                if (this.el === fromDatePicker) {
+                    fromTS = selectedDate ? Math.round(selectedDate.getTime()/1000) : null;
+                } else if (this.el === toDatePicker) {
+                    toTS = selectedDate ? Math.round(selectedDate.getTime()/1000)+24*3600-1 : null;
+                }
+                success({ fromTS: fromTS, toTS: toTS });
+            }
         };
 
         if (warpGlobals.i18n.datePicker) {
@@ -86,6 +104,21 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
         M.Datepicker.init(fromDatePicker, pickerOptions);
         M.Datepicker.init(toDatePicker, pickerOptions);
+
+        // 2.x's clear button calls setInputValues (which fires a `change` event on
+        // the input) but NOT onSelect, so onSelect alone wouldn't reset the
+        // closure vars. Re-derive each picker's timestamp from its datepicker
+        // instance's `.date` (null when cleared) on input change.
+        fromDatePicker.addEventListener('change', function() {
+            var inst = M.Datepicker.getInstance(fromDatePicker);
+            fromTS = (inst && inst.date) ? Math.round(inst.date.getTime()/1000) : null;
+            success({ fromTS: fromTS, toTS: toTS });
+        });
+        toDatePicker.addEventListener('change', function() {
+            var inst = M.Datepicker.getInstance(toDatePicker);
+            toTS = (inst && inst.date) ? Math.round(inst.date.getTime()/1000)+24*3600-1 : null;
+            success({ fromTS: fromTS, toTS: toTS });
+        });
 
         return container;
     }

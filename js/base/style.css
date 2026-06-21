@@ -226,11 +226,12 @@ nav .dropdown-content li > span {
     color: #212121;
     font-size: 1rem;
 }
-.book-as_container .input-field > label {
+.book-as_container .input-field > label,
+.book-as_container .input-field > label.active {
     position: absolute;
     top: 2px;
-    left: 0;
-    padding-left: 1px;   /* match the input text start */
+    left: 0 !important;
+    padding-left: 0 !important;
     transform: none;
     font-size: 0.75rem;
     color: #616161;

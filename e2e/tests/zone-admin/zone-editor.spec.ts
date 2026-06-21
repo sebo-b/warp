@@ -61,7 +61,13 @@ async function saveAndConfirm(page: import('@playwright/test').Page): Promise<vo
   await page.locator('#saveBtn').click();
   const modal = page.locator('.modal.open', { hasText: /update the plan/ });
   await expect(modal).toBeVisible();
+  // Click Yes and wait for the modify POST to actually commit before checking
+  // the URL. (The editor URL `/plans/modify/<id>?return=/plans` ends with
+  // `/plans`, so a bare toHaveURL(/\/plans$/) would falsely match it and return
+  // before the save landed — a race the 1.x modal-close timing masked.)
+  const modifyResp = page.waitForResponse(r => r.url().includes('/xhr/plans/modify') && r.request().method() === 'POST');
   await modal.locator('a', { hasText: /Yes/i }).click();
+  await modifyResp;
   await expect(page).toHaveURL(/\/plans$/);
 }
 

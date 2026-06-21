@@ -23,8 +23,13 @@ import noUiSlider from 'nouislider';
 //   M.Autocomplete.init  -> 2.x changed `data` to [{id,text}] and onAutocomplete
 //      to receive AutocompleteData[]; wrap to accept the 1.x {key:null} map and
 //      pass the selected string back, so call sites are unchanged.
-const _AcInit = Materialize.Autocomplete.init.bind(Materialize.Autocomplete);
-function warpAutocompleteInit(els, options) {
+const _AcInit = Materialize.Autocomplete.init;
+// 2.x changed Autocomplete `data` to [{id,text}] and onAutocomplete to receive
+// AutocompleteData[]. Wrap init to accept the 1.x {key:null} map and pass the
+// selected string back, so call sites are unchanged. (Mutate the class static
+// directly — Object.assign({}, Class) does not copy non-enumerable statics like
+// getInstance, which would break M.Autocomplete.getInstance.)
+Materialize.Autocomplete.init = function (els, options) {
   if (options && options.data && !Array.isArray(options.data)) {
     var map = options.data;
     options.data = Object.keys(map).map(function (k) {
@@ -33,13 +38,17 @@ function warpAutocompleteInit(els, options) {
   }
   if (options && options.onAutocomplete) {
     var orig = options.onAutocomplete;
+    // 2.x calls onAutocomplete with AutocompleteData[] (and fires it on input-clear
+    // with []). 1.x called it only on selection with the chosen string. Only
+    // forward when there's a real selection, passing the entry's text/id.
     options.onAutocomplete = function (entries) {
       var e = entries && entries[0];
-      return orig.call(this, e ? (e.text || e.id) : e);
+      if (!e) return;
+      return orig.call(this, e.text || e.id);
     };
   }
-  return _AcInit(els, options);
-}
+  return _AcInit.call(this, els, options);
+};
 
 class WarpModalCompat {
   constructor(el, options) {
@@ -57,8 +66,14 @@ class WarpModalCompat {
     el.addEventListener('close', this._onClose);
   }
   _onBackdrop(ev) { if (this.options.dismissible !== false && ev.target === this.el) this.close(); }
-  _onCancel(ev) { if (this.options.dismissible === false) ev.preventDefault(); }
-  _onClose() { this.el.classList.remove('open'); if (this.options.onCloseEnd) this.options.onCloseEnd.call(this.el); }
+  // Esc: block it for non-dismissible modals; otherwise close ourselves so the
+  // onClose* callbacks fire (the native 'close' event alone wouldn't run them).
+  _onCancel(ev) { ev.preventDefault(); if (this.options.dismissible !== false) this.close(); }
+  // The native 'close' event fires asynchronously from el.close(); use it only
+  // to keep the .open class in sync (e.g. if the dialog is closed some other
+  // way). The onCloseEnd callback is fired synchronously in close() below, like
+  // 1.x, so callers that POST/redirect on close see it before the URL changes.
+  _onClose() { this.el.classList.remove('open'); }
   open() {
     if (this.options.onOpenStart) this.options.onOpenStart.call(this.el);
     this.el.classList.add('open');
@@ -72,6 +87,8 @@ class WarpModalCompat {
   close() {
     if (this.options.onCloseStart) this.options.onCloseStart.call(this.el);
     this.el.close();
+    this.el.classList.remove('open');
+    if (this.options.onCloseEnd) this.options.onCloseEnd.call(this.el);
     return this;
   }
   destroy() {
@@ -92,7 +109,7 @@ class WarpModalCompat {
     }
     return single ? out[0] : out;
   }
-  static getInstance(el) { return el && el._warpModal ? el._warpModal : null; }
+  static getInstance(el) { return el ? el._warpModal : undefined; }
 }
 
 const M = Object.assign({}, Materialize, {
@@ -103,7 +120,6 @@ const M = Object.assign({}, Materialize, {
     ).forEach(function (el) { el.setAttribute('placeholder', ' '); });
   },
   Modal: WarpModalCompat,
-  Autocomplete: Object.assign({}, Materialize.Autocomplete, { init: warpAutocompleteInit }),
 });
 window.M = M;
 
