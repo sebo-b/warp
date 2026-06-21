@@ -230,6 +230,7 @@ nav .dropdown-content li > span {
     position: absolute;
     top: 2px;
     left: 0;
+    padding-left: 1px;   /* match the input text start */
     transform: none;
     font-size: 0.75rem;
     color: #616161;
@@ -823,6 +824,11 @@ nav .dropdown-content li > span {
     font-size: 1rem;
     text-align: left;
     padding: 8px 0;
+}
+.zone_datelist p,
+.zone_datelist label,
+.zone_datelist span {
+    font-size: 1rem;
 }
 .zone_datelist p {
     margin: 0;
