@@ -8,6 +8,11 @@ import "./css/tabulator/tabulator_materialize.scss";
 
 document.addEventListener("DOMContentLoaded", function(e) {
 
+    var titleEl = document.getElementById('group_assign_title_text');
+    if (titleEl) {
+        titleEl.textContent = TR('Members of: %{group}', {group: window.warpGlobals.groupName});
+    }
+
     var table;
 
     var iconFormater = function(cell, formatterParams, onRendered) {

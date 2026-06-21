@@ -8,6 +8,11 @@ import "./css/tabulator/tabulator_materialize.scss";
 
 document.addEventListener("DOMContentLoaded", function(e) {
 
+    var titleEl = document.getElementById('zone_assign_title_text');
+    if (titleEl) {
+        titleEl.textContent = TR('Users assigned to: %{zone_name}', {zone_name: window.warpGlobals.zoneName});
+    }
+
     var table;
 
     let zoneRoles = [
@@ -127,6 +132,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     var assignToZoneBtn = document.getElementById('assign_to_zone_btn');
     var assignToZoneModalEl = document.getElementById('assign_to_zone_modal');
+    var assignToZoneModalHeader = document.getElementById('assign_to_zone_modal_header');
     var assignToZoneModaAutocompleteEl = document.getElementById('assign_to_zone_autocomplete');
 
     let assignToZoneTable;
@@ -143,6 +149,9 @@ document.addEventListener("DOMContentLoaded", function(e) {
         let initModal = function(usersData) {
 
             assignToZoneModal = M.Modal.init(assignToZoneModalEl);
+            if (assignToZoneModalHeader) {
+                assignToZoneModalHeader.textContent = TR("Assign to zone: %{zone_name}", {zone_name: window.warpGlobals.zoneName});
+            }
 
             let assignToZoneTableRemoveClicked = function(e,cell) {
                 cell.getRow().delete();
