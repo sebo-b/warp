@@ -229,14 +229,10 @@ nav .dropdown-content li > span {
 .book-as_container .input-field > label {
     position: absolute;
     top: 2px;
-    left: 12px;
+    left: 0;
     transform: none;
     font-size: 0.75rem;
     color: #616161;
-}
-.book-as_container .book-as_input {
-    padding-left: 12px;
-    padding-right: 12px;
 }
 .book-as_container .book-as_input:focus {
     border-bottom-color: #3949ab;
