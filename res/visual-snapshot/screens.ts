@@ -97,17 +97,21 @@ async function openCalendarModal(page: Page): Promise<void> {
 }
 
 /** Open the Materialize timepicker clock from the Calendar modal (the date/time selector). */
-async function openTimepicker(page: Page): Promise<void> {
-  await openCalendarModal(page);
-  // The input sits below the modal fold and is partly covered, so drive the
-  // Materialize instance directly instead of a pointer click.
-  await page.locator('#cal_time_input').scrollIntoViewIfNeeded();
+/** Open the Materialize Datepicker (the "calendar widget") used as a Tabulator
+ *  header filter on the bookings pages. The datepicker inputs are created
+ *  dynamically inside header-filter cells; a plain click only inits the modal,
+ *  so drive the Materialize instance directly. */
+async function openDatepicker(page: Page): Promise<void> {
+  await page.locator('.tabulator-header-filter input').first().waitFor({ state: 'attached' });
   await page.evaluate(() => {
-    const el = document.getElementById('cal_time_input') as any;
-    const inst = (window as any).M?.Timepicker?.getInstance(el);
-    if (inst) inst.open(); else el?.click();
+    const inputs = Array.from(document.querySelectorAll('.tabulator-header-filter input')) as HTMLElement[];
+    for (const inp of inputs) {
+      const inst = (window as any).M?.Datepicker?.getInstance(inp);
+      if (inst) { inp.scrollIntoView({ block: 'center' }); inst.open(); return; }
+    }
+    throw new Error('no Materialize Datepicker found in tabulator header filters');
   });
-  await page.locator('.timepicker-modal.open').first().waitFor({ state: 'visible' });
+  await page.locator('.datepicker-modal.open').first().waitFor({ state: 'visible' });
 }
 
 /** Open a Materialize FormSelect dropdown inside the Preferences modal.
@@ -176,8 +180,11 @@ export const SCREENS: Screen[] = [
     path: '/', prepare: openPrefsModal, fullPage: false },
   { id: 'modal-calendar', title: 'Calendar modal (chips + selects + timepicker)', role: 'admin',
     path: '/', prepare: openCalendarModal, fullPage: false },
-  { id: 'modal-timepicker', title: 'Timepicker clock open', role: 'admin',
-    path: '/', prepare: openTimepicker, fullPage: false },
+
+  // Calendar widget (Materialize Datepicker) — used as a Tabulator header filter
+  // on the bookings pages (Time column on /bookings; From/To on /bookings/report).
+  { id: 'bookings-datepicker', title: 'Datepicker calendar open (bookings filter)', role: 'admin',
+    path: '/bookings', prepare: openDatepicker, fullPage: false },
 
   // User
   { id: 'user-index', title: 'Home (user)', role: 'user', path: '/' },
