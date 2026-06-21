@@ -13,3 +13,6 @@ node_modules/
 /warp/static/dist/
 docker-compose.yml
 
+# visual-snapshot tool output (build artefact)
+res/visual-snapshots/
+
