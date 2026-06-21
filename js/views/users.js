@@ -166,7 +166,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
                 let addToGroup = M.Chips.getInstance(addToGroupEl);
                 for (let g of addToGroup.getData())
-                    actionData.groups.push( Utils.makeUserStrRev(g.tag)[0] );
+                    actionData.groups.push( Utils.makeUserStrRev(g.id)[0] );
 
                 Utils.xhr.post(
                     window.warpGlobals.URLs['usersEdit'],
@@ -301,11 +301,10 @@ document.addEventListener("DOMContentLoaded", function(e) {
             placeholder: TR("Add to group"),
             limit: Infinity,
             onChipAdd: function(chip) {
-
                 let i = this.chipsData.length - 1;  // chips are always pushed
-                let t = this.chipsData[i].tag;
-
-                if (!(t in this.autocomplete.options.data)) {
+                let t = this.chipsData[i].id;
+                let known = this.autocomplete.options.data.some((o) => o.id === t);
+                if (!known) {
                     this.deleteChip(i);
                 }
             }
@@ -313,28 +312,34 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
         Promise.all([autocompletePromise,chipsDataPromise])
         .then( (v) => {
-
+            let dataArray = [];
             if ('response' in v[0]) {
-                chipsOptions.autocompleteOptions.data = {};
                 for (let row of v[0].response.data)
-                    chipsOptions.autocompleteOptions.data[
-                        Utils.makeUserStr(row['login'],row['name']) ] = null;
+                    dataArray.push({
+                        id: Utils.makeUserStr(row['login'], row['name']),
+                        text: Utils.makeUserStr(row['login'], row['name'])
+                    });
             }
             else {
-                chipsOptions.autocompleteOptions.data = v[0];
+                // Reusing previously-built 2.x-compatible array.
+                dataArray = v[0];
             }
+            chipsOptions.autocompleteOptions.data = dataArray;
 
             if (v[1] !== null) {
                 chipsOptions.data = [];
-                for (let row of v[1].response)
-                    chipsOptions.data.push( {tag: Utils.makeUserStr(row['login'],row['name']) });
+                for (let row of v[1].response) {
+                    let label = Utils.makeUserStr(row['login'], row['name']);
+                    chipsOptions.data.push({ id: label, text: label });
+                }
             }
 
             addToGroup = M.Chips.init(addToGroupEl, chipsOptions);
             editModal.open();
         })
         .catch( (v) => {
-            WarpModal.getInstance().open(TR("Error"),v.errorMsg);
+            let msg = v && v.errorMsg ? v.errorMsg : String(v);
+            WarpModal.getInstance().open(TR("Error"), msg);
         });
 
     }

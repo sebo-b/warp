@@ -62,6 +62,14 @@ async function openZoneModal(page: Page): Promise<void> {
   await page.locator('#edit_modal').waitFor({ state: 'visible' });
 }
 
+/** Open the edit dialog for the second user (user1) on /users. */
+async function openEditUserModal(page: Page): Promise<void> {
+  await page.goto('/users');
+  // Wait for Tabulator rows to render, then click the edit icon on the user1 row.
+  await page.locator('.tabulator-row .warp-icon-edit-alt').nth(1).click();
+  await page.locator('#edit_modal').waitFor({ state: 'visible' });
+}
+
 /** Open the plan add modal on /plans. */
 async function openPlanModal(page: Page): Promise<void> {
   await page.locator('#add_plan_btn').click();
@@ -219,6 +227,8 @@ export const SCREENS: Screen[] = [
   // Component states (2.x changes component chrome)
   { id: 'modal-add-user', title: 'Modal: add user', role: 'admin',
     path: '/users', prepare: openUserModal, fullPage: false },
+  { id: 'modal-edit-user', title: 'Modal: edit user', role: 'admin',
+    path: '/users', prepare: openEditUserModal, fullPage: false },
   { id: 'modal-zone-edit', title: 'Modal: zone edit', role: 'admin',
     path: '/zones', prepare: openZoneModal, fullPage: false },
   { id: 'modal-plan-add', title: 'Modal: plan add', role: 'admin',

@@ -176,13 +176,14 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 ]
             });
 
-            let autocompleteData = {}
+            let autocompleteData = [];
             for (let i of usersData) {
-                autocompleteData[ Utils.makeUserStr(i['login'],i['name']) ] = null;
+                let label = Utils.makeUserStr(i['login'], i['name']);
+                autocompleteData.push({ id: label, text: label });
             }
 
-            let onAutocomplete = function(selectedText) {
-                var u = Utils.makeUserStrRev(selectedText);
+            let onAutocomplete = function(selectedObj) {
+                var u = Utils.makeUserStrRev(selectedObj.id);
                 assignToZoneTable.updateOrAddData([{"login": u[0],"name": u[1], "zone_role": defaultZoneRole}]);
                 assignToZoneModaAutocompleteEl.value = "";
                 assignToZoneModaAutocompleteEl.focus();
@@ -192,7 +193,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 data: autocompleteData,
                 dropdownOptions: {
                     constrainWidth: false,
-                    container: document.body
+                    container: assignToZoneModaAutocompleteEl.closest('dialog') || document.body
                 },
                 minLength: 2,
                 limit: 10,

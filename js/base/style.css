@@ -262,6 +262,13 @@ nav .dropdown-content li > span {
     line-height: 32px;
     background: transparent;
     color: #212121;
+    min-width: 120px;
+    display: inline-block;
+    flex: 1 1 auto;
+    width: auto;
+}
+#edit_modal #add_to_group.chips input.input::placeholder {
+    color: #757575;
 }
 #edit_modal #add_to_group.chips .chip {
     background-color: #c5cae9;
