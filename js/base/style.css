@@ -638,6 +638,18 @@ nav .dropdown-content li > span {
     max-height: 70vh;
     overflow-y: auto;
 }
+
+/* Other form modals can grow tall (e.g. user edit with chips). Let them scroll
+   internally so the footer doesn't overlay the last form row on short screens. */
+#pref_modal,
+#edit_modal,
+#change_password_modal,
+#add_to_group_modal,
+#assign_to_zone_modal,
+#assigned_seat_modal {
+    max-height: 90vh;
+    overflow-y: auto;
+}
 /* The reminder time input uses a 2.x timepicker. Its modal was rendering off
    screen; shared .timepicker-modal rule below fixes positioning. */
 #calendar_modal .timepicker {

@@ -291,6 +291,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         }
 
         let chipsOptions = {
+            allowUserInput: true,
             autocompleteOptions: {
                 minLength: 2,
                 dropdownOptions: {
