@@ -206,6 +206,36 @@ nav .dropdown-content li > span {
 
 .book-as_container {
     display: none;
+    padding-top: 20px;  /* room for the floating label above the input */
+}
+/* The "Book as" autocomplete in the zone sidepanel was rendered as a 2.x
+   underline-only field with the value sitting on the line, which looked
+   broken in the narrow panel. Give it a visible filled box. */
+.book-as_container .input-field {
+    margin-top: 0;
+}
+.book-as_container .book-as_input {
+    background-color: #f0f0f0;
+    border: 1px solid #9e9e9e;
+    border-radius: 4px;
+    padding: 10px 12px;
+    height: 40px;
+    width: 100%;
+    box-sizing: border-box;
+    color: #212121;
+}
+.book-as_container .input-field > label {
+    position: absolute;
+    top: -22px;
+    left: 0;
+    transform: none;
+    font-size: 0.8rem;
+    color: #616161;
+}
+.book-as_container .book-as_input:focus {
+    border-color: #757575;
+    background-color: #e8e8e8;
+    outline: none;
 }
 
 .noUi-warp-connect {

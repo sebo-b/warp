@@ -203,6 +203,8 @@ export const SCREENS: Screen[] = [
   { id: 'bookings-report', title: 'Bookings report', role: 'admin', path: '/bookings/report' },
   { id: 'zone', title: 'Seat-map booking view', role: 'admin',
     path: (ctx) => firstPid(ctx).then((pid) => `/plan/${pid}`) },
+  { id: 'plan-book-as', title: 'Book-as input in plan sidepanel', role: 'admin',
+    path: (ctx) => firstPid(ctx).then((pid) => `/plan/${pid}`), fullPage: false },
   { id: 'plans', title: 'Plans list', role: 'admin', path: '/plans' },
   { id: 'plans-modify', title: 'Zone-map editor', role: 'admin',
     path: (ctx) => firstPid(ctx).then((pid) => `/plans/modify/${pid}`) },
