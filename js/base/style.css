@@ -876,17 +876,14 @@ nav .dropdown-content li > span {
     box-shadow: none;
 }
 
-/* Materialize 2.x changed .btn-floating to a rounded-square M3 shape and uses
-   grid layout that doesn't center the icon reliably in our markup. Restore
-   the classic circular FAB with the icon centered both horizontally and
-   vertically. */
+/* Keep Materialize 2.x's rounded-square M3 FAB shape, but make sure the icon
+   is reliably centered in our markup. 2.x's grid can shift if our icon styles
+   conflict, so we force grid centering. */
 .btn-floating,
 .btn-floating.btn-large,
 .btn-floating.btn-small {
-    border-radius: 50%;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    display: inline-grid;
+    place-items: center;
     padding: 0;
 }
 .btn-floating i,
