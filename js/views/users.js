@@ -295,7 +295,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
             autocompleteOptions: {
                 minLength: 2,
                 dropdownOptions: {
-                    container: document.body,
+                    container: editModalEl,
                     constrainWidth: false
                 }
             },

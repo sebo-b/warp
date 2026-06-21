@@ -257,6 +257,12 @@ nav .dropdown-content li > span {
     background-color: #e8e8e8;
     box-shadow: none;
 }
+#edit_modal #add_to_group.chips.input-field,
+#edit_modal #add_to_group.chips.input-field:hover,
+#edit_modal #add_to_group.chips.input-field.focus {
+    border-bottom: none;
+    box-shadow: none;
+}
 #edit_modal #add_to_group.chips input.input {
     height: 32px;
     line-height: 32px;
@@ -677,6 +683,8 @@ nav .dropdown-content li > span {
     gap: 8px;
     padding: 12px 24px;
     border-top: 1px solid #e0e0e0;
+    background-color: #fafafa;
+    position: static;
 }
 #pref_modal .modal-footer .btn,
 #pref_modal .modal-footer .btn-flat,
@@ -1451,6 +1459,7 @@ INPUT[type="text"] ~ .show_password_btn::after {
     gap: 8px;
     padding: 10px 16px;
     border-top: 1px solid #e0e0e0;
+    background-color: #ffffff;
 }
 
 /* The help modal has a tall table of sprite explanations. Make it scrollable
