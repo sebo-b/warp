@@ -295,32 +295,44 @@ nav .dropdown-content li > span {
     flex: 0 0 auto;
 }
 
-/* Materialize 2.x: the M3 "surface-tint" dialog + border-bottom-only select
-   triggers make the prefs form look muddy/scrambled. Give it a classic,
-   readable form-sheet look scoped to this dialog. */
-#pref_modal {
+/* Materialize 2.x: the M3 "surface-tint" dialog + border-bottom-only fields
+   make form modals look muddy/scrambled. Give the main form modals a classic,
+   readable form-sheet look. */
+#pref_modal,
+#calendar_modal,
+#change_password_modal {
     background-color: #ffffff;
     border-radius: 8px;
     border: 1px solid #e0e0e0;
 }
-#pref_modal .modal-content {
+#pref_modal .modal-content,
+#calendar_modal .modal-content,
+#change_password_modal .modal-content {
     padding: 24px;
     color: #212121;
 }
-#pref_modal .modal-content > h4 {
+#pref_modal .modal-content > h4,
+#calendar_modal .modal-content > h4,
+#change_password_modal .modal-content > h4 {
     margin: 0 0 20px;
     color: #212121;
     font-weight: 500;
 }
 /* 2.x .row is a grid with no vertical margin; add breathing room between rows. */
-#pref_modal .modal-content > .row {
+#pref_modal .modal-content > .row,
+#calendar_modal .modal-content > .row,
+#change_password_modal .modal-content > .row {
     margin-bottom: 18px;
 }
-#pref_modal .modal-content > .row:last-of-type {
+#pref_modal .modal-content > .row:last-of-type,
+#calendar_modal .modal-content > .row:last-of-type,
+#change_password_modal .modal-content > .row:last-of-type {
     margin-bottom: 0;
 }
-/* Restore visible select fields so they read as dropdowns, not stray labels. */
-#pref_modal .select-wrapper input.select-dropdown {
+/* Restore visible select triggers so they read as dropdowns, not stray labels. */
+#pref_modal .select-wrapper input.select-dropdown,
+#calendar_modal .select-wrapper input.select-dropdown,
+#change_password_modal .select-wrapper input.select-dropdown {
     background-color: #f0f0f0;
     border: 1px solid #9e9e9e;
     border-radius: 4px;
@@ -333,39 +345,81 @@ nav .dropdown-content li > span {
     overflow: hidden;
     text-overflow: ellipsis;
 }
-/* Move the floating labels so they sit cleanly above the filled select fields. */
+/* Same filled look for plain text/password inputs inside these modals. */
+#pref_modal .input-field > input:not(.select-dropdown),
+#pref_modal .input-field > textarea,
+#calendar_modal .input-field > input:not(.select-dropdown),
+#calendar_modal .input-field > textarea,
+#change_password_modal .input-field > input:not(.select-dropdown),
+#change_password_modal .input-field > textarea {
+    background-color: #f0f0f0;
+    border: 1px solid #9e9e9e;
+    border-radius: 4px;
+    padding: 18px 12px 8px 12px;
+    font-size: 1rem;
+    color: #212121;
+    width: 100%;
+    box-sizing: border-box;
+}
+/* Move the floating labels so they sit cleanly above the filled fields. */
 #pref_modal .input-field > label,
 #pref_modal .input-field input.select-dropdown + label,
 #pref_modal .input-field input.select-dropdown:not(:placeholder-shown) + label,
-#pref_modal .input-field input.select-dropdown:focus + label {
+#pref_modal .input-field input.select-dropdown:focus + label,
+#calendar_modal .input-field > label,
+#calendar_modal .input-field input.select-dropdown + label,
+#calendar_modal .input-field input.select-dropdown:not(:placeholder-shown) + label,
+#calendar_modal .input-field input.select-dropdown:focus + label,
+#change_password_modal .input-field > label,
+#change_password_modal .input-field input.select-dropdown + label,
+#change_password_modal .input-field input.select-dropdown:not(:placeholder-shown) + label,
+#change_password_modal .input-field input.select-dropdown:focus + label {
     top: 4px;
     left: 12px;
     color: #616161;
 }
-#pref_modal .input-field input.select-dropdown:focus + label {
+#pref_modal .input-field input.select-dropdown:focus + label,
+#calendar_modal .input-field input.select-dropdown:focus + label,
+#change_password_modal .input-field input.select-dropdown:focus + label {
     color: var(--warp-indigo);
 }
-/* The <dialog> autofocuses the first select, which paints Materialize's
-   primary-colour focus ring around the wrapper; suppress it so the prefs
-   form doesn't look like a selected/open dropdown on first paint. */
+/* The <dialog> autofocuses the first field, which paints Materialize's
+   primary-colour focus ring around the wrapper; suppress it so the form
+   doesn't look like a selected/open dropdown on first paint. */
 #pref_modal .select-wrapper:focus-within,
-#pref_modal .select-wrapper input.select-dropdown:focus {
+#pref_modal .select-wrapper input.select-dropdown:focus,
+#calendar_modal .select-wrapper:focus-within,
+#calendar_modal .select-wrapper input.select-dropdown:focus,
+#change_password_modal .select-wrapper:focus-within,
+#change_password_modal .select-wrapper input.select-dropdown:focus {
     outline: none !important;
 }
-/* When a FormSelect dropdown opens inside the prefs modal, its default
-   surface bg matches the modal surface and it visually melts into the
-   form. Give it a border + stronger shadow so it reads as a floating menu. */
-#pref_modal .dropdown-content.select-dropdown {
+/* When a FormSelect dropdown opens inside a form modal, its default surface
+   bg matches the modal surface and it visually melts into the form. Give it a
+   border + stronger shadow so it reads as a floating menu. */
+#pref_modal .dropdown-content.select-dropdown,
+#calendar_modal .dropdown-content.select-dropdown,
+#change_password_modal .dropdown-content.select-dropdown {
     background-color: #ffffff;
     border: 1px solid #e0e0e0;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
-#pref_modal .dropdown-content.select-dropdown li {
+#pref_modal .dropdown-content.select-dropdown li,
+#calendar_modal .dropdown-content.select-dropdown li,
+#change_password_modal .dropdown-content.select-dropdown li {
     color: #212121;
 }
 #pref_modal .dropdown-content.select-dropdown li.active,
-#pref_modal .dropdown-content.select-dropdown li:not(.disabled):hover {
+#pref_modal .dropdown-content.select-dropdown li:not(.disabled):hover,
+#calendar_modal .dropdown-content.select-dropdown li.active,
+#calendar_modal .dropdown-content.select-dropdown li:not(.disabled):hover,
+#change_password_modal .dropdown-content.select-dropdown li.active,
+#change_password_modal .dropdown-content.select-dropdown li:not(.disabled):hover {
     background-color: #f0f0f0;
+}
+/* Helper text under inputs (calendar reminder selects) was too washed out. */
+#calendar_modal .input-field .helper-text {
+    color: #616161;
 }
 /* Darken the time-hint text so the slider row doesn't look washed out. */
 #pref_modal .pref_timeslider_container .timeslider-hint {
@@ -378,19 +432,27 @@ nav .dropdown-content li > span {
 }
 /* 2.x .modal-footer is justify-content:space-between and padding:24px,
    which splits buttons and makes the footer huge. Group right, compact. */
-#pref_modal .modal-footer {
+#pref_modal .modal-footer,
+#calendar_modal .modal-footer,
+#change_password_modal .modal-footer {
     justify-content: flex-end;
     gap: 8px;
     padding: 12px 24px;
     border-top: 1px solid #e0e0e0;
 }
 #pref_modal .modal-footer .btn,
-#pref_modal .modal-footer .btn-flat {
+#pref_modal .modal-footer .btn-flat,
+#calendar_modal .modal-footer .btn,
+#calendar_modal .modal-footer .btn-flat,
+#change_password_modal .modal-footer .btn,
+#change_password_modal .modal-footer .btn-flat {
     height: 36px;
     line-height: 36px;
     padding: 0 16px;
 }
-#pref_modal .modal-content label {
+#pref_modal .modal-content label,
+#calendar_modal .modal-content label,
+#change_password_modal .modal-content label {
     font-size: 1rem;
 }
 

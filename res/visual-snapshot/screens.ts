@@ -96,6 +96,13 @@ async function openCalendarModal(page: Page): Promise<void> {
   await page.waitForLoadState('networkidle');
 }
 
+/** Open the Change password modal via the user menu. */
+async function openChangePasswordModal(page: Page): Promise<void> {
+  await openUserMenuDropdown(page);
+  await page.locator('#user_menu_dropdown').getByRole('link', { name: /change password/i }).click();
+  await page.locator('#change_password_modal').waitFor({ state: 'visible' });
+}
+
 /** Open the Materialize timepicker clock from the Calendar modal (the date/time selector). */
 /** Open the Materialize Datepicker (the "calendar widget") used as a Tabulator
  *  header filter on the bookings pages. The datepicker inputs are created
@@ -103,15 +110,22 @@ async function openCalendarModal(page: Page): Promise<void> {
  *  so drive the Materialize instance directly. */
 async function openDatepicker(page: Page): Promise<void> {
   await page.locator('.tabulator-header-filter input').first().waitFor({ state: 'attached' });
+  // 2.x: the modal calendar (displayPlugin:'modal') opens on input interaction.
+  // inst.open() is deprecated/no-op, and the open dialog uses the [open]
+  // attribute, not a .open class.
   await page.evaluate(() => {
     const inputs = Array.from(document.querySelectorAll('.tabulator-header-filter input')) as HTMLElement[];
     for (const inp of inputs) {
-      const inst = (window as any).M?.Datepicker?.getInstance(inp);
-      if (inst) { inp.scrollIntoView({ block: 'center' }); inst.open(); return; }
+      if ((window as any).M?.Datepicker?.getInstance(inp)) {
+        inp.scrollIntoView({ block: 'center' });
+        inp.focus();
+        inp.click();
+        return;
+      }
     }
     throw new Error('no Materialize Datepicker found in tabulator header filters');
   });
-  await page.locator('.datepicker-modal.open').first().waitFor({ state: 'visible' });
+  await page.locator('.datepicker-modal[open]').first().waitFor({ state: 'visible' });
 }
 
 /** Open a Materialize FormSelect dropdown inside the Preferences modal.
@@ -180,6 +194,8 @@ export const SCREENS: Screen[] = [
     path: '/', prepare: openPrefsModal, fullPage: false },
   { id: 'modal-calendar', title: 'Calendar modal (chips + selects + timepicker)', role: 'admin',
     path: '/', prepare: openCalendarModal, fullPage: false },
+  { id: 'modal-change-password', title: 'Change password modal', role: 'admin',
+    path: '/', prepare: openChangePasswordModal, fullPage: false },
 
   // Calendar widget (Materialize Datepicker) — used as a Tabulator header filter
   // on the bookings pages (Time column on /bookings; From/To on /bookings/report).
