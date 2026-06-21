@@ -240,6 +240,38 @@ nav .dropdown-content li > span {
     outline: none;
 }
 
+/* Chips ("Add to group" in the user edit modal). 2.x ships with a minimal
+   underline style and a typo in the selector (`.chis input`), so the chip input
+   looks broken/missing. Give it the same filled-box treatment as the other
+   fields in #edit_modal. */
+#edit_modal #add_to_group.chips {
+    background-color: #f0f0f0;
+    border: 1px solid #9e9e9e;
+    border-radius: 4px;
+    padding: 6px 12px;
+    min-height: 46px;
+    align-items: center;
+}
+#edit_modal #add_to_group.chips.focus {
+    border-color: #757575;
+    background-color: #e8e8e8;
+    box-shadow: none;
+}
+#edit_modal #add_to_group.chips input.input {
+    height: 32px;
+    line-height: 32px;
+    background: transparent;
+    color: #212121;
+}
+#edit_modal #add_to_group.chips .chip {
+    background-color: #c5cae9;
+    color: #1a237e;
+    border-radius: 16px;
+    height: 28px;
+    line-height: 28px;
+    padding: 0 10px;
+}
+
 /* Login page inputs: 2.x underline-only fields looked distorted/overlapping in
    the centered form. Use the same filled-box style as the form modals. */
 .login_container .input-field > input:not(.select-dropdown) {
