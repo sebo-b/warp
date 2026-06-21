@@ -70,6 +70,13 @@ async function openEditUserModal(page: Page): Promise<void> {
   await page.locator('#edit_modal').waitFor({ state: 'visible' });
 }
 
+/** Open the generic WarpModal confirmation dialog by deleting a user. */
+async function openConfirmModal(page: Page): Promise<void> {
+  await openEditUserModal(page);
+  await page.locator('#edit_modal_delete_btn').click();
+  await page.locator('dialog.modal[open]').waitFor({ state: 'visible' });
+}
+
 /** Open the plan add modal on /plans. */
 async function openPlanModal(page: Page): Promise<void> {
   await page.locator('#add_plan_btn').click();
@@ -229,6 +236,8 @@ export const SCREENS: Screen[] = [
     path: '/users', prepare: openUserModal, fullPage: false },
   { id: 'modal-edit-user', title: 'Modal: edit user', role: 'admin',
     path: '/users', prepare: openEditUserModal, fullPage: false },
+  { id: 'modal-confirm', title: 'Modal: confirm dialog', role: 'admin',
+    path: '/users', prepare: openConfirmModal, fullPage: false },
   { id: 'modal-zone-edit', title: 'Modal: zone edit', role: 'admin',
     path: '/zones', prepare: openZoneModal, fullPage: false },
   { id: 'modal-plan-add', title: 'Modal: plan add', role: 'admin',

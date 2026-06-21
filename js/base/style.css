@@ -399,6 +399,47 @@ nav .dropdown-content li > span {
     flex: 0 0 auto;
 }
 
+/* WarpModal confirmation dialogs have no id, only class="modal". Give them the
+   same clean sheet look and right-grouped footer as the named form modals. */
+.modal:not([id]) {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    color: #212121;
+    max-width: 560px;
+}
+.modal:not([id]) .modal-content {
+    padding: 24px;
+}
+.modal:not([id]) .modal-content > h4 {
+    color: #212121;
+    font-weight: 500;
+    margin: 0 0 20px;
+}
+.modal:not([id]) .modal-content > p {
+    margin: 0;
+}
+.modal:not([id]) .modal-footer {
+    background-color: #fafafa;
+    border-top: 1px solid #e0e0e0;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    padding: 12px 24px;
+}
+.modal:not([id]) .modal-footer .btn-flat {
+    align-items: center;
+    border-radius: 2px;
+    display: inline-flex;
+    height: 36px;
+    line-height: 36px;
+    padding: 0 16px;
+    text-transform: uppercase;
+}
+.modal:not([id]) .modal-footer .btn-flat:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
 /* Materialize 2.x: the M3 "surface-tint" dialog + border-bottom-only fields
    make form modals look muddy/scrambled. Give the main form modals a classic,
    readable form-sheet look. */
