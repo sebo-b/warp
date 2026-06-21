@@ -248,9 +248,10 @@ nav .dropdown-content li > span {
     background-color: #f0f0f0;
     border: 1px solid #9e9e9e;
     border-radius: 4px;
-    padding: 6px 12px;
-    min-height: 46px;
+    padding: 8px 12px;
+    min-height: 52px;
     align-items: center;
+    box-sizing: border-box;
 }
 #edit_modal #add_to_group.chips.focus {
     border-color: #757575;
@@ -264,9 +265,10 @@ nav .dropdown-content li > span {
     box-shadow: none;
 }
 #edit_modal #add_to_group.chips input.input {
-    height: 32px;
-    line-height: 32px;
-    background: transparent;
+    height: 28px;
+    line-height: 28px;
+    background-color: transparent !important;
+    border: none !important;
     color: #212121;
     min-width: 120px;
     display: inline-block;
@@ -596,10 +598,11 @@ nav .dropdown-content li > span {
     background-color: #f0f0f0;
 }
 
-/* Autocomplete dropdowns inside group/zone/assignment modals. */
+/* Autocomplete dropdowns inside group/zone/assignment/user-edit modals. */
 #add_to_group_modal .dropdown-content.autocomplete-content,
 #assign_to_zone_modal .dropdown-content.autocomplete-content,
-#assigned_seat_modal .dropdown-content.autocomplete-content {
+#assigned_seat_modal .dropdown-content.autocomplete-content,
+#edit_modal .dropdown-content.autocomplete-content {
     background-color: #ffffff;
     border: 1px solid #e0e0e0;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -609,7 +612,9 @@ nav .dropdown-content li > span {
 #assign_to_zone_modal .dropdown-content.autocomplete-content li,
 #assign_to_zone_modal .dropdown-content.autocomplete-content li > span,
 #assigned_seat_modal .dropdown-content.autocomplete-content li,
-#assigned_seat_modal .dropdown-content.autocomplete-content li > span {
+#assigned_seat_modal .dropdown-content.autocomplete-content li > span,
+#edit_modal .dropdown-content.autocomplete-content li,
+#edit_modal .dropdown-content.autocomplete-content li > span {
     color: #212121;
 }
 #add_to_group_modal .dropdown-content.autocomplete-content li:hover,
@@ -617,7 +622,9 @@ nav .dropdown-content li > span {
 #assign_to_zone_modal .dropdown-content.autocomplete-content li:hover,
 #assign_to_zone_modal .dropdown-content.autocomplete-content li.selected,
 #assigned_seat_modal .dropdown-content.autocomplete-content li:hover,
-#assigned_seat_modal .dropdown-content.autocomplete-content li.selected {
+#assigned_seat_modal .dropdown-content.autocomplete-content li.selected,
+#edit_modal .dropdown-content.autocomplete-content li:hover,
+#edit_modal .dropdown-content.autocomplete-content li.selected {
     background-color: #f0f0f0;
 }
 

@@ -300,15 +300,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 }
             },
             placeholder: TR("Add to group"),
-            limit: Infinity,
-            onChipAdd: function(chip) {
-                let i = this.chipsData.length - 1;  // chips are always pushed
-                let t = this.chipsData[i].id;
-                let known = this.autocomplete.options.data.some((o) => o.id === t);
-                if (!known) {
-                    this.deleteChip(i);
-                }
-            }
+            limit: Infinity
         };
 
         Promise.all([autocompletePromise,chipsDataPromise])
@@ -336,6 +328,16 @@ document.addEventListener("DOMContentLoaded", function(e) {
             }
 
             addToGroup = M.Chips.init(addToGroupEl, chipsOptions);
+            // 2.x calls onChipAdd with `this` bound to the options object,
+            // not the Chips instance. Bind explicitly after init.
+            addToGroup.options.onChipAdd = function(el, chip) {
+                let i = addToGroup.chipsData.length - 1;  // chips are always pushed
+                let t = addToGroup.chipsData[i].id;
+                let known = addToGroup.autocomplete.options.data.some((o) => o.id === t);
+                if (!known) {
+                    addToGroup.deleteChip(i);
+                }
+            };
             editModal.open();
         })
         .catch( (v) => {
