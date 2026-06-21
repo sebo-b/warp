@@ -1265,4 +1265,44 @@ INPUT[type="text"] ~ .show_password_btn::after {
     margin: 0;
     max-height: 45%;
     border-radius: 0;
+    background-color: #ffffff;
+    color: #212121;
+}
+#action_modal .modal-content {
+    padding: 16px 24px;
+}
+#action_modal .modal-footer {
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 10px 16px;
+    border-top: 1px solid #e0e0e0;
+}
+
+/* The help modal has a tall table of sprite explanations. Make it scrollable
+   with a sticky footer so the OK button is always reachable. */
+#zonemap_help_modal {
+    max-height: 80vh;
+    overflow-y: auto;
+    background-color: #ffffff;
+    color: #212121;
+}
+#zonemap_help_modal .modal-content {
+    padding: 24px;
+}
+#zonemap_help_modal .modal-content > table {
+    width: 100%;
+    border-collapse: collapse;
+}
+#zonemap_help_modal .modal-content > table td {
+    padding: 8px 0;
+    vertical-align: top;
+}
+#zonemap_help_modal .modal-content > table tr + tr td {
+    border-top: 1px solid #e0e0e0;
+}
+#zonemap_help_modal .modal-footer {
+    justify-content: center;
+    padding: 12px 24px;
+    border-top: 1px solid #e0e0e0;
+    background-color: #fafafa;
 }
