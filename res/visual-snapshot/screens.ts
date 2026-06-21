@@ -130,6 +130,32 @@ async function openZoneHelpModal(page: Page): Promise<void> {
   await page.locator('#zonemap_help_modal').waitFor({ state: 'visible' });
 }
 
+/** Open the plan editor with the first seat selected (shows seat edit panel). */
+async function selectSeatInPlanEditor(page: Page): Promise<void> {
+  await page.locator('#zone_map').waitFor({ state: 'visible' });
+  await page.waitForFunction(() => {
+    return Array.from(document.querySelectorAll('#zone_map_container > div')).some(
+      (el) => !el.classList.contains('seat_label') && (el as HTMLElement).style.backgroundImage.includes('seat_icons')
+    );
+  });
+  // Dispatch mousedown directly on the first seat sprite (it overlaps the map
+  // image in hit-testing).
+  await page.evaluate(() => {
+    const seats = Array.from(document.querySelectorAll('#zone_map_container > div')).filter(
+      (el) => !el.classList.contains('seat_label') && (el as HTMLElement).style.backgroundImage.includes('seat_icons')
+    );
+    const seat = seats[0] as HTMLElement | undefined;
+    if (seat) {
+      seat.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+      seat.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    }
+  });
+  await page.waitForFunction(() => {
+    const el = document.getElementById('seat_edit_panel');
+    return !!el && getComputedStyle(el).visibility === 'visible';
+  });
+}
+
 /** Open the mobile sidenav (mobile viewport expected). */
 async function openSidenav(page: Page): Promise<void> {
   await page.locator('.sidenav-trigger').first().click();
@@ -233,6 +259,9 @@ export const SCREENS: Screen[] = [
   { id: 'plans', title: 'Plans list', role: 'admin', path: '/plans' },
   { id: 'plans-modify', title: 'Zone-map editor', role: 'admin',
     path: (ctx) => firstPid(ctx).then((pid) => `/plans/modify/${pid}`) },
+  { id: 'plans-modify-seat', title: 'Zone-map editor: seat edit panel', role: 'admin',
+    path: (ctx) => firstPid(ctx).then((pid) => `/plans/modify/${pid}`),
+    prepare: selectSeatInPlanEditor, fullPage: false },
   { id: 'zones', title: 'Zones list', role: 'admin', path: '/zones' },
   { id: 'zones-assign', title: 'Zone assign', role: 'admin',
     path: (ctx) => firstZid(ctx).then((zid) => `/zones/assign/${zid}`) },

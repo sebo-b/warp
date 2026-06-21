@@ -243,7 +243,8 @@
             "Seat name": "Sitzname",
             "X": "X",
             "Y": "Y",
-            "Zone for new seats": "Zone für neue Plätze"
+            "Zone for new seats": "Zone für neue Plätze",
+            "Zone": "Zone"
         },
         "All unsaved changes will be lost.": "Alle ungespeicherten Inforamtionen gehen verloren.",
         "More than %{smart_count} rows are selected. Report will be limited to that number of rows.": "Es wurde mehr als eine Zeile ausgewählt. Der Bericht wird auf diese Anzahl von Zeilen beschränkt.||||Es sind mehr als %{smart_count} Zeilen ausgewählt. Der Bericht wird auf diese Anzahl von Zeilen beschränkt.",

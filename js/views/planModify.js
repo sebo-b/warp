@@ -57,7 +57,11 @@ document.addEventListener("DOMContentLoaded", function(e) {
         }
 
         // Initialize as proper Materialize select (not .browser-default)
-        M.FormSelect.init(addSeatZoneEl);
+        M.FormSelect.init(addSeatZoneEl, {
+            dropdownOptions: {
+                container: addSeatZoneEl.closest('.zone_modify_sidepanel') || document.body
+            }
+        });
     }
 
     function populateZoneSelect(selectedZid) {
@@ -72,7 +76,11 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 opt.selected = true;
             seatZoneEl.appendChild(opt);
         }
-        M.FormSelect.init(seatZoneEl);
+        M.FormSelect.init(seatZoneEl, {
+            dropdownOptions: {
+                container: seatZoneEl.closest('.zone_modify_sidepanel') || document.body
+            }
+        });
     }
 
     // Load all zones (for selectors) + zones already present on this plan + current seats,
