@@ -1063,7 +1063,8 @@ SELECT.warp_select {
 
 /* Tabulator header filters: native selects (warp_select) render taller than
    the text inputs in some browsers, breaking header row alignment. Force a
-   common height for both inputs and selects. */
+   common height for both inputs and selects. Remove borders so the filters
+   sit cleanly inside the dark header. */
 .tabulator .tabulator-header .tabulator-header-filter input,
 .tabulator .tabulator-header .tabulator-header-filter select.warp_select {
     height: 32px;
@@ -1071,6 +1072,8 @@ SELECT.warp_select {
     padding: 4px 8px;
     box-sizing: border-box;
     line-height: normal;
+    border: none;
+    border-radius: 2px;
 }
 
 #action_modal .modal-content {
