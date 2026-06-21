@@ -1435,6 +1435,17 @@ INPUT[type="text"] ~ .show_password_btn::after {
 .zone_modify_sidepanel .dropdown-content.select-dropdown li:not(.disabled):hover {
     background-color: #f0f0f0;
 }
+/* 2.x removes vertical margin from .input-field; add it back so the plan
+   editor sidepanel fields and the delete button don't stick together. */
+.zone_modify_sidepanel .input-field {
+    margin-bottom: 12px;
+}
+.zone_modify_sidepanel .input-field:last-child {
+    margin-bottom: 0;
+}
+#seat_delete_btn {
+    margin-top: 4px;
+}
 
 .switch-container {
     display: flex;
