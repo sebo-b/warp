@@ -1368,7 +1368,8 @@ INPUT[type="text"] ~ .show_password_btn::after {
     right: 0;
     bottom: 0;
     left: 0;
-    width: auto;
+    width: 100%;
+    min-width: 100%;
     margin: 0;
     max-height: 45%;
     border-radius: 0;
