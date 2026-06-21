@@ -9,17 +9,139 @@ NAV {
 }
 
 /* Top app bar: Materialize 2.x styles .nav-wrapper with the surface colour and
-   dark text. WARP's nav is brand-purple with white text, so restore it via the
-   M3 primary tokens (defined in theme.css). */
+   dark text, and has NO `nav{}` height rule (1.x set nav{height:56/64px}). Restore
+   WARP's brand-purple bar with white text + the navbar height via the M3 primary
+   tokens (defined in theme.css). */
 nav,
 .nav-wrapper {
     background-color: var(--md-sys-color-primary);
+}
+nav {
+    height: var(--navbar-height-mobile, 56px);
+    line-height: var(--navbar-height-mobile, 56px);
+}
+@media only screen and (min-width: 601px) {
+    nav {
+        height: var(--navbar-height, 64px);
+        line-height: var(--navbar-height, 64px);
+    }
 }
 nav .nav-wrapper,
 nav .nav-wrapper a,
 nav .nav-wrapper i.material-icons,
 nav .nav-wrapper li a {
     color: var(--md-sys-color-on-primary);
+}
+/* 2.x made .nav-wrapper a flex container, which silently ignores the .right/.left
+   floats WARP's nav relies on. Restore 1.x block layout so the floats work. */
+.nav-wrapper {
+    display: block;
+}
+
+/* Materialize 2.x dropped the entire classic `nav ul li` bar styling (it ships
+   no `nav ul` rules at all), so WARP's 1.x nav markup
+   (nav > .nav-wrapper > ul.left/ul.right > li > a) fell back to default list
+   rendering: vertical, bulleted, wrapping below the bar as white-on-white
+   "ghost" text. Restore the inline, bulletless, full-height bar layout.
+   (NOTE: Materialize 2.x relocates an OPEN .dropdown-content INTO the nav, so
+   these rules DO bleed into the nav dropdowns — re-asserted further below.
+   The #mobile-nav sidenav stays outside <nav>, so it is unaffected.) */
+nav ul {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+}
+nav ul li {
+    list-style: none;
+    display: inline-block;
+    float: left;
+    padding: 0;
+    height: 100%;
+}
+nav ul li a {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding: 0 15px;
+    line-height: normal;
+}
+/* The hamburger (.sidenav-trigger) is a direct child of .nav-wrapper (not in a
+   ul), so the rules above don't reach it. Center its icon vertically too. */
+nav .sidenav-trigger {
+    display: flex;
+    align-items: center;
+    float: left;
+    height: 100%;
+    padding: 0 15px;
+    line-height: normal;
+}
+/* The hamburger is for mobile only; 1.x hid it on large screens via nav CSS
+   that 2.x removed. Hide it above Materialize's 992px "large" breakpoint, where
+   the .hide-on-med-and-down desktop links are shown instead. */
+@media only screen and (min-width: 993px) {
+    nav .sidenav-trigger {
+        display: none;
+    }
+}
+
+/* Materialize 2.x gives .dropdown-content the `popover` attribute and an inline
+   pixel height, so short menus render "whole screen tall" with the items at the
+   top and empty space below. Note `height: auto` does NOT fix this: the
+   [popover] UA box model makes `auto` fill the available space rather than fit
+   content (verified live — auto→450px, fit-content→203px). `fit-content` sizes
+   the panel to its items (scrollable past max-height). M3 surface/on-surface
+   tokens so branding applies. */
+.dropdown-content {
+    background-color: var(--md-sys-color-surface);
+    height: -moz-fit-content !important;
+    height: fit-content !important;
+    max-height: 50vh;
+    overflow-y: auto;
+}
+.dropdown-content li {
+    color: var(--md-sys-color-on-surface);
+}
+.dropdown-content li > a,
+.dropdown-content li > span {
+    color: var(--md-sys-color-on-surface);
+}
+.dropdown-content li:not(.disabled):hover,
+.dropdown-content li.active,
+body.keyboard-focused .dropdown-content li:focus {
+    background-color: color-mix(in srgb, var(--md-sys-color-surface), var(--md-sys-color-on-surface) 8%);
+}
+
+/* Materialize 2.x moves the OPEN dropdown into the nav subtree
+   (nav > .nav-wrapper > ul.right > li > .dropdown-content), so the nav-bar list
+   rules above bleed into the menu: `nav ul li { height:100% }` on the items
+   feeds back against the dropdown's max-height/overflow and stretches the panel
+   to fill the screen, and `nav .nav-wrapper li a { color:on-primary }` paints
+   the items white-on-white. Re-assert the dropdown's own block layout and
+   on-surface colour while it lives inside the nav. (Higher specificity than the
+   nav rules: `nav .dropdown-content …` carries a class the nav rules lack.) */
+nav .dropdown-content li {
+    float: none;
+    display: block;
+    height: auto;
+}
+nav .dropdown-content li > a,
+nav .dropdown-content li > span {
+    display: block;
+    height: auto;
+    line-height: 1.5rem;
+    color: var(--md-sys-color-on-surface);
+}
+
+/* Materialize 2.x's datepicker ModalDisplayPlugin opens its <dialog> via the
+   [open] attribute (not showModal()), so the dialog is NOT promoted to the top
+   layer and renders at its static DOM position — appended to <body>, i.e. below
+   the page content and off-screen (verified live: top:900 in a 900px viewport).
+   Pin it to the viewport centre like a real modal. (Regular WARP modals avoid
+   this because the modal compat layer calls showModal().) */
+.datepicker-modal[open] {
+    position: fixed;
+    inset: 0;
+    margin: auto;
 }
 
 .nav-wrapper DIV,A {
@@ -173,6 +295,101 @@ nav .nav-wrapper li a {
     flex: 0 0 auto;
 }
 
+/* Materialize 2.x: the M3 "surface-tint" dialog + border-bottom-only select
+   triggers make the prefs form look muddy/scrambled. Give it a classic,
+   readable form-sheet look scoped to this dialog. */
+#pref_modal {
+    background-color: #ffffff;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+#pref_modal .modal-content {
+    padding: 24px;
+    color: #212121;
+}
+#pref_modal .modal-content > h4 {
+    margin: 0 0 20px;
+    color: #212121;
+    font-weight: 500;
+}
+/* 2.x .row is a grid with no vertical margin; add breathing room between rows. */
+#pref_modal .modal-content > .row {
+    margin-bottom: 18px;
+}
+#pref_modal .modal-content > .row:last-of-type {
+    margin-bottom: 0;
+}
+/* Restore visible select fields so they read as dropdowns, not stray labels. */
+#pref_modal .select-wrapper input.select-dropdown {
+    background-color: #f0f0f0;
+    border: 1px solid #9e9e9e;
+    border-radius: 4px;
+    padding: 24px 36px 6px 12px;  /* room for label + caret */
+    font-size: 1rem;
+    color: #212121;
+    width: 100%;
+    box-sizing: border-box;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+/* Move the floating labels so they sit cleanly above the filled select fields. */
+#pref_modal .input-field > label,
+#pref_modal .input-field input.select-dropdown + label,
+#pref_modal .input-field input.select-dropdown:not(:placeholder-shown) + label,
+#pref_modal .input-field input.select-dropdown:focus + label {
+    top: 4px;
+    left: 12px;
+    color: #616161;
+}
+#pref_modal .input-field input.select-dropdown:focus + label {
+    color: var(--warp-indigo);
+}
+/* The <dialog> autofocuses the first select, which paints Materialize's
+   primary-colour focus ring around the wrapper; suppress it so the prefs
+   form doesn't look like a selected/open dropdown on first paint. */
+#pref_modal .select-wrapper:focus-within,
+#pref_modal .select-wrapper input.select-dropdown:focus {
+    outline: none !important;
+}
+/* When a FormSelect dropdown opens inside the prefs modal, its default
+   surface bg matches the modal surface and it visually melts into the
+   form. Give it a border + stronger shadow so it reads as a floating menu. */
+#pref_modal .dropdown-content.select-dropdown {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+#pref_modal .dropdown-content.select-dropdown li {
+    color: #212121;
+}
+#pref_modal .dropdown-content.select-dropdown li.active,
+#pref_modal .dropdown-content.select-dropdown li:not(.disabled):hover {
+    background-color: #f0f0f0;
+}
+/* Darken the time-hint text so the slider row doesn't look washed out. */
+#pref_modal .pref_timeslider_container .timeslider-hint {
+    color: #424242;
+    border-color: #757575;
+}
+/* Keep the switch labels from looking like placeholder text. */
+.pref-feature-row > span {
+    color: #424242;
+}
+/* 2.x .modal-footer is justify-content:space-between and padding:24px,
+   which splits buttons and makes the footer huge. Group right, compact. */
+#pref_modal .modal-footer {
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 24px;
+    border-top: 1px solid #e0e0e0;
+}
+#pref_modal .modal-footer .btn,
+#pref_modal .modal-footer .btn-flat {
+    height: 36px;
+    line-height: 36px;
+    padding: 0 16px;
+}
 #pref_modal .modal-content label {
     font-size: 1rem;
 }
@@ -809,4 +1026,33 @@ INPUT[type="text"] ~ .show_password_btn::after {
     letter-spacing: 0.5px;
     cursor: default;
     user-select: none;
+}
+
+/* Materialize 2.x reshaped .btn (40px tall, 24px padding, 14px, no uppercase,
+   4px radius) — taller/wider and less button-like than 1.x. Restore the 1.x
+   shape so action/modal buttons look as before. (.btn-floating keeps its own
+   40/56px round sizing via higher-specificity rules.) */
+.btn, .btn-small, .btn-large, .btn-flat {
+    border-radius: 2px;
+    display: inline-block;
+    height: 36px;
+    line-height: 36px;
+    padding: 0 16px;
+    font-size: 14px;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+
+/* Materialize 2.x's .modal.bottom-sheet only sets margin/max-height/radius —
+   it lost 1.x's full-width, bottom-anchored, square-cornered behaviour, so the
+   "sliding menu" rendered as a centered 55%-wide rounded box. Restore it. */
+.modal.bottom-sheet {
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: auto;
+    margin: 0;
+    max-height: 45%;
+    border-radius: 0;
 }
