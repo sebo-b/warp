@@ -68,6 +68,48 @@ async function openSidenav(page: Page): Promise<void> {
   await page.locator('#mobile-nav').waitFor({ state: 'visible' });
 }
 
+/** Open the desktop nav user-menu dropdown (the person icon). */
+async function openUserMenuDropdown(page: Page): Promise<void> {
+  await page.locator('.dropdown-trigger[data-target="user_menu_dropdown"]').click();
+  await page.locator('#user_menu_dropdown').waitFor({ state: 'visible' });
+}
+
+/** Open the desktop nav admin-menu dropdown (the settings icon). */
+async function openAdminMenuDropdown(page: Page): Promise<void> {
+  await page.locator('.dropdown-trigger[data-target="admin_menu_dropdown"]').click();
+  await page.locator('#admin_menu_dropdown').waitFor({ state: 'visible' });
+}
+
+/** Open the Preferences modal via the user menu (pref_timeslider + selects + switches). */
+async function openPrefsModal(page: Page): Promise<void> {
+  await openUserMenuDropdown(page);
+  await page.locator('#user_menu_dropdown').getByRole('link', { name: /preferences/i }).click();
+  await page.locator('#pref_modal').waitFor({ state: 'visible' });
+}
+
+/** Open the Calendar integration modal via the user menu (chips + selects + timepicker). */
+async function openCalendarModal(page: Page): Promise<void> {
+  await openUserMenuDropdown(page);
+  await page.locator('#user_menu_dropdown').getByRole('link', { name: /calendar integration/i }).click();
+  await page.locator('#calendar_modal').waitFor({ state: 'visible' });
+  // Reminder selects + chips are populated by XHR after open.
+  await page.waitForLoadState('networkidle');
+}
+
+/** Open the Materialize timepicker clock from the Calendar modal (the date/time selector). */
+async function openTimepicker(page: Page): Promise<void> {
+  await openCalendarModal(page);
+  // The input sits below the modal fold and is partly covered, so drive the
+  // Materialize instance directly instead of a pointer click.
+  await page.locator('#cal_time_input').scrollIntoViewIfNeeded();
+  await page.evaluate(() => {
+    const el = document.getElementById('cal_time_input') as any;
+    const inst = (window as any).M?.Timepicker?.getInstance(el);
+    if (inst) inst.open(); else el?.click();
+  });
+  await page.locator('.timepicker-modal.open').first().waitFor({ state: 'visible' });
+}
+
 /** Open a Materialize FormSelect dropdown inside the Preferences modal.
  *  The default-plan select is initialized when the modal opens; opening it
  *  shows the Materialize dropdown chrome (which 2.x restyles). */
@@ -122,6 +164,20 @@ export const SCREENS: Screen[] = [
     viewport: { width: 390, height: 844 }, fullPage: false },
   { id: 'select-open', title: 'FormSelect dropdown open', role: 'admin',
     path: '/', prepare: openPrefSelect, fullPage: false },
+
+  // Nav dropdowns (Materialize dropdown chrome — 2.x restyles)
+  { id: 'dropdown-user-menu', title: 'Nav dropdown: user menu', role: 'admin',
+    path: '/', prepare: openUserMenuDropdown, fullPage: false },
+  { id: 'dropdown-admin-menu', title: 'Nav dropdown: admin menu', role: 'admin',
+    path: '/', prepare: openAdminMenuDropdown, fullPage: false },
+
+  // Date / time selectors
+  { id: 'modal-prefs', title: 'Preferences modal (time slider + selects)', role: 'admin',
+    path: '/', prepare: openPrefsModal, fullPage: false },
+  { id: 'modal-calendar', title: 'Calendar modal (chips + selects + timepicker)', role: 'admin',
+    path: '/', prepare: openCalendarModal, fullPage: false },
+  { id: 'modal-timepicker', title: 'Timepicker clock open', role: 'admin',
+    path: '/', prepare: openTimepicker, fullPage: false },
 
   // User
   { id: 'user-index', title: 'Home (user)', role: 'user', path: '/' },
