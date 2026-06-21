@@ -132,13 +132,14 @@ nav .dropdown-content li > span {
     color: var(--md-sys-color-on-surface);
 }
 
-/* Materialize 2.x's datepicker ModalDisplayPlugin opens its <dialog> via the
-   [open] attribute (not showModal()), so the dialog is NOT promoted to the top
-   layer and renders at its static DOM position — appended to <body>, i.e. below
-   the page content and off-screen (verified live: top:900 in a 900px viewport).
-   Pin it to the viewport centre like a real modal. (Regular WARP modals avoid
-   this because the modal compat layer calls showModal().) */
-.datepicker-modal[open] {
+/* Materialize 2.x's ModalDisplayPlugin (used by Datepicker and Timepicker)
+   opens its <dialog> by setting [open]="true" instead of calling showModal().
+   Without showModal() the dialog is NOT promoted to the top layer and renders at
+   its static DOM position — appended to <body>, i.e. below the page content and
+   off-screen (verified live: top:900 in a 900px viewport). Pin both pickers to
+   the viewport centre like real modals. */
+.datepicker-modal[open],
+.timepicker-modal[open] {
     position: fixed;
     inset: 0;
     margin: auto;
@@ -416,6 +417,19 @@ nav .dropdown-content li > span {
 #change_password_modal .dropdown-content.select-dropdown li.active,
 #change_password_modal .dropdown-content.select-dropdown li:not(.disabled):hover {
     background-color: #f0f0f0;
+}
+/* The calendar modal contains taller sections (reminder selects + weekday chips
+   + timepicker trigger) that can exceed 2.x's default max-height:70%. Let the
+   whole dialog scroll so nothing is pushed off-screen, which also keeps any
+   open FormSelect dropdown inside the modal bounds. */
+#calendar_modal {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+/* The reminder time input uses a 2.x timepicker. Its modal was rendering off
+   screen; shared .timepicker-modal rule below fixes positioning. */
+#calendar_modal .timepicker {
+    cursor: pointer;
 }
 /* Helper text under inputs (calendar reminder selects) was too washed out. */
 #calendar_modal .input-field .helper-text {
