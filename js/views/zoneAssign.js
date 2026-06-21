@@ -191,8 +191,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 autocompleteData.push({ id: label, text: label });
             }
 
-            let onAutocomplete = function(selectedObj) {
-                var u = Utils.makeUserStrRev(selectedObj.id);
+            let onAutocomplete = function(selectedLabel) {
+                var u = Utils.makeUserStrRev(selectedLabel);
                 assignToZoneTable.updateOrAddData([{"login": u[0],"name": u[1], "zone_role": defaultZoneRole}]);
                 assignToZoneModaAutocompleteEl.value = "";
                 assignToZoneModaAutocompleteEl.focus();
@@ -201,7 +201,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
             M.Autocomplete.init(assignToZoneModaAutocompleteEl,{
                 data: autocompleteData,
                 dropdownOptions: {
-                    constrainWidth: false,
+                    constrainWidth: true,
                     container: assignToZoneModaAutocompleteEl.closest('dialog') || document.body
                 },
                 minLength: 2,

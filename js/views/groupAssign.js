@@ -156,8 +156,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 autocompleteData.push({ id: label, text: label });
             }
 
-            let onAutocomplete = function(selectedObj) {
-                var u = Utils.makeUserStrRev(selectedObj.id);
+            let onAutocomplete = function(selectedLabel) {
+                var u = Utils.makeUserStrRev(selectedLabel);
                 addToGroupTable.updateOrAddData([{"login": u[0],"name": u[1]}]);
                 addToGroupModaAutocompleteEl.value = "";
                 addToGroupModaAutocompleteEl.focus();
@@ -166,7 +166,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
             M.Autocomplete.init(addToGroupModaAutocompleteEl,{
                 data: autocompleteData,
                 dropdownOptions: {
-                    constrainWidth: false,
+                    constrainWidth: true,
                     container: addToGroupModaAutocompleteEl.closest('dialog') || document.body
                 },
                 minLength: 2,
