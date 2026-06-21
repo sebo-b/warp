@@ -211,7 +211,7 @@ nav .dropdown-content li > span {
 /* The "Book as" autocomplete in the zone sidepanel. Keep it as a clean
    underline-style input (no filled box) but give it enough height so the
    value and label don't overlap or look cramped in the narrow panel. */
-.book-as_container .input-field {
+.book-as_container.input-field {
     margin-top: 0;
 }
 .book-as_container .book-as_input {
@@ -226,8 +226,8 @@ nav .dropdown-content li > span {
     color: #212121;
     font-size: 1rem;
 }
-.book-as_container .input-field > label,
-.book-as_container .input-field > label.active {
+.book-as_container.input-field > label,
+.book-as_container.input-field > label.active {
     position: absolute;
     top: 2px;
     left: 0 !important;
@@ -732,6 +732,41 @@ nav .dropdown-content li > span {
 #edit_modal .dropdown-content.autocomplete-content li.selected {
     background-color: #f0f0f0;
 }
+/* M2 autocomplete items render as display:grid with a bold, tight .item-text and
+   a highlight span, unlike the plain li>span rows FormSelect uses (account type
+   etc.). Normalise them to the same row metrics so the two dropdowns match. */
+#add_to_group_modal .dropdown-content.autocomplete-content li,
+#assign_to_zone_modal .dropdown-content.autocomplete-content li,
+#assigned_seat_modal .dropdown-content.autocomplete-content li,
+#edit_modal .dropdown-content.autocomplete-content li {
+    display: block !important;
+    min-height: 50px;
+    line-height: 1.5rem;
+    padding: 0;
+}
+#add_to_group_modal .dropdown-content.autocomplete-content li .item-text,
+#assign_to_zone_modal .dropdown-content.autocomplete-content li .item-text,
+#assigned_seat_modal .dropdown-content.autocomplete-content li .item-text,
+#edit_modal .dropdown-content.autocomplete-content li .item-text {
+    padding: 14px 16px !important;
+    overflow: visible !important;
+}
+#add_to_group_modal .dropdown-content.autocomplete-content li .item-text > div,
+#assign_to_zone_modal .dropdown-content.autocomplete-content li .item-text > div,
+#assigned_seat_modal .dropdown-content.autocomplete-content li .item-text > div,
+#edit_modal .dropdown-content.autocomplete-content li .item-text > div {
+    font-weight: normal !important;
+    line-height: 22px !important;
+    font-size: 16px !important;
+}
+#add_to_group_modal .dropdown-content.autocomplete-content li .highlight,
+#assign_to_zone_modal .dropdown-content.autocomplete-content li .highlight,
+#assigned_seat_modal .dropdown-content.autocomplete-content li .highlight,
+#edit_modal .dropdown-content.autocomplete-content li .highlight {
+    color: inherit;
+    background: transparent;
+    font-weight: 500;
+}
 
 /* Date/time picker dialogs in 2.x use [open] on a child <dialog>.  The
    ModalDisplayPlugin only sets [open] instead of calling showModal(), so the
@@ -748,17 +783,25 @@ nav .dropdown-content li > span {
     margin: 0;
 }
 
-/* The calendar modal contains taller sections (reminder selects + weekday chips
-   + timepicker trigger) that can exceed 2.x's default max-height:70%. Let the
-   whole dialog scroll so nothing is pushed off-screen, which also keeps any
-   open FormSelect dropdown inside the modal bounds. */
+/* The calendar modal can grow tall (reminder selects + weekday chips +
+   timepicker trigger). Same pattern as the other form modals: the dialog is a
+   flex column (M2 .modal[open]); make .modal-content the scroll area and keep
+   the footer pinned, and keep the dialog itself overflow-visible so the
+   FormSelect dropdowns (container: calModalEl) and the timepicker dialog are
+   not clipped. */
 #calendar_modal {
     max-height: 70vh;
+}
+#calendar_modal .modal-content {
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
 }
 
-/* Other form modals can grow tall (e.g. user edit with chips). Let them scroll
-   internally so the footer doesn't overlay the last form row on short screens. */
+/* Other form modals can grow tall (e.g. user edit with chips). The dialog is a
+   flex column (M2 .modal[open]); make .modal-content the scroll area and keep the
+   footer as a flex-shrink:0 item pinned at the bottom. Scrolling the whole dialog
+   instead clips the footer on short screens. */
 #pref_modal,
 #edit_modal,
 #change_password_modal,
@@ -766,6 +809,15 @@ nav .dropdown-content li > span {
 #assign_to_zone_modal,
 #assigned_seat_modal {
     max-height: 90vh;
+}
+#pref_modal .modal-content,
+#edit_modal .modal-content,
+#change_password_modal .modal-content,
+#add_to_group_modal .modal-content,
+#assign_to_zone_modal .modal-content,
+#assigned_seat_modal .modal-content {
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
 }
 /* The reminder time input uses a 2.x timepicker. Its modal was rendering off
@@ -889,10 +941,21 @@ nav .dropdown-content li > span {
 
 #cal_type_tabs .tab a {
     color: rgba(255, 109, 0, 0.7);
+    /* M2 sets min-height:48px on .tabs .tab a, which ignores the inline
+       height:36px and makes the bar 48px tall. Enforce the intended compact
+       36px and drop the blue primary-tint active background so the bar reads
+       as a single orange-accent tab strip consistent with the form. */
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 0 12px;
 }
 #cal_type_tabs .tab a.active,
 #cal_type_tabs .tab a:hover {
     color: #ff6d00;
+    background-color: transparent;
+}
+#cal_type_tabs .indicator {
+    background-color: #ff6d00;
 }
 #cal_type_tabs .tab.disabled a,
 #cal_type_tabs .tab.disabled a:hover {
@@ -902,6 +965,17 @@ nav .dropdown-content li > span {
 
 #calendar_modal .modal-content label {
     font-size: 1rem;
+}
+/* The calendar modal packs many distinct controls (switch, tab strip, URL
+   field, selects, weekday chips, timepicker). The shared 18px row gap leaves
+   them reading as one cramped block; give the calendar modal more breathing
+   room, including the tab strip row whose inline margin-bottom:0 would
+   otherwise glue it to the URL field. */
+#calendar_modal .modal-content > .row {
+    margin-bottom: 26px;
+}
+#calendar_modal #cal_type_tabs_row {
+    margin-bottom: 22px !important;
 }
 
 @media only screen and (max-width: 600px) {

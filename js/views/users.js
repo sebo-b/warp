@@ -328,6 +328,21 @@ document.addEventListener("DOMContentLoaded", function(e) {
             }
 
             addToGroup = M.Chips.init(addToGroupEl, chipsOptions);
+            // M2 2.3.3 bug: Chips.#setupAutocomplete wires Autocomplete.onAutocomplete
+            // to unconditionally clear+refocus the input. But Autocomplete.setMenuItems
+            // fires _triggerChanged() (and thus onAutocomplete) on *every* keystroke via
+            // onSearch, so typing wipes the field, minLength is never reached, the
+            // Materialize dropdown never shows and only the browser's native autofill
+            // popup appears. Re-bind onAutocomplete so the clear only happens on a real
+            // selection (selectedValues non-empty). Also disable native autofill.
+            addToGroup.autocomplete.options.onAutocomplete = function(items) {
+                if (items.length > 0) {
+                    addToGroup.addChip({ id: items[0].id, text: items[0].text, image: items[0].image });
+                    this.el.value = '';
+                    this.el.focus();
+                }
+            };
+            addToGroup.autocomplete.el.setAttribute('autocomplete', 'off');
             // 2.x calls onChipAdd with `this` bound to the options object,
             // not the Chips instance. Bind explicitly after init.
             addToGroup.options.onChipAdd = function(el, chip) {

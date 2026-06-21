@@ -330,7 +330,62 @@ function initCalendar() {
   var saveBtn = document.getElementById('cal_save_btn');
   var calCancelBtn = document.getElementById('cal_cancel_btn');
 
-  var SELECT_OPTS = { dropdownOptions: { container: document.body } };
+// Keep the FormSelect dropdowns inside the calendar modal (a <dialog> shown
+  // via showModal, hence in the top layer). Appending to document.body renders
+  // them behind the modal's backdrop (blurred, unselectable). calModalEl is in
+  // the modal's top-layer subtree so the dropdowns appear above the modal.
+  var SELECT_OPTS = { dropdownOptions: { container: calModalEl } };
+
+  // M2 Dropdown positions the panel with position:absolute + left/top relative
+  // to its offsetParent, and never calls showPopover(), so a dropdown opened
+  // inside a showModal <dialog> is either trapped behind the modal (if at body)
+  // or clipped by the modal/content overflow. Re-bind open/close to render the
+  // panel as a top-layer popover with position:fixed at the trigger's viewport
+  // coordinates: it floats above the modal AND is never clipped by it. Flips
+  // above the trigger when there is more space on top.
+  function liftSelectDropdown(selectEl) {
+    var wrap = selectEl.closest && selectEl.closest('.select-wrapper');
+    var input = wrap && wrap.querySelector('input.select-dropdown');
+    var dd = input && M.Dropdown.getInstance(input);
+    if (!dd || dd.__warpLifted) return;
+    dd.__warpLifted = true;
+    dd.open = function () {
+      if (dd.isOpen) return;
+      dd.isOpen = true;
+      if (typeof dd.options.onOpenStart === 'function')
+        dd.options.onOpenStart.call(dd, dd.el);
+      var r = dd.el.getBoundingClientRect();
+      var de = dd.dropdownEl;
+      de.style.display = 'block';
+      de.style.opacity = '1';
+      de.style.transform = 'none';
+      de.style.position = 'fixed';
+      de.style.left = r.left + 'px';
+      de.style.width = r.width + 'px';
+      de.style.height = '';
+      var dh = de.offsetHeight;
+      var spaceBelow = window.innerHeight - r.bottom;
+      var spaceAbove = r.top;
+      if (dh > spaceBelow && spaceAbove > spaceBelow)
+        de.style.top = Math.max(8, spaceAbove - dh) + 'px';
+      else
+        de.style.top = r.bottom + 'px';
+      de.popover = 'manual';
+      try { de.showPopover(); } catch (e) {}
+      setTimeout(function () { if (dd._setupTemporaryEventHandlers) dd._setupTemporaryEventHandlers(); }, 0);
+      dd.el.ariaExpanded = 'true';
+    };
+    dd.close = function () {
+      if (!dd.isOpen) return;
+      dd.isOpen = false;
+      if (typeof dd.options.onCloseStart === 'function')
+        dd.options.onCloseStart.call(dd, dd.el);
+      try { dd.dropdownEl.hidePopover(); } catch (e) {}
+      dd.dropdownEl.style.display = 'none';
+      if (dd._removeTemporaryEventHandlers) dd._removeTemporaryEventHandlers();
+      dd.el.ariaExpanded = 'false';
+    };
+  }
 
   // Sun=64, Mon=1, Tue=2, Wed=4, Thu=8, Fri=16, Sat=32
   var WEEKDAY_BITS = [64, 1, 2, 4, 8, 16, 32];
@@ -380,6 +435,8 @@ function initCalendar() {
 
   if (calMissingAheadEl) M.FormSelect.init(calMissingAheadEl, SELECT_OPTS);
   if (calReleaseAheadEl) M.FormSelect.init(calReleaseAheadEl, SELECT_OPTS);
+  if (calMissingAheadEl) liftSelectDropdown(calMissingAheadEl);
+  if (calReleaseAheadEl) liftSelectDropdown(calReleaseAheadEl);
 
   if (calMissingAheadEl) calMissingAheadEl.addEventListener('change', function() { updateSharedSectionState(); updateReminderTabState(); });
   if (calReleaseAheadEl) calReleaseAheadEl.addEventListener('change', function() { updateSharedSectionState(); updateReminderTabState(); });
@@ -495,12 +552,14 @@ function initCalendar() {
       var aVal = data.reminder_ahead_days != null ? data.reminder_ahead_days : 0;
       calMissingAheadEl.value = String(aVal);
       M.FormSelect.init(calMissingAheadEl, SELECT_OPTS);
+      liftSelectDropdown(calMissingAheadEl);
     }
 
     if (calReleaseAheadEl) {
       var rVal = data.reminder_release_ahead_days != null ? data.reminder_release_ahead_days : 0;
       calReleaseAheadEl.value = String(rVal);
       M.FormSelect.init(calReleaseAheadEl, SELECT_OPTS);
+      liftSelectDropdown(calReleaseAheadEl);
     }
 
     // Recompute after the reminder selects have been populated above.
@@ -512,6 +571,7 @@ function initCalendar() {
         o.selected = zids.indexOf(parseInt(o.value)) !== -1;
       });
       M.FormSelect.init(calZonesEl, SELECT_OPTS);
+      liftSelectDropdown(calZonesEl);
     }
 
     updateSharedSectionState();
@@ -521,8 +581,21 @@ function initCalendar() {
     if (!calTimeInputEl || timepicker) return;
     timepicker = M.Timepicker.init(calTimeInputEl, {
       twelveHour: false,
-      container: document.body
+      // autoSubmit:true (M2 default) skips the Done/Cancel buttons AND calls
+      // done() on clock-release which sets the value but never hides the modal,
+      // so the picker opens with no buttons and never closes. autoSubmit:false
+      // creates the Ok/Cancel buttons; Ok calls confirm() -> done() + hide().
+      autoSubmit: false,
+      // displayPlugin:'modal' wraps the clock face in a <dialog> (hidden until
+      // opened); without it M2 leaves the bare .timepicker-container in the DOM,
+      // always visible at the bottom of the page. Move that dialog into the
+      // calendar modal so it renders in the modal's top-layer subtree (above
+      // it) instead of at body level behind the modal.
+      displayPlugin: 'modal'
     });
+    if (timepicker.displayPlugin && timepicker.displayPlugin.container) {
+      calModalEl.appendChild(timepicker.displayPlugin.container);
+    }
   }
 
   function resetUrlVisibility() {
