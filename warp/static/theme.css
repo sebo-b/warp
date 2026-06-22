@@ -19,42 +19,39 @@
  * WARP_THEME_FILE).
  */
 
-/* ---- Material Design 3 tokens ------------------------------------------- */
-/* No brand override for now: Materialize 2.x ships its own light M3 palette
-   (primary #006495, etc.), pinned light by <html theme="light"> in base.html.
-   Re-branding is a later step — override the --md-sys-color-*-light tokens in
-   the :root[theme="light"] block below. */
-
-/* ---- App tokens (--warp-*) ---------------------------------------------- */
-/* Current exact colours preserved; a rebrand edits these. The future theming
- * step points every scattered hex at these. */
+/* ---- App tokens (--warp-*) — the single source of truth ----------------- */
+/* The brand is WARP's original pre-migration palette:
+ *   $primary   = indigo darken-1  (#3949ab)
+ *   $secondary = orange accent-4  (#ff6d00)
+ *   $link      = indigo darken-3  (#283593)
+ * These are wired into Materialize's M3 tokens in the :root[theme="light"]
+ * block below, and every scattered hex in style.css / the SCSS bridges / JS /
+ * templates points at the tokens here. Re-theming a deployment = edit this file
+ * (or mount a replacement via WARP_THEME_FILE). */
 :root {
-  /* brand semantic aliases (also referenced by affordance classes below) */
-  --warp-primary:       #8f1f8c;
-  --warp-primary-light: #cd2dc8;  /* was lighten($primary-color,15%) — tab indicator */
-  --warp-secondary:     #ef7f21;  /* orange; FAB add */
-  --warp-error:         #e42025;
-  --warp-success:        #78be20;
-  --warp-link:          #0c9dd9;
+  /* brand */
+  --warp-primary:       #3949ab;  /* indigo darken-1 — nav, buttons, focus, links */
+  --warp-primary-light: #5c6bc0;  /* indigo lighten-1 — hover/active accents */
+  --warp-secondary:     #ff6d00;  /* orange accent-4 — FAB, sliders, spinner, tabs, default btn */
+  --warp-link:          #283593;  /* indigo darken-3 */
 
-  /* app's own indigo accent (#3949ab, indigo darken-2) used across the zone
-   * editor, seat labels, marquee, weekday chips, sliders. */
-  --warp-indigo:        #3949ab;
+  /* indigo brand tints (zone editor, seat labels, marquee, weekday chips, sliders) */
+  --warp-indigo:        var(--warp-primary);
   --warp-indigo-light:  #c5cae9;  /* indigo lighten-4 — slider track, zone border */
   --warp-indigo-pale:   #e8eaf6;  /* indigo lighten-5 — seat-label zone bg */
   --warp-indigo-dark:   #283593;  /* indigo darken-3 — seat-label zone text */
 
-  /* app accent orange (#ff6d00, materialize-orange accent-4) — sliders, spinner,
-   * calendar tabs. Distinct from the brand secondary #ef7f21. */
-  --warp-accent:        #ff6d00;
+  /* single accent orange (merged: brand secondary == UI accent) */
+  --warp-accent:        var(--warp-secondary);
   --warp-accent-light:  #ffe0b2;  /* spinner top/right/bottom */
 
-  /* semantic affordance roles (replace the Material palette utility classes
-   * that Materialize 2.x removed). Values preserve the current exact colours. */
-  --warp-danger-btn:    #d32f2f;  /* was .red.darken-2 — delete button bg */
-  --warp-danger-icon:   #c62828;  /* was .red-text.text-darken-3 — delete icon */
-  --warp-edit-icon:     #1b5e20;  /* was .green-text.text-darken-4 — edit/manage icon */
-  --warp-edit-icon-alt: #2e7d32;  /* was .green-text.text-darken-3 — edit icon (1 use) */
+  /* semantic roles (one red, one green — merged) */
+  --warp-error:         #f44336;  /* materialize red — all error/danger affordances */
+  --warp-success:       #2e7d32;  /* green darken-3 — edit/manage affordances */
+  --warp-danger-btn:    var(--warp-error);   /* delete button bg */
+  --warp-danger-icon:   var(--warp-error);   /* delete icon */
+  --warp-edit-icon:     var(--warp-success); /* edit/manage icon */
+  --warp-edit-icon-alt: var(--warp-success); /* edit icon (1 use) */
 
   /* grey ramp (Materialize grey palette, used in style.css/tabulator) */
   --warp-grey-1: #f5f5f5;  /* grey lighten-4 */
@@ -71,9 +68,24 @@
   --warp-slider-handle-shadow-outer: #bbb;
 
   /* RGB channels for app rgba() rules that need a brand colour + alpha. */
-  --warp-primary-rgb: 143, 31, 140;
-  --warp-secondary-rgb: 239, 127, 33;
-  --warp-error-rgb: 228, 32, 37;
+  --warp-primary-rgb: 57, 73, 171;
+  --warp-secondary-rgb: 255, 109, 0;
+  --warp-error-rgb: 244, 67, 54;
+}
+
+/* ---- Material Design 3 tokens ------------------------------------------- */
+/* Wire the brand into Materialize 2.x's M3 light palette. The :root[theme=
+ * "light"] selector out-specifies the framework's :root defaults (0,1,1 vs
+ * 0,1,0), so these win even though theme.css loads first. Only the brand roles
+ * are overridden; surface/neutral tokens keep Materialize's values so dropdowns,
+ * sheets and text contrast stay correct. */
+:root[theme="light"] {
+  --md-sys-color-primary-light:      var(--warp-primary);
+  --md-sys-color-on-primary-light:   #fff;
+  --md-sys-color-secondary-light:    var(--warp-secondary);
+  --md-sys-color-on-secondary-light: #fff;
+  --md-sys-color-error-light:        var(--warp-error);
+  --md-sys-color-on-error-light:     #fff;
 }
 
 /* ---- Affordance classes (replace removed Material palette utility classes) */
