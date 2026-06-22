@@ -197,6 +197,18 @@ No need for Approaches A/B/D from the older `COLOR_SCHEME_ANALYSIS.md`; C alread
 
 ---
 
+## 9. Known pre-existing issues (to fix after Step 5)
+
+Not caused by this refactor; reported during Step 2 verification:
+- **Datepicker distorted** — bookings tab, from/to date fields.
+- **Timepicker distorted** — calendar-integration reminder time.
+
+Both stem from Materialize 2.x's `ModalDisplayPlugin` opening the child `<dialog>`
+via `[open]` instead of `showModal()` (no top-layer promotion). `style.css` has a
+**duplicated, conflicting** `.datepicker-modal[open]` / `.timepicker-modal[open]` block
+(L135–146 vs L771–784) — consolidate during Step 3, then fix the internal layout in a
+focused pass with live screenshots.
+
 ## Appendix — quantified bloat
 
 - `style.css`: 1740 lines, `var(--warp-*)` used **1×**, hardcoded hex **~150 occurrences /
