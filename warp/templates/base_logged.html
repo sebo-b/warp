@@ -31,22 +31,17 @@
 
         {% if g.isAdmin %}
         <li class="divider"></li>
-        <li><a href="{{ url_for('view.bookings', report='report') }}" class="TR">Report</a></li>
         <li>
             <ul class="collapsible collapsible-accordion">
                 <li>
-                    <a class="collapsible-header"><span class="TR">Users &amp; groups</span><i class="material-icons">arrow_drop_down</i></a>
+                    <a class="collapsible-header TR">Admin</a>
                     <div class="collapsible-body">
                         <ul>
+                            <li><a href="{{ url_for('view.bookings', report='report') }}" class="TR">Report</a></li>
+                            <li class="divider"></li>
                             <li><a href="{{ url_for('view.users') }}" class="TR">Users</a></li>
                             <li><a href="{{ url_for('view.groups') }}" class="TR">Groups</a></li>
-                        </ul>
-                    </div>
-                </li>
-                <li>
-                    <a class="collapsible-header"><span class="TR">Zones &amp; plans</span><i class="material-icons">arrow_drop_down</i></a>
-                    <div class="collapsible-body">
-                        <ul>
+                            <li class="divider"></li>
                             <li><a href="{{ url_for('view.zones') }}" class="TR">Zones</a></li>
                             <li><a href="{{ url_for('view.plans') }}" class="TR">Plans</a></li>
                         </ul>
@@ -60,7 +55,7 @@
         <li>
             <ul class="collapsible collapsible-accordion">
                 <li>
-                    <a class="collapsible-header">{{ g.login }}<i class="material-icons">arrow_drop_down</i></a>
+                    <a class="collapsible-header">{{ g.login }}</a>
                     <div class="collapsible-body">
                         <ul>
                             <li><a href="#pref_modal" class="modal-trigger TR">Preferences</a></li>
