@@ -132,19 +132,6 @@ nav .dropdown-content li > span {
     color: var(--md-sys-color-on-surface);
 }
 
-/* Materialize 2.x's ModalDisplayPlugin (used by Datepicker and Timepicker)
-   opens its <dialog> by setting [open]="true" instead of calling showModal().
-   Without showModal() the dialog is NOT promoted to the top layer and renders at
-   its static DOM position — appended to <body>, i.e. below the page content and
-   off-screen (verified live: top:900 in a 900px viewport). Pin both pickers to
-   the viewport centre like real modals. */
-.datepicker-modal[open],
-.timepicker-modal[open] {
-    position: fixed;
-    inset: 0;
-    margin: auto;
-}
-
 .nav-wrapper DIV,A {
     height: 100%;
 }
@@ -400,374 +387,180 @@ nav .dropdown-content li > span {
     flex: 0 0 auto;
 }
 
-/* WarpModal confirmation dialogs have no id, only class="modal". Give them the
-   same clean sheet look and right-grouped footer as the named form modals. */
-.modal:not([id]) {
+/* ---- Shared form-modal sheet -------------------------------------------
+   Applied via .warp-form-modal on every form dialog (templates) and on the
+   JS-built reassign + WarpModal confirm dialogs. Materialize 2.x's surface-tint
+   dialog + underline-only fields render muddy; this restores a classic, readable
+   form sheet with a right-grouped, compact, pinned footer. The dialog is a flex
+   column (M2 .modal[open]), so .modal-content scrolls and the footer stays put.
+   Confirm/reassign add .warp-modal-sm for their narrower width. */
+.warp-form-modal {
     background-color: var(--warp-surface);
     border: 1px solid var(--warp-grey-2);
     border-radius: 8px;
     color: var(--warp-text);
+    max-height: 90vh;
+}
+.warp-modal-sm {
     max-width: 560px;
 }
-.modal:not([id]) .modal-content {
+.warp-form-modal .modal-content {
     padding: 24px;
+    color: var(--warp-text);
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
 }
-.modal:not([id]) .modal-content > h4 {
+.warp-form-modal .modal-content > h4,
+.warp-form-modal .modal-content > h5 {
+    margin: 0 0 20px;
     color: var(--warp-text);
     font-weight: 500;
-    margin: 0 0 20px;
 }
-.modal:not([id]) .modal-content > p {
-    margin: 0;
-}
-.modal:not([id]) .modal-footer {
-    background-color: var(--warp-grey-1);
-    border-top: 1px solid var(--warp-grey-2);
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
-    padding: 12px 24px;
-}
-.modal:not([id]) .modal-footer .btn-flat {
-    align-items: center;
-    border-radius: 2px;
-    display: inline-flex;
-    height: 36px;
-    line-height: 36px;
-    padding: 0 16px;
-    text-transform: uppercase;
-}
-.modal:not([id]) .modal-footer .btn-flat:hover {
-    background-color: rgba(0, 0, 0, 0.05);
-}
-
-/* Reassign-seats modal is built dynamically in zones.js; style it like the
-   named form modals and keep its FormSelect dropdown inside the dialog. */
-#reassign_modal {
-    background-color: var(--warp-surface);
-    border: 1px solid var(--warp-grey-2);
-    border-radius: 8px;
-    color: var(--warp-text);
-    max-width: 560px;
-}
-#reassign_modal .modal-content {
-    padding: 24px;
-}
-#reassign_modal .modal-content > h5 {
-    color: var(--warp-text);
-    font-weight: 500;
-    margin: 0 0 20px;
-}
-#reassign_modal .modal-content > p {
+.warp-form-modal .modal-content > p {
     margin: 0 0 16px;
 }
-#reassign_modal .modal-content > p:last-child {
+.warp-form-modal .modal-content > p:last-of-type {
     margin-bottom: 0;
-}
-#reassign_modal .modal-footer {
-    background-color: var(--warp-grey-1);
-    border-top: 1px solid var(--warp-grey-2);
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
-    padding: 12px 24px;
-}
-#reassign_modal .modal-footer .btn,
-#reassign_modal .modal-footer .btn-flat {
-    height: 36px;
-    line-height: 36px;
-    padding: 0 16px;
-}
-#reassign_modal .select-wrapper input.select-dropdown {
-    background-color: var(--warp-grey-1);
-    border: 1px solid var(--warp-grey-3);
-    border-radius: 4px;
-    box-sizing: border-box;
-    color: var(--warp-text);
-    font-size: 1rem;
-    overflow: hidden;
-    padding: 18px 36px 8px 12px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    width: 100%;
-}
-#reassign_modal .dropdown-content.select-dropdown {
-    background-color: var(--warp-surface);
-    border: 1px solid var(--warp-grey-2);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-#reassign_modal .dropdown-content.select-dropdown li {
-    color: var(--warp-text);
-}
-#reassign_modal .dropdown-content.select-dropdown li.active,
-#reassign_modal .dropdown-content.select-dropdown li:not(.disabled):hover {
-    background-color: var(--warp-grey-1);
-}
-
-/* Materialize 2.x: the M3 "surface-tint" dialog + border-bottom-only fields
-   make form modals look muddy/scrambled. Give the main form modals a classic,
-   readable form-sheet look. */
-#pref_modal,
-#calendar_modal,
-#change_password_modal,
-#edit_modal,
-#add_to_group_modal,
-#assign_to_zone_modal,
-#assigned_seat_modal {
-    background-color: var(--warp-surface);
-    border-radius: 8px;
-    border: 1px solid var(--warp-grey-2);
-}
-#pref_modal .modal-content,
-#calendar_modal .modal-content,
-#change_password_modal .modal-content,
-#edit_modal .modal-content,
-#add_to_group_modal .modal-content,
-#assign_to_zone_modal .modal-content,
-#assigned_seat_modal .modal-content {
-    padding: 24px;
-    color: var(--warp-text);
-}
-#pref_modal .modal-content > h4,
-#calendar_modal .modal-content > h4,
-#change_password_modal .modal-content > h4,
-#edit_modal .modal-content > h4,
-#add_to_group_modal .modal-content > h4,
-#assign_to_zone_modal .modal-content > h4,
-#assigned_seat_modal .modal-content > h4 {
-    margin: 0 0 20px;
-    color: var(--warp-text);
-    font-weight: 500;
 }
 /* 2.x .row is a grid with no vertical margin; add breathing room between rows. */
-#pref_modal .modal-content > .row,
-#calendar_modal .modal-content > .row,
-#change_password_modal .modal-content > .row,
-#edit_modal .modal-content > .row,
-#add_to_group_modal .modal-content > .row,
-#assign_to_zone_modal .modal-content > .row,
-#assigned_seat_modal .modal-content > .row {
+.warp-form-modal .modal-content > .row {
     margin-bottom: 18px;
 }
-#pref_modal .modal-content > .row:last-of-type,
-#calendar_modal .modal-content > .row:last-of-type,
-#change_password_modal .modal-content > .row:last-of-type,
-#edit_modal .modal-content > .row:last-of-type,
-#add_to_group_modal .modal-content > .row:last-of-type,
-#assign_to_zone_modal .modal-content > .row:last-of-type,
-#assigned_seat_modal .modal-content > .row:last-of-type {
+.warp-form-modal .modal-content > .row:last-of-type {
     margin-bottom: 0;
 }
-/* Restore visible select triggers so they read as dropdowns, not stray labels. */
-#pref_modal .select-wrapper input.select-dropdown,
-#calendar_modal .select-wrapper input.select-dropdown,
-#change_password_modal .select-wrapper input.select-dropdown,
-#edit_modal .select-wrapper input.select-dropdown,
-#add_to_group_modal .select-wrapper input.select-dropdown,
-#assign_to_zone_modal .select-wrapper input.select-dropdown,
-#assigned_seat_modal .select-wrapper input.select-dropdown {
+.warp-form-modal .modal-content label {
+    font-size: 1rem;
+}
+/* Filled text/password/textarea + select trigger (restores readable fields). */
+.warp-form-modal .input-field > input:not(.select-dropdown),
+.warp-form-modal .input-field > textarea,
+.warp-form-modal .select-wrapper input.select-dropdown {
     background-color: var(--warp-grey-1);
     border: 1px solid var(--warp-grey-3);
     border-radius: 4px;
-    padding: 24px 36px 6px 12px;  /* room for label + caret */
     font-size: 1rem;
     color: var(--warp-text);
     width: 100%;
     box-sizing: border-box;
+}
+.warp-form-modal .input-field > input:not(.select-dropdown),
+.warp-form-modal .input-field > textarea {
+    padding: 18px 12px 8px 12px;
+}
+.warp-form-modal .select-wrapper input.select-dropdown {
+    padding: 24px 36px 6px 12px;  /* room for label + caret */
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
-/* Same filled look for plain text/password inputs inside these modals. */
-#pref_modal .input-field > input:not(.select-dropdown),
-#pref_modal .input-field > textarea,
-#calendar_modal .input-field > input:not(.select-dropdown),
-#calendar_modal .input-field > textarea,
-#change_password_modal .input-field > input:not(.select-dropdown),
-#change_password_modal .input-field > textarea,
-#edit_modal .input-field > input:not(.select-dropdown),
-#edit_modal .input-field > textarea,
-#add_to_group_modal .input-field > input:not(.select-dropdown),
-#add_to_group_modal .input-field > textarea,
-#assign_to_zone_modal .input-field > input:not(.select-dropdown),
-#assign_to_zone_modal .input-field > textarea,
-#assigned_seat_modal .input-field > input:not(.select-dropdown),
-#assigned_seat_modal .input-field > textarea {
-    background-color: var(--warp-grey-1);
-    border: 1px solid var(--warp-grey-3);
-    border-radius: 4px;
-    padding: 18px 12px 8px 12px;
-    font-size: 1rem;
-    color: var(--warp-text);
-    width: 100%;
-    box-sizing: border-box;
-}
-/* Move the floating labels so they sit cleanly above the filled fields. */
-#pref_modal .input-field > label,
-#pref_modal .input-field input.select-dropdown + label,
-#pref_modal .input-field input.select-dropdown:not(:placeholder-shown) + label,
-#pref_modal .input-field input.select-dropdown:focus + label,
-#calendar_modal .input-field > label,
-#calendar_modal .input-field input.select-dropdown + label,
-#calendar_modal .input-field input.select-dropdown:not(:placeholder-shown) + label,
-#calendar_modal .input-field input.select-dropdown:focus + label,
-#change_password_modal .input-field > label,
-#change_password_modal .input-field input.select-dropdown + label,
-#change_password_modal .input-field input.select-dropdown:not(:placeholder-shown) + label,
-#change_password_modal .input-field input.select-dropdown:focus + label,
-#edit_modal .input-field > label,
-#edit_modal .input-field input.select-dropdown + label,
-#edit_modal .input-field input.select-dropdown:not(:placeholder-shown) + label,
-#edit_modal .input-field input.select-dropdown:focus + label,
-#add_to_group_modal .input-field > label,
-#add_to_group_modal .input-field input.select-dropdown + label,
-#add_to_group_modal .input-field input.select-dropdown:not(:placeholder-shown) + label,
-#add_to_group_modal .input-field input.select-dropdown:focus + label,
-#assign_to_zone_modal .input-field > label,
-#assign_to_zone_modal .input-field input.select-dropdown + label,
-#assign_to_zone_modal .input-field input.select-dropdown:not(:placeholder-shown) + label,
-#assign_to_zone_modal .input-field input.select-dropdown:focus + label,
-#assigned_seat_modal .input-field > label,
-#assigned_seat_modal .input-field input.select-dropdown + label,
-#assigned_seat_modal .input-field input.select-dropdown:not(:placeholder-shown) + label,
-#assigned_seat_modal .input-field input.select-dropdown:focus + label {
+/* Floating labels sit cleanly above the filled fields. */
+.warp-form-modal .input-field > label,
+.warp-form-modal .input-field input.select-dropdown + label,
+.warp-form-modal .input-field input.select-dropdown:not(:placeholder-shown) + label,
+.warp-form-modal .input-field input.select-dropdown:focus + label {
     top: 4px;
     left: 12px;
     color: var(--warp-grey-4);
 }
-#pref_modal .input-field input.select-dropdown:focus + label,
-#calendar_modal .input-field input.select-dropdown:focus + label,
-#change_password_modal .input-field input.select-dropdown:focus + label,
-#edit_modal .input-field input.select-dropdown:focus + label,
-#add_to_group_modal .input-field input.select-dropdown:focus + label,
-#assign_to_zone_modal .input-field input.select-dropdown:focus + label,
-#assigned_seat_modal .input-field input.select-dropdown:focus + label {
+.warp-form-modal .input-field input.select-dropdown:focus + label {
     color: var(--warp-indigo);
 }
-/* The <dialog> autofocuses the first field, which paints Materialize's
-   primary-colour focus ring around the wrapper; suppress it so the form
-   doesn't look like a selected/open dropdown on first paint. */
-#pref_modal .select-wrapper:focus-within,
-#pref_modal .select-wrapper input.select-dropdown:focus,
-#calendar_modal .select-wrapper:focus-within,
-#calendar_modal .select-wrapper input.select-dropdown:focus,
-#change_password_modal .select-wrapper:focus-within,
-#change_password_modal .select-wrapper input.select-dropdown:focus,
-#edit_modal .select-wrapper:focus-within,
-#edit_modal .select-wrapper input.select-dropdown:focus,
-#add_to_group_modal .select-wrapper:focus-within,
-#add_to_group_modal .select-wrapper input.select-dropdown:focus,
-#assign_to_zone_modal .select-wrapper:focus-within,
-#assign_to_zone_modal .select-wrapper input.select-dropdown:focus,
-#assigned_seat_modal .select-wrapper:focus-within,
-#assigned_seat_modal .select-wrapper input.select-dropdown:focus {
+/* Suppress the autofocus primary focus ring on first paint. */
+.warp-form-modal .select-wrapper:focus-within,
+.warp-form-modal .select-wrapper input.select-dropdown:focus {
     outline: none !important;
 }
-/* When a FormSelect dropdown opens inside a form modal, its default surface
-   bg matches the modal surface and it visually melts into the form. Give it a
-   border + stronger shadow so it reads as a floating menu. */
-#pref_modal .dropdown-content.select-dropdown,
-#calendar_modal .dropdown-content.select-dropdown,
-#change_password_modal .dropdown-content.select-dropdown,
-#edit_modal .dropdown-content.select-dropdown,
-#add_to_group_modal .dropdown-content.select-dropdown,
-#assign_to_zone_modal .dropdown-content.select-dropdown,
-#assigned_seat_modal .dropdown-content.select-dropdown {
+/* Select + autocomplete menus read as elevated floating panels. */
+.warp-form-modal .dropdown-content.select-dropdown,
+.warp-form-modal .dropdown-content.autocomplete-content {
     background-color: var(--warp-surface);
     border: 1px solid var(--warp-grey-2);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
-#pref_modal .dropdown-content.select-dropdown li,
-#calendar_modal .dropdown-content.select-dropdown li,
-#change_password_modal .dropdown-content.select-dropdown li,
-#edit_modal .dropdown-content.select-dropdown li,
-#add_to_group_modal .dropdown-content.select-dropdown li,
-#assign_to_zone_modal .dropdown-content.select-dropdown li,
-#assigned_seat_modal .dropdown-content.select-dropdown li {
+.warp-form-modal .dropdown-content.select-dropdown li,
+.warp-form-modal .dropdown-content.autocomplete-content li,
+.warp-form-modal .dropdown-content.autocomplete-content li > span {
     color: var(--warp-text);
 }
-#pref_modal .dropdown-content.select-dropdown li.active,
-#pref_modal .dropdown-content.select-dropdown li:not(.disabled):hover,
-#calendar_modal .dropdown-content.select-dropdown li.active,
-#calendar_modal .dropdown-content.select-dropdown li:not(.disabled):hover,
-#change_password_modal .dropdown-content.select-dropdown li.active,
-#change_password_modal .dropdown-content.select-dropdown li:not(.disabled):hover,
-#edit_modal .dropdown-content.select-dropdown li.active,
-#edit_modal .dropdown-content.select-dropdown li:not(.disabled):hover,
-#add_to_group_modal .dropdown-content.select-dropdown li.active,
-#add_to_group_modal .dropdown-content.select-dropdown li:not(.disabled):hover,
-#assign_to_zone_modal .dropdown-content.select-dropdown li.active,
-#assign_to_zone_modal .dropdown-content.select-dropdown li:not(.disabled):hover,
-#assigned_seat_modal .dropdown-content.select-dropdown li.active,
-#assigned_seat_modal .dropdown-content.select-dropdown li:not(.disabled):hover {
+.warp-form-modal .dropdown-content.select-dropdown li.active,
+.warp-form-modal .dropdown-content.select-dropdown li:not(.disabled):hover,
+.warp-form-modal .dropdown-content.autocomplete-content li:hover,
+.warp-form-modal .dropdown-content.autocomplete-content li.selected {
     background-color: var(--warp-grey-1);
 }
-
-/* Autocomplete dropdowns inside group/zone/assignment/user-edit modals. */
-#add_to_group_modal .dropdown-content.autocomplete-content,
-#assign_to_zone_modal .dropdown-content.autocomplete-content,
-#assigned_seat_modal .dropdown-content.autocomplete-content,
-#edit_modal .dropdown-content.autocomplete-content {
-    background-color: var(--warp-surface);
-    border: 1px solid var(--warp-grey-2);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-#add_to_group_modal .dropdown-content.autocomplete-content li,
-#add_to_group_modal .dropdown-content.autocomplete-content li > span,
-#assign_to_zone_modal .dropdown-content.autocomplete-content li,
-#assign_to_zone_modal .dropdown-content.autocomplete-content li > span,
-#assigned_seat_modal .dropdown-content.autocomplete-content li,
-#assigned_seat_modal .dropdown-content.autocomplete-content li > span,
-#edit_modal .dropdown-content.autocomplete-content li,
-#edit_modal .dropdown-content.autocomplete-content li > span {
-    color: var(--warp-text);
-}
-#add_to_group_modal .dropdown-content.autocomplete-content li:hover,
-#add_to_group_modal .dropdown-content.autocomplete-content li.selected,
-#assign_to_zone_modal .dropdown-content.autocomplete-content li:hover,
-#assign_to_zone_modal .dropdown-content.autocomplete-content li.selected,
-#assigned_seat_modal .dropdown-content.autocomplete-content li:hover,
-#assigned_seat_modal .dropdown-content.autocomplete-content li.selected,
-#edit_modal .dropdown-content.autocomplete-content li:hover,
-#edit_modal .dropdown-content.autocomplete-content li.selected {
-    background-color: var(--warp-grey-1);
-}
-/* M2 autocomplete items render as display:grid with a bold, tight .item-text and
-   a highlight span, unlike the plain li>span rows FormSelect uses (account type
-   etc.). Normalise them to the same row metrics so the two dropdowns match. */
-#add_to_group_modal .dropdown-content.autocomplete-content li,
-#assign_to_zone_modal .dropdown-content.autocomplete-content li,
-#assigned_seat_modal .dropdown-content.autocomplete-content li,
-#edit_modal .dropdown-content.autocomplete-content li {
+/* M2 autocomplete items render as a bold, tight display:grid; normalise them to
+   match the plain FormSelect rows. */
+.warp-form-modal .dropdown-content.autocomplete-content li {
     display: block !important;
     min-height: 50px;
     line-height: 1.5rem;
     padding: 0;
 }
-#add_to_group_modal .dropdown-content.autocomplete-content li .item-text,
-#assign_to_zone_modal .dropdown-content.autocomplete-content li .item-text,
-#assigned_seat_modal .dropdown-content.autocomplete-content li .item-text,
-#edit_modal .dropdown-content.autocomplete-content li .item-text {
+.warp-form-modal .dropdown-content.autocomplete-content li .item-text {
     padding: 14px 16px !important;
     overflow: visible !important;
 }
-#add_to_group_modal .dropdown-content.autocomplete-content li .item-text > div,
-#assign_to_zone_modal .dropdown-content.autocomplete-content li .item-text > div,
-#assigned_seat_modal .dropdown-content.autocomplete-content li .item-text > div,
-#edit_modal .dropdown-content.autocomplete-content li .item-text > div {
+.warp-form-modal .dropdown-content.autocomplete-content li .item-text > div {
     font-weight: normal !important;
     line-height: 22px !important;
     font-size: 16px !important;
 }
-#add_to_group_modal .dropdown-content.autocomplete-content li .highlight,
-#assign_to_zone_modal .dropdown-content.autocomplete-content li .highlight,
-#assigned_seat_modal .dropdown-content.autocomplete-content li .highlight,
-#edit_modal .dropdown-content.autocomplete-content li .highlight {
+.warp-form-modal .dropdown-content.autocomplete-content li .highlight {
     color: inherit;
     background: transparent;
     font-weight: 500;
 }
+/* 2.x .modal-footer is space-between with 24px padding (splits buttons, huge);
+   group right, compact, pinned. */
+.warp-form-modal .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 24px;
+    border-top: 1px solid var(--warp-grey-2);
+    background-color: var(--warp-grey-1);
+    position: static;
+}
+.warp-form-modal .modal-footer .btn,
+.warp-form-modal .modal-footer .btn-flat {
+    height: 36px;
+    line-height: 36px;
+    padding: 0 16px;
+}
+.warp-form-modal .modal-footer .btn-flat:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
 
+/* Per-modal extras (only what differs from the shared sheet). */
+/* Calendar packs many controls; give it a fixed height cap and roomier rows. */
+#calendar_modal {
+    max-height: 70vh;
+}
+#calendar_modal .modal-content > .row {
+    margin-bottom: 26px;
+}
+#calendar_modal #cal_type_tabs_row {
+    margin-bottom: 22px !important;
+}
+#calendar_modal .timepicker {
+    cursor: pointer;
+}
+#calendar_modal .input-field .helper-text {
+    color: var(--warp-grey-4);
+}
+@media only screen and (max-width: 600px) {
+    #calendar_modal .valign-wrapper {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+/* Darken the pref slider time-hint so the row doesn't look washed out. */
+#pref_modal .pref_timeslider_container .timeslider-hint {
+    color: var(--warp-grey-6);
+    border-color: var(--warp-grey-5);
+}
 /* Date/time picker dialogs in 2.x use [open] on a child <dialog>.  The
    ModalDisplayPlugin only sets [open] instead of calling showModal(), so the
    element is not promoted to the top layer and renders off-screen at the end
@@ -782,107 +575,6 @@ nav .dropdown-content li > span {
     z-index: 10000;
     margin: 0;
 }
-
-/* The calendar modal can grow tall (reminder selects + weekday chips +
-   timepicker trigger). Same pattern as the other form modals: the dialog is a
-   flex column (M2 .modal[open]); make .modal-content the scroll area and keep
-   the footer pinned, and keep the dialog itself overflow-visible so the
-   FormSelect dropdowns (container: calModalEl) and the timepicker dialog are
-   not clipped. */
-#calendar_modal {
-    max-height: 70vh;
-}
-#calendar_modal .modal-content {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-}
-
-/* Other form modals can grow tall (e.g. user edit with chips). The dialog is a
-   flex column (M2 .modal[open]); make .modal-content the scroll area and keep the
-   footer as a flex-shrink:0 item pinned at the bottom. Scrolling the whole dialog
-   instead clips the footer on short screens. */
-#pref_modal,
-#edit_modal,
-#change_password_modal,
-#add_to_group_modal,
-#assign_to_zone_modal,
-#assigned_seat_modal {
-    max-height: 90vh;
-}
-#pref_modal .modal-content,
-#edit_modal .modal-content,
-#change_password_modal .modal-content,
-#add_to_group_modal .modal-content,
-#assign_to_zone_modal .modal-content,
-#assigned_seat_modal .modal-content {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-}
-/* The reminder time input uses a 2.x timepicker. Its modal was rendering off
-   screen; shared .timepicker-modal rule below fixes positioning. */
-#calendar_modal .timepicker {
-    cursor: pointer;
-}
-/* Helper text under inputs (calendar reminder selects) was too washed out. */
-#calendar_modal .input-field .helper-text {
-    color: var(--warp-grey-4);
-}
-/* Darken the time-hint text so the slider row doesn't look washed out. */
-#pref_modal .pref_timeslider_container .timeslider-hint {
-    color: var(--warp-grey-6);
-    border-color: var(--warp-grey-5);
-}
-/* 2.x .modal-footer is justify-content:space-between and padding:24px,
-   which splits buttons and makes the footer huge. Group right, compact. */
-#pref_modal .modal-footer,
-#calendar_modal .modal-footer,
-#change_password_modal .modal-footer,
-#edit_modal .modal-footer,
-#add_to_group_modal .modal-footer,
-#assign_to_zone_modal .modal-footer,
-#assigned_seat_modal .modal-footer {
-    justify-content: flex-end;
-    gap: 8px;
-    padding: 12px 24px;
-    border-top: 1px solid var(--warp-grey-2);
-    background-color: var(--warp-grey-1);
-    position: static;
-}
-#pref_modal .modal-footer .btn,
-#pref_modal .modal-footer .btn-flat,
-#calendar_modal .modal-footer .btn,
-#calendar_modal .modal-footer .btn-flat,
-#change_password_modal .modal-footer .btn,
-#change_password_modal .modal-footer .btn-flat,
-#edit_modal .modal-footer .btn,
-#edit_modal .modal-footer .btn-flat,
-#add_to_group_modal .modal-footer .btn,
-#add_to_group_modal .modal-footer .btn-flat,
-#assign_to_zone_modal .modal-footer .btn,
-#assign_to_zone_modal .modal-footer .btn-flat,
-#assigned_seat_modal .modal-footer .btn,
-#assigned_seat_modal .modal-footer .btn-flat {
-    height: 36px;
-    line-height: 36px;
-    padding: 0 16px;
-}
-#pref_modal .modal-content label,
-#calendar_modal .modal-content label,
-#change_password_modal .modal-content label,
-#edit_modal .modal-content label,
-#add_to_group_modal .modal-content label,
-#assign_to_zone_modal .modal-content label,
-#assigned_seat_modal .modal-content label {
-    font-size: 1rem;
-}
-/* Keep the switch labels from looking like placeholder text. */
-.pref-feature-row > span {
-    color: var(--warp-grey-6);
-}
-/* 2.x .modal-footer is justify-content:space-between and padding:24px,
-   which splits buttons and makes the footer huge. Group right, compact. */
 .pref-feature-row {
     display: flex;
     align-items: center;
@@ -963,27 +655,6 @@ nav .dropdown-content li > span {
     cursor: default;
 }
 
-#calendar_modal .modal-content label {
-    font-size: 1rem;
-}
-/* The calendar modal packs many distinct controls (switch, tab strip, URL
-   field, selects, weekday chips, timepicker). The shared 18px row gap leaves
-   them reading as one cramped block; give the calendar modal more breathing
-   room, including the tab strip row whose inline margin-bottom:0 would
-   otherwise glue it to the URL field. */
-#calendar_modal .modal-content > .row {
-    margin-bottom: 26px;
-}
-#calendar_modal #cal_type_tabs_row {
-    margin-bottom: 22px !important;
-}
-
-@media only screen and (max-width: 600px) {
-    #calendar_modal .valign-wrapper {
-        flex-direction: column;
-        align-items: stretch;
-    }
-}
 
 #bookingsTable {
     margin-top: 5px;

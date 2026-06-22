@@ -144,7 +144,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
             const hasAlternatives = otherZones.length > 0;
 
             let modalDiv = document.createElement('dialog');
-            modalDiv.className = 'modal';
+            modalDiv.className = 'modal warp-form-modal warp-modal-sm';
             modalDiv.id = 'reassign_modal';
 
             // Build content

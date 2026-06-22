@@ -3,7 +3,7 @@
 export default function WarpModal() {
 
     var modalElement =  document.createElement("dialog");
-    modalElement.className = "modal";
+    modalElement.className = "modal warp-form-modal warp-modal-sm";
 
     var rootContent = modalElement.appendChild( document.createElement("div") );
     rootContent.className = "modal-content";
