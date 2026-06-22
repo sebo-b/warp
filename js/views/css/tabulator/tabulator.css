@@ -1,0 +1,65 @@
+/*
+ * WARP Tabulator theme = the dependency's prebuilt Materialize theme + a thin
+ * brand override. Replaces ~1769 lines of vendored SCSS (tabulator.scss,
+ * variables.scss, tabulator_materialize.scss). All colours come from the
+ * --warp-* tokens in theme.css.
+ */
+/* Relative path into node_modules: tabulator-tables' package "exports" map
+   blocks webpack's resolver from the bare dist/css specifier. */
+@import "../../../node_modules/tabulator-tables/dist/css/tabulator_materialize.min.css";
+
+/* Full-width, borderless table to match the app layout. */
+.tabulator {
+    border: none;
+    width: 100%;
+    max-width: 100%;
+}
+
+/* Brand accent — the stock theme uses materialize red #ee6e73 for these. */
+.tabulator-row.tabulator-selected,
+.tabulator-row.tabulator-selected:hover {
+    background-color: var(--warp-secondary);
+}
+.tabulator .tabulator-footer .tabulator-page.active {
+    color: var(--warp-secondary);
+}
+.tabulator-cell.tabulator-editing {
+    border: 1px solid var(--warp-secondary);
+}
+.tabulator-edit-select-list .tabulator-edit-select-list-item.active,
+.tabulator-edit-select-list .tabulator-edit-select-list-item:hover {
+    background: var(--warp-secondary);
+    color: var(--warp-surface);
+}
+
+/* Validation failures -> brand error colour. */
+.tabulator-cell.tabulator-validation-fail {
+    border: 1px solid var(--warp-error);
+}
+.tabulator-cell.tabulator-validation-fail input,
+.tabulator-cell.tabulator-validation-fail select {
+    color: var(--warp-error);
+}
+
+/* WARP loading spinner (replaces the stock "Loading..." text). Reuses the
+   spinnerRotate keyframes defined in base/style.css. */
+.tabulator .tabulator-loader {
+    background: rgba(255, 255, 255, 0.4);
+}
+.tabulator .tabulator-loader .tabulator-loader-msg.tabulator-loading {
+    display: block;
+    width: 100px;
+    height: 100px;
+    color: transparent;
+    border-radius: 50%;
+    border: 6px solid var(--warp-accent-light);
+    border-left-color: var(--warp-secondary);
+    animation: spinnerRotate 1s infinite linear;
+}
+.tabulator .tabulator-loader .tabulator-loader-msg.tabulator-error {
+    background: var(--warp-surface);
+    color: var(--warp-text);
+    padding: 20px 40px;
+    border: 4px solid var(--warp-error);
+    border-radius: 10px;
+}

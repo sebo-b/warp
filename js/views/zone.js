@@ -7,7 +7,7 @@ import ZoneUserData from './modules/zoneuserdata.js';
 import BookAs from './modules/bookas.js';
 
 import noUiSlider from 'nouislider';
-import "./css/zone/nouislider_materialize.scss";
+import "./css/zone/nouislider.css";
 
 function downloadSeatData(seatFactory) {
 

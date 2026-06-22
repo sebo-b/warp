@@ -24,8 +24,6 @@
     "postcss": "^8.3.11",
     "postcss-loader": "^6.2.0",
     "postcss-preset-env": "^7.0.1",
-    "sass": "^1.43.4",
-    "sass-loader": "^12.3.0",
     "tabulator-tables": "^6.4.0",
     "terser": "^5.48.0",
     "terser-webpack-plugin": "^5.2.5",

@@ -2,7 +2,7 @@
 import Utils from './modules/utils.js';
 import WarpModal from './modules/modal.js';
 import {TabulatorFull as Tabulator} from 'tabulator-tables';
-import "./css/tabulator/tabulator_materialize.scss";
+import "./css/tabulator/tabulator.css";
 
 document.addEventListener("DOMContentLoaded", function(e) {
 
