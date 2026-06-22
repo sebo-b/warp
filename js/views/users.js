@@ -286,7 +286,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         if (!groupSourcePromise) {
             groupSourcePromise = Utils.xhr.post(
                 window.warpGlobals.URLs['usersList'],
-                {filters: [{field:"account_type", type:">=", value:100}]},
+                {filter: [{field:"account_type", type:">=", value:100}]},
                 {toastOnSuccess:false, errorOnFailure: false})
             .then( (v) => v.response.data.map( (row) => {
                 let label = Utils.makeUserStr(row['login'], row['name']);

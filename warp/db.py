@@ -78,6 +78,7 @@ DB_MIGRATIONS = [
     (13, "sql/migration_013_default_plan.sql"),
     (14, "sql/migration_014_show_assigned_names.sql"),
     (15, "sql/migration_015_expand_user_to_zone_roles.sql"),
+    (16, "sql/migration_016_group_account_type.sql"),
 ]
 
 DB_ADVISORY_LOCK_KEY = 7484381
