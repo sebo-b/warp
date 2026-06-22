@@ -42,6 +42,9 @@ Materialize.Autocomplete.init = function (els, options) {
     options.onAutocomplete = function (entries) {
       var e = entries && entries[0];
       if (!e) return;
+      // Single-select re-fires on clear/refocus with the same selectedValues.
+      // Clear them before forwarding so the re-fire passes [] and is dropped.
+      if (!this.options.isMultiSelect) this.selectedValues = [];
       return orig.call(this, e.text || e.id);
     };
   }
