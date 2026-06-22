@@ -238,8 +238,10 @@ nav .dropdown-content li > span {
     border-radius: 4px;
     padding: 8px 12px;
     min-height: 52px;
+    margin-bottom: 8px;  /* room so the box border isn't clipped by the row */
     align-items: center;
     box-sizing: border-box;
+    overflow: visible;
 }
 #edit_modal #add_to_group.chips.focus {
     border-color: var(--warp-grey-5);
