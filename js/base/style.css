@@ -327,6 +327,22 @@ nav .dropdown-content li > span {
     box-sizing: border-box;
     overflow: visible;
 }
+/* Self-managed autocomplete dropdown (js/views/modules/groupChips.js): a plain
+   <ul> appended to the dialog (not the chips box — see the module for why) and
+   positioned under the input by JS. Fixed positioning (with viewport top/left/
+   width set inline) lets it float over the modal uncut, instead of being clipped
+   by the dialog's overflow. Visual chrome (surface, border, shadow, row styling)
+   comes from the shared .autocomplete-content rules. */
+#edit_modal .group-chips-dropdown {
+    position: fixed;
+    max-height: 300px;
+    overflow-y: auto;
+    border-radius: var(--warp-radius);
+    z-index: 10;
+    /* Materialize's base .dropdown-content is opacity:0 (its Dropdown JS animates
+       it to 1 on open); we drive visibility ourselves, so force it opaque. */
+    opacity: 1;
+}
 #edit_modal #add_to_group.chips.focus {
     border-color: var(--warp-primary);
     background-color: transparent;

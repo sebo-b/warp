@@ -2,6 +2,7 @@
 
 import Utils from './modules/utils.js';
 import WarpModal from './modules/modal.js';
+import GroupChips from './modules/groupChips.js';
 
 import {TabulatorFull as Tabulator} from 'tabulator-tables';
 import "./css/tabulator/tabulator.css";
@@ -17,6 +18,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
     let defaultAccountType = 20;
 
     var showEditDialog;
+    var groupChips;            // GroupChips widget, built on first open
+    var groupSourcePromise;    // cached list of all selectable groups
 
     var accountTypeFormatter = function(cell, formatterParams) {
         let value = cell.getValue();
@@ -164,8 +167,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 if (password1El.value !== "")
                     actionData['password'] = password1El.value;
 
-                let addToGroup = M.Chips.getInstance(addToGroupEl);
-                for (let g of addToGroup.getData())
+                for (let g of groupChips.getData())
                     actionData.groups.push( Utils.makeUserStrRev(g.id)[0] );
 
                 Utils.xhr.post(
@@ -271,88 +273,41 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
         M.updateTextFields();
 
-        let addToGroup = M.Chips.getInstance(addToGroupEl);
-        let autocompletePromise, chipsDataPromise = null;
-        if (addToGroup) {
-            autocompletePromise = addToGroup.options.autocompleteOptions.data;
-            addToGroup.destroy(); // we have to recreate chips instance to clean up all chips inside
-        }
-        else {
-            autocompletePromise = Utils.xhr.post(
+        if (!groupChips)
+            groupChips = new GroupChips(addToGroupEl, {
+                minLength: 1,
+                placeholder: TR("Add to group"),
+                // Render the dropdown directly in the dialog (see GroupChips):
+                // nested in .modal-content it would be clipped/hidden.
+                dropdownContainer: editModalEl
+            });
+
+        // The full list of selectable groups is stable for the session — fetch once.
+        if (!groupSourcePromise) {
+            groupSourcePromise = Utils.xhr.post(
                 window.warpGlobals.URLs['usersList'],
                 {filters: [{field:"account_type", type:">=", value:100}]},
-                {toastOnSuccess:false, errorOnFailure: false});
+                {toastOnSuccess:false, errorOnFailure: false})
+            .then( (v) => v.response.data.map( (row) => {
+                let label = Utils.makeUserStr(row['login'], row['name']);
+                return { id: label, text: label };
+            }));
         }
 
-        if (login) {
-            chipsDataPromise = Utils.xhr.get(
+        // The user's currently-assigned groups are fetched per open (new user: none).
+        let chipsDataPromise = login
+            ? Utils.xhr.get(
                 window.warpGlobals.URLs['userGroups'].replace('__LOGIN__',login),
-                {toastOnSuccess:false, errorOnFailure: false});
-        }
+                {toastOnSuccess:false, errorOnFailure: false})
+              .then( (v) => v.response.map( (row) => {
+                  let label = Utils.makeUserStr(row['login'], row['name']);
+                  return { id: label, text: label };
+              }))
+            : Promise.resolve([]);
 
-        let chipsOptions = {
-            allowUserInput: true,
-            autocompleteOptions: {
-                minLength: 2,
-                dropdownOptions: {
-                    container: editModalEl,
-                    constrainWidth: false
-                }
-            },
-            placeholder: TR("Add to group"),
-            limit: Infinity
-        };
-
-        Promise.all([autocompletePromise,chipsDataPromise])
-        .then( (v) => {
-            let dataArray = [];
-            if ('response' in v[0]) {
-                for (let row of v[0].response.data)
-                    dataArray.push({
-                        id: Utils.makeUserStr(row['login'], row['name']),
-                        text: Utils.makeUserStr(row['login'], row['name'])
-                    });
-            }
-            else {
-                // Reusing previously-built 2.x-compatible array.
-                dataArray = v[0];
-            }
-            chipsOptions.autocompleteOptions.data = dataArray;
-
-            if (v[1] !== null) {
-                chipsOptions.data = [];
-                for (let row of v[1].response) {
-                    let label = Utils.makeUserStr(row['login'], row['name']);
-                    chipsOptions.data.push({ id: label, text: label });
-                }
-            }
-
-            addToGroup = M.Chips.init(addToGroupEl, chipsOptions);
-            // M2 2.3.3 bug: Chips.#setupAutocomplete wires Autocomplete.onAutocomplete
-            // to unconditionally clear+refocus the input. But Autocomplete.setMenuItems
-            // fires _triggerChanged() (and thus onAutocomplete) on *every* keystroke via
-            // onSearch, so typing wipes the field, minLength is never reached, the
-            // Materialize dropdown never shows and only the browser's native autofill
-            // popup appears. Re-bind onAutocomplete so the clear only happens on a real
-            // selection (selectedValues non-empty). Also disable native autofill.
-            addToGroup.autocomplete.options.onAutocomplete = function(items) {
-                if (items.length > 0) {
-                    addToGroup.addChip({ id: items[0].id, text: items[0].text, image: items[0].image });
-                    this.el.value = '';
-                    this.el.focus();
-                }
-            };
-            addToGroup.autocomplete.el.setAttribute('autocomplete', 'off');
-            // 2.x calls onChipAdd with `this` bound to the options object,
-            // not the Chips instance. Bind explicitly after init.
-            addToGroup.options.onChipAdd = function(el, chip) {
-                let i = addToGroup.chipsData.length - 1;  // chips are always pushed
-                let t = addToGroup.chipsData[i].id;
-                let known = addToGroup.autocomplete.options.data.some((o) => o.id === t);
-                if (!known) {
-                    addToGroup.deleteChip(i);
-                }
-            };
+        Promise.all([groupSourcePromise, chipsDataPromise])
+        .then( ([source, selected]) => {
+            groupChips.setData(source, selected);
             editModal.open();
         })
         .catch( (v) => {
