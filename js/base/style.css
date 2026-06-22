@@ -50,6 +50,16 @@
     background-color: var(--warp-danger-btn) !important;
     color: #fff !important;
 }
+/* Primary filled action (indigo) for .btn outside the modal footer — e.g. the
+   seat-action bottom-sheet's Book / Update. Mirrors .warp-btn-danger; !important
+   beats the global bare-.btn secondary(orange) default. */
+.warp-btn-primary {
+    background-color: var(--warp-primary) !important;
+    color: #fff !important;
+}
+.warp-btn-primary:hover {
+    background-color: var(--warp-primary-light) !important;
+}
 .warp-icon-danger   { color: var(--warp-danger-icon) !important; }
 .warp-icon-edit     { color: var(--warp-edit-icon) !important; }
 .warp-icon-edit-alt { color: var(--warp-edit-icon-alt) !important; }
@@ -1264,7 +1274,7 @@ SELECT.warp_select {
 }
 
 #action_modal .modal-content {
-    font-size: 10px;
+    font-size: 1rem;   /* was 10px — align the booking list with the app's body size */
 }
 
 #action_modal .modal-content P {
