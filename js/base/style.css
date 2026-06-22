@@ -430,6 +430,12 @@ nav .dropdown-content li > span {
 .warp-form-modal .modal-content > .row:last-of-type {
     margin-bottom: 0;
 }
+/* Bare input-fields placed directly in modal-content (not wrapped in a .row)
+   get no spacing from M2; add room so the filled box isn't flush against the
+   element below (e.g. the add-to-group / assign-to-zone autocomplete). */
+.warp-form-modal .modal-content > .input-field {
+    margin-bottom: 16px;
+}
 .warp-form-modal .modal-content label {
     font-size: 1rem;
 }
@@ -527,6 +533,8 @@ nav .dropdown-content li > span {
 .warp-form-modal .modal-footer .btn-flat {
     height: 36px;
     line-height: 36px;
+    margin: 0;       /* neutralise stray margins (e.g. .zone_action_btn) so the
+                        footer's gap:8px is the only spacing */
     padding: 0 16px;
 }
 .warp-form-modal .modal-footer .btn-flat:hover {
