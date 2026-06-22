@@ -1027,6 +1027,14 @@ nav .dropdown-content li > span {
     margin: 5px;
 }
 
+#action_modal .zone_action_btn {
+    display: none;
+}
+
+#action_modal .zone_action_btn.active {
+    display: inline-flex;
+}
+
 /* Seat-action bottom-sheet: one balanced band — the info block(s) on the left,
    the context-toggled action buttons grouped on the right, vertically centred —
    instead of the old inline list + <br> that crammed them into the corner. */

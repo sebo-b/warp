@@ -694,10 +694,7 @@ function initActionMenu(seatFactory) {
         }
 
         for (let btn of actionBtns) {
-            if (actions.includes(btn.dataset.action))
-                btn.style.display = "inline-block";
-            else
-                btn.style.display = "none";
+            btn.classList.toggle('active', actions.includes(btn.dataset.action));
         }
 
         //var actionElTitle = document.getElementById('action_modal_title');
