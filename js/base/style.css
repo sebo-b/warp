@@ -661,8 +661,9 @@ nav .dropdown-content li > span {
    with the input reserving room on the right so the URL never runs under them. */
 #calendar_modal #cal_url {
     /* Smaller, lighter mask so the long subscription URL reads as a tidy row
-       rather than a heavy bar of dots; reserve just enough room for the buttons. */
-    padding-right: 6rem;
+       rather than a heavy bar of dots; reserve room for the buttons + a gap so
+       the dots never run up against them. */
+    padding-right: 7.5rem;
     font-size: 0.8rem;
     letter-spacing: 1px;
 }

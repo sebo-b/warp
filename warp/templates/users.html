@@ -45,7 +45,13 @@
 
             <div class="input-field col s12" id="add_to_group_container">
                 <label for="add_to_group" class="add_to_group_label TR">Groups</label>
-                <div class="chips chips-autocomplete" id="add_to_group"></div>
+                {# NB: no `chips` class here on purpose. Materialize 2.x's Chips.Init()
+                   auto-scans `.chips` on DOMContentLoaded and wires a broken close
+                   handler that does `chip.remove()` directly — bypassing deleteChip,
+                   so chipsData (read on save) keeps the removed group and a re-add is
+                   refused as a duplicate. M.Chips.init() adds the `chips` class itself,
+                   after that scan has run, so our instance owns the only close handler. #}
+                <div class="chips-autocomplete" id="add_to_group"></div>
             </div>
 
         </div>
