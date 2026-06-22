@@ -144,7 +144,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
             const hasAlternatives = otherZones.length > 0;
 
             let modalDiv = document.createElement('dialog');
-            modalDiv.className = 'modal warp-form-modal warp-modal-sm';
+            modalDiv.className = 'modal warp-form-modal warp-fields warp-modal-sm';
             modalDiv.id = 'reassign_modal';
 
             // Build content
@@ -167,7 +167,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 content.appendChild(p);
 
                 let field = document.createElement('div');
-                field.className = 'input-field';
+                field.className = 'input-field outlined';  // Materialize outlined text-field variant
                 let sel = document.createElement('select');
                 sel.id = 'reassign_zone_select';
                 for (let z of otherZones) {
@@ -381,12 +381,13 @@ document.addEventListener("DOMContentLoaded", function(e) {
         setupGroupAutocomplete();
         errorDiv.style.display = "none";
         errorMsg.innerText = "";
-        deleteBtn.style.display = (id === null) ? "none" : "inline-block";
+        deleteBtn.style.display = (id === null) ? "none" : "inline-flex";
 
-        // (Re)initialize Materialize selects for zone type (we use the styled version now, not browser-default)
+        // (Re)initialize Materialize selects for zone type (we use the styled version now, not browser-default).
+        // Render the dropdown into the dialog so it isn't clipped by the modal-content overflow.
         let typeInst = M.FormSelect.getInstance(zoneTypeEl);
         if (typeInst) typeInst.destroy();
-        M.FormSelect.init(zoneTypeEl);
+        M.FormSelect.init(zoneTypeEl, { dropdownOptions: { container: editModalEl } });
 
         M.updateTextFields();
         editModal.open();

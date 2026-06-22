@@ -34,19 +34,17 @@
     <dialog id="action_modal" class="modal bottom-sheet">
         <div class="modal-content">
             <h4 id="action_modal_title" style="display: none;"></h4>
-            <div class="row">
-                <div class="col s12 m6 l4" id="action_modal_msg1" >
+            <div class="action_modal_bar">
+                <div class="action_modal_messages">
+                    <div id="action_modal_msg1"></div>
+                    <div id="action_modal_msg2"></div>
                 </div>
 
-                <div class="col s12 m6 l4" id="action_modal_msg2">
-                </div>
-
-                <div class="col s12 m12 l4 center-align" style="margin-top: 20px">
+                <div class="action_modal_buttons">
                     <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn TR" data-action="book">btn.Book</a>
                     <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn TR" data-action="update">btn.Update</a>
                     <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn TR" data-action="delete">btn.Remove</a>
                     {% if isZoneAdmin %}
-                    <br>
                     <a href="#!" class="modal-close waves-effect waves-light btn warp-btn-danger zone_action_btn TR" data-action="assign-modal">btn.Assign</a>
                     <a href="#!" class="modal-close waves-effect waves-light btn warp-btn-danger zone_action_btn TR" data-action="enable">btn.Enable</a>
                     <a href="#!" class="modal-close waves-effect waves-light btn warp-btn-danger zone_action_btn TR" data-action="disable">btn.Disable</a>
@@ -58,7 +56,7 @@
     {% endif %}
 
     {% if isZoneAdmin %}
-    <dialog id="assigned_seat_modal" class="modal warp-form-modal">
+    <dialog id="assigned_seat_modal" class="modal warp-form-modal warp-fields">
         <div class="modal-content">
             <h4 class="TR">Seat assignment</h4>
             <p class="TR">Select users to which the seat will be assigned:</p>

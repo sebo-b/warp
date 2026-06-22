@@ -99,6 +99,14 @@ async function openGroupModal(page: Page): Promise<void> {
   await page.locator('#edit_modal').waitFor({ state: 'visible' });
 }
 
+/** Open the edit dialog for the first group on /groups (has the Delete button). */
+async function openEditGroupModal(page: Page): Promise<void> {
+  await page.goto('/groups');
+  await page.locator('.tabulator-row').first().waitFor({ state: 'visible' });
+  await page.locator('.tabulator-row .warp-icon-edit', { hasText: 'edit' }).first().click();
+  await page.locator('#edit_modal').waitFor({ state: 'visible' });
+}
+
 /** Open the "add to group" modal on /groups/assign/:login. */
 async function openAddToGroupModal(page: Page): Promise<void> {
   await page.locator('#add_to_group_btn').click();
@@ -285,6 +293,8 @@ export const SCREENS: Screen[] = [
     path: '/plans', prepare: openPlanModal, fullPage: false },
   { id: 'modal-group-add', title: 'Modal: group add', role: 'admin',
     path: '/groups', prepare: openGroupModal, fullPage: false },
+  { id: 'modal-group-edit', title: 'Modal: group edit', role: 'admin',
+    path: '/groups', prepare: openEditGroupModal, fullPage: false },
   { id: 'modal-group-assign', title: 'Modal: add to group', role: 'admin',
     path: (ctx) => firstGroupLogin(ctx).then((g) => `/groups/assign/${g}`),
     prepare: openAddToGroupModal, fullPage: false },

@@ -243,7 +243,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         loginEl.disabled = login !== "";
 
         deleteBtn.style.display =
-            login !== "" && login !== window.warpGlobals['login'] ? "inline-block": "none";
+            login !== "" && login !== window.warpGlobals['login'] ? "inline-flex": "none";
 
         nameEl.value = name;
 

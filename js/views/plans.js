@@ -122,7 +122,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         planNameEl.value = name || "";
         errorDiv.style.display = "none";
         errorMsg.innerText = "";
-        deleteBtn.style.display = (id === null) ? "none" : "inline-block";
+        deleteBtn.style.display = (id === null) ? "none" : "inline-flex";
 
         M.updateTextFields();
         editModal.open();

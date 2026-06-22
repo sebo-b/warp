@@ -1,3 +1,86 @@
+/* ============================================================================
+   WARP app stylesheet.
+
+   Colours live in warp/static/theme.css (--warp-* tokens, deployment-swappable).
+   THIS file owns everything structural: the spacing/radius scale below, the
+   wiring of WARP colours into Materialize's M3 tokens, the affordance classes
+   that replace Materialize 2.x's dropped palette utilities, and all component
+   styling. Loads after Materialize's CSS in the webpack bundle, so app rules
+   win the cascade.
+   ============================================================================ */
+
+/* ---- Spacing & radius scale --------------------------------------------- */
+/* One 4px-based scale for every margin/padding/gap, and three radii. Use these
+   instead of ad-hoc pixel values so frames and rhythm stay consistent. */
+:root {
+    --warp-space-1: 4px;
+    --warp-space-2: 8px;
+    --warp-space-3: 12px;
+    --warp-space-4: 16px;
+    --warp-space-5: 24px;
+    --warp-space-6: 32px;
+
+    --warp-radius-sm: 2px;   /* header-filter inputs, slider handle, marquee bits */
+    --warp-radius:    4px;   /* fields, chips-box, small frames */
+    --warp-radius-lg: 8px;   /* modal sheets, floating panels */
+    --warp-radius-pill: 999px;
+}
+
+/* ---- Wire WARP colours into Materialize's M3 tokens --------------------- */
+/* Materialize 2.x themes through Material Design 3 custom properties
+   (--md-sys-color-*); override the *-light variants so the framework renders in
+   WARP's brand palette. Light is pinned via <html theme="light">. Only brand
+   roles are overridden; surface/neutral tokens keep Materialize's values so
+   dropdowns, sheets and text contrast stay correct. */
+:root[theme="light"] {
+    --md-sys-color-primary-light:      var(--warp-primary);
+    --md-sys-color-on-primary-light:   #fff;
+    --md-sys-color-secondary-light:    var(--warp-secondary);
+    --md-sys-color-on-secondary-light: #fff;
+    --md-sys-color-error-light:        var(--warp-error);
+    --md-sys-color-on-error-light:     #fff;
+}
+
+/* ---- Affordance classes (replace removed Material palette utilities) ----- */
+/* Materialize 2.x ships no .red/.green/.orange palette classes, so the markup/JS
+   that styled delete buttons, delete/edit icons and add FABs now style nothing.
+   These classes restore them, driven by the theme tokens. */
+.warp-btn-danger,
+.warp-btn-danger:hover {
+    background-color: var(--warp-danger-btn) !important;
+    color: #fff !important;
+}
+.warp-icon-danger   { color: var(--warp-danger-icon) !important; }
+.warp-icon-edit     { color: var(--warp-edit-icon) !important; }
+.warp-icon-edit-alt { color: var(--warp-edit-icon-alt) !important; }
+.warp-fab-add,
+.warp-fab-add:hover {
+    background-color: var(--warp-secondary) !important;
+    color: var(--md-sys-color-on-secondary) !important;
+}
+
+/* ---- Restore Materialize 1.x button defaults ---------------------------- */
+/* 2.x's .btn / .btn-floating carry NO background unless given a variant class
+   (.filled/.tonal/.elevated/.text); WARP's markup uses bare .btn / .btn-floating
+   and relied on 1.x's default secondary-coloured background. Restore it. The
+   .month-prev/.month-next exclusion keeps the datepicker month arrows as
+   transparent icon buttons (otherwise this rule fills them with the secondary
+   colour). */
+.btn:not(.btn-floating):not(.btn-flat):not(.text):not(.filled):not(.tonal):not(.outlined):not(.elevated):not(.warp-btn-danger):not(.month-prev):not(.month-next) {
+    background-color: var(--md-sys-color-secondary);
+    color: var(--md-sys-color-on-secondary);
+}
+.btn:not(.btn-floating):not(.btn-flat):not(.text):not(.filled):not(.tonal):not(.outlined):not(.elevated):not(.warp-btn-danger):not(.month-prev):not(.month-next):hover {
+    background-color: color-mix(in srgb, var(--md-sys-color-secondary), var(--md-sys-color-on-secondary) 16%);
+    color: var(--md-sys-color-on-secondary);
+}
+.btn-floating:not(.warp-fab-add) {
+    background-color: var(--md-sys-color-secondary);
+    color: var(--md-sys-color-on-secondary);
+}
+.btn-floating:not(.warp-fab-add):hover {
+    background-color: color-mix(in srgb, var(--md-sys-color-secondary), var(--md-sys-color-on-secondary) 16%);
+}
 
 HTML, BODY {
     width: 100%;
@@ -150,7 +233,7 @@ nav .dropdown-content li > span {
 
 .container {
     min-height: 0px;
-    padding-bottom: 15px;
+    padding-bottom: var(--warp-space-4);
 }
 
 .index_container {
@@ -230,28 +313,23 @@ nav .dropdown-content li > span {
 
 /* Chips ("Add to group" in the user edit modal). 2.x ships with a minimal
    underline style and a typo in the selector (`.chis input`), so the chip input
-   looks broken/missing. Give it the same filled-box treatment as the other
-   fields in #edit_modal. */
+   looks broken/missing. Style it as an outlined box matching the other fields:
+   transparent fill, 1px border, and the "Groups" caption notched into the top
+   border (see the .add_to_group_label rule below). */
 #edit_modal #add_to_group.chips {
-    background-color: var(--warp-grey-1);
-    border: 1px solid var(--warp-grey-3);
-    border-radius: 4px;
-    padding: 8px 12px;
+    background-color: transparent;
+    border: 1px solid var(--md-sys-color-on-surface-variant);
+    border-radius: var(--warp-radius);
+    padding: var(--warp-space-2) var(--warp-space-3);
     min-height: 52px;
-    margin-bottom: 8px;  /* room so the box border isn't clipped by the row */
+    margin-bottom: var(--warp-space-2);  /* room so the box border isn't clipped by the row */
     align-items: center;
     box-sizing: border-box;
     overflow: visible;
 }
 #edit_modal #add_to_group.chips.focus {
-    border-color: var(--warp-grey-5);
-    background-color: var(--warp-grey-2);
-    box-shadow: none;
-}
-#edit_modal #add_to_group.chips.input-field,
-#edit_modal #add_to_group.chips.input-field:hover,
-#edit_modal #add_to_group.chips.input-field.focus {
-    border-bottom: none;
+    border-color: var(--warp-primary);
+    background-color: transparent;
     box-shadow: none;
 }
 #edit_modal #add_to_group.chips input.input {
@@ -271,46 +349,27 @@ nav .dropdown-content li > span {
 #edit_modal #add_to_group.chips .chip {
     background-color: var(--warp-indigo-light);
     color: var(--warp-indigo-dark);
-    border-radius: 16px;
+    border-radius: var(--warp-radius-pill);
     height: 28px;
     line-height: 28px;
-    padding: 0 10px;
+    padding: 0 var(--warp-space-3);
 }
-/* Persistent caption above the chips box. The shared floating-label rule would
-   absolutely-position this on top of the chips, so pin it static. */
+/* "Groups" caption notched into the chips box top border, matching the outlined
+   fields. The container (#add_to_group_container) is the position:relative
+   .input-field, so the absolute label anchors to it; its .outlined margin-top
+   leaves room above for the notch. */
 #edit_modal #add_to_group_container > label.add_to_group_label {
-    position: static;
-    transform: none;
-    top: auto;
-    left: auto;
-    display: block;
-    margin-bottom: 6px;
-    font-size: 0.85rem;
-    color: var(--warp-grey-4);
-}
-
-/* Login page inputs: 2.x underline-only fields looked distorted/overlapping in
-   the centered form. Use the same filled-box style as the form modals. */
-.login_container .input-field > input:not(.select-dropdown) {
-    background-color: var(--warp-grey-1);
-    border: 1px solid var(--warp-grey-3);
-    border-radius: 4px;
-    padding: 18px 12px 8px 12px;
+    position: absolute;
+    top: -8px;
+    left: 16px;
+    margin-left: -4px;
+    padding: 0 4px;
+    transform: scale(0.75);
+    transform-origin: top left;
     font-size: 1rem;
-    color: var(--warp-text);
-    width: 100%;
-    box-sizing: border-box;
-}
-.login_container .input-field > label {
-    top: 4px;
-    left: 12px;
+    background-color: var(--warp-surface);
     color: var(--warp-grey-4);
-    font-size: 0.85rem;
-}
-.login_container .input-field > input:focus {
-    border-color: var(--warp-grey-5);
-    background-color: var(--warp-grey-2);
-    outline: none;
+    z-index: 1;
 }
 
 .noUi-warp-connect {
@@ -321,7 +380,7 @@ nav .dropdown-content li > span {
 
 .noUi-warp-handle {
     border: 1px solid var(--warp-slider-handle-border);
-    border-radius: 3px;
+    border-radius: var(--warp-radius-sm);
     background: var(--warp-surface);
     cursor: default;
     box-shadow: inset 0 0 1px var(--warp-surface),
@@ -349,8 +408,8 @@ nav .dropdown-content li > span {
     flex-direction: row;
     justify-content: center;
     align-items: center;
-    gap: 20px;
-    padding: 10px 16px 0 16px;
+    gap: var(--warp-space-5);
+    padding: var(--warp-space-3) var(--warp-space-4) 0 var(--warp-space-4);
 }
 
 .pref_timeslider_container .timeslider {
@@ -411,7 +470,7 @@ nav .dropdown-content li > span {
 .warp-form-modal {
     background-color: var(--warp-surface);
     border: 1px solid var(--warp-grey-2);
-    border-radius: 8px;
+    border-radius: var(--warp-radius-lg);
     color: var(--warp-text);
     max-height: 90vh;
 }
@@ -419,7 +478,7 @@ nav .dropdown-content li > span {
     max-width: 560px;
 }
 .warp-form-modal .modal-content {
-    padding: 24px;
+    padding: var(--warp-space-5);
     color: var(--warp-text);
     flex: 1 1 auto;
     min-height: 0;
@@ -427,19 +486,19 @@ nav .dropdown-content li > span {
 }
 .warp-form-modal .modal-content > h4,
 .warp-form-modal .modal-content > h5 {
-    margin: 0 0 20px;
+    margin: 0 0 var(--warp-space-5);
     color: var(--warp-text);
     font-weight: 500;
 }
 .warp-form-modal .modal-content > p {
-    margin: 0 0 16px;
+    margin: 0 0 var(--warp-space-4);
 }
 .warp-form-modal .modal-content > p:last-of-type {
     margin-bottom: 0;
 }
 /* 2.x .row is a grid with no vertical margin; add breathing room between rows. */
 .warp-form-modal .modal-content > .row {
-    margin-bottom: 18px;
+    margin-bottom: var(--warp-space-4);
 }
 .warp-form-modal .modal-content > .row:last-of-type {
     margin-bottom: 0;
@@ -448,111 +507,139 @@ nav .dropdown-content li > span {
    get no spacing from M2; add room so the filled box isn't flush against the
    element below (e.g. the add-to-group / assign-to-zone autocomplete). */
 .warp-form-modal .modal-content > .input-field {
-    margin-bottom: 16px;
+    margin-bottom: var(--warp-space-4);
 }
 .warp-form-modal .modal-content label {
     font-size: 1rem;
 }
-/* Filled text/password/textarea + select trigger (restores readable fields). */
-.warp-form-modal .input-field > input:not(.select-dropdown),
-.warp-form-modal .input-field > textarea,
-.warp-form-modal .select-wrapper input.select-dropdown {
-    background-color: var(--warp-grey-1);
-    border: 1px solid var(--warp-grey-3);
-    border-radius: 4px;
-    font-size: 1rem;
-    color: var(--warp-text);
+/* ---- Outlined fields (.warp-fields) -------------------------------------
+   WARP forms use Materialize 2.x's built-in `.outlined` text-field variant
+   (bordered rounded box, label notched into the top border). The `.outlined`
+   class is added to every `.warp-fields .input-field` at runtime (base.js, and
+   the reassign builder in zones.js). Only two tweaks over the framework default:
+     1. full-column width;
+     2. floating the FormSelect label — M2 never floats it (the label sits after
+        .select-wrapper, not adjacent to the inner input), so pin it to the
+        outlined floated position, with a surface-coloured notch over the border. */
+.warp-fields .input-field:not(.chips) > input,
+.warp-fields .input-field > textarea,
+.warp-fields .select-wrapper,
+.warp-fields .select-wrapper input.select-dropdown {
     width: 100%;
     box-sizing: border-box;
 }
-.warp-form-modal .input-field > input:not(.select-dropdown),
-.warp-form-modal .input-field > textarea {
-    padding: 18px 12px 8px 12px;
-}
-.warp-form-modal .select-wrapper input.select-dropdown {
-    padding: 24px 36px 6px 12px;  /* room for label + caret */
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-/* Floating labels sit cleanly above the filled fields. */
-.warp-form-modal .input-field > label,
-.warp-form-modal .input-field input.select-dropdown + label,
-.warp-form-modal .input-field input.select-dropdown:not(:placeholder-shown) + label,
-.warp-form-modal .input-field input.select-dropdown:focus + label {
-    top: 4px;
-    left: 12px;
+.warp-fields .select-wrapper + label {
+    top: -8px;
+    left: 16px;
+    margin-left: -4px;
+    padding: 0 4px;
+    transform: scale(0.75);
+    transform-origin: top left;
+    background-color: var(--warp-surface);
     color: var(--warp-grey-4);
 }
-.warp-form-modal .input-field input.select-dropdown:focus + label {
-    color: var(--warp-indigo);
+/* M2's outlined floated label is transparent, so the border strikes through the
+   text — give the floated label a surface notch that paints over the border.
+   The `label.active` case covers labels forced-floated in markup (e.g. the
+   zone-group autocomplete, which carries a placeholder so :placeholder-shown
+   never triggers the input-based rules). */
+.warp-fields .input-field.outlined input:focus + label,
+.warp-fields .input-field.outlined input:not(:placeholder-shown) + label,
+.warp-fields .input-field.outlined textarea:focus + label,
+.warp-fields .input-field.outlined textarea:not(:placeholder-shown) + label,
+.warp-fields .input-field.outlined > label.active {
+    background-color: var(--warp-surface);
 }
-/* Suppress the autofocus primary focus ring on first paint. */
-.warp-form-modal .select-wrapper:focus-within,
-.warp-form-modal .select-wrapper input.select-dropdown:focus {
+/* M2's .outlined zeroes the input's top padding (so the box collapses to line
+   height) and 2.x gives .input-field no margin — give outlined fields a
+   comfortable height and vertical breathing room so notched labels don't collide. */
+.warp-fields .input-field.outlined {
+    margin-top: var(--warp-space-3);
+    margin-bottom: var(--warp-space-3);
+}
+.warp-fields .input-field.outlined > input,
+.warp-fields .input-field.outlined .select-wrapper input.select-dropdown {
+    height: 3rem;
+}
+/* Suppress the autofocus primary focus ring on the select trigger. */
+.warp-fields .select-wrapper:focus-within,
+.warp-fields .select-wrapper input.select-dropdown:focus {
     outline: none !important;
 }
 /* Select + autocomplete menus read as elevated floating panels. */
-.warp-form-modal .dropdown-content.select-dropdown,
-.warp-form-modal .dropdown-content.autocomplete-content {
+.warp-fields .dropdown-content.select-dropdown,
+.warp-fields .dropdown-content.autocomplete-content {
     background-color: var(--warp-surface);
     border: 1px solid var(--warp-grey-2);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
-.warp-form-modal .dropdown-content.select-dropdown li,
-.warp-form-modal .dropdown-content.autocomplete-content li,
-.warp-form-modal .dropdown-content.autocomplete-content li > span {
+.warp-fields .dropdown-content.select-dropdown li,
+.warp-fields .dropdown-content.autocomplete-content li,
+.warp-fields .dropdown-content.autocomplete-content li > span {
     color: var(--warp-text);
 }
-.warp-form-modal .dropdown-content.select-dropdown li.active,
-.warp-form-modal .dropdown-content.select-dropdown li:not(.disabled):hover,
-.warp-form-modal .dropdown-content.autocomplete-content li:hover,
-.warp-form-modal .dropdown-content.autocomplete-content li.selected {
+.warp-fields .dropdown-content.select-dropdown li.active,
+.warp-fields .dropdown-content.select-dropdown li:not(.disabled):hover,
+.warp-fields .dropdown-content.autocomplete-content li:hover,
+.warp-fields .dropdown-content.autocomplete-content li.selected {
     background-color: var(--warp-grey-1);
 }
 /* M2 autocomplete items render as a bold, tight display:grid; normalise them to
    match the plain FormSelect rows. */
-.warp-form-modal .dropdown-content.autocomplete-content li {
+.warp-fields .dropdown-content.autocomplete-content li {
     display: block !important;
     min-height: 50px;
     line-height: 1.5rem;
     padding: 0;
 }
-.warp-form-modal .dropdown-content.autocomplete-content li .item-text {
+.warp-fields .dropdown-content.autocomplete-content li .item-text {
     padding: 14px 16px !important;
     overflow: visible !important;
 }
-.warp-form-modal .dropdown-content.autocomplete-content li .item-text > div {
+.warp-fields .dropdown-content.autocomplete-content li .item-text > div {
     font-weight: normal !important;
     line-height: 22px !important;
     font-size: 16px !important;
 }
-.warp-form-modal .dropdown-content.autocomplete-content li .highlight {
+.warp-fields .dropdown-content.autocomplete-content li .highlight {
     color: inherit;
     background: transparent;
     font-weight: 500;
 }
 /* 2.x .modal-footer is space-between with 24px padding (splits buttons, huge);
-   group right, compact, pinned. */
-.warp-form-modal .modal-footer {
+   group compact, pinned, with a divider. Shared by every form dialog and the
+   zone-map help modal; only the alignment differs (see below). */
+.warp-form-modal .modal-footer,
+#zonemap_help_modal .modal-footer {
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
-    padding: 12px 24px;
+    align-items: center;   /* keep buttons of differing heights baseline-aligned */
+    gap: var(--warp-space-2);
+    padding: var(--warp-space-3) var(--warp-space-5);
     border-top: 1px solid var(--warp-grey-2);
     background-color: var(--warp-grey-1);
     position: static;
 }
+#zonemap_help_modal .modal-footer { justify-content: center; }
 .warp-form-modal .modal-footer .btn,
 .warp-form-modal .modal-footer .btn-flat {
-    height: 36px;
-    line-height: 36px;
-    margin: 0;       /* neutralise stray margins (e.g. .zone_action_btn) so the
-                        footer's gap:8px is the only spacing */
-    padding: 0 16px;
+    margin: 0;   /* neutralise stray margins (e.g. .zone_action_btn) so the
+                    footer's gap is the only spacing */
 }
 .warp-form-modal .modal-footer .btn-flat:hover {
     background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Modals are native <dialog> shown via showModal(), so the dialog + its
+   ::backdrop sit in the top layer. Materialize 2.x blurs that backdrop, which
+   also blurs everything painted below it — including the body-level
+   #toast-container. A toast raised while a modal is open (e.g. change-password
+   validation errors) then reads as an unreadable smudge behind a "blur wall".
+   Drop the blur so toasts stay crisp; the backdrop has no colour of its own, so
+   nothing else changes visually. */
+.modal::backdrop {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
 }
 
 /* Per-modal extras (only what differs from the shared sheet). */
@@ -561,13 +648,38 @@ nav .dropdown-content li > span {
     max-height: 70vh;
 }
 #calendar_modal .modal-content > .row {
-    margin-bottom: 26px;
+    margin-bottom: var(--warp-space-5);
 }
 #calendar_modal #cal_type_tabs_row {
-    margin-bottom: 22px !important;
+    margin-bottom: var(--warp-space-5) !important;
 }
 #calendar_modal .timepicker {
     cursor: pointer;
+}
+/* Subscription-URL action buttons (regenerate / copy / show): a single
+   right-aligned cluster vertically centred in the 3rem outlined input box,
+   with the input reserving room on the right so the URL never runs under them. */
+#calendar_modal #cal_url {
+    /* Smaller, lighter mask so the long subscription URL reads as a tidy row
+       rather than a heavy bar of dots; reserve just enough room for the buttons. */
+    padding-right: 6rem;
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+}
+#calendar_modal #cal_url_btns {
+    position: absolute;
+    right: var(--warp-space-1);
+    top: 24px;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+}
+#calendar_modal #cal_url_btns .btn-flat {
+    padding: 0 var(--warp-space-1);
+    height: auto;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
 }
 #calendar_modal .input-field .helper-text {
     color: var(--warp-grey-4);
@@ -600,9 +712,9 @@ nav .dropdown-content li > span {
 .pref-feature-row {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding-top: 8px;
-    padding-bottom: 4px;
+    gap: var(--warp-space-3);
+    padding-top: var(--warp-space-2);
+    padding-bottom: var(--warp-space-1);
 }
 
 .pref-feature-row > span {
@@ -618,15 +730,15 @@ nav .dropdown-content li > span {
 .weekday-chips-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 8px;
-    margin-bottom: 8px;
+    gap: var(--warp-space-2);
+    margin-top: var(--warp-space-2);
+    margin-bottom: var(--warp-space-2);
 }
 
 .weekday-chip {
     border: 2px solid var(--warp-grey-3);
-    border-radius: 50px;
-    padding: 0 12px;
+    border-radius: var(--warp-radius-pill);
+    padding: 0 var(--warp-space-3);
     height: 32px;
     line-height: 28px;
     font-size: 0.85rem;
@@ -653,15 +765,31 @@ nav .dropdown-content li > span {
     user-select: none;
 }
 
+/* A single, full-width tab strip: three equal cells, a 1px baseline divider,
+   grey inactive labels and a secondary-coloured active label + indicator. The
+   `.tab.col.s4` grid widths are overridden by flex:1 so the strip always spans
+   the modal regardless of label length; M2's 48px min-height is pinned down to
+   a compact 40px. */
+#cal_type_tabs {
+    display: flex;
+    width: 100%;
+    height: 40px;
+    border-bottom: 1px solid var(--warp-grey-2);
+}
+#cal_type_tabs .tab {
+    flex: 1 1 0;
+    height: 40px;
+    line-height: 40px;
+}
 #cal_type_tabs .tab a {
-    color: rgba(var(--warp-secondary-rgb), 0.7);
-    /* M2 sets min-height:48px on .tabs .tab a, which ignores the inline
-       height:36px and makes the bar 48px tall. Enforce the intended compact
-       36px and drop the blue primary-tint active background so the bar reads
-       as a single orange-accent tab strip consistent with the form. */
-    min-height: 36px !important;
-    height: 36px !important;
-    padding: 0 12px;
+    display: block;
+    width: 100%;
+    text-align: center;
+    color: var(--warp-grey-4);
+    min-height: 40px !important;
+    height: 40px;
+    line-height: 40px;
+    padding: 0 8px;
 }
 #cal_type_tabs .tab a.active,
 #cal_type_tabs .tab a:hover {
@@ -673,8 +801,56 @@ nav .dropdown-content li > span {
 }
 #cal_type_tabs .tab.disabled a,
 #cal_type_tabs .tab.disabled a:hover {
-    color: rgba(0, 0, 0, 0.4);
+    color: var(--warp-grey-3);
     cursor: default;
+}
+
+/* Multi-select dropdown rows (e.g. calendar "Zones to monitor"): M2 top-aligns
+   the native checkbox against the label. The row height/padding already come from
+   the shared `li > span` (14px 16px); just centre the checkbox + label inline and
+   brand the box so the row matches the single-select rows. */
+.warp-fields .dropdown-content.select-dropdown li label {
+    display: flex;
+    align-items: center;
+    gap: var(--warp-space-3);
+    margin: 0;
+}
+.warp-fields .dropdown-content.select-dropdown li label > input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    flex: 0 0 auto;
+    accent-color: var(--warp-primary);
+}
+
+/* Timepicker (calendar "Reminder time"). M2 colours the digital HH:MM with the
+   undefined --font-on-primary-color-medium token, so the time renders invisible.
+   Restore the classic branded look: a primary-coloured digital header with white
+   numerals (the field being edited at full opacity, the other dimmed), so the
+   selected time is always readable. */
+.timepicker-modal .timepicker-digital-display {
+    background-color: var(--warp-primary);
+}
+.timepicker-modal .timepicker-text-container {
+    color: #fff;
+}
+.timepicker-modal input[type=text].timepicker-input-hours,
+.timepicker-modal input[type=text].timepicker-input-minutes {
+    /* M2 leaves these inputs unconstrained, so at 60px font their intrinsic
+       width (~616px) overflows the 6.85rem wrapper and the centred digits land
+       off over the clock face. Pin them to the wrapper so HH:MM stays in the
+       coloured header. */
+    width: 100%;
+    box-sizing: border-box;
+    color: rgba(255, 255, 255, 0.7);
+    background-color: transparent;
+}
+.timepicker-modal input[type=text].timepicker-input-hours:focus,
+.timepicker-modal input[type=text].timepicker-input-minutes:focus,
+.timepicker-modal input[type=text].timepicker-input-hours.text-primary,
+.timepicker-modal input[type=text].timepicker-input-minutes.text-primary {
+    color: #fff;
+    background-color: transparent;
 }
 
 
@@ -688,7 +864,8 @@ nav .dropdown-content li > span {
     float: right;
 }
 
-.zone_container {
+.zone_container,
+.zone_modify_container {
     display: flex;
     flex-direction: row;
     flex: 0 1 auto;
@@ -701,7 +878,7 @@ nav .dropdown-content li > span {
     display: flex;
     flex-direction: column;
     overflow: auto;
-    padding: 10px;
+    padding: var(--warp-space-3);
     z-index: 1;
 }
 
@@ -793,7 +970,8 @@ nav .dropdown-content li > span {
     align-items: flex-start;
 }
 
-.zone_map {
+.zone_map,
+.zone_modify_map {
     flex: 0 1 auto;
     min-width: 0px;
     min-height: 0px;
@@ -846,6 +1024,32 @@ nav .dropdown-content li > span {
 .zone_action_btn {
     /*width: 100px;*/
     margin: 5px;
+}
+
+/* Seat-action bottom-sheet: one balanced band — the info block(s) on the left,
+   the context-toggled action buttons grouped on the right, vertically centred —
+   instead of the old inline list + <br> that crammed them into the corner. */
+.action_modal_bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--warp-space-4);
+}
+.action_modal_messages {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--warp-space-4) var(--warp-space-5);
+}
+.action_modal_buttons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: var(--warp-space-2);
+}
+.action_modal_buttons .zone_action_btn {
+    margin: 0;
 }
 
 .seat_preview {
@@ -1011,7 +1215,7 @@ SELECT.warp_select {
     box-sizing: border-box;
     line-height: normal;
     border: none;
-    border-radius: 2px;
+    border-radius: var(--warp-radius-sm);
 }
 
 #action_modal .modal-content {
@@ -1051,36 +1255,7 @@ INPUT[type="text"] ~ .show_password_btn::after {
     text-align: left !important;
 }
 
-.group_assign_title {
-    font-size: 2.28rem;
-    line-height: 110%;
-    padding: 10px 0px;
-}
-
-@media only screen and (min-width : 993px) {
-    .group_assign_title {
-        margin-left: -60px;
-    }
-}
-
-.group_assign_title A {
-    text-decoration: none;
-    color: inherit;
-}
-
-.group_assign_title SPAN, .group_assign_title I {
-    vertical-align: middle;
-}
-
-.group_assign_container {
-    display: flex;
-    flex-direction: column;
-}
-
-.TR {
-    visibility: hidden;
-}
-
+.group_assign_title,
 .zone_assign_title {
     font-size: 2.28rem;
     line-height: 110%;
@@ -1088,23 +1263,31 @@ INPUT[type="text"] ~ .show_password_btn::after {
 }
 
 @media only screen and (min-width : 993px) {
+    .group_assign_title,
     .zone_assign_title {
         margin-left: -60px;
     }
 }
 
+.group_assign_title A,
 .zone_assign_title A {
     text-decoration: none;
     color: inherit;
 }
 
+.group_assign_title SPAN, .group_assign_title I,
 .zone_assign_title SPAN, .zone_assign_title I {
     vertical-align: middle;
 }
 
+.group_assign_container,
 .zone_assign_container {
     display: flex;
     flex-direction: column;
+}
+
+.TR {
+    visibility: hidden;
 }
 
 .userGroupCell {
@@ -1116,20 +1299,12 @@ INPUT[type="text"] ~ .show_password_btn::after {
     text-decoration: underline;
 }
 
-.zone_modify_container {
-    display: flex;
-    flex-direction: row;
-    flex: 0 1 auto;
-    min-height: 0px;
-    min-width: 0px;
-}
-
 .zone_modify_sidepanel {
     flex: none;
     display: flex;
     flex-direction: column;
     overflow: auto;
-    padding: 10px;
+    padding: var(--warp-space-3);
     width: 300px;
     align-items: center;
     margin-left: auto;
@@ -1153,58 +1328,8 @@ INPUT[type="text"] ~ .show_password_btn::after {
     flex: none;
 }
 
-/* Plan editor sidepanel inputs/selects: 2.x underline-only fields are hard to
-   read; give them the same filled look as the form modals. */
-.zone_modify_sidepanel .input-field > input:not(.select-dropdown),
-.zone_modify_sidepanel .input-field > textarea {
-    background-color: var(--warp-grey-1);
-    border: 1px solid var(--warp-grey-3);
-    border-radius: 4px;
-    box-sizing: border-box;
-    color: var(--warp-text);
-    font-size: 1rem;
-    padding: 18px 12px 8px 12px;
-    width: 100%;
-}
-.zone_modify_sidepanel .input-field > label {
-    color: var(--warp-grey-4);
-    font-size: 0.85rem;
-    left: 12px;
-    top: 4px;
-}
-.zone_modify_sidepanel .input-field input.select-dropdown {
-    background-color: var(--warp-grey-1);
-    border: 1px solid var(--warp-grey-3);
-    border-radius: 4px;
-    box-sizing: border-box;
-    color: var(--warp-text);
-    font-size: 1rem;
-    overflow: hidden;
-    padding: 24px 36px 6px 12px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    width: 100%;
-}
-.zone_modify_sidepanel .input-field input.select-dropdown + label,
-.zone_modify_sidepanel .input-field input.select-dropdown:focus + label {
-    color: var(--warp-grey-4);
-    left: 12px;
-    top: 4px;
-}
-.zone_modify_sidepanel .dropdown-content.select-dropdown {
-    background-color: var(--warp-surface);
-    border: 1px solid var(--warp-grey-2);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-.zone_modify_sidepanel .dropdown-content.select-dropdown li {
-    color: var(--warp-text);
-}
-.zone_modify_sidepanel .dropdown-content.select-dropdown li.active,
-.zone_modify_sidepanel .dropdown-content.select-dropdown li:not(.disabled):hover {
-    background-color: var(--warp-grey-1);
-}
-/* 2.x removes vertical margin from .input-field; add it back so the plan
-   editor sidepanel fields and the delete button don't stick together. */
+/* Plan editor sidepanel fields use the shared .warp-fields treatment; only the
+   2.x-removed vertical margin between fields needs restoring here. */
 .zone_modify_sidepanel .input-field {
     margin-bottom: 12px;
 }
@@ -1240,19 +1365,19 @@ INPUT[type="text"] ~ .show_password_btn::after {
 .zone_modify_marquee_corner {
     width: 10px;
     height: 10px;
-    border-radius: 2px;
+    border-radius: var(--warp-radius-sm);
 }
 
 .zone_modify_marquee_edge_h {
     width: 18px;
     height: 10px;
-    border-radius: 3px;
+    border-radius: var(--warp-radius-sm);
 }
 
 .zone_modify_marquee_edge_v {
     width: 10px;
     height: 18px;
-    border-radius: 3px;
+    border-radius: var(--warp-radius-sm);
 }
 
 .zone_modify_marquee_rotate {
@@ -1297,18 +1422,10 @@ INPUT[type="text"] ~ .show_password_btn::after {
     color: white;
     font-size: 12px;
     line-height: 18px;
-    border-radius: 3px;
+    border-radius: var(--warp-radius-sm);
     white-space: nowrap;
     pointer-events: none;
     z-index: 12;
-}
-
-.zone_modify_map {
-    flex: 0 1 auto;
-    min-width: 0px;
-    min-height: 0px;
-    overflow: auto;
-    position: relative;
 }
 
 #spinner {
@@ -1362,20 +1479,10 @@ INPUT[type="text"] ~ .show_password_btn::after {
     user-select: none;
 }
 
-/* Materialize 2.x reshaped .btn (40px tall, 24px padding, 14px, no uppercase,
-   4px radius) — taller/wider and less button-like than 1.x. Restore the 1.x
-   shape so action/modal buttons look as before. (.btn-floating keeps its own
-   40/56px round sizing via higher-specificity rules.) */
-.btn, .btn-small, .btn-large, .btn-flat {
-    border-radius: 2px;
-    display: inline-block;
-    height: 36px;
-    line-height: 36px;
-    padding: 0 16px;
-    font-size: 14px;
-    text-transform: uppercase;
-    vertical-align: middle;
-}
+/* Buttons use Materialize 2.x's default shape (40px, 4px radius, mixed-case).
+   WARP's old 1.x button restore (compact uppercase) was dropped in favour of the
+   M3 default after visual review. Bare .btn still gets its background from the
+   button-default rules at the top of this file (2.x leaves bare .btn unfilled). */
 
 /* Materialize 2.x's .modal.bottom-sheet only sets margin/max-height/radius —
    it lost 1.x's full-width, bottom-anchored, square-cornered behaviour, so the
@@ -1394,14 +1501,7 @@ INPUT[type="text"] ~ .show_password_btn::after {
     color: var(--warp-text);
 }
 #action_modal .modal-content {
-    padding: 16px 24px;
-}
-#action_modal .modal-footer {
-    justify-content: flex-end;
-    gap: 8px;
-    padding: 10px 16px;
-    border-top: 1px solid var(--warp-grey-2);
-    background-color: var(--warp-surface);
+    padding: var(--warp-space-4) var(--warp-space-5);
 }
 
 /* The help modal has a tall table of sprite explanations. Make it scrollable
@@ -1413,22 +1513,16 @@ INPUT[type="text"] ~ .show_password_btn::after {
     color: var(--warp-text);
 }
 #zonemap_help_modal .modal-content {
-    padding: 24px;
+    padding: var(--warp-space-5);
 }
 #zonemap_help_modal .modal-content > table {
     width: 100%;
     border-collapse: collapse;
 }
 #zonemap_help_modal .modal-content > table td {
-    padding: 8px 0;
+    padding: var(--warp-space-2) 0;
     vertical-align: top;
 }
 #zonemap_help_modal .modal-content > table tr + tr td {
     border-top: 1px solid var(--warp-grey-2);
-}
-#zonemap_help_modal .modal-footer {
-    justify-content: center;
-    padding: 12px 24px;
-    border-top: 1px solid var(--warp-grey-2);
-    background-color: var(--warp-grey-1);
 }

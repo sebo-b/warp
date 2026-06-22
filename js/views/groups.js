@@ -155,7 +155,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         loginEl.disabled = login !== "";
 
         deleteBtn.style.display =
-            login !== "" ? "inline-block": "none";
+            login !== "" ? "inline-flex": "none";
 
         nameEl.value = name;
 

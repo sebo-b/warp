@@ -78,7 +78,7 @@
         {% endif %}
     </ul>
 
-    <dialog id="pref_modal" class="modal warp-form-modal">
+    <dialog id="pref_modal" class="modal warp-form-modal warp-fields">
         <div class="modal-content">
             <h4 class="TR">Preferences</h4>
             <div class="row">
@@ -146,7 +146,7 @@
         </div>
     </dialog>
 
-    <dialog id="calendar_modal" class="modal warp-form-modal">
+    <dialog id="calendar_modal" class="modal warp-form-modal warp-fields">
         <div class="modal-content">
             <h4 class="TR">Calendar settings</h4>
 
@@ -162,10 +162,10 @@
 
             <div class="row" id="cal_type_tabs_row" style="margin-bottom:0;">
                 <div class="col s12">
-                    <ul class="tabs" id="cal_type_tabs" style="height:36px;">
-                        <li class="tab col s4"><a class="active TR" href="#cal-type-all" style="height:36px;line-height:36px;">No filter</a></li>
-                        <li class="tab col s4"><a class="TR" href="#cal-type-bookings" style="height:36px;line-height:36px;">Bookings only</a></li>
-                        <li class="tab col s4" id="cal_type_reminders_tab"><a class="TR" href="#cal-type-reminders" style="height:36px;line-height:36px;">Reminders only</a></li>
+                    <ul class="tabs" id="cal_type_tabs">
+                        <li class="tab col s4"><a class="active TR" href="#cal-type-all">No filter</a></li>
+                        <li class="tab col s4"><a class="TR" href="#cal-type-bookings">Bookings only</a></li>
+                        <li class="tab col s4" id="cal_type_reminders_tab"><a class="TR" href="#cal-type-reminders">Reminders only</a></li>
                     </ul>
                     <div id="cal-type-all"></div>
                     <div id="cal-type-bookings"></div>
@@ -175,13 +175,12 @@
 
             <div class="row">
                 <div class="input-field col s12">
-                    <input type="password" id="cal_url" readonly
-                           style="padding-right:9rem;box-sizing:border-box;">
+                    <input type="password" id="cal_url" readonly>
                     <label for="cal_url" class="TR">Calendar subscription URL</label>
-                    <span id="cal_url_btns" style="position:absolute;right:0;top:18px;bottom:8px;display:flex;align-items:center;">
-                        <a href="#!" id="cal_regenerate" class="btn-flat waves-effect" style="padding:0 8px"><i class="material-icons">autorenew</i></a>
-                        <a href="#!" id="cal_copy" class="btn-flat waves-effect" style="padding:0 8px"><i class="material-icons">content_copy</i></a>
-                        <a href="#!" id="cal_url_eye_btn" class="btn-flat waves-effect" style="padding:0 8px"><i class="material-icons" id="cal_url_eye">visibility</i></a>
+                    <span id="cal_url_btns">
+                        <a href="#!" id="cal_regenerate" class="btn-flat waves-effect"><i class="material-icons">autorenew</i></a>
+                        <a href="#!" id="cal_copy" class="btn-flat waves-effect"><i class="material-icons">content_copy</i></a>
+                        <a href="#!" id="cal_url_eye_btn" class="btn-flat waves-effect"><i class="material-icons" id="cal_url_eye">visibility</i></a>
                     </span>
                 </div>
             </div>
@@ -231,7 +230,7 @@
     </dialog>
 
     {% if hasChangePassword %}
-    <dialog id="change_password_modal" class="modal warp-form-modal">
+    <dialog id="change_password_modal" class="modal warp-form-modal warp-fields">
         <div class="modal-content">
             <h4 class="TR">Change password</h4>
             <div class="row">

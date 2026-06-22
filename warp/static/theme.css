@@ -1,33 +1,21 @@
 /*
- * WARP theme — the single source of truth for colours.
+ * WARP theme — the single source of truth for COLOURS, and nothing else.
  *
- * Loaded in base.html before the webpack base bundle (which contains
- * Materialize 2.x's CSS). Materialize 2.x themes through Material Design 3
- * CSS custom properties (--md-sys-color-*); we override the *-light variants
- * here so the framework renders in WARP's brand palette. Light is pinned via
- * <html theme="light">, which activates Materialize's :root[theme=light]
- * alias block and defeats its prefers-color-scheme:dark rule — so the UI never
- * flips to dark unexpectedly.
+ * Loaded in base.html before the webpack base bundle. This file is intentionally
+ * pure colour: a deployment can swap it (or mount a replacement via
+ * WARP_THEME_FILE) to re-skin WARP with zero risk of breaking layout — there are
+ * no selectors here that target framework internals, only --warp-* custom
+ * properties.
  *
- * The :root[theme="light"] selector is intentionally higher-specificity than
- * Materialize's :root defaults, so this file wins even though it loads first.
+ * Everything that *wires* these colours into Materialize (the M3 --md-sys-color-*
+ * mappings), the affordance classes, the spacing/radius scale and every other
+ * structural rule lives in js/base/style.css, NOT here.
  *
- * The --warp-* tokens below are the app's own colours (indigo accents, the
- * grey ramp, semantic affordances). The future theming step routes every
- * scattered hex in style.scss/tabulator/nouislider/JS/templates through these.
- * Re-theming a deployment = edit this one file (or mount a replacement via
- * WARP_THEME_FILE).
- */
-
-/* ---- App tokens (--warp-*) — the single source of truth ----------------- */
-/* The brand is WARP's original pre-migration palette:
+ * The brand is WARP's original pre-migration palette:
  *   $primary   = indigo darken-1  (#3949ab)
  *   $secondary = orange accent-4  (#ff6d00)
  *   $link      = indigo darken-3  (#283593)
- * These are wired into Materialize's M3 tokens in the :root[theme="light"]
- * block below, and every scattered hex in style.css / the SCSS bridges / JS /
- * templates points at the tokens here. Re-theming a deployment = edit this file
- * (or mount a replacement via WARP_THEME_FILE). */
+ */
 :root {
   /* brand */
   --warp-primary:       #3949ab;  /* indigo darken-1 — nav, buttons, focus, links */
@@ -76,70 +64,4 @@
   --warp-primary-rgb: 57, 73, 171;
   --warp-secondary-rgb: 255, 109, 0;
   --warp-error-rgb: 244, 67, 54;
-}
-
-/* ---- Material Design 3 tokens ------------------------------------------- */
-/* Wire the brand into Materialize 2.x's M3 light palette. The :root[theme=
- * "light"] selector out-specifies the framework's :root defaults (0,1,1 vs
- * 0,1,0), so these win even though theme.css loads first. Only the brand roles
- * are overridden; surface/neutral tokens keep Materialize's values so dropdowns,
- * sheets and text contrast stay correct. */
-:root[theme="light"] {
-  --md-sys-color-primary-light:      var(--warp-primary);
-  --md-sys-color-on-primary-light:   #fff;
-  --md-sys-color-secondary-light:    var(--warp-secondary);
-  --md-sys-color-on-secondary-light: #fff;
-  --md-sys-color-error-light:        var(--warp-error);
-  --md-sys-color-on-error-light:     #fff;
-}
-
-/* ---- Affordance classes (replace removed Material palette utility classes) */
-/* Materialize 2.x ships no .red/.green/.orange palette classes, so the ~33
- * markup/JS usages that styled delete buttons, delete/edit icons, and add FABs
- * now style nothing. These classes restore them, driven by the tokens above. */
-.warp-btn-danger {
-  background-color: var(--warp-danger-btn) !important;
-  color: #fff !important;
-}
-.warp-btn-danger:hover { background-color: var(--warp-danger-btn) !important; }
-
-.warp-icon-danger { color: var(--warp-danger-icon) !important; }
-.warp-icon-edit   { color: var(--warp-edit-icon) !important; }
-.warp-icon-edit-alt { color: var(--warp-edit-icon-alt) !important; }
-
-/* add FABs were .btn-floating.orange.accent-4; restore the orange. */
-.warp-fab-add,
-.warp-fab-add:hover {
-  background-color: var(--warp-secondary) !important;
-  color: var(--md-sys-color-on-secondary) !important;
-}
-
-/* ---- Restore Materialize 1.x button defaults ----------------------------- */
-/* 2.x's .btn / .btn-floating carry NO background unless given a variant class
- * (.filled/.tonal/.elevated/.text). WARP's existing markup uses bare .btn /
- * .btn-floating and relied on 1.x's default secondary-coloured background, so
- * restore that here. The .warp-btn-danger / .warp-fab-add affordance classes
- * (and 2.x's own variant classes) keep overriding via higher specificity /
- * !important. .disabled FABs keep their grey via the .auto_book_fab rule in
- * style.css (!important).
- * Exclude .month-prev/.month-next: Materialize 2.x's datepicker month arrows
- * carry .btn too, and should stay transparent icon buttons — without the
- * exclusion this rule (specificity 0,9,0) out-specifies their own
- * `.month-prev{background:transparent}` and fills them with the secondary
- * colour (the "weird grey arrow buttons"). */
-.btn:not(.btn-floating):not(.btn-flat):not(.text):not(.filled):not(.tonal):not(.outlined):not(.elevated):not(.warp-btn-danger):not(.month-prev):not(.month-next) {
-  background-color: var(--md-sys-color-secondary);
-  color: var(--md-sys-color-on-secondary);
-}
-.btn:not(.btn-floating):not(.btn-flat):not(.text):not(.filled):not(.tonal):not(.outlined):not(.elevated):not(.warp-btn-danger):not(.month-prev):not(.month-next):hover {
-  background-color: color-mix(in srgb, var(--md-sys-color-secondary), var(--md-sys-color-on-secondary) 16%);
-  color: var(--md-sys-color-on-secondary);
-}
-
-.btn-floating:not(.warp-fab-add) {
-  background-color: var(--md-sys-color-secondary);
-  color: var(--md-sys-color-on-secondary);
-}
-.btn-floating:not(.warp-fab-add):hover {
-  background-color: color-mix(in srgb, var(--md-sys-color-secondary), var(--md-sys-color-on-secondary) 16%);
 }

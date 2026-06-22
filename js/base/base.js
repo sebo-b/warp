@@ -196,6 +196,10 @@ function initPrefs() {
   if (!prefModalEl || !planSelectEl || !daySelectEl || !saveBtn || !sliderEl)
     return;
 
+  // Render the FormSelect dropdowns into the dialog (not the scrolling
+  // .modal-content), so a long list isn't clipped by the modal's overflow.
+  var SELECT_OPTS = { dropdownOptions: { container: prefModalEl } };
+
   var DEFAULT_TIME = [9 * 3600, 17 * 3600];
   var loadedPrefs = null;
   var slider = null;
@@ -204,8 +208,8 @@ function initPrefs() {
     var time = (loadedPrefs && loadedPrefs.default_time) ? loadedPrefs.default_time : DEFAULT_TIME;
     planSelectEl.value = (loadedPrefs && loadedPrefs.default_plan) ? String(loadedPrefs.default_plan) : "";
     daySelectEl.value = (loadedPrefs && loadedPrefs.default_day) ? loadedPrefs.default_day : "same";
-    M.FormSelect.init(planSelectEl);
-    M.FormSelect.init(daySelectEl);
+    M.FormSelect.init(planSelectEl, SELECT_OPTS);
+    M.FormSelect.init(daySelectEl, SELECT_OPTS);
     if (slider) slider.set(time);
     if (showSeatNamesEl) showSeatNamesEl.checked = loadedPrefs ? loadedPrefs.zone_show_seat_names : false;
     if (showBookingPreviewEl) showBookingPreviewEl.checked = loadedPrefs ? loadedPrefs.zone_show_booking_preview : false;
@@ -236,8 +240,8 @@ function initPrefs() {
     applyPrefsToUI();
   }
 
-  M.FormSelect.init(planSelectEl);
-  M.FormSelect.init(daySelectEl);
+  M.FormSelect.init(planSelectEl, SELECT_OPTS);
+  M.FormSelect.init(daySelectEl, SELECT_OPTS);
 
   M.Modal.init(prefModalEl, {
     onOpenStart: ensureSlider,
@@ -858,6 +862,14 @@ function initChangePassword() {
 document.addEventListener("DOMContentLoaded", function(e) {
   window.TR.updateDOM();
   M.updateTextFields(); // ensure placeholder=" " so 2.x CSS label-float works
+
+  // Opt every WARP form field into Materialize 2.x's built-in `.outlined`
+  // text-field variant (bordered box). Scoped to .warp-fields containers so the
+  // nav search and the zone "book-as" underline field are left untouched; chips
+  // are excluded (they are a multi-value container, not a text field).
+  document.querySelectorAll('.warp-fields .input-field:not(.chips)').forEach(function(el) {
+    el.classList.add('outlined');
+  });
 
   let pendingToast = window.sessionStorage.getItem('pendingToast');
   if (pendingToast) {

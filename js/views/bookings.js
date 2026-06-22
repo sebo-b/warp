@@ -37,13 +37,19 @@ document.addEventListener("DOMContentLoaded", function(e) {
             pickerOptions.i18n = warpGlobals.i18n.datePicker.i18n_object;
         }
 
-        M.Datepicker.init(picker, pickerOptions);
+        // Materialize 2.x's Datepicker._insertHTMLIntoDOM reads el.parentNode, so it
+        // must run AFTER Tabulator has inserted the input into the header cell.
+        // Initialising eagerly (as in 1.x) throws "null querySelector", which aborts
+        // column init — breaking the whole report. Defer to Tabulator's onRendered.
+        onRendered(function() {
+            M.Datepicker.init(picker, pickerOptions);
 
-        let cellValue = cell.getValue();
-        if (cellValue) {
-            let ts = new Date(parseInt(cellValue)*1000);
-            picker.value = ts.toISOString().substring(0,10);
-        }
+            let cellValue = cell.getValue();
+            if (cellValue) {
+                let ts = new Date(parseInt(cellValue)*1000);
+                picker.value = ts.toISOString().substring(0,10);
+            }
+        });
 
         return picker;
     }
@@ -102,22 +108,26 @@ document.addEventListener("DOMContentLoaded", function(e) {
             pickerOptions.i18n = warpGlobals.i18n.datePicker.i18n_object;
         }
 
-        M.Datepicker.init(fromDatePicker, pickerOptions);
-        M.Datepicker.init(toDatePicker, pickerOptions);
+        // See dateFilterEditor: 2.x's Datepicker needs the input attached to the
+        // DOM before init (parentNode access), so defer to Tabulator's onRendered.
+        onRendered(function() {
+            M.Datepicker.init(fromDatePicker, pickerOptions);
+            M.Datepicker.init(toDatePicker, pickerOptions);
 
-        // 2.x's clear button calls setInputValues (which fires a `change` event on
-        // the input) but NOT onSelect, so onSelect alone wouldn't reset the
-        // closure vars. Re-derive each picker's timestamp from its datepicker
-        // instance's `.date` (null when cleared) on input change.
-        fromDatePicker.addEventListener('change', function() {
-            var inst = M.Datepicker.getInstance(fromDatePicker);
-            fromTS = (inst && inst.date) ? Math.round(inst.date.getTime()/1000) : null;
-            success({ fromTS: fromTS, toTS: toTS });
-        });
-        toDatePicker.addEventListener('change', function() {
-            var inst = M.Datepicker.getInstance(toDatePicker);
-            toTS = (inst && inst.date) ? Math.round(inst.date.getTime()/1000)+24*3600-1 : null;
-            success({ fromTS: fromTS, toTS: toTS });
+            // 2.x's clear button calls setInputValues (which fires a `change` event on
+            // the input) but NOT onSelect, so onSelect alone wouldn't reset the
+            // closure vars. Re-derive each picker's timestamp from its datepicker
+            // instance's `.date` (null when cleared) on input change.
+            fromDatePicker.addEventListener('change', function() {
+                var inst = M.Datepicker.getInstance(fromDatePicker);
+                fromTS = (inst && inst.date) ? Math.round(inst.date.getTime()/1000) : null;
+                success({ fromTS: fromTS, toTS: toTS });
+            });
+            toDatePicker.addEventListener('change', function() {
+                var inst = M.Datepicker.getInstance(toDatePicker);
+                toTS = (inst && inst.date) ? Math.round(inst.date.getTime()/1000)+24*3600-1 : null;
+                success({ fromTS: fromTS, toTS: toTS });
+            });
         });
 
         return container;
@@ -200,8 +210,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
         );
 
         columns.push(
-            {title:TR("From"), field: "fromTS", formatter:tsFormatter, headerFilter:dateFilterEditor, headerFilterFunc:">="},
-            {title:TR("To"), field: "toTS", formatter:tsFormatter, headerFilter:dateFilterEditor, headerFilterParams: { offset: 24*3600-1 }, headerFilterFunc:"<="}
+            {title:TR("From"), field: "fromTS", width: 150, formatter:tsFormatter, headerFilter:dateFilterEditor, headerFilterFunc:">="},
+            {title:TR("To"), field: "toTS", width: 150, formatter:tsFormatter, headerFilter:dateFilterEditor, headerFilterParams: { offset: 24*3600-1 }, headerFilterFunc:"<="}
         );
 
         initialSort.push(
