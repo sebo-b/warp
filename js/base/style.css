@@ -274,6 +274,18 @@ nav .dropdown-content li > span {
     line-height: 28px;
     padding: 0 10px;
 }
+/* Persistent caption above the chips box. The shared floating-label rule would
+   absolutely-position this on top of the chips, so pin it static. */
+#edit_modal #add_to_group_container > label.add_to_group_label {
+    position: static;
+    transform: none;
+    top: auto;
+    left: auto;
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.85rem;
+    color: var(--warp-grey-4);
+}
 
 /* Login page inputs: 2.x underline-only fields looked distorted/overlapping in
    the centered form. Use the same filled-box style as the form modals. */
