@@ -19,6 +19,7 @@ INSERT INTO users VALUES ('admin','pbkdf2:sha256:260000$LdN4KNf6xzb0XlSu$810ca4a
 
 CREATE INDEX users_account_type_idx ON users(account_type);
 
+-- ACCOUNT_TYPE_GROUP == 100
 CREATE TABLE groups (
     "group" text NOT NULL,
     login text NOT NULL,
@@ -26,6 +27,27 @@ CREATE TABLE groups (
     FOREIGN KEY ("group") REFERENCES users(login) ON DELETE CASCADE,
     FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE
     );
+
+CREATE FUNCTION check_group_is_group()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM users
+        WHERE login = NEW."group"
+          AND account_type >= 100
+    ) THEN
+        RAISE EXCEPTION 'Only group accounts (account_type >= 100) can be used as a group';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER groups_account_type_check
+BEFORE INSERT OR UPDATE ON groups
+FOR EACH ROW
+EXECUTE PROCEDURE check_group_is_group();
 
 -- zone_type: 10 == ZONE_TYPE_DISABLED
 -- zone_group: when non-NULL, user may hold at most one seat across all zones sharing the same group name
@@ -284,4 +306,4 @@ CREATE UNLOGGED TABLE calendar_cache (
 
 CREATE TABLE db_initialized (version INTEGER NOT NULL);
 
-INSERT INTO db_initialized(version) VALUES(15);
+INSERT INTO db_initialized(version) VALUES(16);

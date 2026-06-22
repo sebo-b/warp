@@ -280,7 +280,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         else {
             autocompletePromise = Utils.xhr.post(
                 window.warpGlobals.URLs['usersList'],
-                {filters: [{field:"account_type", type:">=", value:100}]},
+                {filter: [{field:"account_type", type:">=", value:100}]},
                 {toastOnSuccess:false, errorOnFailure: false});
         }
 
