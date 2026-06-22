@@ -110,7 +110,7 @@ Seat.prototype._updateDiv = function() {
     this.seatDiv.style.backgroundPositionX = offset;
 
     if (this.__select)
-        this.seatDiv.style.outline = "2px solid #b71c1c";
+        this.seatDiv.style.outline = "2px solid var(--warp-error)";
     else
         this.seatDiv.style.outline = "";
 

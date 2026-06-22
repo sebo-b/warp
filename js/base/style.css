@@ -1262,6 +1262,7 @@ INPUT[type="text"] ~ .show_password_btn::after {
     cursor: grab;
     z-index: 11;
     pointer-events: all;
+    color: var(--warp-primary);  /* drives the rotate-icon SVG stroke=currentColor */
 }
 
 .zone_modify_marquee_rotate:active {
