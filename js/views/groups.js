@@ -66,7 +66,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
     showEditDialog = function(login,name) {
 
         var editModalEl = document.getElementById('edit_modal');
-        var editModal = M.Modal.getInstance(editModalEl);
+        var editModal = warpDialog.getInstance(editModalEl);
 
         var loginEl = document.getElementById("login");
         var nameEl = document.getElementById("name");
@@ -79,7 +79,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
         if (typeof(editModal) === 'undefined') {
 
-            editModal = M.Modal.init(editModalEl);
+            editModal = warpDialog(editModalEl);
 
             var saveBtnClicked = function(e) {
 

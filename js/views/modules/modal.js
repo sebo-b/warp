@@ -18,7 +18,7 @@ export default function WarpModal() {
 
     this.clickedBtnId = null;
 
-    this.modal = M.Modal.init(modalElement,
+    this.modal = warpDialog(modalElement,
         { onCloseEnd: function() {
 
                 //local copy
@@ -56,16 +56,20 @@ export default function WarpModal() {
 
         this.options = Object.assign({}, WarpModal.default_options, options)
 
-        for (var b of this.options.buttons) {
+        this.options.buttons.forEach(function(b, i) {
             var bElem = this.footerElement.appendChild( document.createElement("a") );
-            bElem.className = "modal-close waves-effect waves-orange btn-flat";
+            // First button is the affirmative action (Yes/Ok/Confirm) -> primary
+            // (filled, picks up the footer's indigo from style.css); rest flat.
+            bElem.className = (i === 0)
+                ? "modal-close waves-effect waves-light btn"
+                : "modal-close waves-effect waves-light btn-flat";
 
             bElem.href = "#!";
             bElem.innerText = b.text;
-            bElem.addEventListener('click', function(bid) {
-                this.clickedBtnId = bid;
-                }.bind(this,b.id));
-            }
+            bElem.addEventListener('click', function() {
+                this.clickedBtnId = b.id;
+                }.bind(this));
+            }.bind(this));
 
         this.modal.open();
     };

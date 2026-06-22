@@ -73,7 +73,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
     showEditDialog = function(login,account_type,name) {
 
         var editModalEl = document.getElementById('edit_modal');
-        var editModal = M.Modal.getInstance(editModalEl);
+        var editModal = warpDialog.getInstance(editModalEl);
 
         var loginEl = document.getElementById("login");
         var nameEl = document.getElementById("name");
@@ -91,7 +91,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
         if (typeof(editModal) === 'undefined') {
 
-            editModal = M.Modal.init(editModalEl, {
+            editModal = warpDialog(editModalEl, {
                 onCloseEnd: function() {
                     // we need to tear down materialize select and recreate it
                     // as there is no (exposed) API to select the option

@@ -139,7 +139,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     assignToZoneBtn.addEventListener('click', function(e) {
 
-        let assignToZoneModal = M.Modal.getInstance(assignToZoneModalEl);
+        let assignToZoneModal = warpDialog.getInstance(assignToZoneModalEl);
 
         let showModal = function() {
             assignToZoneTable.clearData();
@@ -148,7 +148,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
         let initModal = function(usersData) {
 
-            assignToZoneModal = M.Modal.init(assignToZoneModalEl);
+            assignToZoneModal = warpDialog(assignToZoneModalEl);
             if (assignToZoneModalHeader) {
                 assignToZoneModalHeader.textContent = TR("Assign to zone: %{zone_name}", {zone_name: window.warpGlobals.zoneName});
             }

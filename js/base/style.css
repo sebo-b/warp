@@ -645,6 +645,26 @@ nav .dropdown-content li > span {
 .warp-form-modal .modal-footer .btn-flat:hover {
     background-color: rgba(0, 0, 0, 0.05);
 }
+/* Unified footer button semantics (every form dialog + the zone-map help modal):
+     - primary action  (Save / Ok / Add / Set / Update / Reassign): filled indigo
+     - destructive      (Delete / Remove): filled red — see .warp-btn-danger above
+     - everything else  (Cancel / Generate password): flat text (.btn-flat)
+   The indigo fill must beat the global bare-.btn secondary(orange) default, whose
+   long :not() chain carries high specificity — hence !important, matching the
+   .warp-btn-danger pattern. */
+.warp-form-modal .modal-footer .btn:not(.warp-btn-danger):not(.btn-flat) {
+    background-color: var(--warp-primary) !important;
+    color: #fff !important;
+}
+.warp-form-modal .modal-footer .btn:not(.warp-btn-danger):not(.btn-flat):hover {
+    background-color: var(--warp-primary-light) !important;
+}
+/* Left-aligned auxiliary actions (e.g. Generate password) sit apart from the
+   right-grouped Delete / Save / Cancel cluster. (.modal-footer is flex/flex-end,
+   so 1.x's float-based .left does nothing; push the rest right with auto margin.) */
+.warp-form-modal .modal-footer .left {
+    margin-right: auto;
+}
 
 /* Modals are native <dialog> shown via showModal(), so the dialog + its
    ::backdrop sit in the top layer. Materialize 2.x blurs that backdrop, which

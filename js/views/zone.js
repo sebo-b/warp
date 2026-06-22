@@ -464,9 +464,9 @@ function initActionMenu(seatFactory) {
         if (!assignModalEl || typeof(ZoneUserData) === 'undefined')
             return null;
 
-        var assignModal = M.Modal.getInstance(assignModalEl);
+        var assignModal = warpDialog.getInstance(assignModalEl);
         if (!assignModal)
-            assignModal = M.Modal.init(assignModalEl, {});
+            assignModal = warpDialog(assignModalEl, {});
 
         var zoneUserData = ZoneUserData.getInstance();
         var userData = zoneUserData.getData();
@@ -605,7 +605,7 @@ function initActionMenu(seatFactory) {
 
     // init modal
     var actionEl = document.getElementById('action_modal');
-    var actionModal =  M.Modal.init(actionEl);
+    var actionModal =  warpDialog(actionEl);
 
     // register hooks
     var actionBtns = document.getElementsByClassName('zone_action_btn');
@@ -913,7 +913,7 @@ function initShiftSelectDates() {
 function initZoneHelp() {
 
     var helpModalEl = document.getElementById('zonemap_help_modal');
-    var helpModal = M.Modal.init(helpModalEl);
+    var helpModal = warpDialog(helpModalEl);
 
     var helpModalSpriteDivs = document.getElementsByClassName("help_modal_sprite");
     for (let d of helpModalSpriteDivs) {

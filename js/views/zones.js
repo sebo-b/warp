@@ -132,7 +132,10 @@ document.addEventListener("DOMContentLoaded", function(e) {
                         });
                 }
             })
-            .then(() => table.replaceData());
+            .then(() => table.replaceData())
+            // Dismissing the dialog (Esc / outside-click on a clean form) rejects
+            // the promise — that's a plain cancel, so swallow it.
+            .catch(() => {});
     }
 
     // Show modal when deleting a zone that has seats.
@@ -216,7 +219,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
             modalDiv.appendChild(footer);
             document.body.appendChild(modalDiv);
 
-            let modalInstance = M.Modal.init(modalDiv, { dismissible: false });
+            let modalInstance = warpDialog(modalDiv);
             modalInstance.open();
 
             // Initialize Materialize select (must be after attached to DOM)
@@ -367,9 +370,9 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     showEditDialog = function(id, name, zoneType, zoneGroup, seatCount) {
 
-        var editModal = M.Modal.getInstance(editModalEl);
+        var editModal = warpDialog.getInstance(editModalEl);
         if (typeof(editModal) === 'undefined') {
-            editModal = M.Modal.init(editModalEl, { dismissible: false });
+            editModal = warpDialog(editModalEl);
         }
 
         var zoneName = name || "";

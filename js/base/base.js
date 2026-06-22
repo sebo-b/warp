@@ -16,10 +16,8 @@ import noUiSlider from 'nouislider';
 //   M.toast(opts)        -> 2.x dropped the `toast` function; construct a Toast.
 //   M.updateTextFields() -> 2.x floats labels via CSS :not(:placeholder-shown);
 //      we just ensure inputs carry placeholder=" " so empty-state labels rest.
-//   M.Modal              -> 2.x Modal is a no-op stub (open/close do nothing,
-//      options are dead). Replace with a compat layer over native <dialog>
-//      so the ~25 existing M.Modal.init/getInstance/open/close call sites and
-//      the onOpenStart/onOpenEnd/onCloseStart/onCloseEnd options keep working.
+//   (2.x's Modal is a no-op stub — modals are native <dialog>; WARP drives them
+//   through the window.warpDialog controller defined below, not M.Modal.)
 //   M.Autocomplete.init  -> 2.x changed `data` to [{id,text}] and onAutocomplete
 //      to receive AutocompleteData[]; wrap to accept the 1.x {key:null} map and
 //      pass the selected string back, so call sites are unchanged.
@@ -50,7 +48,83 @@ Materialize.Autocomplete.init = function (els, options) {
   return _AcInit.call(this, els, options);
 };
 
-class WarpModalCompat {
+// ---- Native <dialog> controller (replaces the dead Materialize 2.x Modal) ----
+// Materialize 2.x ships NO modal JS: `M.Modal` is an empty stub and modals are
+// plain native <dialog>. WarpDialog is the single shared controller every WARP
+// modal goes through (window.warpDialog). It wraps showModal()/close() with the
+// 1.x-style lifecycle hooks the app relies on (onOpenStart/End, onCloseStart/End)
+// and centralises the unified dismissal rules so every modal behaves identically:
+//   * Esc while a select/autocomplete dropdown is open -> close just the dropdown.
+//   * Esc / outside-click with unsaved edits           -> ignored (modal stays).
+//   * Esc / outside-click on a clean (or readonly) modal -> Cancel (close).
+// It also lifts in-modal <select> dropdowns into the top layer (position:fixed
+// popover) so they are never clipped by the <dialog> that owns the top layer.
+
+// Re-bind a FormSelect's Dropdown to render its panel as a top-layer popover at
+// the trigger's viewport coordinates, flipping above when there's more room on
+// top. M2 positions dropdowns with absolute left/top relative to the offset
+// parent and never calls showPopover(), so inside a showModal() <dialog> the
+// panel is otherwise clipped by / trapped behind the modal.
+function warpLiftSelect(input) {
+  // Accept either the FormSelect trigger input or the original <select>.
+  if (input && input.tagName === 'SELECT') {
+    var wrap = input.closest('.select-wrapper');
+    input = wrap && wrap.querySelector('input.select-dropdown');
+  }
+  if (!input) return;
+  var dd = window.M.Dropdown.getInstance(input);
+  if (!dd || dd.__warpLifted) return;
+  dd.__warpLifted = true;
+  dd.open = function () {
+    if (dd.isOpen) return;
+    dd.isOpen = true;
+    if (typeof dd.options.onOpenStart === 'function') dd.options.onOpenStart.call(dd, dd.el);
+    var r = dd.el.getBoundingClientRect();
+    var de = dd.dropdownEl;
+    de.style.display = 'block';
+    de.style.opacity = '1';
+    de.style.transform = 'none';
+    de.style.position = 'fixed';
+    de.style.left = r.left + 'px';
+    de.style.width = r.width + 'px';
+    de.style.height = '';
+    var dh = de.offsetHeight;
+    var spaceBelow = window.innerHeight - r.bottom;
+    var spaceAbove = r.top;
+    de.style.top = (dh > spaceBelow && spaceAbove > spaceBelow)
+      ? Math.max(8, spaceAbove - dh) + 'px'
+      : r.bottom + 'px';
+    de.popover = 'manual';
+    try { de.showPopover(); } catch (e) {}
+    setTimeout(function () { if (dd._setupTemporaryEventHandlers) dd._setupTemporaryEventHandlers(); }, 0);
+    dd.el.ariaExpanded = 'true';
+  };
+  dd.close = function () {
+    if (!dd.isOpen) return;
+    dd.isOpen = false;
+    if (typeof dd.options.onCloseStart === 'function') dd.options.onCloseStart.call(dd, dd.el);
+    try { dd.dropdownEl.hidePopover(); } catch (e) {}
+    dd.dropdownEl.style.display = 'none';
+    if (dd._removeTemporaryEventHandlers) dd._removeTemporaryEventHandlers();
+    dd.el.ariaExpanded = 'false';
+  };
+}
+
+// True when any Materialize dropdown panel is currently visible (a select lifted
+// to a top-layer popover, or an autocomplete rendered inline). Used to route Esc
+// / outside-click to the dropdown instead of the modal.
+function warpDropdownOpen() {
+  var panels = document.querySelectorAll('.dropdown-content');
+  for (var i = 0; i < panels.length; i++) {
+    var p = panels[i];
+    if (p.matches(':popover-open')) return true;
+    var cs = getComputedStyle(p);
+    if (cs.display !== 'none' && cs.opacity !== '0' && p.getClientRects().length) return true;
+  }
+  return false;
+}
+
+class WarpDialog {
   constructor(el, options) {
     this.el = el;
     this.options = Object.assign({
@@ -58,24 +132,52 @@ class WarpModalCompat {
       onOpenStart: null, onOpenEnd: null,
       onCloseStart: null, onCloseEnd: null
     }, options || {});
-    this._onClose = this._onClose.bind(this);
+    this._dirty = false;       // set by any user edit since the last open()
+    this._ddEscaping = false;  // this Esc is closing a dropdown, not the modal
+    this._onEdit = function () { this._dirty = true; }.bind(this);
+    // Capture phase: runs before Materialize closes the dropdown, so we can see
+    // it was open and flag the imminent 'cancel' as a dropdown-dismiss.
+    this._onKeydown = function (ev) {
+      if (ev.key === 'Escape' && warpDropdownOpen()) this._ddEscaping = true;
+    }.bind(this);
     this._onCancel = this._onCancel.bind(this);
     this._onBackdrop = this._onBackdrop.bind(this);
+    this._onClose = this._onClose.bind(this);
+    el.addEventListener('input', this._onEdit);
+    el.addEventListener('change', this._onEdit);
+    el.addEventListener('keydown', this._onKeydown, true);
     el.addEventListener('click', this._onBackdrop);
     el.addEventListener('cancel', this._onCancel);
     el.addEventListener('close', this._onClose);
   }
-  _onBackdrop(ev) { if (this.options.dismissible !== false && ev.target === this.el) this.close(); }
-  // Esc: block it for non-dismissible modals; otherwise close ourselves so the
-  // onClose* callbacks fire (the native 'close' event alone wouldn't run them).
-  _onCancel(ev) { ev.preventDefault(); if (this.options.dismissible !== false) this.close(); }
-  // The native 'close' event fires asynchronously from el.close(); use it only
-  // to keep the .open class in sync (e.g. if the dialog is closed some other
-  // way). The onCloseEnd callback is fired synchronously in close() below, like
-  // 1.x, so callers that POST/redirect on close see it before the URL changes.
+  // Esc. We always preventDefault and manage closing ourselves so the onClose*
+  // hooks fire (the native 'close' event alone wouldn't run them).
+  _onCancel(ev) {
+    ev.preventDefault();
+    if (this._ddEscaping) { this._ddEscaping = false; return; } // Esc closed a dropdown
+    if (this.options.dismissible === false) return;
+    if (this._dirty) return;                                    // unsaved edits -> ignore
+    this.close();
+  }
+  _onBackdrop(ev) {
+    if (ev.target !== this.el) return;   // only a click on the backdrop itself
+    if (warpDropdownOpen()) return;      // let the click dismiss the dropdown first
+    if (this.options.dismissible === false) return;
+    if (this._dirty) return;             // unsaved edits -> ignore
+    this.close();
+  }
+  // The native 'close' event fires asynchronously from el.close(); use it only to
+  // keep the .open class in sync. onCloseEnd is fired synchronously in close().
   _onClose() { this.el.classList.remove('open'); }
+  // For edits that don't surface as a bubbling input/change event (mouse-driven
+  // custom widgets: the prefs time slider, calendar weekday chips, ...).
+  markDirty() { this._dirty = true; }
   open() {
+    this._dirty = false;
+    this._ddEscaping = false;
     if (this.options.onOpenStart) this.options.onOpenStart.call(this.el);
+    // Lift this modal's <select> dropdowns into the top layer (idempotent).
+    this.el.querySelectorAll('.select-wrapper input.select-dropdown').forEach(warpLiftSelect);
     this.el.classList.add('open');
     this.el.showModal();
     var self = this;
@@ -92,25 +194,28 @@ class WarpModalCompat {
     return this;
   }
   destroy() {
-    this.el.removeEventListener('click', this._onBackdrop);
-    this.el.removeEventListener('cancel', this._onCancel);
-    this.el.removeEventListener('close', this._onClose);
-    this.el._warpModal = undefined;
+    var el = this.el;
+    el.removeEventListener('input', this._onEdit);
+    el.removeEventListener('change', this._onEdit);
+    el.removeEventListener('keydown', this._onKeydown, true);
+    el.removeEventListener('click', this._onBackdrop);
+    el.removeEventListener('cancel', this._onCancel);
+    el.removeEventListener('close', this._onClose);
+    el._warpDialog = undefined;
   }
-  static init(els, options) {
-    var single = els && els.nodeType === 1; // HTMLElement
-    var list = single ? [els] : (els || []);
-    var out = [];
-    for (var i = 0; i < list.length; i++) {
-      var el = list[i];
-      if (!el || el._warpModal) { out.push(el && el._warpModal); continue; }
-      el._warpModal = new WarpModalCompat(el, options);
-      out.push(el._warpModal);
-    }
-    return single ? out[0] : out;
-  }
-  static getInstance(el) { return el ? el._warpModal : undefined; }
+  static getInstance(el) { return el ? el._warpDialog : undefined; }
 }
+
+// Create-or-return the controller for a <dialog> — one idempotent call that
+// replaces the old M.Modal.getInstance()/init() pair. Passing options on a
+// later call updates the live options object (callers mutate onCloseStart etc.).
+function warpDialog(el, options) {
+  if (!el) return undefined;
+  if (!el._warpDialog) el._warpDialog = new WarpDialog(el, options);
+  else if (options) Object.assign(el._warpDialog.options, options);
+  return el._warpDialog;
+}
+warpDialog.getInstance = WarpDialog.getInstance;
 
 const M = Object.assign({}, Materialize, {
   toast: function (opts) { return new Materialize.Toast(opts); },
@@ -119,9 +224,9 @@ const M = Object.assign({}, Materialize, {
       '.input-field input:not([placeholder]), .input-field textarea:not([placeholder])'
     ).forEach(function (el) { el.setAttribute('placeholder', ' '); });
   },
-  Modal: WarpModalCompat,
 });
 window.M = M;
+window.warpDialog = warpDialog;
 
 if (!window?.warpGlobals?.i18nUrl)
   throw Error('warpGlobals.i18nUrl must be defined');
@@ -235,6 +340,11 @@ function initPrefs() {
         minDiv.innerText = formatHHMM(unencoded[0]);
         maxDiv.innerText = formatHHMM(unencoded[1]);
       });
+      // User drag (not the programmatic .set on load) marks the modal dirty, so
+      // an accidental Esc/outside-click won't silently discard the change.
+      slider.on('slide', function() {
+        warpDialog.getInstance(prefModalEl)?.markDirty();
+      });
     }
 
     applyPrefsToUI();
@@ -243,9 +353,8 @@ function initPrefs() {
   M.FormSelect.init(planSelectEl, SELECT_OPTS);
   M.FormSelect.init(daySelectEl, SELECT_OPTS);
 
-  M.Modal.init(prefModalEl, {
-    onOpenStart: ensureSlider,
-    dismissible: false
+  warpDialog(prefModalEl, {
+    onOpenStart: ensureSlider
   });
 
   fetch('/xhr/prefs')
@@ -340,56 +449,8 @@ function initCalendar() {
   // the modal's top-layer subtree so the dropdowns appear above the modal.
   var SELECT_OPTS = { dropdownOptions: { container: calModalEl } };
 
-  // M2 Dropdown positions the panel with position:absolute + left/top relative
-  // to its offsetParent, and never calls showPopover(), so a dropdown opened
-  // inside a showModal <dialog> is either trapped behind the modal (if at body)
-  // or clipped by the modal/content overflow. Re-bind open/close to render the
-  // panel as a top-layer popover with position:fixed at the trigger's viewport
-  // coordinates: it floats above the modal AND is never clipped by it. Flips
-  // above the trigger when there is more space on top.
-  function liftSelectDropdown(selectEl) {
-    var wrap = selectEl.closest && selectEl.closest('.select-wrapper');
-    var input = wrap && wrap.querySelector('input.select-dropdown');
-    var dd = input && M.Dropdown.getInstance(input);
-    if (!dd || dd.__warpLifted) return;
-    dd.__warpLifted = true;
-    dd.open = function () {
-      if (dd.isOpen) return;
-      dd.isOpen = true;
-      if (typeof dd.options.onOpenStart === 'function')
-        dd.options.onOpenStart.call(dd, dd.el);
-      var r = dd.el.getBoundingClientRect();
-      var de = dd.dropdownEl;
-      de.style.display = 'block';
-      de.style.opacity = '1';
-      de.style.transform = 'none';
-      de.style.position = 'fixed';
-      de.style.left = r.left + 'px';
-      de.style.width = r.width + 'px';
-      de.style.height = '';
-      var dh = de.offsetHeight;
-      var spaceBelow = window.innerHeight - r.bottom;
-      var spaceAbove = r.top;
-      if (dh > spaceBelow && spaceAbove > spaceBelow)
-        de.style.top = Math.max(8, spaceAbove - dh) + 'px';
-      else
-        de.style.top = r.bottom + 'px';
-      de.popover = 'manual';
-      try { de.showPopover(); } catch (e) {}
-      setTimeout(function () { if (dd._setupTemporaryEventHandlers) dd._setupTemporaryEventHandlers(); }, 0);
-      dd.el.ariaExpanded = 'true';
-    };
-    dd.close = function () {
-      if (!dd.isOpen) return;
-      dd.isOpen = false;
-      if (typeof dd.options.onCloseStart === 'function')
-        dd.options.onCloseStart.call(dd, dd.el);
-      try { dd.dropdownEl.hidePopover(); } catch (e) {}
-      dd.dropdownEl.style.display = 'none';
-      if (dd._removeTemporaryEventHandlers) dd._removeTemporaryEventHandlers();
-      dd.el.ariaExpanded = 'false';
-    };
-  }
+  // (In-modal <select> dropdowns are lifted into the top layer by warpDialog on
+  // open, so they are never clipped by the modal — see WarpDialog.open().)
 
   // Sun=64, Mon=1, Tue=2, Wed=4, Thu=8, Fri=16, Sat=32
   var WEEKDAY_BITS = [64, 1, 2, 4, 8, 16, 32];
@@ -416,6 +477,7 @@ function initCalendar() {
       weekdayMask ^= WEEKDAY_BITS[i];
       chip.classList.toggle('active');
       updateReminderTabState();
+      warpDialog.getInstance(calModalEl)?.markDirty();
     });
   });
 
@@ -439,8 +501,6 @@ function initCalendar() {
 
   if (calMissingAheadEl) M.FormSelect.init(calMissingAheadEl, SELECT_OPTS);
   if (calReleaseAheadEl) M.FormSelect.init(calReleaseAheadEl, SELECT_OPTS);
-  if (calMissingAheadEl) liftSelectDropdown(calMissingAheadEl);
-  if (calReleaseAheadEl) liftSelectDropdown(calReleaseAheadEl);
 
   if (calMissingAheadEl) calMissingAheadEl.addEventListener('change', function() { updateSharedSectionState(); updateReminderTabState(); });
   if (calReleaseAheadEl) calReleaseAheadEl.addEventListener('change', function() { updateSharedSectionState(); updateReminderTabState(); });
@@ -556,14 +616,14 @@ function initCalendar() {
       var aVal = data.reminder_ahead_days != null ? data.reminder_ahead_days : 0;
       calMissingAheadEl.value = String(aVal);
       M.FormSelect.init(calMissingAheadEl, SELECT_OPTS);
-      liftSelectDropdown(calMissingAheadEl);
+      warpLiftSelect(calMissingAheadEl);
     }
 
     if (calReleaseAheadEl) {
       var rVal = data.reminder_release_ahead_days != null ? data.reminder_release_ahead_days : 0;
       calReleaseAheadEl.value = String(rVal);
       M.FormSelect.init(calReleaseAheadEl, SELECT_OPTS);
-      liftSelectDropdown(calReleaseAheadEl);
+      warpLiftSelect(calReleaseAheadEl);
     }
 
     // Recompute after the reminder selects have been populated above.
@@ -575,7 +635,7 @@ function initCalendar() {
         o.selected = zids.indexOf(parseInt(o.value)) !== -1;
       });
       M.FormSelect.init(calZonesEl, SELECT_OPTS);
-      liftSelectDropdown(calZonesEl);
+      warpLiftSelect(calZonesEl);
     }
 
     updateSharedSectionState();
@@ -583,8 +643,15 @@ function initCalendar() {
 
   function ensureTimepicker() {
     if (!calTimeInputEl || timepicker) return;
+    // The time is picked from the clock only — typing into the field while the
+    // picker is open is unsupported and glitchy, so make it readonly. (A click
+    // still opens the picker; the picker dialog closes on outside-click.)
+    calTimeInputEl.readOnly = true;
     timepicker = M.Timepicker.init(calTimeInputEl, {
       twelveHour: false,
+      // A clock selection is a real edit -> mark the calendar modal dirty so an
+      // accidental Esc/outside-click won't silently discard it.
+      onSelect: function() { warpDialog.getInstance(calModalEl)?.markDirty(); },
       // autoSubmit:true (M2 default) skips the Done/Cancel buttons AND calls
       // done() on clock-release which sets the value but never hides the modal,
       // so the picker opens with no buttons and never closes. autoSubmit:false
@@ -632,8 +699,7 @@ function initCalendar() {
     calTypeTabsInstance.select('cal-type-' + selectedType);
   }
 
-  M.Modal.init(calModalEl, {
-    dismissible: false,
+  warpDialog(calModalEl, {
     onOpenStart: function() {
       ensureTimepicker();
       resetUrlVisibility();
@@ -701,7 +767,7 @@ function initCalendar() {
 
   if (calCancelBtn) {
     calCancelBtn.addEventListener('click', function() {
-      M.Modal.getInstance(calModalEl).close();
+      warpDialog(calModalEl).close();
     });
   }
 
@@ -783,7 +849,7 @@ function initCalendar() {
           M.toast({ text: TR('Error saving calendar settings') });
         } else {
           M.toast({ text: TR('Calendar settings saved') });
-          M.Modal.getInstance(calModalEl).close();
+          warpDialog(calModalEl).close();
         }
       });
 
@@ -811,7 +877,7 @@ function initChangePassword() {
     M.updateTextFields();
   }
 
-  var cpModal = M.Modal.init(cpModalEl, {
+  var cpModal = warpDialog(cpModalEl, {
     onCloseEnd: clearFields
   });
 
@@ -899,7 +965,7 @@ function initTriggerClasses() {
         var modalEl = document.querySelector(sel);
         if (modalEl) {
           ev.preventDefault();
-          (M.Modal.getInstance(modalEl) || M.Modal.init(modalEl, {})).open();
+          warpDialog(modalEl).open();
         }
       }
       return;
@@ -921,7 +987,7 @@ function initTriggerClasses() {
       var dlg = modalClose.closest('.modal');
       if (dlg) {
         ev.preventDefault();
-        var inst = M.Modal.getInstance(dlg);
+        var inst = warpDialog.getInstance(dlg);
         if (inst) inst.close(); else dlg.close();
       }
     }

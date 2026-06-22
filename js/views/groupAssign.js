@@ -104,7 +104,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     addToGroupBtn.addEventListener('click', function(e) {
 
-        let addToGroupModal = M.Modal.getInstance(addToGroupModalEl);
+        let addToGroupModal = warpDialog.getInstance(addToGroupModalEl);
 
         let showModal = function() {
             addToGroupModalHeader.innerHTML = TR("Add to group %{group}",{group: window.warpGlobals.groupName});
@@ -114,7 +114,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
         let initModal = function(usersData) {
 
-            addToGroupModal = M.Modal.init(addToGroupModalEl);
+            addToGroupModal = warpDialog(addToGroupModalEl);
 
             let addToGroupTableRemoveClicked = function(e,cell) {
                 cell.getRow().delete();

@@ -114,9 +114,9 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     showEditDialog = function(id, name) {
 
-        var editModal = M.Modal.getInstance(editModalEl);
+        var editModal = warpDialog.getInstance(editModalEl);
         if (typeof(editModal) === 'undefined') {
-            editModal = M.Modal.init(editModalEl);
+            editModal = warpDialog(editModalEl);
         }
 
         planNameEl.value = name || "";
