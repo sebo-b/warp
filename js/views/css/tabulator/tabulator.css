@@ -44,7 +44,7 @@
 /* WARP loading spinner (replaces the stock "Loading..." text). Reuses the
    spinnerRotate keyframes defined in base/style.css. */
 .tabulator .tabulator-loader {
-    background: rgba(255, 255, 255, 0.4);
+    background: rgba(var(--warp-surface-rgb), 0.4);
 }
 .tabulator .tabulator-loader .tabulator-loader-msg.tabulator-loading {
     display: block;

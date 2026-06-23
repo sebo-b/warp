@@ -138,21 +138,33 @@ if edit should read as the primary interactive action. Green is now used *only* 
 
 ---
 
-## Step 2 — Split into layers (after step 1)
+## Step 2 — Split into layers  ✅ IMPLEMENTED
 
-Once the set is small, restructure `theme.css` into three blocks and make `style.css`
-reference **roles only**:
+`theme.css` is now organised into labelled layers, top to bottom: **BRAND** knobs →
+derived **brand tints** → **semantic roles** → **neutral roles** → **rgba channels**. The
+app consumes roles/channels only — every raw colour literal is routed to a token.
 
-- **Brand layer** — `--warp-primary`, `--warp-secondary` (the swap target).
-- **Neutral primitives** — the grey values, *never used directly by the app*.
-- **Semantic roles** — `--warp-bg`, `--warp-surface`, `--warp-on-surface` (rename of
-  `--warp-text`), `--warp-on-surface-muted`, `--warp-border`, `--warp-hover`,
-  `--warp-on-brand`, `--warp-shadow-rgb`, `--warp-surface-rgb`, `--warp-error`,
-  `--warp-success`. The app binds to these.
+What was done:
+- **New role/channel tokens:** `--warp-on-brand` (`#ffffff`, text/icons on a brand fill —
+  stays light in dark mode), `--warp-surface-rgb`, `--warp-shadow-rgb`.
+- **Routed the 18 white literals by role:** 12 on-brand (M3 `on-*` mappings, danger/primary
+  button text, active weekday chip, timepicker numerals, seat/zone titles, rotate label) →
+  `--warp-on-brand`; 6 surface backgrounds (sidepanel, seat preview/label, marquee handles)
+  → `--warp-surface`. One inline-SVG `fill="white"` (`zoneModify_marquee.js`) → an inline
+  `style="fill:var(--warp-surface)"` (presentation attrs can't take `var()`).
+- **Routed rgba literals:** black drop-shadows (`style.css` 607/663/968) →
+  `rgba(var(--warp-shadow-rgb), α)`; white overlays (`style.css:899`, `tabulator.css:47`) →
+  `rgba(var(--warp-surface-rgb), α)`.
 
-Deliverable: `style.css` has zero direct `--warp-grey-*` references; every neutral goes
-through a role. (Today it references `--warp-grey-*`/`--warp-surface`/`--warp-text`
-directly in dozens of places — that's the work.)
+Naming note: the neutral roles keep their step-1 names (`--warp-surface`, `--warp-text`,
+`--warp-grey-bg/border/muted/text`) rather than M3-style renames (`--warp-on-surface`, …).
+They're already role-clear, and a dark theme flips `--warp-text` just as easily as
+`--warp-on-surface` would — the rename was pure churn for no dark-mode benefit.
+
+Result: a `:root[theme="dark"]` block overriding the **neutral roles + channels** is now
+all that step 3 needs; brand tints re-mix against the new surface automatically and the app
+CSS doesn't move. Only `seat_icons.svg`'s `#ffffff` disc base remains (external SVG — vars
+don't cross an external `<use>`; handled in step 3).
 
 ---
 

@@ -90,7 +90,7 @@ MarqueeController.prototype._createElements = function() {
     this._rotateHandle.style.display = "none";
     this._rotateHandle.innerHTML =
         '<svg width="24" height="24" viewBox="0 0 24 24" style="display:block">' +
-        '<circle cx="12" cy="12" r="10" fill="white" stroke="currentColor" stroke-width="2"/>' +
+        '<circle cx="12" cy="12" r="10" style="fill:var(--warp-surface)" stroke="currentColor" stroke-width="2"/>' +
         '<path d="M17 8a6 6 0 1 0 1.1 6.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
         '<polyline points="17,5 17,8 14,8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
         '</svg>';
