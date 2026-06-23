@@ -10,7 +10,7 @@
     window.warpGlobals.URLs['plansGetSeats'] = "{{ url_for('xhr.plans.getSeats', pid=pid) }}";
     window.warpGlobals.URLs['plansZonesForPlan'] = "{{ url_for('xhr.plans.zonesForPlan') }}?pid={{ pid }}";
     window.warpGlobals.URLs['plansAllZones'] = "{{ url_for('xhr.plans.allZones') }}";
-    window.warpGlobals.URLs['seatSprite'] = "{{ url_for('static',filename='images/seat_icons.png') }}";
+    window.warpGlobals.URLs['seatSprite'] = "{{ url_for('static',filename='images/seat_icons.svg') }}";
 </script>
 
 {% endblock %}

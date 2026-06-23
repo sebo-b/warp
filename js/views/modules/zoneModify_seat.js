@@ -25,10 +25,11 @@ Seat.CONFIG = {
     newSidPrefix: "DUMMY_",
     DELETED: "DELETED",
 
-    unchangedOffset: "0px",
-    changedOffset: "-96px",
-    newSeatOffset: "-144px",
-    disabledOffset: "-288px",
+    iconNames: {
+        plus: 'icon-plus',
+        head: 'icon-head',
+        no: 'icon-no'
+    }
 
 }
 
@@ -73,11 +74,21 @@ Seat.prototype._updateData = function(data) {
 Seat.prototype._createDiv = function(parentDiv) {
 
     this.seatDiv = document.createElement("div");
-
+    this.seatDiv.className = "seat-icon seat-icon--blue";
     this.seatDiv.style.position = "absolute";
     this.seatDiv.style.width = Seat.CONFIG.spriteSize + "px";
     this.seatDiv.style.height = Seat.CONFIG.spriteSize + "px";
-    this.seatDiv.style.backgroundImage = 'url('+window.warpGlobals.URLs['seatSprite']+')';
+
+    var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("width", "48");
+    svg.setAttribute("height", "48");
+
+    this.seatUse = document.createElementNS("http://www.w3.org/2000/svg", "use");
+    this.seatUse.setAttribute("href", window.warpGlobals.URLs['seatSprite'] + "#" + Seat.CONFIG.iconNames.head);
+
+    svg.appendChild(this.seatUse);
+    this.seatDiv.appendChild(svg);
 
     // Label div (class seat_label) — appended to same parent, pointer-events:none
     this.labelDiv = document.createElement("div");
@@ -99,15 +110,29 @@ Seat.prototype._updateDiv = function() {
     this.seatDiv.style.left = this.x + "px";
     this.seatDiv.style.top = this.y + "px";
 
-    let offset = Seat.CONFIG.unchangedOffset;
-    if (this.isNew())
-        offset = Seat.CONFIG.newSeatOffset;
-    else if (this.deleted)
-        offset = Seat.CONFIG.disabledOffset;
-    else if (Object.keys(this.overlay).length > 0)
-        offset = Seat.CONFIG.changedOffset;
+    var iconName = Seat.CONFIG.iconNames.head;
+    var colorClass = 'blue';
 
-    this.seatDiv.style.backgroundPositionX = offset;
+    if (this.isNew()) {
+        iconName = Seat.CONFIG.iconNames.plus;
+        colorClass = 'green';
+    }
+    else if (this.deleted) {
+        iconName = Seat.CONFIG.iconNames.no;
+        colorClass = 'grey';
+    }
+    else if (Object.keys(this.overlay).length > 0) {
+        colorClass = 'green';
+    }
+
+    var newHref = window.warpGlobals.URLs['seatSprite'] + "#" + iconName;
+    var newClass = "seat-icon seat-icon--" + colorClass;
+
+    if (this.seatDiv.className !== newClass)
+        this.seatDiv.className = newClass;
+
+    if (this.seatUse.getAttribute("href") !== newHref)
+        this.seatUse.setAttribute("href", newHref);
 
     if (this.__select)
         this.seatDiv.style.outline = "2px solid var(--warp-error)";

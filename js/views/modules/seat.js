@@ -48,18 +48,14 @@ WarpSeat.SeatStates = {
 
 WarpSeat.Sprites = {
     spriteSize: 48,
-    bookOffset: "-144px",
-    rebookOffset: "-192px",
-    conflictOffset: "-240px",
-    userConflictOffset: "-48px",
-    userExactOffset: "0px",
-    userRebookOffset: "-96px",
-    disabledOffset: "-288px",
-    bookAssignedOffset: "-336px",
-    rebookAssignedOffset: "-384px",
-    assignedOffset: "-432px",
-    viewOnlyOffset: "-480px",
-    viewOnlyTakenOffset: "-528px"
+    iconNames: {
+        plus: 'icon-plus',
+        arrow: 'icon-arrow',
+        head: 'icon-head',
+        headArrow: 'icon-head-arrow',
+        no: 'icon-no',
+        assigned: 'icon-assigned'
+    }
 };
 
 function WarpSeatFactory(spriteURL,rootDivId,login) {
@@ -423,6 +419,8 @@ WarpSeat.prototype._updateState = function() {
         }
     }
 
+    var assignedButNotForMe = false;
+
     if (Object.keys(this.assignments).length > 0) {
 
         const everyoneData = this.assignments[EVERYONE_KEY];
@@ -456,9 +454,9 @@ WarpSeat.prototype._updateState = function() {
             }
             // dates are within window — fall through to booking state
         } else {
-            // Specific assignment(s) exist, but not for this user and no everyone row
-            this.state = WarpSeat.SeatStates.ASSIGNED;
-            return this.state;
+            // Specific assignment(s) exist, but not for this user and no everyone row.
+            // The seat is effectively assigned to others; still show as booked if it is.
+            assignedButNotForMe = true;
         }
     }
 
@@ -507,8 +505,14 @@ WarpSeat.prototype._updateState = function() {
             this.state = WarpSeat.SeatStates.CAN_DELETE;
 
     }
-    else if (isFree)
-        this.state = WarpSeat.SeatStates.CAN_BOOK;
+    else if (isFree) {
+        if (assignedButNotForMe) {
+            this.state = WarpSeat.SeatStates.ASSIGNED;
+        }
+        else {
+            this.state = WarpSeat.SeatStates.CAN_BOOK;
+        }
+    }
     else
         this.state = WarpSeat.SeatStates.TAKEN;
 
@@ -526,6 +530,19 @@ WarpSeat.prototype._updateState = function() {
 
 // as this function relays on myConflictingBookings
 // it should be called after all WarpSeats' states are updated
+function setSeatIcon(seat, iconName, colorClass) {
+    if (!seat.seatDiv || !seat.seatUse) return;
+
+    var newHref = seat.factory.spriteURL + "#" + WarpSeat.Sprites.iconNames[iconName];
+    var newClass = "seat-icon seat-icon--" + colorClass;
+
+    if (seat.seatDiv.className !== newClass)
+        seat.seatDiv.className = newClass;
+
+    if (seat.seatUse.getAttribute("href") !== newHref)
+        seat.seatUse.setAttribute("href", newHref);
+}
+
 WarpSeat.prototype._updateView = function() {
 
     // seats form other zones doesn't have divs created
@@ -537,48 +554,45 @@ WarpSeat.prototype._updateView = function() {
     switch (this.state) {
 
         case WarpSeat.SeatStates.CAN_CHANGE:
-            this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.userRebookOffset;
+            setSeatIcon(this, 'headArrow', 'blue');
             break;
         case WarpSeat.SeatStates.CAN_DELETE_EXACT:
-            this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.userExactOffset;
+            setSeatIcon(this, 'head', 'blue');
             break;
         case WarpSeat.SeatStates.CAN_DELETE:
-            this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.userConflictOffset;
+            setSeatIcon(this, 'head', 'grey');
             break;
         case WarpSeat.SeatStates.CAN_BOOK:
             if (!this.bookable) {
-                // Should not reach here, but safety fallback
                 this.state = WarpSeat.SeatStates.VIEW_ONLY;
-                this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.viewOnlyOffset;
+                setSeatIcon(this, 'no', 'grey');
             }
             else if (this.factory._conflictCount(this.exclusivityKey) > 0) {
                 this.state = WarpSeat.SeatStates.CAN_REBOOK;    //this is not very elegant
-                this.seatDiv.style.backgroundPositionX =
-                    assignedToMe ? WarpSeat.Sprites.rebookAssignedOffset : WarpSeat.Sprites.rebookOffset;
+                setSeatIcon(this, 'arrow', assignedToMe ? 'blue' : 'green');
             }
             else {
-                this.seatDiv.style.backgroundPositionX =
-                    assignedToMe ? WarpSeat.Sprites.bookAssignedOffset : WarpSeat.Sprites.bookOffset;
+                setSeatIcon(this, 'plus', assignedToMe ? 'blue' : 'green');
             }
             break;
         case WarpSeat.SeatStates.ASSIGNED:
-            this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.assignedOffset;
-            if (window.warpGlobals.isZoneAdmin)  // not very elegant
-                break;
+            // Seat is assigned to someone else (or out of window). Not booked.
+            setSeatIcon(this, 'assigned', 'grey');
+            break;
         case WarpSeat.SeatStates.TAKEN:
-            this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.conflictOffset;
+            setSeatIcon(this, 'head', 'grey');
         break;
         case WarpSeat.SeatStates.VIEW_ONLY:
-            this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.viewOnlyOffset;
+            setSeatIcon(this, 'no', 'grey');
             break;
         case WarpSeat.SeatStates.VIEW_ONLY_TAKEN:
-            this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.viewOnlyTakenOffset;
+            setSeatIcon(this, 'head', 'grey');
             break;
         case WarpSeat.SeatStates.DISABLED:
-            this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.disabledOffset;
+            setSeatIcon(this, 'no', 'grey');
             break;
         default: /* WarpSeat.SeatStates.NOT_AVAILABLE */
-            this.seatDiv.style.backgroundPositionX = WarpSeat.Sprites.disabledOffset;
+            setSeatIcon(this, 'no', 'grey');
             break;
     }
 
@@ -648,14 +662,25 @@ WarpSeat.prototype._createDiv = function(rootDiv, spriteURL) {
     if (this.seatDiv)
         throw Error("seatDiv already created")
 
-    this.seatDiv =  document.createElement("div");
+    this.seatDiv = document.createElement("div");
+    this.seatDiv.className = "seat-icon seat-icon--grey";
     this.seatDiv.style.position = "absolute";
     this.seatDiv.style.left = this.x + "px";
     this.seatDiv.style.top = this.y + "px";
     this.seatDiv.style.width = WarpSeat.Sprites.spriteSize + "px";
     this.seatDiv.style.height = WarpSeat.Sprites.spriteSize + "px";
-    this.seatDiv.style.backgroundImage = 'url('+spriteURL+')';
     this.seatDiv.style.display = "none";
+
+    var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("width", "48");
+    svg.setAttribute("height", "48");
+
+    this.seatUse = document.createElementNS("http://www.w3.org/2000/svg", "use");
+    this.seatUse.setAttribute("href", spriteURL + "#" + WarpSeat.Sprites.iconNames.no);
+
+    svg.appendChild(this.seatUse);
+    this.seatDiv.appendChild(svg);
 
     this.seatDiv.addEventListener('click',this);
     this.seatDiv.addEventListener('mouseover',this);

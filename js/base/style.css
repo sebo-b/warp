@@ -1148,6 +1148,32 @@ nav .dropdown-content li > span {
     z-index: 2;
 }
 
+.seat-icon {
+    display: block;
+    width: 48px;
+    height: 48px;
+    color: var(--warp-grey-3);
+}
+
+.seat-icon svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.seat-icon--green {
+    color: var(--warp-success);
+}
+
+.seat-icon--blue {
+    color: var(--warp-primary);
+}
+
+.seat-icon--grey {
+    color: var(--warp-grey-3);
+}
+
 .seat_label {
     position: absolute;
     border: 2px solid var(--warp-primary);

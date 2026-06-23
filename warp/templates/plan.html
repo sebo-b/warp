@@ -6,7 +6,7 @@
     <script>
         window.warpGlobals.URLs['zoneApply'] = "{{ url_for('xhr.zone.apply') }}";
         window.warpGlobals.URLs['getSeat'] = "{{ url_for('xhr.zone.getSeats',pid=pid) }}";
-        window.warpGlobals.URLs['seatSprite'] = "{{ url_for('static',filename='images/seat_icons.png') }}";
+        window.warpGlobals.URLs['seatSprite'] = "{{ url_for('static',filename='images/seat_icons.svg') }}";
 
         window.warpGlobals['defaultSelectedDates'] = {{ defaultSelectedDates | tojson }};
         window.warpGlobals.today = {{ today | int }};
@@ -82,62 +82,36 @@
                 </tr>
                 <tr>
                     <td><div class="help_modal_sprite" data-sprite="rebook"></div></td>
-                    <td class="TR">
-                        The seat is available to be booked on the selected dates and time. However, you have other bookings at that time which will be automatically updated.
-                    </td>
-                </tr>
-                <tr>
-                    <td><div class="help_modal_sprite" data-sprite="conflict"></div></td>
-                    <td class="TR">The seat is booked by another person or not available.</td>
-                </tr>
-                <tr>
-                    <td><div class="help_modal_sprite" data-sprite="viewOnly"></div></td>
-                    <td class="TR">The seat is in a view-only zone — you can see it but cannot book it.</td>
-                </tr>
-                <tr>
-                    <td><div class="help_modal_sprite" data-sprite="viewOnlyTaken"></div></td>
-                    <td class="TR">The seat is booked by someone in a view-only zone — you can see it but cannot book it.</td>
-                </tr>
-                <tr>
-                    <td><div class="help_modal_sprite" data-sprite="userExact"></div></td>
-                    <td class="TR">The seat is booked by you on the selected date and time.</td>
-                </tr>
-                <tr>
-                    <td><div class="help_modal_sprite" data-sprite="userRebook"></div></td>
-                    <td class="TR">The seat is booked by you, but not exactly on the selected date or time.
-                        You can update booking, all your other reservations at that time will be automatically updated.
-                    </td>
-                </tr>
-                <tr>
-                    <td><div class="help_modal_sprite" data-sprite="userConflict"></div></td>
-                    <td class="TR">The seat is booked by you, but not exactly on the selected date or time.
-                        You CANNOT update the booking as it is conflicting with another user booking.
-                    </td>
+                    <td class="TR">The seat is available, but you have another booking at that time which will be automatically updated.</td>
                 </tr>
                 <tr>
                     <td><div class="help_modal_sprite" data-sprite="bookAssigned"></div></td>
-                    <td class="TR">The same meaning as the green type icon, but the seat is assigned to you, not assigned people cannot book it.
-                        Note that assignment isn't necessarily exclusive, the seat can be assigned to more than one person.
-                    </td>
+                    <td class="TR">The seat is assigned to you and available to be booked.</td>
                 </tr>
                 <tr>
                     <td><div class="help_modal_sprite" data-sprite="rebookAssigned"></div></td>
-                    <td class="TR">The same meaning as the green type icon, but the seat is assigned to you, not assigned people cannot book it.
-                        Note that assignment isn't necessarily exclusive, the seat can be assigned to more than one person.
-                    </td>
+                    <td class="TR">The seat is assigned to you and available, but you have another booking at that time which will be automatically updated.</td>
                 </tr>
-                {% if isZoneAdmin %}
                 <tr>
-                    <td><div class="help_modal_sprite" data-sprite="disabled"></div></td>
-                    <td class="TR">The seat is disabled, cannot be booked, and is not visible to non-admins.</td>
+                    <td><div class="help_modal_sprite" data-sprite="userExact"></div></td>
+                    <td class="TR">The seat is booked by you exactly on the selected date and time.</td>
+                </tr>
+                <tr>
+                    <td><div class="help_modal_sprite" data-sprite="userRebook"></div></td>
+                    <td class="TR">The seat is booked by you, but not exactly on the selected date or time. You can update; other reservations at that time will be automatically updated.</td>
+                </tr>
+                <tr>
+                    <td><div class="help_modal_sprite" data-sprite="conflict"></div></td>
+                    <td class="TR">The seat is booked by someone else or not available for booking.</td>
                 </tr>
                 <tr>
                     <td><div class="help_modal_sprite" data-sprite="assigned"></div></td>
-                    <td class="TR">The seat is assigned to some people. This status is visible only to admins.<br>
-                        Note that you won't see this icon if the seat is assigned to you.
-                    </td>
+                    <td class="TR">The seat is assigned to some people but currently not booked.</td>
                 </tr>
-                {% endif %}
+                <tr>
+                    <td><div class="help_modal_sprite" data-sprite="viewOnly"></div></td>
+                    <td class="TR">The seat is not available for booking: no dates selected, disabled, or view-only zone.</td>
+                </tr>
             </table>
         </div>
         <div class="modal-footer">

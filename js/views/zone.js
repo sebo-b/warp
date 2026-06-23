@@ -915,14 +915,33 @@ function initZoneHelp() {
     var helpModalEl = document.getElementById('zonemap_help_modal');
     var helpModal = warpDialog(helpModalEl);
 
+    var helpSpriteMap = {
+        book:          { icon: 'icon-plus',      color: 'green' },
+        rebook:        { icon: 'icon-arrow',     color: 'green' },
+        conflict:      { icon: 'icon-head',      color: 'grey' },
+        viewOnly:      { icon: 'icon-no',        color: 'grey' },
+        viewOnlyTaken: { icon: 'icon-head',      color: 'grey' },
+        userExact:     { icon: 'icon-head',      color: 'blue' },
+        userRebook:    { icon: 'icon-head-arrow', color: 'blue' },
+        userConflict:  { icon: 'icon-head',      color: 'grey' },
+        bookAssigned:  { icon: 'icon-plus',      color: 'blue' },
+        rebookAssigned:{ icon: 'icon-arrow',     color: 'blue' },
+        disabled:      { icon: 'icon-no',        color: 'grey' },
+        assigned:      { icon: 'icon-assigned',   color: 'grey' }
+    };
+
     var helpModalSpriteDivs = document.getElementsByClassName("help_modal_sprite");
     for (let d of helpModalSpriteDivs) {
         d.style.width = WarpSeat.Sprites.spriteSize + "px";
         d.style.height = WarpSeat.Sprites.spriteSize + "px";
-        d.style.backgroundImage = 'url('+window.warpGlobals.URLs['seatSprite']+')';
 
-        var type = d.dataset.sprite + "Offset";
-        d.style.backgroundPositionX = WarpSeat.Sprites[type];
+        var mapping = helpSpriteMap[d.dataset.sprite];
+        if (!mapping) continue;
+
+        d.className = "help_modal_sprite seat-icon seat-icon--" + mapping.color;
+        d.innerHTML = '<svg viewBox="0 0 24 24" width="48" height="48"><use href="' +
+                      window.warpGlobals.URLs['seatSprite'] + '#' + mapping.icon +
+                      '"></use></svg>';
     }
 
     var helpDiv = document.getElementsByClassName("zonemap_help");
