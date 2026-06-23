@@ -40,6 +40,25 @@
     --md-sys-color-error-light:        var(--warp-error);
     --md-sys-color-on-error-light:     var(--warp-on-brand);
 }
+/* Dark mode: Materialize resolves --md-sys-color-* to its *-dark variants under
+   [theme="dark"], so map the brand roles there too. The neutral roles + channels
+   that flip live in theme.css's :root[theme="dark"] block; Materialize's own dark
+   surface/neutral values cover dropdowns and sheets. */
+:root[theme="dark"] {
+    --md-sys-color-primary-dark:      var(--warp-primary);
+    --md-sys-color-on-primary-dark:   var(--warp-on-brand);
+    --md-sys-color-secondary-dark:    var(--warp-secondary);
+    --md-sys-color-on-secondary-dark: var(--warp-on-brand);
+    --md-sys-color-error-dark:        var(--warp-error);
+    --md-sys-color-on-error-dark:     var(--warp-on-brand);
+}
+
+/* Top-bar light/dark toggle: show the moon in light mode (tap → dark), the sun in
+   dark mode (tap → light). Inherits nav link colour like the other nav icons. */
+.warp-theme-toggle { cursor: pointer; }
+.warp-theme-toggle .tg-sun { display: none; }
+:root[theme="dark"] .warp-theme-toggle .tg-moon { display: none; }
+:root[theme="dark"] .warp-theme-toggle .tg-sun  { display: inline; }
 
 /* ---- Affordance classes (replace removed Material palette utilities) ----- */
 /* Materialize 2.x ships no .red/.green/.orange palette classes, so the markup/JS
@@ -115,6 +134,12 @@ NAV {
 nav,
 .nav-wrapper {
     background-color: var(--md-sys-color-primary);
+}
+/* Dark mode: use the same dark background as the page body so the bar doesn't
+   float as a lighter strip. Nav icons/links stay on-brand white. */
+:root[theme="dark"] nav,
+:root[theme="dark"] .nav-wrapper {
+    background-color: var(--md-sys-color-background);
 }
 nav {
     height: var(--navbar-height-mobile, 56px);
@@ -428,7 +453,7 @@ nav .dropdown-content li > span {
 }
 
 .timeslider-hint {
-    color: var(--warp-grey-muted);
+    color: var(--warp-text);
     text-align: center;
     width: 60px;
     border: 1px solid var(--warp-primary);
@@ -955,9 +980,15 @@ nav .dropdown-content li > span {
 .zonemap_datetime_trigger {
     position: fixed;
     left: 0px;
-    color: var(--warp-grey-muted);
+    color: var(--warp-primary);
     cursor: pointer;
     display: none;
+}
+
+.zonemap_datetime_trigger svg {
+    display: block;
+    margin-top: 8px;
+    margin-left: -2px;
 }
 
 @media only screen and (max-width : 993px) {
@@ -1071,8 +1102,13 @@ nav .dropdown-content li > span {
 .zonemap_help {
     position: fixed;
     right: 0px;
-    color: var(--warp-grey-muted);
+    color: var(--warp-primary);
     cursor: pointer;
+}
+
+.zonemap_help svg {
+    display: block;
+    margin-top: 8px;
 }
 
 .zone_action_btn {
@@ -1391,20 +1427,123 @@ INPUT[type="text"] ~ .show_password_btn::after {
     flex: none;
     display: flex;
     flex-direction: column;
-    overflow: auto;
-    padding: var(--warp-space-3);
+    height: calc(100vh - var(--navbar-height-mobile, 56px));
+    overflow: hidden;
+    padding: 0;
     width: 300px;
     align-items: center;
     margin-left: auto;
+    position: relative;
+}
+
+@media only screen and (min-width: 601px) {
+    .zone_modify_sidepanel {
+        height: calc(100vh - var(--navbar-height, 64px));
+    }
 }
 
 .zone_modify_sidepanel DIV {
     flex: auto;
 }
 
-.zone_modify_sidepanel_top {
-    flex: none !important;
+.zone_modify_sidepanel .zone_modify_tabs_row,
+.zone_modify_sidepanel .zone_modify_scroll,
+.zone_modify_sidepanel #seat_edit_panel,
+.zone_modify_sidepanel .zone_modify_footer {
+    flex: none;
+}
+
+.zone_modify_tabs_row {
     margin-bottom: 10px;
+    padding: var(--warp-space-3) var(--warp-space-3) 0;
+    width: 100%;
+}
+
+.zone_modify_scroll {
+    flex: 1 1 auto !important;
+    overflow: auto;
+    padding: 0 var(--warp-space-3);
+    width: 100%;
+}
+
+.zone_modify_scroll .input-field,
+.zone_modify_scroll .select-wrapper,
+.zone_modify_scroll .range-field {
+    margin-right: var(--warp-space-3);
+}
+
+.zone_modify_scroll .range-field label {
+    color: var(--warp-grey-text);
+    font-size: 0.9rem;
+}
+
+.zone_modify_scroll .range-field input[type=range] {
+    margin: 8px 0 16px;
+}
+
+.pm-tab-content {
+    width: 100%;
+}
+
+.pm-tab-info {
+    color: var(--warp-grey-text);
+    font-size: 0.95rem;
+    line-height: 1.4;
+    margin: 0 0 16px;
+}
+
+.zone_modify_sidepanel .tabs {
+    background-color: transparent;
+    border-bottom: 1px solid var(--warp-grey-border);
+}
+
+.zone_modify_sidepanel .tabs .tab {
+    width: 33.33%;
+}
+
+.zone_modify_sidepanel .tabs .tab a {
+    color: var(--warp-grey-text);
+    font-size: 0.85rem;
+    padding: 0 4px;
+    text-transform: none;
+}
+
+.zone_modify_sidepanel .tabs .tab a.active,
+.zone_modify_sidepanel .tabs .tab a:hover {
+    color: var(--warp-primary);
+}
+
+.zone_modify_sidepanel .tabs .indicator {
+    background-color: var(--warp-primary);
+}
+
+#seat_edit_panel {
+    margin-top: 16px;
+    width: 100%;
+}
+
+.zone_modify_footer {
+    align-items: center;
+    background-color: var(--warp-grey-bg);
+    border-left: 1px solid var(--warp-grey-border);
+    border-top: 1px solid var(--warp-grey-border);
+    display: flex;
+    gap: var(--warp-space-2);
+    justify-content: center;
+    padding: var(--warp-space-3) var(--warp-space-5);
+    position: static;
+    width: 100%;
+    z-index: 10;
+}
+
+.zone_modify_footer .btn,
+.zone_modify_footer .btn-flat {
+    margin: 0;
+}
+
+.zone_modify_sidepanel_top {
+    text-align: center;
+    width: 100%;
 }
 
 .zone_modify_sidepanel_bottom {

@@ -1103,6 +1103,34 @@ document.addEventListener("DOMContentLoaded", function() {
     var seatLabels = initSeatLabels(seatFactory);
     initSeatPreview(seatFactory, seatLabels);
     initActionMenu(seatFactory);
+    var zoneMap = document.getElementById('zonemap');
+    var zoneMapImg = zoneMap ? zoneMap.querySelector('img') : null;
+
+    if (zoneMapImg && window.warpGlobals.darkFilter) {
+        function applyPlanMapFilter() {
+            var isDark = document.documentElement.getAttribute('theme') === 'dark';
+            if (!isDark) {
+                zoneMapImg.style.filter = '';
+                return;
+            }
+            var f = window.warpGlobals.darkFilter;
+            var parts = [];
+            parts.push('invert(' + (f.invert || 0) + '%)');
+            parts.push('grayscale(' + (f.grayscale || 0) + '%)');
+            parts.push('sepia(' + (f.sepia || 0) + '%)');
+            parts.push('saturate(' + (f.saturate !== undefined ? f.saturate : 100) + '%)');
+            parts.push('hue-rotate(' + (f.hue !== undefined ? f.hue : 0) + 'deg)');
+            parts.push('brightness(' + (f.brightness !== undefined ? f.brightness : 100) + '%)');
+            parts.push('contrast(' + (f.contrast !== undefined ? f.contrast : 100) + '%)');
+            zoneMapImg.style.filter = parts.join(' ');
+        }
+        applyPlanMapFilter();
+        new MutationObserver(applyPlanMapFilter).observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['theme']
+        });
+    }
+
     initZoneHelp();
     initZoneSidepanel();
 

@@ -8,6 +8,16 @@ import { ADMIN, USER1 } from '../../helpers/users';
 import { querySql } from '../../helpers/db';
 import { TAB, adminPost } from '../../helpers/admin';
 
+/** Set the WARP light/dark theme cookie before any navigation. */
+async function setThemeCookie(page: any, theme: 'light' | 'dark') {
+  const context = page.context();
+  const url = page.url();
+  const domain = url ? new URL(url).hostname : 'localhost';
+  await context.addCookies([
+    { name: 'warp_theme', value: theme, domain, path: '/', httpOnly: false, secure: false, sameSite: 'Lax' }
+  ]);
+}
+
 test.describe('plan management', () => {
 
   test('admin can list all plans', async ({ page }) => {
@@ -159,6 +169,68 @@ test.describe('plan management', () => {
     await logIn(page, USER1);
     const resp = await page.request.get('/plan/1');
     expect(resp.status()).toBe(200);
+  });
+
+  test('plan editor has three tabs', async ({ page }) => {
+    await logIn(page, ADMIN);
+    await page.goto('/plans/modify/1');
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('#plan_modify_tabs')).toBeVisible();
+    await expect(page.locator('#plan_modify_tabs a', { hasText: 'Transform' })).toBeVisible();
+    await expect(page.locator('#plan_modify_tabs a', { hasText: 'Add mode' })).toBeVisible();
+    await expect(page.locator('#plan_modify_tabs a', { hasText: 'Map edit' })).toBeVisible();
+  });
+
+  test('plan editor loads dark filter preset dropdown with Smart default', async ({ page }) => {
+    await logIn(page, ADMIN);
+    await page.goto('/plans/modify/1');
+    await page.waitForLoadState('networkidle');
+    const presetSelect = page.locator('#map_filter_preset');
+    await expect(presetSelect).toBeVisible();
+    const value = await presetSelect.inputValue();
+    expect(value).toBe('smart');
+  });
+
+  test('plan editor persists a dark filter change', async ({ page }) => {
+    await logIn(page, ADMIN);
+    await page.goto('/plans/modify/1');
+    await page.waitForLoadState('networkidle');
+
+    // Change invert from 0 to 50 (switching to Custom)
+    await page.locator('#filter_invert').fill('50');
+
+    // Save
+    await page.locator('#saveBtn').click();
+    await page.locator('.modal').getByRole('button', { name: 'Yes' }).click();
+    await page.waitForURL('/plans');
+
+    const result = await querySql('SELECT dark_filter FROM plan WHERE id = 1');
+    const stored = result.rows[0].dark_filter;
+    expect(stored.id).toBe('custom');
+    expect(stored.invert).toBe(50);
+  });
+
+  test('plan editor can cancel without dirty confirmation when unchanged', async ({ page }) => {
+    await logIn(page, ADMIN);
+    await page.goto('/plans/modify/1');
+    await page.waitForLoadState('networkidle');
+
+    await page.locator('#cancelBtn').click();
+    await page.waitForURL('/plans');
+  });
+
+  test('plan view applies dark filter to map image in dark mode', async ({ page }) => {
+    await logIn(page, USER1);
+
+    // Set the dark theme before loading the plan view
+    await setThemeCookie(page, 'dark');
+
+    await page.goto('/plan/1');
+    await page.waitForLoadState('networkidle');
+
+    const mapImg = page.locator('#zonemap > img');
+    const filter = await mapImg.evaluate((el: HTMLElement) => (el as HTMLImageElement).style.filter);
+    expect(filter).toContain('invert');
   });
 
 });

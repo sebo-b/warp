@@ -54,3 +54,25 @@
   --warp-surface-rgb:   255, 255, 255;  /* translucent surface overlays (loaders, dimmed numerals) */
   --warp-shadow-rgb:    0, 0, 0;        /* drop shadows */
 }
+
+/* ===========================================================================
+ * DARK THEME — activated by <html theme="dark"> (set from the warp_theme cookie).
+ * Overrides only the neutral roles, the two neutral channels, and the brand
+ * primary (the charcoal is too dark to read on a dark surface, so it lightens to
+ * a steel-blue). Brand tints re-mix against the new --warp-surface automatically;
+ * --warp-secondary / --warp-error / --warp-success / --warp-on-brand are
+ * unchanged (they read fine on dark). Tune these values to taste.
+ * =========================================================================== */
+:root[theme="dark"] {
+  --warp-primary:      #5C7A99;  /* lightened charcoal so nav/buttons/focus read on dark */
+  --warp-primary-dark: color-mix(in srgb, var(--warp-primary), white 22%);  /* links lighten on dark */
+
+  --warp-surface:     #1e1e1e;  /* cards, modals, inputs, seat-label */
+  --warp-text:        #e6e6e6;  /* body/heading text on dark */
+  --warp-grey-bg:     #121212;  /* page/section fill, footers, hover */
+  --warp-grey-border: #3a3a3a;  /* borders, dividers */
+  --warp-grey-muted:  #707070;  /* disabled text/icons */
+  --warp-grey-text:   #b3b3b3;  /* secondary text, labels, unavailable/boss/booked seats */
+
+  --warp-surface-rgb: 30, 30, 30;  /* translucent surface overlays */
+}

@@ -171,6 +171,7 @@ def plan(pid):
     return flask.render_template('plan.html',
                                  **role_flags,
                                  pid=pid,
+                                 dark_filter=Plan.select(Plan.dark_filter).where(Plan.id == pid).scalar(),
                                  nextWeek=nextWeek,
                                  today=utils.today(),
                                  defaultSelectedDates=defaultSelectedDates,
@@ -266,4 +267,5 @@ def planModify(pid):
     returnURL = flask.request.args.get('return', flask.url_for('view.plans'))
     return flask.render_template('plan_modify.html',
                                  pid=pid,
-                                 returnURL=returnURL)
+                                 returnURL=returnURL,
+                                 dark_filter=Plan.select(Plan.dark_filter).where(Plan.id == pid).scalar())

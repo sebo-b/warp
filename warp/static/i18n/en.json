@@ -242,7 +242,30 @@
             "X": "X",
             "Y": "Y",
             "Zone for new seats": "Zone for new seats",
-            "Zone": "Zone"
+            "Zone": "Zone",
+            "Transform": "Transform",
+            "Add mode": "Add mode",
+            "Map edit": "Map edit",
+            "Transform hint": "Drag the frame to move all seats. Use corner and edge grips to resize, and the rotate grip to rotate. The selected seat is the anchor.",
+            "Add mode hint": "Click on the map to add a new seat in the selected zone.",
+            "Map edit hint": "Seat icons are shown as a reference for all available sprites.",
+            "Map option": "Dark map filter preset",
+            "Map filter hint": "Switch to dark mode to see the result.",
+            "Filter custom": "Custom",
+            "Filter original": "Original",
+            "Filter smart": "Smart",
+            "Filter smartBoost": "Smart with boost",
+            "Filter invert": "Invert",
+            "Filter softInvert": "Soft invert",
+            "Filter greyInvert": "Greyscale invert",
+            "Filter warmDark": "Warm dark",
+            "Filter dim": "Dim",
+            "Filter grayscale": "Grayscale",
+            "Filter sepia": "Sepia",
+            "Filter saturate": "Saturate",
+            "Filter hue-rotate": "Hue rotate",
+            "Filter brightness": "Brightness",
+            "Filter contrast": "Contrast"
         },
         "All unsaved changes will be lost.": "All unsaved changes will be lost.",
         "More than %{smart_count} rows are selected. Report will be limited to that number of rows.": "More than one row is selected. Report will be limited to that number of rows.||||More than %{smart_count} rows are selected. Report will be limited to that number of rows.",
@@ -350,6 +373,7 @@
         "Access denied: you are not a member of an allowed group.": "Access denied: you are not a member of an allowed group.",
         "Authentication failed: could not exchange the authorisation code.": "Authentication failed: could not exchange the authorisation code.",
         "Authentication failed: no user claims received.": "Authentication failed: no user claims received.",
-        "Authentication failed: the SAML response was invalid.": "Authentication failed: the SAML response was invalid."
+        "Authentication failed: the SAML response was invalid.": "Authentication failed: the SAML response was invalid.",
+        "updated map filter<br>": "- updated map filter<br>"
     }
 }

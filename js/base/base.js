@@ -951,7 +951,24 @@ document.addEventListener("DOMContentLoaded", function(e) {
   initCalendar();
   initChangePassword();
   initTriggerClasses();
+  initThemeToggle();
 });
+
+// Top-bar light/dark toggle. Flips the <html theme> attribute and persists it in
+// a long-lived cookie (survives tab close; NOT stored in the prefs DB). The server
+// reads the cookie to render <html theme> on first paint so there is no flash;
+// this only handles the in-page click. Delegated so it needs no per-page wiring.
+function initThemeToggle() {
+  document.addEventListener('click', function (ev) {
+    var tg = ev.target.closest && ev.target.closest('.warp-theme-toggle');
+    if (!tg) return;
+    ev.preventDefault();
+    var html = document.documentElement;
+    var next = html.getAttribute('theme') === 'dark' ? 'light' : 'dark';
+    html.setAttribute('theme', next);
+    document.cookie = 'warp_theme=' + next + ';path=/;max-age=31536000;samesite=lax';
+  });
+}
 
 // Materialize 2.x removed the .modal-trigger / .sidenav-trigger auto-init
 // classes (click-to-open was automatic in 1.x). Replicate that behaviour with

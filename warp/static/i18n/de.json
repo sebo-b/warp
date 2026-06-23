@@ -242,7 +242,30 @@
             "X": "X",
             "Y": "Y",
             "Zone for new seats": "Zone für neue Plätze",
-            "Zone": "Zone"
+            "Zone": "Zone",
+            "Transform": "Transform",
+            "Add mode": "Add mode",
+            "Map edit": "Map edit",
+            "Transform hint": "Drag the frame to move all seats. Use corner and edge grips to resize, and the rotate grip to rotate. The selected seat is the anchor.",
+            "Add mode hint": "Click on the map to add a new seat in the selected zone.",
+            "Map edit hint": "Seat icons are shown as a reference for all available sprites.",
+            "Map option": "Dark map filter preset",
+            "Map filter hint": "Switch to dark mode to see the result.",
+            "Filter invert": "Invert",
+            "Filter grayscale": "Grayscale",
+            "Filter sepia": "Sepia",
+            "Filter saturate": "Saturate",
+            "Filter hue-rotate": "Hue rotate",
+            "Filter brightness": "Brightness",
+            "Filter contrast": "Contrast",
+            "Filter custom": "Custom",
+            "Filter original": "Original",
+            "Filter smart": "Smart",
+            "Filter smartBoost": "Smart with boost",
+            "Filter softInvert": "Soft invert",
+            "Filter greyInvert": "Greyscale invert",
+            "Filter warmDark": "Warm dark",
+            "Filter dim": "Dim"
         },
         "All unsaved changes will be lost.": "Alle ungespeicherten Inforamtionen gehen verloren.",
         "More than %{smart_count} rows are selected. Report will be limited to that number of rows.": "Es wurde mehr als eine Zeile ausgewählt. Der Bericht wird auf diese Anzahl von Zeilen beschränkt.||||Es sind mehr als %{smart_count} Zeilen ausgewählt. Der Bericht wird auf diese Anzahl von Zeilen beschränkt.",
@@ -350,6 +373,7 @@
         "Access denied: you are not a member of an allowed group.": "Zugriff verweigert: Sie sind kein Mitglied einer zulässigen Gruppe.",
         "Authentication failed: could not exchange the authorisation code.": "Authentifizierung fehlgeschlagen: Der Autorisierungscode konnte nicht ausgetauscht werden.",
         "Authentication failed: no user claims received.": "Authentifizierung fehlgeschlagen: keine Benutzerdaten erhalten.",
-        "Authentication failed: the SAML response was invalid.": "Authentifizierung fehlgeschlagen: die SAML-Antwort war ungültig."
+        "Authentication failed: the SAML response was invalid.": "Authentifizierung fehlgeschlagen: die SAML-Antwort war ungültig.",
+        "updated map filter<br>": "- updated map filter<br>"
     }
 }

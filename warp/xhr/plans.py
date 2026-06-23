@@ -232,6 +232,7 @@ def modify():
                 "type": "array",
                 "items": {"type": "integer"},
             },
+            "darkFilter": {"type": "object"},
         },
         "required": ["pid"],
         "additionalProperties": False
@@ -308,6 +309,9 @@ def modify():
 
                 if totalCount != len(jsonData['addOrUpdate']):
                     raise ApplyError("Wrong number of affected rows", 338)
+
+            if 'darkFilter' in jsonData:
+                Plan.update({Plan.dark_filter: orjson.dumps(jsonData['darkFilter']).decode('utf-8')}).where(Plan.id == pid).execute()
 
     except IntegrityError:
         # e.g. a new seat without a valid zid, or a stale pid/sid reference.

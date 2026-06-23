@@ -168,27 +168,28 @@ don't cross an external `<use>`; handled in step 3).
 
 ---
 
-## Step 3 — Dark mode (after step 2)
+## Step 3 — Dark mode  ✅ IMPLEMENTED
 
-- One block re-points roles:
-  ```css
-  :root[theme="dark"] {
-    --warp-bg:             #121212;
-    --warp-surface:        #1e1e1e;
-    --warp-on-surface:     #e0e0e0;
-    --warp-on-surface-muted: var(--warp-grey-muted);
-    --warp-border:         #3a3a3a;
-    --warp-hover:          #2a2a2a;
-    --warp-shadow-rgb:     0, 0, 0;     /* or a light glow */
-    /* brand tints re-mix against the dark surface automatically */
-  }
-  ```
-- Wire the existing Materialize M3 `*-dark` tokens alongside the `*-light` ones already in
-  `style.css:35` (currently only `[theme="light"]` is defined).
-- **Seat icons:** parameterise the white disc base in
-  `warp/static/images/seat_icons.svg` (lines 31, 59, 62, 78). CSS vars don't cross an
-  external `<use>`, so this needs the icon inlined, or a swapped dark sprite, or
-  `color-scheme`-aware handling — decide at step 3.
+A `:root[theme="dark"]` block in `theme.css` now re-points the **neutral roles and RGB
+channels**; brand tints re-mix against the dark surface automatically. A top-bar light/dark
+toggle in `base_logged.html` (left of the admin menus) persists the choice in a long-lived
+`warp_theme` cookie; the server renders `<html theme>` from that cookie so the first paint
+matches. The app also maps Materialize M3 brand tokens to their `-dark` variants in
+`style.css`.
+
+UI touched:
+- Nav bar uses the same dark background as the page body in dark mode.
+- Tabulator tables use dark surface/row colours.
+- Map editor icons (help / schedule side tab) replaced with inline, theme-aware SVGs.
+- The plan editor has three tabs: **Transform**, **Add mode**, and **Map edit**.
+- **Map edit** mode exposes 7 CSS-filter sliders (invert, grayscale, sepia, saturate,
+  hue-rotate, brightness, contrast), a preset dropdown loaded from
+  `warp/static/map_filter_presets.json`, and stores the chosen settings per plan in the
+  new `plan.dark_filter` JSONB column. The filter is applied to the map image in dark mode
+  both in the editor and on the public plan view.
+
+Known deferred: the white `#ffffff` disc base in the external `seat_icons.svg` sprite is
+left literal for now; it reads well on every seat colour and theme.
 
 ---
 

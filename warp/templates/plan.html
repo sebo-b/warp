@@ -7,6 +7,7 @@
         window.warpGlobals.URLs['zoneApply'] = "{{ url_for('xhr.zone.apply') }}";
         window.warpGlobals.URLs['getSeat'] = "{{ url_for('xhr.zone.getSeats',pid=pid) }}";
         window.warpGlobals.URLs['seatSprite'] = "{{ url_for('static',filename='images/seat_icons.svg') }}";
+        window.warpGlobals.darkFilter = {{ dark_filter | tojson }};
 
         window.warpGlobals['defaultSelectedDates'] = {{ defaultSelectedDates | tojson }};
         window.warpGlobals.today = {{ today | int }};
@@ -169,10 +170,10 @@
 
         <div class="zone_map" id="zonemap">
             <div class="zonemap_help">
-                <img src="{{ url_for('static', filename='images/help_icon.png') }}">
+                {% include 'icons/help_icon.html' %}
             </div>
             <div class="zonemap_datetime_trigger sidenav-trigger" data-target="zone_sidepanel">
-                <img src="{{ url_for('static', filename='images/schedule_icon_side.png') }}">
+                {% include 'icons/schedule_icon_side.html' %}
             </div>
             <img src="{{ url_for('view.planImage', pid=pid) }}">
             <div class="zonemap-labels" id="zonemap-labels"></div>

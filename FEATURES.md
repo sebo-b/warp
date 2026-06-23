@@ -188,19 +188,35 @@ The zone type influences what role a user effectively has:
 
 Accessible via the map icon on the Plans management page.
 
-### 4.1 Uploading / Replacing the Map Image
-- Upload a JPEG or PNG image as the background for the plan.
+### 4.1 Editor Modes (Tabs)
+The editor is split into three tabs:
+
+- **Transform** — shows the multi-seat marquee. Drag the dashed frame to move all seats,
+  drag the corner/edge grips to resize, and drag the rotate grip to rotate. The currently
+  selected seat is the **anchor/pivot** and stays locked during scale/rotate.
+- **Add mode** — click anywhere on the map to add a new seat. A zone selector chooses which
+  zone the new seat belongs to; the zone with the most seats on the plan is pre-selected
+  the first time the tab is opened.
+- **Map edit** — replace the map image, choose a dark-mode **filter preset** from
+  `map_filter_presets.json`, or fine-tune the per-plan CSS filter with seven sliders:
+  invert, grayscale, sepia, saturate, hue-rotate, brightness, contrast. The result is only
+  visible in dark mode and is persisted in the `plan.dark_filter` JSONB column.
+
+Seats can be dragged to a new position in every mode.
+
+### 4.2 Uploading / Replacing the Map Image
+- In **Map edit** mode, upload a JPEG or PNG image as the background for the plan.
 - The image is stored as a binary blob in the database.
 
-### 4.2 Adding Seats
-- Toggle the **Edit / Add seats** switch to "Add seats" mode.
-- A **zone selector** dropdown appears below the switch — choose which zone new seats will belong to.
-- If the plan already has seats, **the first time** the switch is flipped to add mode, the zone that already contains the largest number of seats on this plan is pre-selected.
+### 4.3 Adding Seats
+- Switch to the **Add mode** tab.
+- A **zone selector** dropdown appears — choose which zone new seats will belong to.
+- If the plan already has seats, **the first time** the tab is opened, the zone that already contains the largest number of seats on this plan is pre-selected.
 - If no zones exist at all, nothing is executed and a visible error is shown: "You must create a zone before adding seats."; the click on the map is ignored and a toast reiterates the requirement.
 - Click anywhere on the map to place a new seat with the chosen `zid` (the plan backend no longer has a `default_zid` — every created seat must carry an explicit zone).
 - Each seat has a **name**, **X**, **Y**, and **zone**.
 
-### 4.3 Editing Seats
+### 4.4 Editing Seats
 - Select a seat to edit its name, position (X/Y), or drag it to a new position.
 - Multi-seat selection with a marquee: drag to select multiple seats, then move or transform them together.
 - To move all selected seats, **grab the marquee border** (the dashed outline) and drag. Clicking inside the box interior does not initiate a move — but it does keep the selection (the marquee stays visible). The border has an enlarged grip area so it is easy to grab.
@@ -211,26 +227,26 @@ Accessible via the map icon on the Plans management page.
 - While rotating, the selection box and handles are hidden and replaced by a **rotation guide**: a marker on the pivot, a dashed line from the pivot to the cursor, and a live **angle readout** next to the cursor. Rotation is free (no angle snapping), so seats can be aligned to maps that are not axis-aligned.
 - All transformed seats are clamped to the map boundaries (a group move stops at the edges).
 
-### 4.4 Editor Seat Icon States
+### 4.5 Editor Seat Icon States
 - **Unchanged** seats show the standard (blue) seat icon.
 - **Modified** seats (name or position changed) show a distinct "changed" icon (blue seat in a green ring).
 - **New** seats (not yet saved) show a green **"+"** icon.
 - Seats **marked for deletion** show the gray "disabled" icon.
 - The currently selected seat(s) are highlighted with a red outline.
 
-### 4.5 Editor Seat Labels
+### 4.6 Editor Seat Labels
 - Every seat shows its **name** as an on-map label below the seat icon.
 - Labels update live as the admin renames a seat in the side panel, including newly placed seats.
 - When the plan spans **more than one zone** (based on non-deleted seats), each label also shows the zone name in a secondary line; this zone line disappears when the plan returns to a single zone.
 - Deleted seats' labels are **greyed out** (solid grey card and title, matching the greyed seat icon — no transparency); they un-grey on restore.
 - Labels are pointer-events:none so they never interfere with click, drag, or marquee hit-testing; the marquee selection box accounts for each label's full footprint so it never clips through them.
 
-### 4.6 Deleting Seats
+### 4.7 Deleting Seats
 - Mark a seat for deletion; it can be restored before saving.
 - Deletion is confirmed via a dialog showing what will be removed.
 - The seat's zone can be changed via the dropdown in the side panel when the seat is selected (Edit mode).
 
-### 4.7 Saving & Cancelling
+### 4.8 Saving & Cancelling
 - All changes (image, added/modified/deleted seats) are submitted together.
 - A confirmation dialog lists the pending changes before applying.
 - A **Cancel** button returns to the plans list; if there are unsaved changes, a confirmation dialog ("All unsaved changes will be lost.") is shown first.
@@ -347,7 +363,6 @@ Accessible via the user icon on the Zones management page.
 - Clicking it triggers the auto-book algorithm.
 
 ### 8.2 Auto-Book Algorithm
-<<<<<<< Updated upstream
 - For each selected date, the system tries to find an available seat:
   1. **Priority tiers**: seats directly assigned to the user are preferred; then "Everyone"/unassigned seats.
   2. **Within each tier**, seats are ranked by the user's past booking frequency (prefer seats you book often), then by overall popularity (prefer less popular seats as a tiebreaker), then by seat ID.
@@ -370,8 +385,6 @@ Auto-book runs **one day at a time**, scoped to the **current plan**. For each r
 - The algorithm never uses the site-admin super-user bypass for seat *selection* when booking for yourself; the pool is exactly the seats/ zones the subject could have booked manually.
 
 Full details (with the exact decision tree, `dia` handling, exclusivity keys, future_options, etc.) live in [AUTOBOOK.md](AUTOBOOK.md).
->>>>>>> Stashed changes
->>>>>>> Stashed changes
 
 ### 8.3 Auto-Book Results
 The backend result buckets are:

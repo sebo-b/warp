@@ -29,7 +29,18 @@ Seat.CONFIG = {
         plus: 'icon-plus',
         head: 'icon-head',
         no: 'icon-no'
-    }
+    },
+
+    // All sprite IDs used in the Map edit reference view, with the same colors
+    // shown in the zonemap help modal.
+    referenceIcons: [
+        { icon: 'icon-plus', color: 'green' },
+        { icon: 'icon-arrow', color: 'green' },
+        { icon: 'icon-head', color: 'blue' },
+        { icon: 'icon-head-arrow', color: 'blue' },
+        { icon: 'icon-no', color: 'grey' },
+        { icon: 'icon-assigned', color: 'grey' }
+    ]
 
 }
 
@@ -105,15 +116,24 @@ Seat.prototype._createDiv = function(parentDiv) {
     this._updateDiv();
 }
 
-Seat.prototype._updateDiv = function() {
+Seat.prototype._setLabelVisible = function(visible) {
+    if (this.labelDiv)
+        this.labelDiv.style.display = visible ? '' : 'none';
+};
 
+Seat.prototype._updateDiv = function() {
     this.seatDiv.style.left = this.x + "px";
     this.seatDiv.style.top = this.y + "px";
 
     var iconName = Seat.CONFIG.iconNames.head;
     var colorClass = 'blue';
 
-    if (this.isNew()) {
+    if (this.factory && this.factory.referenceMode) {
+        var ref = this.referenceIcon || Seat.CONFIG.referenceIcons[0];
+        iconName = ref.icon;
+        colorClass = ref.color;
+    }
+    else if (this.isNew()) {
         iconName = Seat.CONFIG.iconNames.plus;
         colorClass = 'green';
     }
@@ -396,6 +416,20 @@ SeatFactory.prototype.getChanges = function() {
     return res;
 }
 
+
+SeatFactory.prototype.setReferenceMode = function(enabled) {
+
+    this.referenceMode = enabled;
+    var icons = Seat.CONFIG.referenceIcons;
+    var seats = Object.values(this.instances);
+
+    for (var i = 0; i < seats.length; i++) {
+        var seat = seats[i];
+        seat.referenceIcon = icons[i % icons.length];
+        seat._updateDiv();
+        seat._setLabelVisible(!enabled);
+    }
+};
 
 SeatFactory.prototype.createNewSeat = function(name,x,y) {
 

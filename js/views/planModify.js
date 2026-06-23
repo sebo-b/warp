@@ -12,11 +12,20 @@ document.addEventListener("DOMContentLoaded", function(e) {
     let mapUploadInput = document.getElementById('mapUploadInput');
     let saveBtn = document.getElementById('saveBtn');
 
+    function isDirty() {
+        return mapUploadInput.files.length > 0 || seatFactory.isChanged() || isFilterDirty();
+    }
+
+    function setDirty() {
+        if (isDirty()) saveBtn.classList.remove('disabled');
+        else saveBtn.classList.add('disabled');
+    }
+
     let zoneMapImg = document.getElementById('zone_map');
     let zoneMapContainer = document.getElementById('zone_map_container');
 
-    let modeSwitch = document.getElementById('modeSwitch');
-    let editMode = true;
+    let planModifyTabs = document.getElementById('plan_modify_tabs');
+    let activeTab = 'transform';
 
     let seatEditPanel = document.getElementById("seat_edit_panel");
     let seatNameEl = document.getElementById("seat_name");
@@ -122,10 +131,9 @@ document.addEventListener("DOMContentLoaded", function(e) {
             mostFrequentZid = planZones[0].id;
         }
 
-        // If the mode switch was flipped to "add seats" before the data arrived (race),
-        // or the current visible mode is already add, reconcile the dropdown/error banner
-        // so the user never sees a stale "no zones" prohibition after real data loads.
-        if (!editMode && addSeatZoneSelector && addSeatZoneError && addSeatZoneEl) {
+        // If the active tab was switched to "Add mode" before zone data arrived,
+        // reconcile the dropdown/error banner so the user never sees a stale state.
+        if (activeTab === 'add' && addSeatZoneSelector && addSeatZoneError && addSeatZoneEl) {
             if (allZones.length === 0) {
                 addSeatZoneSelector.style.display = 'none';
                 addSeatZoneError.style.display = 'block';
@@ -150,7 +158,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
     let transform = null;
 
     let showMarquee = () => {
-        if (!editMode) return;
+        if (activeTab !== 'transform') return;
         let transformSeats = seatFactory.getTransformSeats();
         if (transformSeats.length > 0)
             marquee.show(transformSeats);
@@ -160,15 +168,21 @@ document.addEventListener("DOMContentLoaded", function(e) {
         zoneMapContainer.style.cursor = '';
     };
 
-    modeSwitch.addEventListener('change', function(e) {
-        editMode = !modeSwitch.checked;
+    function setMode(tabId) {
+        activeTab = tabId;
 
-        if (!editMode) {
+        if (activeTab === 'transform') {
+            seatFactory.setReferenceMode(false);
+            if (addSeatZoneSelector) addSeatZoneSelector.style.display = 'none';
+            if (addSeatZoneError) addSeatZoneError.style.display = 'none';
+            showMarquee();
+        }
+        else if (activeTab === 'add') {
+            seatFactory.setReferenceMode(false);
             marquee.hide();
             seatFactory.clearSelection();
             seatEditPanel.style.visibility = "hidden";
 
-            // show zone dropdown for add-seats mode
             if (addSeatZoneSelector && addSeatZoneError && addSeatZoneEl) {
                 if (allZones.length === 0) {
                     addSeatZoneSelector.style.display = 'none';
@@ -177,32 +191,45 @@ document.addEventListener("DOMContentLoaded", function(e) {
                     addSeatZoneSelector.style.display = 'block';
                     addSeatZoneError.style.display = 'none';
                     if (!addModeZonesInitialized) {
-                        // First time entering add mode: pre-select the most-frequent zone on this plan if available;
-                        // otherwise fall back to any known zone so the dropdown is usable right away.
-                        let preselect = null;
-                        if (allZones.length > 0) {
-                            preselect = (mostFrequentZid !== null)
-                                ? mostFrequentZid
-                                : allZones[0].id;
-                            populateAddSeatZoneSelect(preselect);
-                        }
+                        let preselect = (mostFrequentZid !== null)
+                            ? mostFrequentZid
+                            : allZones[0].id;
+                        populateAddSeatZoneSelect(preselect);
                         addModeZonesInitialized = true;
                     }
                 }
             }
-        } else {
+        }
+        else if (activeTab === 'map') {
+            seatFactory.setReferenceMode(true);
+            marquee.hide();
+            if (transform) {
+                transform.end();
+                transform = null;
+                marquee.hideRotateGuide();
+            }
+            seatEditPanel.style.visibility = "hidden";
             if (addSeatZoneSelector) addSeatZoneSelector.style.display = 'none';
             if (addSeatZoneError) addSeatZoneError.style.display = 'none';
-            showMarquee();
         }
         resetCursor();
+    }
+
+    // Initialise Materialize tabs. onShow fires when a tab becomes active.
+    var tabsInstance = M.Tabs.init(planModifyTabs, {
+        onShow: function(el) {
+            var id = el.getAttribute('id');
+            if (id === 'pm-tab-transform') setMode('transform');
+            else if (id === 'pm-tab-add') setMode('add');
+            else if (id === 'pm-tab-map') setMode('map');
+        }
     });
 
-    modeSwitch.checked = !editMode;
-    resetCursor();
+    // Set initial state (default tab is Transform).
+    setMode('transform');
 
     zoneMapImg.addEventListener('mousedown', function(e) {
-        if (editMode) return;
+        if (activeTab !== 'add') return;
 
         // Check if there are zones available
         if (allZones.length === 0) {
@@ -268,30 +295,31 @@ document.addEventListener("DOMContentLoaded", function(e) {
     mapUploadInput.addEventListener('change', function(e) {
         if (mapUploadInput.files.length != 1) return;
         zoneMapImg.src = URL.createObjectURL(mapUploadInput.files[0]);
-        saveBtn.classList.remove('disabled');
+        setDirty();
     });
 
     saveBtn.addEventListener('click', function(e) {
+
+        if (!isDirty()) return;
 
         let json = {
             pid: window.warpGlobals.pid
         };
 
-        let changed = false;
         let data = new FormData();
 
         if (mapUploadInput.files.length == 1) {
             data.append('image', mapUploadInput.files[0]);
-            changed = true;
         }
 
         if (seatFactory.isChanged()) {
             let changes = seatFactory.getChanges();
             Object.assign(json, changes);
-            changed = true;
         }
 
-        if (!changed) return;
+        if (isFilterDirty()) {
+            json.darkFilter = currentFilterState();
+        }
 
         data.append('json', JSON.stringify(json));
 
@@ -311,6 +339,9 @@ document.addEventListener("DOMContentLoaded", function(e) {
             if (changedCount > 0) msg += TR("- updated data of %{smart_count} seat(s)<br>", {smart_count: changedCount});
         }
 
+        if ('darkFilter' in json)
+            msg += TR("- updated map filter<br>");
+
         WarpModal.getInstance().open(
             TR("Are you sure to update the plan?"),
             msg,
@@ -324,6 +355,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
                         data,
                         {toastOnSuccess: false})
                     .then(() => {
+                        storedFilter = currentFilterState();
                         window.sessionStorage.setItem('pendingToast', TR('Action successfull.'));
                         window.removeEventListener('beforeunload', onBeforeUnload);
                         window.location.href = window.warpGlobals['returnURL'];
@@ -338,7 +370,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
             transform = null;
             marquee.hideRotateGuide();
         }
-        if (editMode) showMarquee();
+        if (activeTab === 'transform') showMarquee();
         seatDeleteBtnUpdate(seat);
         seatNameEl.value = seat.name;
         seatXEl.value = seat.x;
@@ -359,7 +391,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
         }
         populateZoneSelect(zid !== undefined ? zid : null);
         M.updateTextFields();
-        seatEditPanel.style.visibility = "visible";
+        // Show the seat edit panel in Transform and Add modes, hide it in Map edit mode.
+        seatEditPanel.style.visibility = (activeTab === 'map') ? "hidden" : "visible";
 
         // Focus the name field so the user can type right away. For new
         // seats whose name is still the auto-generated placeholder, select-all
@@ -374,7 +407,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     seatFactory.on('unselect', (seat) => {
         seatEditPanel.style.visibility = "hidden";
-        if (editMode) showMarquee();
+        if (activeTab === 'transform') showMarquee();
     });
 
     seatFactory.on('drag', (seat) => {
@@ -384,10 +417,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
     });
 
     seatFactory.on('change', (seat) => {
-        if (seatFactory.isChanged())
-            saveBtn.classList.remove('disabled');
-        else
-            saveBtn.classList.add('disabled');
+        setDirty();
         if (marquee.active) marquee.update(seatFactory.getTransformSeats());
     });
 
@@ -410,7 +440,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
     });
 
     let beginTransform = (handle, x, y) => {
-        if (!editMode || !marquee.active) return;
+        if (activeTab !== 'transform' || !marquee.active) return;
 
         let rect = zoneMapImg.getBoundingClientRect();
         let transformSeats = seatFactory.getTransformSeats();
@@ -429,7 +459,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     let containerMousedownCapture = (e) => {
         seatFactory.suppressDeselect = false;
-        if (!editMode || !marquee.active) return;
+        if (activeTab !== 'transform' || !marquee.active) return;
 
         let rect = zoneMapImg.getBoundingClientRect();
         let x = e.clientX - rect.left;
@@ -440,7 +470,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
     };
 
     let containerMousedown = (e) => {
-        if (!editMode || !marquee.active) return;
+        if (activeTab !== 'transform' || !marquee.active) return;
 
         let rect = zoneMapImg.getBoundingClientRect();
         let x = e.clientX - rect.left;
@@ -459,11 +489,17 @@ document.addEventListener("DOMContentLoaded", function(e) {
         let x = e.clientX - rect.left;
         let y = e.clientY - rect.top;
 
-        if (!editMode) {
+        if (activeTab === 'add') {
             zoneMapContainer.style.cursor = isSeatAt(x, y) ? 'cell' : 'copy';
             return;
         }
 
+        if (activeTab === 'map') {
+            zoneMapContainer.style.cursor = isSeatAt(x, y) ? 'cell' : '';
+            return;
+        }
+
+        // transform mode
         if (isSeatAt(x, y))
             zoneMapContainer.style.cursor = 'cell';
         else if (marquee.active && marquee.getHandleAt(x, y) === 'box')
@@ -485,8 +521,6 @@ document.addEventListener("DOMContentLoaded", function(e) {
             marquee.updateRotateGuide(transform.pivot, x, y, transform.lastAngle);
         else
             marquee.update(seatFactory.getTransformSeats());
-
-        saveBtn.classList.remove('disabled');
     };
 
     let containerMouseup = (e) => {
@@ -511,7 +545,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
     window.addEventListener('mouseup', containerMouseup);
 
     let onBeforeUnload = function(e) {
-        if (mapUploadInput.files.length > 0 || seatFactory.isChanged()) {
+        if (isDirty()) {
             e.preventDefault();
             e.returnValue = '';
         }
@@ -526,7 +560,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
             window.location.href = window.warpGlobals['returnURL'];
         };
 
-        if (mapUploadInput.files.length > 0 || seatFactory.isChanged()) {
+        let dirty = isDirty();
+        if (dirty) {
             WarpModal.getInstance().open(
                 TR("Are you sure?"),
                 TR("All unsaved changes will be lost."),
@@ -565,6 +600,189 @@ document.addEventListener("DOMContentLoaded", function(e) {
     zoneMapImg.addEventListener('load', seatXYMax);
 
     seatFactory.updateData();
+
+    // Map image filter controls (dark mode only).
+    let filterControls = {
+        invert: document.getElementById('filter_invert'),
+        grayscale: document.getElementById('filter_grayscale'),
+        sepia: document.getElementById('filter_sepia'),
+        saturate: document.getElementById('filter_saturate'),
+        hue: document.getElementById('filter_hue'),
+        brightness: document.getElementById('filter_brightness'),
+        contrast: document.getElementById('filter_contrast'),
+    };
+    let filterPresetEl = document.getElementById('map_filter_preset');
+    let filterPresets = [];
+
+    function markFilterDirty() {
+        setDirty();
+    }
+
+    let storedFilter = window.warpGlobals.darkFilter || {};
+
+    function filterStateMatches(a, b) {
+        let keys = ['id', 'invert', 'grayscale', 'sepia', 'saturate', 'hue', 'brightness', 'contrast'];
+        for (let k of keys) {
+            let av = a[k] !== undefined ? a[k] : (k === 'id' ? 'custom' : (k === 'hue' ? 0 : (k === 'saturate' || k === 'brightness' || k === 'contrast' ? 100 : 0)));
+            let bv = b[k] !== undefined ? b[k] : (k === 'id' ? 'custom' : (k === 'hue' ? 0 : (k === 'saturate' || k === 'brightness' || k === 'contrast' ? 100 : 0)));
+            if (av !== bv) return false;
+        }
+        return true;
+    }
+
+    function isFilterDirty() {
+        return !filterStateMatches(currentFilterState(), storedFilter);
+    }
+
+    function currentFilterState() {
+        return {
+            id: filterPresetEl ? filterPresetEl.value : 'custom',
+            invert: filterControls.invert ? parseInt(filterControls.invert.value) : 0,
+            grayscale: filterControls.grayscale ? parseInt(filterControls.grayscale.value) : 0,
+            sepia: filterControls.sepia ? parseInt(filterControls.sepia.value) : 0,
+            saturate: filterControls.saturate ? parseInt(filterControls.saturate.value) : 100,
+            hue: filterControls.hue ? parseInt(filterControls.hue.value) : 0,
+            brightness: filterControls.brightness ? parseInt(filterControls.brightness.value) : 100,
+            contrast: filterControls.contrast ? parseInt(filterControls.contrast.value) : 100,
+        };
+    }
+
+    function valuesMatchPreset(storedValues, preset) {
+        let keys = ['invert', 'grayscale', 'sepia', 'saturate', 'hue', 'brightness', 'contrast'];
+        for (let k of keys) {
+            let stored = storedValues[k] !== undefined ? storedValues[k] : (k === 'invert' || k === 'grayscale' || k === 'sepia' || k === 'hue' ? 0 : 100);
+            let presetVal = preset[k] !== undefined ? preset[k] : (k === 'invert' || k === 'grayscale' || k === 'sepia' || k === 'hue' ? 0 : 100);
+            if (stored !== presetVal) return false;
+        }
+        return true;
+    }
+
+    function resolvePresetId(storedValues) {
+        for (let p of filterPresets) {
+            if (valuesMatchPreset(storedValues, p)) return p.id;
+        }
+        return 'custom';
+    }
+
+    function loadStoredFilter(stored) {
+        let presetId = stored && stored.id;
+        let values = Object.assign({}, stored || {});
+        // Remove id from values so it doesn't interfere with matching.
+        delete values.id;
+
+        // If the stored preset id exists and values match it, use it.
+        let resolvedId = 'custom';
+        if (presetId && filterPresets.find(p => p.id === presetId) && valuesMatchPreset(values, filterPresets.find(p => p.id === presetId))) {
+            resolvedId = presetId;
+        } else {
+            resolvedId = resolvePresetId(values);
+        }
+
+        populateFilterPresets(resolvedId);
+        setFilterSliders(values);
+    }
+
+    function applyMapFilter() {
+        let isDark = document.documentElement.getAttribute('theme') === 'dark';
+        if (!isDark) {
+            zoneMapImg.style.filter = '';
+            return;
+        }
+        let state = currentFilterState();
+        let parts = [];
+        parts.push('invert(' + state.invert + '%)');
+        parts.push('grayscale(' + state.grayscale + '%)');
+        parts.push('sepia(' + state.sepia + '%)');
+        parts.push('saturate(' + state.saturate + '%)');
+        parts.push('hue-rotate(' + state.hue + 'deg)');
+        parts.push('brightness(' + state.brightness + '%)');
+        parts.push('contrast(' + state.contrast + '%)');
+        zoneMapImg.style.filter = parts.join(' ');
+    }
+
+    function setFilterSliders(values) {
+        if (filterControls.invert) filterControls.invert.value = values.invert || 0;
+        if (filterControls.grayscale) filterControls.grayscale.value = values.grayscale || 0;
+        if (filterControls.sepia) filterControls.sepia.value = values.sepia || 0;
+        if (filterControls.saturate) filterControls.saturate.value = values.saturate !== undefined ? values.saturate : 100;
+        if (filterControls.hue) filterControls.hue.value = values.hue !== undefined ? values.hue : 0;
+        if (filterControls.brightness) filterControls.brightness.value = values.brightness !== undefined ? values.brightness : 100;
+        if (filterControls.contrast) filterControls.contrast.value = values.contrast !== undefined ? values.contrast : 100;
+        applyMapFilter();
+    }
+
+    function populateFilterPresets(selectedId) {
+        if (!filterPresetEl) return;
+        let existing = M.FormSelect.getInstance(filterPresetEl);
+        if (existing) existing.destroy();
+
+        filterPresetEl.innerHTML = '';
+        for (let p of filterPresets) {
+            let opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = TR('seatEdit.Filter ' + p.id);
+            filterPresetEl.appendChild(opt);
+        }
+        let customOpt = document.createElement('option');
+        customOpt.value = 'custom';
+        customOpt.textContent = TR('seatEdit.Filter custom');
+        filterPresetEl.appendChild(customOpt);
+
+        if (selectedId) filterPresetEl.value = selectedId;
+
+        M.FormSelect.init(filterPresetEl, {
+            dropdownOptions: {
+                container: filterPresetEl.closest('.zone_modify_sidepanel') || document.body
+            }
+        });
+    }
+
+    function applyFilterPreset(id) {
+        if (id === 'custom') return;
+        let preset = filterPresets.find(p => p.id === id);
+        if (!preset) return;
+        setFilterSliders(preset);
+    }
+
+    if (filterPresetEl) {
+        filterPresetEl.addEventListener('change', function() {
+            setDirty();
+            applyFilterPreset(filterPresetEl.value);
+        });
+    }
+
+    for (let key in filterControls) {
+        let el = filterControls[key];
+        if (el) {
+            // Slider moved by user -> switch to Custom and apply.
+            el.addEventListener('input', function() {
+                populateFilterPresets('custom');
+                setDirty();
+                applyMapFilter();
+            });
+        }
+    }
+
+    // Load presets and apply stored filter once both presets and seat data are ready.
+    let initialStoredFilter = window.warpGlobals.darkFilter || {};
+
+    Utils.xhr.get('/static/map_filter_presets.json', {toastOnSuccess: false})
+        .then(function(v) {
+            filterPresets = (v.response && v.response.presets) || [];
+            loadStoredFilter(initialStoredFilter);
+        })
+        .catch(function() {
+            // If the JSON fails to load, fall back to the neutral/original values.
+            filterPresets = [{ id: 'original', invert: 0, grayscale: 0, sepia: 0, saturate: 100, hue: 0, brightness: 100, contrast: 100 }];
+            loadStoredFilter(initialStoredFilter);
+        });
+
+    new MutationObserver(applyMapFilter).observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['theme']
+    });
+
+    applyMapFilter();
 
     // Make sure the add-seat zone select is initialized as Materialize if it's already visible on load
     // (mostly a no-op; actual init happens in populateAddSeatZoneSelect).
