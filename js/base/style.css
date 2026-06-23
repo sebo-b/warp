@@ -54,10 +54,20 @@
     --md-sys-color-error-dark:        var(--warp-error);
     --md-sys-color-on-error-dark:     var(--warp-on-brand);
 
-    --md-sys-color-background-dark:    var(--warp-grey-bg);
-    --md-sys-color-on-background-dark: var(--warp-text);
-    --md-sys-color-surface-dark:       var(--warp-surface);
-    --md-sys-color-on-surface-dark:    var(--warp-text);
+    --md-sys-color-background-dark:        var(--warp-grey-bg);
+    --md-sys-color-on-background-dark:     var(--warp-text);
+    --md-sys-color-surface-dark:           var(--warp-surface);
+    --md-sys-color-on-surface-dark:        var(--warp-text);
+
+    /* Collapse Materialize's neutral dark tokens onto warp's two-tier system so
+       outlines, dividers, helper text and filled-field fills stop drawing from
+       Materialize's own #1a1c1e-ish defaults (no off-tone strips). Reuses only
+       existing --warp-* roles; no new colour. */
+    --md-sys-color-outline-dark:           var(--warp-grey-border);
+    --md-sys-color-outline-variant-dark:   var(--warp-grey-border);
+    --md-sys-color-on-surface-variant-dark: var(--warp-grey-text);
+    --md-sys-color-surface-variant-dark:    var(--warp-grey-bg);
+    --md-sys-color-inverse-on-surface-dark:  var(--warp-surface);  /* picker dialogs (datepicker/timepicker) sit on the raised surface tier, not Materialize's off-tone #1a1c1e */
 }
 
 /* Top-bar light/dark toggle: show the moon in light mode (tap → dark), the sun in
@@ -990,6 +1000,7 @@ nav .dropdown-content li > span {
     color: var(--warp-primary);
     cursor: pointer;
     display: none;
+    z-index: 4;
 }
 
 .zonemap_datetime_trigger svg {
@@ -1022,7 +1033,6 @@ nav .dropdown-content li > span {
 
     .zonemap_datetime_trigger {
         display: block;
-        z-index: 2;
     }
 }
 
@@ -1106,16 +1116,33 @@ nav .dropdown-content li > span {
     justify-content: center;
 }
 
+/* z-index keeps this fixed overlay above the map <img>: the dark-mode image
+   filter (zone.js applyPlanMapFilter) turns the img into a stacking context
+   that otherwise paints over an auto-z fixed sibling. Above labels (2) too. */
 .zonemap_help {
     position: fixed;
     right: 0px;
     color: var(--warp-primary);
     cursor: pointer;
+    z-index: 4;
 }
 
 .zonemap_help svg {
     display: block;
     margin-top: 8px;
+}
+
+/* Dark mode: invert the map-corner icons — dark disc + light ring/symbol —
+   the reverse of light mode's white disc + brand ring, so they read on the
+   dark map instead of a bright white disc. The disc is the only shape using
+   --warp-on-brand (its fill); the ring/symbol use currentColor (color). */
+:root[theme="dark"] .zonemap_help,
+:root[theme="dark"] .zonemap_datetime_trigger {
+    color: var(--warp-on-brand);
+}
+:root[theme="dark"] .zonemap_help .warp-icon-disc,
+:root[theme="dark"] .zonemap_datetime_trigger .warp-icon-disc {
+    fill: var(--warp-grey-bg);
 }
 
 .zone_action_btn {
@@ -1233,6 +1260,19 @@ nav .dropdown-content li > span {
     max-width: 80px;
     transform: translateX(-50%);
     text-align: center;
+}
+
+/* Dark mode seat label: flip frame and background. The frame (border + title
+   bar) sits on --warp-surface (dark); the body becomes --warp-primary-tint (a
+   dark brand blue-grey) — the inverse of the light-mode charcoal-frame /
+   white-body look. Booking text stays on --warp-primary (body text, must stay
+   light). */
+:root[theme="dark"] .seat_label {
+    border-color: var(--warp-surface);
+    background-color: var(--warp-primary-tint);
+}
+:root[theme="dark"] .seat_label_title {
+    background-color: var(--warp-surface);
 }
 
 .seat_label_hidden {

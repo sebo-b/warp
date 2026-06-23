@@ -65,15 +65,24 @@
 }
 
 /* Dark mode overrides for the stock Tabulator Materialize theme, which hard-codes
-   light backgrounds and dark borders. Keep table, header, rows and footer on the
-   dark surface colours. */
+   light backgrounds and dark borders. Tabulator is page content, not a raised
+   card, so the table, header, rows and footer sit on the page tier
+   (--warp-grey-bg); only the genuinely floating elements (edit-select dropdown,
+   popup container, alert) stay on the raised --warp-surface tier. Hover and
+   group/calcs bands use the lighter surface tier so they still read as
+   highlights. */
 :root[theme="dark"] .tabulator,
 :root[theme="dark"] .tabulator .tabulator-header,
 :root[theme="dark"] .tabulator .tabulator-header .tabulator-col,
 :root[theme="dark"] .tabulator .tabulator-tableholder .tabulator-table,
 :root[theme="dark"] .tabulator-row,
 :root[theme="dark"] .tabulator-row.tabulator-row-even,
-:root[theme="dark"] .tabulator .tabulator-footer,
+:root[theme="dark"] .tabulator .tabulator-footer {
+    background-color: var(--warp-grey-bg);
+    color: var(--warp-text);
+}
+
+/* Floating popups/menus stay on the raised surface tier. */
 :root[theme="dark"] .tabulator-edit-select-list,
 :root[theme="dark"] .tabulator-popup-container,
 :root[theme="dark"] .tabulator .tabulator-alert .tabulator-alert-msg {
@@ -82,14 +91,20 @@
 }
 
 :root[theme="dark"] .tabulator-row.tabulator-row-even {
-    background-color: color-mix(in srgb, var(--warp-surface), var(--warp-text) 5%);
+    background-color: color-mix(in srgb, var(--warp-grey-bg), var(--warp-text) 5%);
 }
 
+/* Table rows/cols/footer-page hover: lighten onto the raised surface tier
+   (page-tier base → surface highlight). */
 :root[theme="dark"] .tabulator-row.tabulator-selectable:hover,
 :root[theme="dark"] .tabulator .tabulator-header .tabulator-col.tabulator-sortable.tabulator-col-sorter-element:hover,
-:root[theme="dark"] .tabulator-menu .tabulator-menu-item:not(.tabulator-menu-item-disabled):hover,
-:root[theme="dark"] .tabulator-edit-select-list .tabulator-edit-select-list-item:hover,
 :root[theme="dark"] .tabulator .tabulator-footer .tabulator-page:not(disabled):hover {
+    background-color: var(--warp-surface);
+}
+
+/* Hover inside the raised popups/menus: darken onto the page tier. */
+:root[theme="dark"] .tabulator-menu .tabulator-menu-item:not(.tabulator-menu-item-disabled):hover,
+:root[theme="dark"] .tabulator-edit-select-list .tabulator-edit-select-list-item:hover {
     background-color: var(--warp-grey-bg);
 }
 
@@ -105,7 +120,7 @@
 }
 
 :root[theme="dark"] .tabulator-row .tabulator-cell.tabulator-row-header {
-    background-color: var(--warp-surface);
+    background-color: var(--warp-grey-bg);
     border-right-color: var(--warp-grey-border);
 }
 
@@ -118,7 +133,7 @@
 :root[theme="dark"] .tabulator-row.tabulator-group,
 :root[theme="dark"] .tabulator-print-table .tabulator-print-table-group,
 :root[theme="dark"] .tabulator-row .tabulator-responsive-collapse {
-    background-color: var(--warp-grey-bg) !important;
+    background-color: var(--warp-surface) !important;
 }
 
 :root[theme="dark"] .tabulator-row.tabulator-group span,

@@ -8,7 +8,13 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     var dateFilterEditor = function(cell, onRendered, success, cancel, editorParams){
 
-        var picker = document.createElement("input");
+        // Wrap the input in a span and return the span: Tabulator binds its
+        // live-filter keyup/search handlers to the returned element, so binding
+        // them to the inert span stops it submitting the raw "yyyy-mm-dd" string
+        // as the filter value (which crashed the server's integer fromts/tots
+        // comparison). success() is driven by onSelect + the change handler below.
+        var container = document.createElement("span");
+        var picker = container.appendChild(document.createElement("input"));
 
         var offset = 0;
         if (typeof(editorParams) === 'object'&& 'offset' in editorParams) {
@@ -49,9 +55,17 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 let ts = new Date(parseInt(cellValue)*1000);
                 picker.value = ts.toISOString().substring(0,10);
             }
+
+            // 2.x's clear button (and manual edits) fire `change` without
+            // onSelect; re-derive the timestamp from the datepicker instance's
+            // .date (null when cleared) so success always gets an integer.
+            picker.addEventListener('change', function() {
+                var inst = M.Datepicker.getInstance(picker);
+                success(inst && inst.date ? Math.round(inst.date.getTime()/1000)+offset : null);
+            });
         });
 
-        return picker;
+        return container;
     }
 
     var tsFormatter = function(cell) {
