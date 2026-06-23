@@ -60,6 +60,13 @@
 .warp-btn-primary:hover {
     background-color: var(--warp-primary-light) !important;
 }
+.warp-btn-flat-danger {
+    color: var(--warp-danger-btn) !important;
+    background-color: transparent !important;
+}
+.warp-btn-flat-danger:hover {
+    background-color: color-mix(in srgb, var(--warp-danger-btn), transparent 88%) !important;
+}
 .warp-icon-danger   { color: var(--warp-danger-icon) !important; }
 .warp-icon-edit     { color: var(--warp-edit-icon) !important; }
 .warp-icon-edit-alt { color: var(--warp-edit-icon-alt) !important; }
