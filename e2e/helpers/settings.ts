@@ -21,7 +21,7 @@ export async function openCalendarModal(page: Page): Promise<void> {
   const modal = page.locator('#calendar_modal');
   await expect(modal).toBeVisible();
   // Ensure inner content is scrolled to top; some controls are otherwise "outside viewport".
-  await modal.locator('.modal-content').evaluate((el: HTMLElement) => { el.scrollTop = 0; });
+  await modal.locator('> .modal-content').evaluate((el: HTMLElement) => { el.scrollTop = 0; });
 }
 
 /** Full prefs payload matching the required schema. */

@@ -92,7 +92,7 @@ test.describe('zone editor access', () => {
     await logIn(page, ADMIN);
     const seats = await getZoneSeats(ZID);
     await openEditor(page);
-    const count = await page.locator('#zone_map_container > div[style*="background-image"]').count();
+    const count = await page.locator('#zone_map_container > div.seat-icon').count();
     expect(count).toBe(seats.length);
   });
 
@@ -259,7 +259,7 @@ test.describe('adding a seat', () => {
     await toggleMode(page); // add mode
     await page.locator('#zone_map').click({ position: EMPTY_SPOT });
 
-    const count = await page.locator('#zone_map_container > div[style*="background-image"]').count();
+    const count = await page.locator('#zone_map_container > div.seat-icon').count();
     expect(count).toBe(beforeCount + 1);
     await expect(page.locator('#saveBtn')).not.toHaveClass(/disabled/);
   });
