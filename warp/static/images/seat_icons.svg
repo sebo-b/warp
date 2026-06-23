@@ -19,7 +19,6 @@
          the disc arc itself (r=10.5) so it meets the ring with no gap below and
          without needing a clip (clip-path isn't honoured by every sprite host). -->
     <path id="figure"     d="M12,12C14.21,12 16,10.21 16,8C16,5.79 14.21,4 12,4C9.79,4 8,5.79 8,8C8,10.21 9.79,12 12,12ZM2.29,16A10.5,10.5 0 0 0 21.71,16C18,13.8 14.8,13.4 12,13.4C9.2,13.4 6,13.8 2.29,16Z"/>
-    <path id="no-path"    d="M12,2C6.48,2 2,6.48 2,12C2,17.52 6.48,22 12,22C17.52,22 22,17.52 22,12C22,6.48 17.52,2 12,2ZM12,20C7.58,20 4,16.42 4,12C4,10.15 4.63,8.46 5.69,7.1L16.9,18.31C15.46,19.37 13.85,20 12,20ZM18.31,16.9L7.1,5.69C8.54,4.63 10.15,4 12,4C16.42,4 20,7.58 20,12C20,13.85 19.37,15.54 18.31,16.9Z"/>
     <path id="tie-path"   d="M10,14L14,14L12,17.2L10,14ZM11.5,16.5L12.5,16.5L12.8,19L12,20L11.2,19L11.5,16.5Z"/>
 
     <!-- Disc reused by every symbol. Opaque light fill = white base + a
@@ -66,7 +65,10 @@
 
     <symbol id="icon-no" viewBox="0 0 24 24">
       <use href="#disc"/>
-      <use href="#no-path" fill="currentColor"/>
+      <!-- X = the plus glyph rotated 45°, so its stroke weight matches #icon-plus
+           and the only ring is the disc's 1.5px, like every other icon (no thick
+           prohibition circle). -->
+      <use href="#plus-path" fill="currentColor" transform="rotate(45 12 12)"/>
     </symbol>
 
     <symbol id="icon-assigned" viewBox="0 0 24 24">
@@ -82,8 +84,8 @@
   <!-- Preview only (the app references the symbols above): one icon per shape. -->
   <use href="#icon-plus"       x="0"   y="0" width="48" height="48" color="#2e7d32"/>
   <use href="#icon-arrow"      x="56"  y="0" width="48" height="48" color="#2e7d32"/>
-  <use href="#icon-head"       x="112" y="0" width="48" height="48" color="#3949ab"/>
-  <use href="#icon-head-arrow" x="168" y="0" width="48" height="48" color="#3949ab"/>
-  <use href="#icon-no"         x="224" y="0" width="48" height="48" color="#9e9e9e"/>
-  <use href="#icon-assigned"   x="280" y="0" width="48" height="48" color="#9e9e9e"/>
+  <use href="#icon-head"       x="112" y="0" width="48" height="48" color="#2C3E50"/>
+  <use href="#icon-head-arrow" x="168" y="0" width="48" height="48" color="#2C3E50"/>
+  <use href="#icon-no"         x="224" y="0" width="48" height="48" color="#616161"/>
+  <use href="#icon-assigned"   x="280" y="0" width="48" height="48" color="#616161"/>
 </svg>

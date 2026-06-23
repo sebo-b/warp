@@ -7,7 +7,7 @@
 .noUi-target {
     border: 0;
     border-radius: 0;
-    background: var(--warp-indigo-light);
+    background: var(--warp-primary-tint);
 }
 
 .noUi-vertical {
@@ -21,7 +21,7 @@
 }
 
 .noUi-connect {
-    background: var(--warp-secondary);
+    background: var(--warp-primary);
 }
 
 .noUi-horizontal .noUi-handle,
@@ -30,7 +30,7 @@
     height: 15px;
     border-radius: 50%;
     box-shadow: none;
-    background-color: var(--warp-secondary);
+    background-color: var(--warp-primary);
     border: none;
     transform: translateY(-10px);
 }

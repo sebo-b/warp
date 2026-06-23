@@ -47,7 +47,7 @@
    These classes restore them, driven by the theme tokens. */
 .warp-btn-danger,
 .warp-btn-danger:hover {
-    background-color: var(--warp-danger-btn) !important;
+    background-color: var(--warp-error) !important;
     color: #fff !important;
 }
 /* Primary filled action (indigo) for .btn outside the modal footer — e.g. the
@@ -61,15 +61,15 @@
     background-color: var(--warp-primary-light) !important;
 }
 .warp-btn-flat-danger {
-    color: var(--warp-danger-btn) !important;
+    color: var(--warp-error) !important;
     background-color: transparent !important;
 }
 .warp-btn-flat-danger:hover {
-    background-color: color-mix(in srgb, var(--warp-danger-btn), transparent 88%) !important;
+    background-color: color-mix(in srgb, var(--warp-error), transparent 88%) !important;
 }
-.warp-icon-danger   { color: var(--warp-danger-icon) !important; }
-.warp-icon-edit     { color: var(--warp-edit-icon) !important; }
-.warp-icon-edit-alt { color: var(--warp-edit-icon-alt) !important; }
+.warp-icon-danger   { color: var(--warp-error) !important; }
+.warp-icon-edit     { color: var(--warp-edit) !important; }
+.warp-icon-edit-alt { color: var(--warp-edit) !important; }
 .warp-fab-add,
 .warp-fab-add:hover {
     background-color: var(--warp-secondary) !important;
@@ -304,7 +304,7 @@ nav .dropdown-content li > span {
 .book-as_container .book-as_input {
     background-color: transparent;
     border: none;
-    border-bottom: 1px solid var(--warp-grey-3);
+    border-bottom: 1px solid var(--warp-grey-muted);
     border-radius: 0;
     padding: 18px 0 6px 0;
     height: 48px;
@@ -321,7 +321,7 @@ nav .dropdown-content li > span {
     padding-left: 0 !important;
     transform: none;
     font-size: 0.75rem;
-    color: var(--warp-grey-4);
+    color: var(--warp-grey-text);
 }
 .book-as_container .book-as_input:focus {
     border-bottom-color: var(--warp-primary);
@@ -377,11 +377,11 @@ nav .dropdown-content li > span {
     width: auto;
 }
 #edit_modal #add_to_group.chips input.input::placeholder {
-    color: var(--warp-grey-5);
+    color: var(--warp-grey-text);
 }
 #edit_modal #add_to_group.chips .chip {
-    background-color: var(--warp-indigo-light);
-    color: var(--warp-indigo-dark);
+    background-color: var(--warp-primary-tint);
+    color: var(--warp-primary-dark);
     border-radius: var(--warp-radius-pill);
     height: 28px;
     line-height: 28px;
@@ -401,24 +401,24 @@ nav .dropdown-content li > span {
     transform-origin: top left;
     font-size: 1rem;
     background-color: var(--warp-surface);
-    color: var(--warp-grey-4);
+    color: var(--warp-grey-text);
     z-index: 1;
 }
 
 .noUi-warp-connect {
-    background: var(--warp-secondary);
+    background: var(--warp-primary);
     height: 100%;
     width: 100%;
 }
 
 .noUi-warp-handle {
-    border: 1px solid var(--warp-slider-handle-border);
+    border: 1px solid var(--warp-grey-border);
     border-radius: var(--warp-radius-sm);
     background: var(--warp-surface);
     cursor: default;
     box-shadow: inset 0 0 1px var(--warp-surface),
-    inset 0 1px 7px var(--warp-slider-handle-shadow),
-    0 3px 6px -3px var(--warp-slider-handle-shadow-outer);
+    inset 0 1px 7px var(--warp-grey-bg),
+    0 3px 6px -3px var(--warp-grey-muted);
   }
 
 .timeslider {
@@ -428,7 +428,7 @@ nav .dropdown-content li > span {
 }
 
 .timeslider-hint {
-    color: var(--warp-grey-3);
+    color: var(--warp-grey-muted);
     text-align: center;
     width: 60px;
     border: 1px solid var(--warp-primary);
@@ -451,7 +451,7 @@ nav .dropdown-content li > span {
     margin: 0;
     border: 0;
     border-radius: 0;
-    background: var(--warp-indigo-light);
+    background: var(--warp-primary-tint);
 }
 
 .pref_timeslider_container .timeslider .noUi-connects {
@@ -463,7 +463,7 @@ nav .dropdown-content li > span {
 }
 
 .pref_timeslider_container .timeslider .noUi-connect {
-    background: var(--warp-secondary);
+    background: var(--warp-primary);
 }
 
 .pref_timeslider_container .timeslider .noUi-origin {
@@ -472,7 +472,7 @@ nav .dropdown-content li > span {
 
 .pref_timeslider_container .timeslider .noUi-handle {
     box-shadow: none;
-    background-color: var(--warp-secondary);
+    background-color: var(--warp-primary);
     border: none;
     border-radius: 50%;
     width: 15px;
@@ -502,7 +502,7 @@ nav .dropdown-content li > span {
    Confirm/reassign add .warp-modal-sm for their narrower width. */
 .warp-form-modal {
     background-color: var(--warp-surface);
-    border: 1px solid var(--warp-grey-2);
+    border: 1px solid var(--warp-grey-border);
     border-radius: var(--warp-radius-lg);
     color: var(--warp-text);
     max-height: 90vh;
@@ -569,7 +569,7 @@ nav .dropdown-content li > span {
     transform: scale(0.75);
     transform-origin: top left;
     background-color: var(--warp-surface);
-    color: var(--warp-grey-4);
+    color: var(--warp-grey-text);
 }
 /* M2's outlined floated label is transparent, so the border strikes through the
    text — give the floated label a surface notch that paints over the border.
@@ -603,7 +603,7 @@ nav .dropdown-content li > span {
 .warp-fields .dropdown-content.select-dropdown,
 .warp-fields .dropdown-content.autocomplete-content {
     background-color: var(--warp-surface);
-    border: 1px solid var(--warp-grey-2);
+    border: 1px solid var(--warp-grey-border);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 .warp-fields .dropdown-content.select-dropdown li,
@@ -615,7 +615,7 @@ nav .dropdown-content li > span {
 .warp-fields .dropdown-content.select-dropdown li:not(.disabled):hover,
 .warp-fields .dropdown-content.autocomplete-content li:hover,
 .warp-fields .dropdown-content.autocomplete-content li.selected {
-    background-color: var(--warp-grey-1);
+    background-color: var(--warp-grey-bg);
 }
 /* M2 autocomplete items render as a bold, tight display:grid; normalise them to
    match the plain FormSelect rows. */
@@ -649,8 +649,8 @@ nav .dropdown-content li > span {
     align-items: center;   /* keep buttons of differing heights baseline-aligned */
     gap: var(--warp-space-2);
     padding: var(--warp-space-3) var(--warp-space-5);
-    border-top: 1px solid var(--warp-grey-2);
-    background-color: var(--warp-grey-1);
+    border-top: 1px solid var(--warp-grey-border);
+    background-color: var(--warp-grey-bg);
     position: static;
 }
 #zonemap_help_modal .modal-footer { justify-content: center; }
@@ -736,7 +736,7 @@ nav .dropdown-content li > span {
     align-items: center;
 }
 #calendar_modal .input-field .helper-text {
-    color: var(--warp-grey-4);
+    color: var(--warp-grey-text);
 }
 @media only screen and (max-width: 600px) {
     #calendar_modal .valign-wrapper {
@@ -746,8 +746,8 @@ nav .dropdown-content li > span {
 }
 /* Darken the pref slider time-hint so the row doesn't look washed out. */
 #pref_modal .pref_timeslider_container .timeslider-hint {
-    color: var(--warp-grey-6);
-    border-color: var(--warp-grey-5);
+    color: var(--warp-grey-text);
+    border-color: var(--warp-grey-text);
 }
 /* Date/time picker dialogs in 2.x use [open] on a child <dialog>.  The
    ModalDisplayPlugin only sets [open] instead of calling showModal(), so the
@@ -774,7 +774,7 @@ nav .dropdown-content li > span {
 .pref-feature-row > span {
     flex: 1;
     font-size: 1rem;
-    color: var(--warp-grey-3);
+    color: var(--warp-grey-text);
 }
 
 .pref-feature-row .switch label {
@@ -790,7 +790,7 @@ nav .dropdown-content li > span {
 }
 
 .weekday-chip {
-    border: 2px solid var(--warp-grey-3);
+    border: 2px solid var(--warp-grey-muted);
     border-radius: var(--warp-radius-pill);
     padding: 0 var(--warp-space-3);
     height: 32px;
@@ -798,7 +798,7 @@ nav .dropdown-content li > span {
     font-size: 0.85rem;
     cursor: pointer;
     background: transparent;
-    color: var(--warp-grey-4);
+    color: var(--warp-grey-text);
     transition: background-color 0.15s, color 0.15s, border-color 0.15s;
 }
 
@@ -809,8 +809,8 @@ nav .dropdown-content li > span {
 }
 
 .weekday-chip:hover:not(.active) {
-    background-color: var(--warp-grey-1);
-    border-color: var(--warp-grey-4);
+    background-color: var(--warp-grey-bg);
+    border-color: var(--warp-grey-text);
 }
 
 .cal-section-disabled {
@@ -828,7 +828,7 @@ nav .dropdown-content li > span {
     display: flex;
     width: 100%;
     height: 40px;
-    border-bottom: 1px solid var(--warp-grey-2);
+    border-bottom: 1px solid var(--warp-grey-border);
 }
 #cal_type_tabs .tab {
     flex: 1 1 0;
@@ -839,7 +839,7 @@ nav .dropdown-content li > span {
     display: block;
     width: 100%;
     text-align: center;
-    color: var(--warp-grey-4);
+    color: var(--warp-grey-text);
     min-height: 40px !important;
     height: 40px;
     line-height: 40px;
@@ -855,7 +855,7 @@ nav .dropdown-content li > span {
 }
 #cal_type_tabs .tab.disabled a,
 #cal_type_tabs .tab.disabled a:hover {
-    color: var(--warp-grey-3);
+    color: var(--warp-grey-muted);
     cursor: default;
 }
 
@@ -955,7 +955,7 @@ nav .dropdown-content li > span {
 .zonemap_datetime_trigger {
     position: fixed;
     left: 0px;
-    color: var(--warp-grey-3);
+    color: var(--warp-grey-muted);
     cursor: pointer;
     display: none;
 }
@@ -1042,7 +1042,7 @@ nav .dropdown-content li > span {
 
 .auto_book_fab .btn-floating.disabled {
     pointer-events: none;
-    background-color: var(--warp-disabled-fab) !important;
+    background-color: var(--warp-grey-border) !important;
     box-shadow: none;
 }
 
@@ -1071,7 +1071,7 @@ nav .dropdown-content li > span {
 .zonemap_help {
     position: fixed;
     right: 0px;
-    color: var(--warp-grey-3);
+    color: var(--warp-grey-muted);
     cursor: pointer;
 }
 
@@ -1141,7 +1141,7 @@ nav .dropdown-content li > span {
 }
 
 .seat_preview td {
-    color: var(--warp-seat-preview-text);
+    color: var(--warp-grey-text);
     padding: 0px 4px;
     text-align: left;
     vertical-align: middle;
@@ -1159,7 +1159,7 @@ nav .dropdown-content li > span {
     display: block;
     width: 48px;
     height: 48px;
-    color: var(--warp-grey-3);
+    color: var(--warp-grey-muted);
 }
 
 .seat-icon svg {
@@ -1178,7 +1178,7 @@ nav .dropdown-content li > span {
 }
 
 .seat-icon--grey {
-    color: var(--warp-grey-3);
+    color: var(--warp-grey-text);
 }
 
 .seat_label {
@@ -1219,7 +1219,7 @@ nav .dropdown-content li > span {
 }
 
 .seat_label_assigned {
-    color: var(--warp-grey-5);
+    color: var(--warp-grey-text);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1227,30 +1227,30 @@ nav .dropdown-content li > span {
 }
 
 .seat_label_zone {
-    background-color: var(--warp-indigo-pale);
-    color: var(--warp-indigo-dark);
+    background-color: var(--warp-primary-pale);
+    color: var(--warp-primary-dark);
     padding: 0px 4px;
     line-height: 14px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     font-size: 9px;
-    border-top: 1px solid var(--warp-indigo-light);
+    border-top: 1px solid var(--warp-primary-tint);
 }
 
 .seat_label_deleted {
-    border-color: var(--warp-grey-3);
-    background-color: var(--warp-grey-1);
+    border-color: var(--warp-grey-muted);
+    background-color: var(--warp-grey-bg);
 }
 
 .seat_label_deleted .seat_label_title {
-    background-color: var(--warp-grey-3);
+    background-color: var(--warp-grey-muted);
 }
 
 .seat_label_deleted .seat_label_zone {
-    color: var(--warp-grey-3);
-    border-top-color: var(--warp-grey-2);
-    background-color: var(--warp-grey-1);
+    color: var(--warp-grey-muted);
+    border-top-color: var(--warp-grey-border);
+    background-color: var(--warp-grey-bg);
 }
 
 .assigned_seat_list {
@@ -1379,7 +1379,7 @@ INPUT[type="text"] ~ .show_password_btn::after {
 }
 
 .userGroupCell {
-    color: black;
+    color: var(--warp-text);
     text-decoration: none;
 }
 
@@ -1544,9 +1544,9 @@ INPUT[type="text"] ~ .show_password_btn::after {
     border-radius: 50%;
     width: 150px;
     height: 150px;
-    border-top: 6px solid var(--warp-accent-light);
-    border-right: 6px solid var(--warp-accent-light);
-    border-bottom: 6px solid var(--warp-accent-light);
+    border-top: 6px solid var(--warp-secondary-pale);
+    border-right: 6px solid var(--warp-secondary-pale);
+    border-bottom: 6px solid var(--warp-secondary-pale);
     border-left: 6px solid var(--warp-secondary);
     animation: spinnerRotate 1s infinite linear;
 }
@@ -1560,7 +1560,7 @@ INPUT[type="text"] ~ .show_password_btn::after {
 .dropdown-header {
     padding: 8px 16px 4px;
     font-size: 0.8rem;
-    color: var(--warp-grey-3);
+    color: var(--warp-grey-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     cursor: default;
@@ -1612,5 +1612,5 @@ INPUT[type="text"] ~ .show_password_btn::after {
     vertical-align: top;
 }
 #zonemap_help_modal .modal-content > table tr + tr td {
-    border-top: 1px solid var(--warp-grey-2);
+    border-top: 1px solid var(--warp-grey-border);
 }

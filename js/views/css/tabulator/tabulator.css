@@ -15,7 +15,7 @@
     max-width: 100%;
 }
 
-/* Brand accent — the stock theme uses materialize red #ee6e73 for these. */
+/* Brand accent — the stock theme colours these with its own red. */
 .tabulator-row.tabulator-selected,
 .tabulator-row.tabulator-selected:hover {
     background-color: var(--warp-secondary);
@@ -52,7 +52,7 @@
     height: 100px;
     color: transparent;
     border-radius: 50%;
-    border: 6px solid var(--warp-accent-light);
+    border: 6px solid var(--warp-secondary-pale);
     border-left-color: var(--warp-secondary);
     animation: spinnerRotate 1s infinite linear;
 }

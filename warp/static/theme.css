@@ -11,57 +11,42 @@
  * mappings), the affordance classes, the spacing/radius scale and every other
  * structural rule lives in js/base/style.css, NOT here.
  *
- * The brand is WARP's original pre-migration palette:
- *   $primary   = indigo darken-1  (#3949ab)
- *   $secondary = orange accent-4  (#ff6d00)
- *   $link      = indigo darken-3  (#283593)
+ * RE-BRANDING: change --warp-primary and --warp-secondary (and, if desired,
+ * --warp-error). Everything else is either derived from those via color-mix()
+ * or a neutral; the whole UI follows. The brand is WARP's business palette:
+ *   primary   = charcoal slate (#2C3E50)
+ *   secondary = blue           (#2980B9)
  */
 :root {
-  /* brand */
-  --warp-primary:       #3949ab;  /* indigo darken-1 — nav, buttons, focus, links */
-  --warp-primary-light: #5c6bc0;  /* indigo lighten-1 — hover/active accents */
-  --warp-secondary:     #ff6d00;  /* orange accent-4 — FAB, sliders, spinner, tabs, default btn */
-  --warp-link:          #283593;  /* indigo darken-3 */
+  /* ---- Brand — the only knobs to change for a re-brand ------------------- */
+  --warp-primary:   #2C3E50;  /* charcoal slate — nav, buttons, focus, links, primary actions */
+  --warp-secondary: #2980B9;  /* blue — default btn, FAB, sliders, tabs, accents */
 
-  /* indigo brand tints (zone editor, seat labels, marquee, weekday chips, sliders) */
-  --warp-indigo:        var(--warp-primary);
-  --warp-indigo-light:  #c5cae9;  /* indigo lighten-4 — slider track, zone border */
-  --warp-indigo-pale:   #e8eaf6;  /* indigo lighten-5 — seat-label zone bg */
-  --warp-indigo-dark:   #283593;  /* indigo darken-3 — seat-label zone text */
+  /* Brand tints, derived so a re-brand recolours them automatically. Background
+     tints mix against --warp-surface so they flip for free in dark mode; accent
+     fills mix against white/black. Override any single one with a literal if a
+     particular brand needs it. */
+  --warp-primary-light: color-mix(in srgb, var(--warp-primary), white 20%);                 /* hover/active accents */
+  --warp-primary-dark:  color-mix(in srgb, var(--warp-primary), black 25%);                 /* seat-label zone text (override in a dark theme) */
+  --warp-primary-tint:  color-mix(in srgb, var(--warp-primary), var(--warp-surface) 75%);   /* slider track, zone border */
+  --warp-primary-pale:  color-mix(in srgb, var(--warp-primary), var(--warp-surface) 90%);   /* seat-label zone bg */
+  --warp-secondary-pale:color-mix(in srgb, var(--warp-secondary), var(--warp-surface) 70%); /* spinner top/right/bottom */
 
-  /* single accent orange (merged: brand secondary == UI accent) */
-  --warp-accent:        var(--warp-secondary);
-  --warp-accent-light:  #ffe0b2;  /* spinner top/right/bottom */
+  /* ---- Semantic status -------------------------------------------------- */
+  --warp-error:   #c62828;  /* deep red — delete/danger button + icon (AA-safe with white text) */
+  --warp-success: #2e7d32;  /* green — seat status "free/available" ONLY */
+  --warp-edit:    var(--warp-secondary);  /* edit/manage icons; retarget if secondary is wrong for an icon/text role */
 
-  /* semantic roles (one red, one green — merged) */
-  --warp-error:         #f44336;  /* materialize red — all error/danger affordances */
-  --warp-success:       #2e7d32;  /* green darken-3 — edit/manage affordances */
-  --warp-danger-btn:    var(--warp-error);   /* delete button bg */
-  --warp-danger-icon:   var(--warp-error);   /* delete icon */
-  --warp-edit-icon:     var(--warp-success); /* edit/manage icon */
-  --warp-edit-icon-alt: var(--warp-success); /* edit icon (1 use) */
+  /* ---- Neutrals --------------------------------------------------------- */
+  --warp-surface:     #ffffff;  /* card/modal/input/seat-label surface */
+  --warp-text:        #212121;  /* primary body/heading text */
+  --warp-grey-bg:     #f5f5f5;  /* fills, footers, hover, slider-handle inner shadow */
+  --warp-grey-border: #e0e0e0;  /* borders, dividers, disabled FAB, slider-handle border */
+  --warp-grey-muted:  #9e9e9e;  /* disabled text/icons, slider-handle outer shadow */
+  --warp-grey-text:   #616161;  /* secondary text, labels */
 
-  /* neutrals */
-  --warp-text:    #212121;  /* primary body/heading text */
-  --warp-surface: #ffffff;  /* card/modal/seat-label surface */
-
-  /* grey ramp (Materialize grey palette, used in style.css/tabulator) */
-  --warp-grey-1: #f5f5f5;  /* grey lighten-4 — fills, footers, hover */
-  --warp-grey-2: #e0e0e0;  /* grey lighten-2 — borders */
-  --warp-grey-3: #9e9e9e;  /* grey base */
-  --warp-grey-4: #616161;  /* grey darken-1 — labels */
-  --warp-grey-5: #757575;  /* grey darken-2 */
-  --warp-grey-6: #424242;  /* grey darken-3 — emphasised hint text */
-
-  /* odds the inventory surfaced */
-  --warp-seat-preview-text: #6e6e6e;
-  --warp-disabled-fab:      #dfdfdf;
-  --warp-slider-handle-border: #d9d9d9;
-  --warp-slider-handle-shadow:  #ebebeb;
-  --warp-slider-handle-shadow-outer: #bbb;
-
-  /* RGB channels for app rgba() rules that need a brand colour + alpha. */
-  --warp-primary-rgb: 57, 73, 171;
-  --warp-secondary-rgb: 255, 109, 0;
-  --warp-error-rgb: 244, 67, 54;
+  /* ---- RGB channels for app rgba() rules that need a colour + alpha ------ */
+  --warp-primary-rgb:   44, 62, 80;
+  --warp-secondary-rgb: 41, 128, 185;
+  --warp-error-rgb:     198, 40, 40;
 }
