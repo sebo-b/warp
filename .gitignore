@@ -16,3 +16,18 @@ docker-compose.yml
 # visual-snapshot tool output (build artefact)
 res/visual-snapshots/
 
+# planning / analysis reports — kept locally, not part of the repo
+/COLOR_INVENTORY_AND_PROPOSAL.md
+/CSS_MINIMIZATION_REPORT.md
+
+# local scratch / generated artifacts
+/graphify-out/
+/res/palette-preview/
+/res/seat_icons_s.svg
+/res/tmp_rebook.png
+/res/visual-snapshot/probe-*.ts
+/res/visual-snapshot/inspect-*.ts
+/res/visual-snapshot/live-*.ts
+/res/visual-snapshot/debug-*.ts
+/res/visual-snapshot/serve-keep.ts
+

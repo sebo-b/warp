@@ -124,9 +124,7 @@
             "Enable": "Habilitar",
             "Disable": "Deshabilitar",
             "Upload map": "Subir mapa",
-            "Add seats": "Agregar Asientos",
             "Restore": "Restaurar",
-            "Edit": "Editar",
             "Yes, delete": "Sí, eliminar",
             "Sign in with SSO": "Iniciar sesión con SSO"
         },
@@ -231,12 +229,11 @@
         },
         "Are you sure to update the zone?": "¿Está seguro de actualizar la zona?",
         "Are you sure to update the plan?": "¿Está seguro de actualizar el plan?",
-        "The following changes will be applied:<br>": "Los siguientes cambios serán aplicados:<br>",
-        "- updated zone map<br>": "- Mapa de zona actualizado<br>",
-        "- updated plan map<br>": "- Mapa del plan actualizado<br>",
-        "- added %{smart_count} seat(s)<br>": "- Un asiento agregado<br>||||- %{smart_count} asientos agregados<br>",
-        "- updated data of %{smart_count} seat(s)<br>": "- Datos actualizados de un asiento<br>||||- Datos actualizados para %{smart_count} asientos<br>",
-        "- deleted %{smart_count} seat(s)<br>": "- Un asiento fué borrado<br>||||- %{smart_count} asientos fueron borrados<br>",
+        "The following changes will be applied:": "Los siguientes cambios serán aplicados:",
+        "updated plan map": "Mapa del plan actualizado",
+        "added %{smart_count} seat(s)": "Un asiento agregado||||%{smart_count} asientos agregados",
+        "updated data of %{smart_count} seat(s)": "Datos actualizados de un asiento||||Datos actualizados para %{smart_count} asientos",
+        "deleted %{smart_count} seat(s)": "Un asiento fué borrado||||%{smart_count} asientos fueron borrados",
         "seatEdit": {
             "Seat name": "Nombre del asiento",
             "X": "X",
@@ -374,6 +371,6 @@
         "Authentication failed: could not exchange the authorisation code.": "Error de autenticación: no se pudo intercambiar el código de autorización.",
         "Authentication failed: no user claims received.": "Error de autenticación: no se recibieron datos del usuario.",
         "Authentication failed: the SAML response was invalid.": "Error de autenticación: la respuesta SAML no era válida.",
-        "updated map filter<br>": "- updated map filter<br>"
+        "updated map filter": "Filtro de mapa actualizado"
     }
 }

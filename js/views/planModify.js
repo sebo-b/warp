@@ -323,11 +323,13 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
         data.append('json', JSON.stringify(json));
 
-        var msg = TR("The following changes will be applied:<br>");
+        // Build the change summary as plain translated phrases; the "- " bullet and
+        // <br> line breaks are presentation and are added here, not baked into i18n.
+        let lines = [];
         if (data.has('image'))
-            msg += TR("- updated plan map<br>");
+            lines.push(TR("updated plan map"));
         if ('remove' in json)
-            msg += TR("- deleted %{smart_count} seat(s)<br>", {smart_count: json.remove.length});
+            lines.push(TR("deleted %{smart_count} seat(s)", {smart_count: json.remove.length}));
 
         if ('addOrUpdate' in json) {
             let changedCount = 0;
@@ -335,12 +337,16 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 if ('sid' in i) ++changedCount;
             }
             let added = json.addOrUpdate.length - changedCount;
-            if (added > 0) msg += TR("- added %{smart_count} seat(s)<br>", {smart_count: added});
-            if (changedCount > 0) msg += TR("- updated data of %{smart_count} seat(s)<br>", {smart_count: changedCount});
+            if (added > 0) lines.push(TR("added %{smart_count} seat(s)", {smart_count: added}));
+            if (changedCount > 0) lines.push(TR("updated data of %{smart_count} seat(s)", {smart_count: changedCount}));
         }
 
         if ('darkFilter' in json)
-            msg += TR("- updated map filter<br>");
+            lines.push(TR("updated map filter"));
+
+        let msg = TR("The following changes will be applied:");
+        for (let line of lines)
+            msg += "<br>- " + line;
 
         WarpModal.getInstance().open(
             TR("Are you sure to update the plan?"),
@@ -533,6 +539,10 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 showMarquee();
                 resetCursor();
             }
+            // A completed marquee move/rotate changes seat positions but does not
+            // emit a per-seat 'change' event, so reconcile the dirty state here to
+            // enable Save. (setDirty() is a no-op if nothing actually moved.)
+            setDirty();
         }
     };
 
@@ -614,10 +624,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
     let filterPresetEl = document.getElementById('map_filter_preset');
     let filterPresets = [];
 
-    function markFilterDirty() {
-        setDirty();
-    }
-
+    // The last-saved filter state, used to detect a dirty filter. Updated after a
+    // successful save (see the save handler above).
     let storedFilter = window.warpGlobals.darkFilter || {};
 
     function filterStateMatches(a, b) {
@@ -754,27 +762,28 @@ document.addEventListener("DOMContentLoaded", function(e) {
     for (let key in filterControls) {
         let el = filterControls[key];
         if (el) {
-            // Slider moved by user -> switch to Custom and apply.
+            // Slider moved by user -> switch the preset selector to Custom and apply.
+            // Only rebuild the selector when actually leaving a named preset; rebuilding
+            // it on every input event (each step of a drag) caused flicker and churn.
             el.addEventListener('input', function() {
-                populateFilterPresets('custom');
+                if (filterPresetEl && filterPresetEl.value !== 'custom')
+                    populateFilterPresets('custom');
                 setDirty();
                 applyMapFilter();
             });
         }
     }
 
-    // Load presets and apply stored filter once both presets and seat data are ready.
-    let initialStoredFilter = window.warpGlobals.darkFilter || {};
-
+    // Load presets and apply the stored filter once both presets and seat data are ready.
     Utils.xhr.get('/static/map_filter_presets.json', {toastOnSuccess: false})
         .then(function(v) {
             filterPresets = (v.response && v.response.presets) || [];
-            loadStoredFilter(initialStoredFilter);
+            loadStoredFilter(storedFilter);
         })
         .catch(function() {
             // If the JSON fails to load, fall back to the neutral/original values.
             filterPresets = [{ id: 'original', invert: 0, grayscale: 0, sepia: 0, saturate: 100, hue: 0, brightness: 100, contrast: 100 }];
-            loadStoredFilter(initialStoredFilter);
+            loadStoredFilter(storedFilter);
         });
 
     new MutationObserver(applyMapFilter).observe(document.documentElement, {

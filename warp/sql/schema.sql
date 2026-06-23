@@ -307,4 +307,4 @@ CREATE UNLOGGED TABLE calendar_cache (
 
 CREATE TABLE db_initialized (version INTEGER NOT NULL);
 
-INSERT INTO db_initialized(version) VALUES(16);
+INSERT INTO db_initialized(version) VALUES(17);

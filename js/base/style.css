@@ -41,9 +41,11 @@
     --md-sys-color-on-error-light:     var(--warp-on-brand);
 }
 /* Dark mode: Materialize resolves --md-sys-color-* to its *-dark variants under
-   [theme="dark"], so map the brand roles there too. The neutral roles + channels
-   that flip live in theme.css's :root[theme="dark"] block; Materialize's own dark
-   surface/neutral values cover dropdowns and sheets. */
+   [theme="dark"], so map both the brand roles AND the neutral surface/background
+   roles onto warp tokens. This collapses Materialize's own dark greys (#1a1c1e…)
+   into warp's single two-tier system — page/nav on --warp-grey-bg, every raised
+   surface (cards, modals, dropdowns) on --warp-surface — so nothing floats as an
+   off-tone strip. The neutral roles + channels themselves flip in theme.css. */
 :root[theme="dark"] {
     --md-sys-color-primary-dark:      var(--warp-primary);
     --md-sys-color-on-primary-dark:   var(--warp-on-brand);
@@ -51,6 +53,11 @@
     --md-sys-color-on-secondary-dark: var(--warp-on-brand);
     --md-sys-color-error-dark:        var(--warp-error);
     --md-sys-color-on-error-dark:     var(--warp-on-brand);
+
+    --md-sys-color-background-dark:    var(--warp-grey-bg);
+    --md-sys-color-on-background-dark: var(--warp-text);
+    --md-sys-color-surface-dark:       var(--warp-surface);
+    --md-sys-color-on-surface-dark:    var(--warp-text);
 }
 
 /* Top-bar light/dark toggle: show the moon in light mode (tap → dark), the sun in
@@ -1442,15 +1449,16 @@ INPUT[type="text"] ~ .show_password_btn::after {
     }
 }
 
-.zone_modify_sidepanel DIV {
-    flex: auto;
+/* The sidepanel is a flex column: each direct child keeps its natural height and
+   only the scroll region grows to fill the remaining space. (Replaces a fragile
+   `DIV { flex: auto }` catch-all that every child then had to override back.) */
+.zone_modify_sidepanel > div {
+    flex: none;
+    width: 100%;
 }
 
-.zone_modify_sidepanel .zone_modify_tabs_row,
-.zone_modify_sidepanel .zone_modify_scroll,
-.zone_modify_sidepanel #seat_edit_panel,
-.zone_modify_sidepanel .zone_modify_footer {
-    flex: none;
+.zone_modify_sidepanel > .zone_modify_scroll {
+    flex: 1 1 auto;
 }
 
 .zone_modify_tabs_row {
@@ -1460,7 +1468,6 @@ INPUT[type="text"] ~ .show_password_btn::after {
 }
 
 .zone_modify_scroll {
-    flex: 1 1 auto !important;
     overflow: auto;
     padding: 0 var(--warp-space-3);
     width: 100%;
@@ -1490,6 +1497,12 @@ INPUT[type="text"] ~ .show_password_btn::after {
     font-size: 0.95rem;
     line-height: 1.4;
     margin: 0 0 16px;
+}
+
+/* Hints that only make sense in light mode (e.g. "switch to dark mode to preview
+   the result") are hidden once dark mode is already active. */
+:root[theme="dark"] .pm-light-only {
+    display: none;
 }
 
 .zone_modify_sidepanel .tabs {

@@ -124,9 +124,7 @@
             "Enable": "Activer",
             "Disable": "Désactiver",
             "Upload map": "Télécharger le plan",
-            "Add seats": "Ajouter siège",
             "Restore": "Restaurer",
-            "Edit": "Éditer",
             "Yes, delete": "Oui, supprimer",
             "Sign in with SSO": "Se connecter avec SSO"
         },
@@ -231,12 +229,11 @@
         },
         "Are you sure to update the zone?": "Souhaitez vous vraiment  mettre à jour la zone?",
         "Are you sure to update the plan?": "Souhaitez-vous vraiment mettre à jour le plan ?",
-        "The following changes will be applied:<br>": "Les changements suivants seront appliqués:<br>",
-        "- updated zone map<br>": "- plan des zones mise à jour<br>",
-        "- updated plan map<br>": "- plan mis à jour<br>",
-        "- added %{smart_count} seat(s)<br>": "- ajout d'un siège<br>||||- ajout %{smart_count} sièges<br>",
-        "- updated data of %{smart_count} seat(s)<br>": "- données actualisées d'un siège<br>||||- données actualisées %{smart_count} sièges<br>",
-        "- deleted %{smart_count} seat(s)<br>": "- un siège supprimé<br>||||- %{smart_count} sièges supprimés<br>",
+        "The following changes will be applied:": "Les changements suivants seront appliqués:",
+        "updated plan map": "plan mis à jour",
+        "added %{smart_count} seat(s)": "ajout d'un siège||||ajout %{smart_count} sièges",
+        "updated data of %{smart_count} seat(s)": "données actualisées d'un siège||||données actualisées %{smart_count} sièges",
+        "deleted %{smart_count} seat(s)": "un siège supprimé||||%{smart_count} sièges supprimés",
         "seatEdit": {
             "Seat name": "Nom du siège",
             "X": "X",
@@ -374,6 +371,6 @@
         "Authentication failed: could not exchange the authorisation code.": "Échec de l'authentification : impossible d'échanger le code d'autorisation.",
         "Authentication failed: no user claims received.": "Échec de l'authentification : aucune donnée utilisateur reçue.",
         "Authentication failed: the SAML response was invalid.": "Échec de l'authentification : la réponse SAML était invalide.",
-        "updated map filter<br>": "- updated map filter<br>"
+        "updated map filter": "filtre de la carte mis à jour"
     }
 }

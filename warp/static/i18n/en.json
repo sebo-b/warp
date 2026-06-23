@@ -124,9 +124,7 @@
             "Enable": "Enable",
             "Disable": "Disable",
             "Upload map": "Upload map",
-            "Add seats": "Add seats",
             "Restore": "Restore",
-            "Edit": "Edit",
             "Yes, delete": "Yes, delete",
             "Sign in with SSO": "Sign in with SSO"
         },
@@ -231,12 +229,11 @@
         },
         "Are you sure to update the zone?": "Are you sure to update the zone?",
         "Are you sure to update the plan?": "Are you sure to update the plan?",
-        "The following changes will be applied:<br>": "The following changes will be applied:<br>",
-        "- updated zone map<br>": "- updated zone map<br>",
-        "- updated plan map<br>": "- updated plan map<br>",
-        "- added %{smart_count} seat(s)<br>": "- added one seat<br>||||- added %{smart_count} seats<br>",
-        "- updated data of %{smart_count} seat(s)<br>": "- updated data of a seat<br>||||- updated data of %{smart_count} seats<br>",
-        "- deleted %{smart_count} seat(s)<br>": "- deleted a seat<br>||||- deleted %{smart_count} seats<br>",
+        "The following changes will be applied:": "The following changes will be applied:",
+        "updated plan map": "updated plan map",
+        "added %{smart_count} seat(s)": "added one seat||||added %{smart_count} seats",
+        "updated data of %{smart_count} seat(s)": "updated data of a seat||||updated data of %{smart_count} seats",
+        "deleted %{smart_count} seat(s)": "deleted a seat||||deleted %{smart_count} seats",
         "seatEdit": {
             "Seat name": "Seat name",
             "X": "X",
@@ -374,6 +371,6 @@
         "Authentication failed: could not exchange the authorisation code.": "Authentication failed: could not exchange the authorisation code.",
         "Authentication failed: no user claims received.": "Authentication failed: no user claims received.",
         "Authentication failed: the SAML response was invalid.": "Authentication failed: the SAML response was invalid.",
-        "updated map filter<br>": "- updated map filter<br>"
+        "updated map filter": "updated map filter"
     }
 }

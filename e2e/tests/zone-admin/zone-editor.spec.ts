@@ -1,12 +1,13 @@
 /**
  * Plan editor tests: /plans/modify/{pid}
  *
- * Two modes toggled by #modeSwitch (Materialize switch):
- *   unchecked (default) = edit mode   — click seats to select, drag to move
- *   checked             = add mode    — click map image to place a new seat
+ * The editor is split into tabs (#plan_modify_tabs): Transform / Add mode / Map edit.
+ *   Transform (default) = click seats to select, drag to move, marquee-transform
+ *   Add mode            = click the map image to place a new seat
+ *   Map edit            = replace the map image / tune the dark-mode filter
  *
- * Clicking the lever element toggles the switch (force-checking the hidden
- * <input> doesn't fire the change event reliably).
+ * toggleMode() flips between the Transform and Add mode tabs for the seat-editing
+ * tests below.
  *
  * Translated summary strings (en.json smart_count pluralisation):
  *   - added one seat / added N seats
@@ -37,8 +38,7 @@ async function openEditor(page: import('@playwright/test').Page, zid = ZID): Pro
   await page.waitForLoadState('networkidle');
 }
 
-/** Click a seat at its centre — works in both edit and add modes
- *  (in add mode only if modeSwitch is unchecked first). */
+/** Click a seat at its centre — works in the Transform and Add mode tabs. */
 async function selectSeat(
   page: import('@playwright/test').Page,
   seat: { x: number; y: number },
@@ -49,11 +49,13 @@ async function selectSeat(
   await expect(page.locator('#seat_edit_panel')).toBeVisible();
 }
 
-/** Toggle the mode switch (Edit↔Add Seats) by clicking the Materialize lever. */
+/** Toggle the editor between the Transform and Add mode tabs (preserving the
+ *  old Edit↔Add switch semantics the seat-editing tests rely on). */
 async function toggleMode(page: import('@playwright/test').Page): Promise<void> {
-  const lever = page.locator('label:has(#modeSwitch) .lever');
-  await lever.scrollIntoViewIfNeeded();
-  await lever.click();
+  const inAddMode = await page.locator('#plan_modify_tabs a.active', { hasText: 'Add mode' }).count() > 0;
+  const target = inAddMode ? 'Transform' : 'Add mode';
+  await page.locator('#plan_modify_tabs a', { hasText: target }).click();
+  await expect(page.locator('#plan_modify_tabs a.active', { hasText: target })).toBeVisible();
 }
 
 async function saveAndConfirm(page: import('@playwright/test').Page): Promise<void> {
@@ -79,7 +81,7 @@ test.describe('zone editor access', () => {
     await logIn(page, ADMIN);
     await openEditor(page);
     await expect(page.locator('#saveBtn')).toBeAttached();
-    await expect(page.locator('#modeSwitch')).toBeAttached();
+    await expect(page.locator('#plan_modify_tabs')).toBeVisible();
   });
 
   test('non-site-admin is forbidden from the zone editor', async ({ page }) => {
@@ -240,15 +242,18 @@ test.describe('deleting a seat', () => {
 
 test.describe('adding a seat', () => {
 
-  test('toggling to add mode checks the mode switch', async ({ page }) => {
+  test('toggling between tabs changes the active editor mode', async ({ page }) => {
     await logIn(page, ADMIN);
     await openEditor(page);
 
-    await expect(page.locator('#modeSwitch')).not.toBeChecked();
+    const transformTab = page.locator('#plan_modify_tabs a', { hasText: 'Transform' });
+    const addTab = page.locator('#plan_modify_tabs a', { hasText: 'Add mode' });
+
+    await expect(transformTab).toHaveClass(/active/); // Transform is the default tab
     await toggleMode(page); // → add mode
-    await expect(page.locator('#modeSwitch')).toBeChecked();
-    await toggleMode(page); // → back to edit mode
-    await expect(page.locator('#modeSwitch')).not.toBeChecked();
+    await expect(addTab).toHaveClass(/active/);
+    await toggleMode(page); // → back to transform
+    await expect(transformTab).toHaveClass(/active/);
   });
 
   test('clicking map in add mode creates a new seat div', async ({ page }) => {

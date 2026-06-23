@@ -185,10 +185,11 @@ test.describe('plan management', () => {
     await logIn(page, ADMIN);
     await page.goto('/plans/modify/1');
     await page.waitForLoadState('networkidle');
+    // The raw <select> is hidden by Materialize's FormSelect wrapper, so assert its
+    // value rather than its visibility. The default plan filter is the "smart" preset
+    // (set asynchronously once map_filter_presets.json loads — toHaveValue retries).
     const presetSelect = page.locator('#map_filter_preset');
-    await expect(presetSelect).toBeVisible();
-    const value = await presetSelect.inputValue();
-    expect(value).toBe('smart');
+    await expect(presetSelect).toHaveValue('smart');
   });
 
   test('plan editor persists a dark filter change', async ({ page }) => {
@@ -196,13 +197,25 @@ test.describe('plan management', () => {
     await page.goto('/plans/modify/1');
     await page.waitForLoadState('networkidle');
 
-    // Change invert from 0 to 50 (switching to Custom)
-    await page.locator('#filter_invert').fill('50');
+    // The filter sliders live in the Map edit tab — activate it first.
+    await page.locator('#plan_modify_tabs a', { hasText: 'Map edit' }).click();
+    const invert = page.locator('#filter_invert');
+    await expect(invert).toBeVisible();
 
-    // Save
+    // Change invert from 0 to 50 (switching the preset to Custom). This also
+    // dirties the form, enabling Save.
+    await invert.fill('50');
+
+    // Save & confirm. The confirm dialog lists the pending changes; its buttons are
+    // <a> links inside the open WarpModal (same chrome the zone editor uses).
+    await expect(page.locator('#saveBtn')).not.toHaveClass(/disabled/);
     await page.locator('#saveBtn').click();
-    await page.locator('.modal').getByRole('button', { name: 'Yes' }).click();
-    await page.waitForURL('/plans');
+    const modal = page.locator('.modal.open', { hasText: /update the plan/ });
+    await expect(modal).toBeVisible();
+    const modifyResp = page.waitForResponse(r => r.url().includes('/xhr/plans/modify') && r.request().method() === 'POST');
+    await modal.locator('a', { hasText: /Yes/i }).click();
+    await modifyResp;
+    await expect(page).toHaveURL(/\/plans$/);
 
     const result = await querySql('SELECT dark_filter FROM plan WHERE id = 1');
     const stored = result.rows[0].dark_filter;

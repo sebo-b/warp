@@ -107,13 +107,15 @@ def plan(pid):
                      .group_by(Zone.id)
                      .iterator())
 
-    if not zone_rows:
-        plan_exists = Plan.select(SQL_ONE).where(Plan.id == pid).scalar()
-        if plan_exists is None:
-            flask.abort(403)
-        # Plan exists but has no seats — admin still needs access
-        if not flask.g.isAdmin:
-            flask.abort(403)
+    # Fetch the plan's dark-mode map filter once; since the column is NOT NULL, a
+    # None result also doubles as the plan-existence check (no extra query needed).
+    dark_filter = Plan.select(Plan.dark_filter).where(Plan.id == pid).scalar()
+    if dark_filter is None:
+        flask.abort(403)
+
+    if not zone_rows and not flask.g.isAdmin:
+        # Plan exists but has no seats — only an admin may open it.
+        flask.abort(403)
 
     plan_zids = [z['id'] for z in zone_rows]
 
@@ -171,7 +173,7 @@ def plan(pid):
     return flask.render_template('plan.html',
                                  **role_flags,
                                  pid=pid,
-                                 dark_filter=Plan.select(Plan.dark_filter).where(Plan.id == pid).scalar(),
+                                 dark_filter=dark_filter,
                                  nextWeek=nextWeek,
                                  today=utils.today(),
                                  defaultSelectedDates=defaultSelectedDates,

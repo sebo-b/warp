@@ -1107,6 +1107,13 @@ document.addEventListener("DOMContentLoaded", function() {
     var zoneMapImg = zoneMap ? zoneMap.querySelector('img') : null;
 
     if (zoneMapImg && window.warpGlobals.darkFilter) {
+        // Coerce each stored value to a number within its valid range, so a legacy or
+        // hand-edited DB row can never produce an invalid (or hostile) filter string.
+        var clampFilter = function(v, dflt, max) {
+            var n = Number(v);
+            if (!isFinite(n)) n = dflt;
+            return Math.min(max, Math.max(0, n));
+        };
         function applyPlanMapFilter() {
             var isDark = document.documentElement.getAttribute('theme') === 'dark';
             if (!isDark) {
@@ -1114,14 +1121,15 @@ document.addEventListener("DOMContentLoaded", function() {
                 return;
             }
             var f = window.warpGlobals.darkFilter;
-            var parts = [];
-            parts.push('invert(' + (f.invert || 0) + '%)');
-            parts.push('grayscale(' + (f.grayscale || 0) + '%)');
-            parts.push('sepia(' + (f.sepia || 0) + '%)');
-            parts.push('saturate(' + (f.saturate !== undefined ? f.saturate : 100) + '%)');
-            parts.push('hue-rotate(' + (f.hue !== undefined ? f.hue : 0) + 'deg)');
-            parts.push('brightness(' + (f.brightness !== undefined ? f.brightness : 100) + '%)');
-            parts.push('contrast(' + (f.contrast !== undefined ? f.contrast : 100) + '%)');
+            var parts = [
+                'invert(' + clampFilter(f.invert, 0, 100) + '%)',
+                'grayscale(' + clampFilter(f.grayscale, 0, 100) + '%)',
+                'sepia(' + clampFilter(f.sepia, 0, 100) + '%)',
+                'saturate(' + clampFilter(f.saturate, 100, 200) + '%)',
+                'hue-rotate(' + clampFilter(f.hue, 0, 360) + 'deg)',
+                'brightness(' + clampFilter(f.brightness, 100, 200) + '%)',
+                'contrast(' + clampFilter(f.contrast, 100, 200) + '%)'
+            ];
             zoneMapImg.style.filter = parts.join(' ');
         }
         applyPlanMapFilter();

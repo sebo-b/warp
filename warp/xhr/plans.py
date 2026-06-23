@@ -1,7 +1,7 @@
 import os
 
 import flask
-from peewee import JOIN, fn, EXCLUDED
+from peewee import JOIN, fn, EXCLUDED, Cast
 from jsonschema import validate, ValidationError
 import orjson
 
@@ -232,7 +232,20 @@ def modify():
                 "type": "array",
                 "items": {"type": "integer"},
             },
-            "darkFilter": {"type": "object"},
+            "darkFilter": {
+                "type": "object",
+                "properties": {
+                    "id":         {"type": "string", "maxLength": 32},
+                    "invert":     {"type": "integer", "minimum": 0, "maximum": 100},
+                    "grayscale":  {"type": "integer", "minimum": 0, "maximum": 100},
+                    "sepia":      {"type": "integer", "minimum": 0, "maximum": 100},
+                    "saturate":   {"type": "integer", "minimum": 0, "maximum": 200},
+                    "hue":        {"type": "integer", "minimum": 0, "maximum": 360},
+                    "brightness": {"type": "integer", "minimum": 0, "maximum": 200},
+                    "contrast":   {"type": "integer", "minimum": 0, "maximum": 200},
+                },
+                "additionalProperties": False,
+            },
         },
         "required": ["pid"],
         "additionalProperties": False
@@ -311,7 +324,11 @@ def modify():
                     raise ApplyError("Wrong number of affected rows", 338)
 
             if 'darkFilter' in jsonData:
-                Plan.update({Plan.dark_filter: orjson.dumps(jsonData['darkFilter']).decode('utf-8')}).where(Plan.id == pid).execute()
+                # Cast the JSON text to jsonb explicitly: psycopg3 types a Python str as
+                # `text`, and Postgres has no implicit text->jsonb cast, so a bare string
+                # assignment to the jsonb column can fail.
+                darkFilterJson = orjson.dumps(jsonData['darkFilter']).decode('utf-8')
+                Plan.update({Plan.dark_filter: Cast(darkFilterJson, 'jsonb')}).where(Plan.id == pid).execute()
 
     except IntegrityError:
         # e.g. a new seat without a valid zid, or a stale pid/sid reference.

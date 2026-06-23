@@ -124,9 +124,7 @@
             "Enable": "Freigeben",
             "Disable": "Sperren",
             "Upload map": "Karte hochladen",
-            "Add seats": "Sitze hinzufügen",
             "Restore": "Wiederherstellen",
-            "Edit": "Bearbeiten",
             "Yes, delete": "Ja, löschen",
             "Sign in with SSO": "Mit SSO anmelden"
         },
@@ -231,12 +229,11 @@
         },
         "Are you sure to update the zone?": "Möchtest du die Zone aktualisieren??",
         "Are you sure to update the plan?": "Möchten Sie den Plan wirklich aktualisieren?",
-        "The following changes will be applied:<br>": "Die folgenden Änderungen werden gemacht:<br>",
-        "- updated zone map<br>": "- aktualisierte Zonenkarte<br>",
-        "- updated plan map<br>": "- aktualisierte Plankarte<br>",
-        "- added %{smart_count} seat(s)<br>": "- Ein Platz hinzugefügt<br>||||- %{smart_count} Plätze hinzugefügt<br>",
-        "- updated data of %{smart_count} seat(s)<br>": "- Daten des Platzes aktualisiert<br>||||- Daten von %{smart_count} Plätzen aktualisiert<br>",
-        "- deleted %{smart_count} seat(s)<br>": "- Ein Sitz gelöscht<br>||||- %{smart_count} Sitze gelöscht<br>",
+        "The following changes will be applied:": "Die folgenden Änderungen werden gemacht:",
+        "updated plan map": "aktualisierte Plankarte",
+        "added %{smart_count} seat(s)": "Ein Platz hinzugefügt||||%{smart_count} Plätze hinzugefügt",
+        "updated data of %{smart_count} seat(s)": "Daten des Platzes aktualisiert||||Daten von %{smart_count} Plätzen aktualisiert",
+        "deleted %{smart_count} seat(s)": "Ein Sitz gelöscht||||%{smart_count} Sitze gelöscht",
         "seatEdit": {
             "Seat name": "Sitzname",
             "X": "X",
@@ -374,6 +371,6 @@
         "Authentication failed: could not exchange the authorisation code.": "Authentifizierung fehlgeschlagen: Der Autorisierungscode konnte nicht ausgetauscht werden.",
         "Authentication failed: no user claims received.": "Authentifizierung fehlgeschlagen: keine Benutzerdaten erhalten.",
         "Authentication failed: the SAML response was invalid.": "Authentifizierung fehlgeschlagen: die SAML-Antwort war ungültig.",
-        "updated map filter<br>": "- updated map filter<br>"
+        "updated map filter": "Kartenfilter aktualisiert"
     }
 }

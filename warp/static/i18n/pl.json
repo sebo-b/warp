@@ -124,9 +124,7 @@
             "Enable": "Włącz",
             "Disable": "Wyłącz",
             "Upload map": "Wczytaj mapę",
-            "Add seats": "Dodaj miejsca",
             "Restore": "Przywróć",
-            "Edit": "Edycja",
             "Yes, delete": "Tak, usuń",
             "Sign in with SSO": "Zaloguj przez SSO"
         },
@@ -231,12 +229,11 @@
         },
         "Are you sure to update the zone?": "Czy na pewno chcesz wprowadzić zmiany?",
         "Are you sure to update the plan?": "Czy na pewno chcesz zaktualizować plan?",
-        "The following changes will be applied:<br>": "Następujące zmiany zostaną wprowadzone:<br>",
-        "- updated zone map<br>": "- uaktualniono mapę strefy<br>",
-        "- updated plan map<br>": "- uaktualniono mapę planu<br>",
-        "- added %{smart_count} seat(s)<br>": "- dodano jedno miejsce<br>||||- dodano %{smart_count} miejsca<br>||||- dodano %{smart_count} miejsc<br>",
-        "- updated data of %{smart_count} seat(s)<br>": "- zmienione dane jednego miejsca<br>||||- zmienione dane %{smart_count} miejsc<br>||||- zmienione dane %{smart_count} miejsc<br>",
-        "- deleted %{smart_count} seat(s)<br>": "- usunięte jedno miejsce<br>||||- usunięte %{smart_count} miejsca<br>||||- usunięte %{smart_count} miejsc<br>",
+        "The following changes will be applied:": "Następujące zmiany zostaną wprowadzone:",
+        "updated plan map": "uaktualniono mapę planu",
+        "added %{smart_count} seat(s)": "dodano jedno miejsce||||dodano %{smart_count} miejsca||||dodano %{smart_count} miejsc",
+        "updated data of %{smart_count} seat(s)": "zmienione dane jednego miejsca||||zmienione dane %{smart_count} miejsc||||zmienione dane %{smart_count} miejsc",
+        "deleted %{smart_count} seat(s)": "usunięte jedno miejsce||||usunięte %{smart_count} miejsca||||usunięte %{smart_count} miejsc",
         "seatEdit": {
             "Seat name": "Nazwa",
             "X": "X",
@@ -374,6 +371,6 @@
         "Authentication failed: could not exchange the authorisation code.": "Uwierzytelnianie nie powiodło się: nie udało się wymienić kodu autoryzacji.",
         "Authentication failed: no user claims received.": "Uwierzytelnianie nie powiodło się: nie otrzymano danych użytkownika.",
         "Authentication failed: the SAML response was invalid.": "Uwierzytelnianie nie powiodło się: odpowiedź SAML była nieprawidłowa.",
-        "updated map filter<br>": "- updated map filter<br>"
+        "updated map filter": "zaktualizowano filtr mapy"
     }
 }
