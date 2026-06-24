@@ -264,8 +264,7 @@
 
 {% endblock  %}
 
-{% block content %}
-    {{ super() }}
+{% block nav %}
 
     <nav>
 
@@ -274,10 +273,7 @@
                 <a href="{{ url_for('view.index')}}" class="right"><img class="logo" src="{{ url_for('static', filename='images/logo.png') }}"></a>
             </div>
             <ul class="right">
-                <li><a href="#" class="warp-theme-toggle" title="Toggle light / dark" aria-label="Toggle light / dark">
-                    <i class="material-icons tg-moon">brightness_2</i>
-                    <i class="material-icons tg-sun">brightness_7</i>
-                </a></li>
+                <li>{% include 'icons/theme_toggle.html' %}</li>
             </ul>
             <ul class="right hide-on-med-and-down">
                 <li><a class="dropdown-trigger" href="#!" data-target="user_menu_dropdown"><i class="material-icons">person</i></a></li>

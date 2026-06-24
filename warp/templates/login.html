@@ -21,14 +21,19 @@
     </style>
 {% endblock %}
 
-{% block content %}
-  {{ super() }}
-
+{% block nav %}
     <nav>
         <div class="nav-wrapper">
+            <ul class="right">
+                <li>{% include 'icons/theme_toggle.html' %}</li>
+            </ul>
             <div class="center"><img class="logo" src="{{ url_for('static', filename='images/logo.png') }}"></div>
         </div>
     </nav>
+{% endblock %}
+
+{% block content %}
+  {{ super() }}
 
     <form action="{{ url_for('auth.login') }}" method="post">
 
