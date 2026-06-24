@@ -151,6 +151,7 @@
         "Action successfull.": "Action successfull.",
         "Error": "Error",
         "Are you sure to delete this booking?": "Are you sure to delete this booking?",
+        "Are you sure?": "Are you sure?",
         "Account type": "Account type",
         "Retype password": "Retype password",
         "accountTypes": {
@@ -221,6 +222,7 @@
         "Are you sure to update the plan?": "Are you sure to update the plan?",
         "The following changes will be applied:": "The following changes will be applied:",
         "updated plan map": "updated plan map",
+        "deleted %{smart_count} seat(s)": "deleted a seat||||deleted %{smart_count} seats",
         "added %{smart_count} seat(s)": "added one seat||||added %{smart_count} seats",
         "updated data of %{smart_count} seat(s)": "updated data of a seat||||updated data of %{smart_count} seats",
         "seatEdit": {
@@ -263,6 +265,7 @@
         "Some reservations are outside the new booking window and must be removed manually.": "Some reservations are outside the new booking window and must be removed manually.",
         "Same day": "Same day",
         "Zone type": "Zone type",
+        "Everyone": "Everyone",
         "Available to everyone": "Available to everyone",
         "Available to everyone (up to %{n}d in advance)": "Available to everyone (up to %{n}d in advance)",
         "Find me a seat": "Find me a seat",

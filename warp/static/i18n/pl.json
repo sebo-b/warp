@@ -151,6 +151,7 @@
         "Action successfull.": "Zmiany wprowadzono.",
         "Error": "Błąd",
         "Are you sure to delete this booking?": "Czy na pewno usunąć tę rezerwację?",
+        "Are you sure?": "Czy jeste pewien?",
         "Account type": "Rodzaj konta",
         "Retype password": "Powtórz hasło",
         "accountTypes": {
@@ -221,6 +222,7 @@
         "Are you sure to update the plan?": "Czy na pewno chcesz zaktualizować plan?",
         "The following changes will be applied:": "Następujące zmiany zostaną wprowadzone:",
         "updated plan map": "uaktualniono mapę planu",
+        "deleted %{smart_count} seat(s)": "usunięto jedno miejsce||||usunięto %{smart_count} miejsca||||usunięto %{smart_count} miejsc",
         "added %{smart_count} seat(s)": "dodano jedno miejsce||||dodano %{smart_count} miejsca||||dodano %{smart_count} miejsc",
         "updated data of %{smart_count} seat(s)": "zmienione dane jednego miejsca||||zmienione dane %{smart_count} miejsc||||zmienione dane %{smart_count} miejsc",
         "seatEdit": {
@@ -263,6 +265,7 @@
         "Some reservations are outside the new booking window and must be removed manually.": "Niektóre rezerwacje są poza nowym oknem rezerwacji i muszą zostać usunięte ręcznie.",
         "Same day": "Tego samego dnia",
         "Zone type": "Typ strefy",
+        "Everyone": "Wszyscy",
         "Available to everyone": "Dostępne dla wszystkich",
         "Available to everyone (up to %{n}d in advance)": "Dostępne dla wszystkich (do %{n} dni z wyprzedzeniem)",
         "Find me a seat": "Znajdź mi miejsce",
