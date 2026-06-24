@@ -916,18 +916,18 @@ function initZoneHelp() {
     var helpModal = warpDialog(helpModalEl);
 
     var helpSpriteMap = {
-        book:          { icon: 'icon-plus',      color: 'green' },
-        rebook:        { icon: 'icon-arrow',     color: 'green' },
-        conflict:      { icon: 'icon-head',      color: 'grey' },
-        viewOnly:      { icon: 'icon-no',        color: 'grey' },
-        viewOnlyTaken: { icon: 'icon-head',      color: 'grey' },
-        userExact:     { icon: 'icon-head',      color: 'blue' },
-        userRebook:    { icon: 'icon-head-arrow', color: 'blue' },
-        userConflict:  { icon: 'icon-head',      color: 'grey' },
-        bookAssigned:  { icon: 'icon-plus',      color: 'blue' },
-        rebookAssigned:{ icon: 'icon-arrow',     color: 'blue' },
-        disabled:      { icon: 'icon-no',        color: 'grey' },
-        assigned:      { icon: 'icon-assigned',   color: 'grey' }
+        book:          { icon: 'icon-plus',      color: 'available' },
+        rebook:        { icon: 'icon-arrow',     color: 'available' },
+        conflict:      { icon: 'icon-head',      color: 'unavailable' },
+        viewOnly:      { icon: 'icon-no',        color: 'unavailable' },
+        viewOnlyTaken: { icon: 'icon-head',      color: 'unavailable' },
+        userExact:     { icon: 'icon-head',      color: 'yours' },
+        userRebook:    { icon: 'icon-head-arrow', color: 'yours' },
+        userConflict:  { icon: 'icon-head',      color: 'unavailable' },
+        bookAssigned:  { icon: 'icon-plus',      color: 'yours' },
+        rebookAssigned:{ icon: 'icon-arrow',     color: 'yours' },
+        disabled:      { icon: 'icon-no',        color: 'unavailable' },
+        assigned:      { icon: 'icon-assigned',   color: 'unavailable' }
     };
 
     var helpModalSpriteDivs = document.getElementsByClassName("help_modal_sprite");

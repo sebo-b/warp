@@ -34,12 +34,12 @@ Seat.CONFIG = {
     // All sprite IDs used in the Map edit reference view, with the same colors
     // shown in the zonemap help modal.
     referenceIcons: [
-        { icon: 'icon-plus', color: 'green' },
-        { icon: 'icon-arrow', color: 'green' },
-        { icon: 'icon-head', color: 'blue' },
-        { icon: 'icon-head-arrow', color: 'blue' },
-        { icon: 'icon-no', color: 'grey' },
-        { icon: 'icon-assigned', color: 'grey' }
+        { icon: 'icon-plus', color: 'available' },
+        { icon: 'icon-arrow', color: 'available' },
+        { icon: 'icon-head', color: 'yours' },
+        { icon: 'icon-head-arrow', color: 'yours' },
+        { icon: 'icon-no', color: 'unavailable' },
+        { icon: 'icon-assigned', color: 'unavailable' }
     ]
 
 }
@@ -85,7 +85,7 @@ Seat.prototype._updateData = function(data) {
 Seat.prototype._createDiv = function(parentDiv) {
 
     this.seatDiv = document.createElement("div");
-    this.seatDiv.className = "seat-icon seat-icon--blue";
+    this.seatDiv.className = "seat-icon seat-icon--yours";
     this.seatDiv.style.position = "absolute";
     this.seatDiv.style.width = Seat.CONFIG.spriteSize + "px";
     this.seatDiv.style.height = Seat.CONFIG.spriteSize + "px";
@@ -126,7 +126,7 @@ Seat.prototype._updateDiv = function() {
     this.seatDiv.style.top = this.y + "px";
 
     var iconName = Seat.CONFIG.iconNames.head;
-    var colorClass = 'blue';
+    var colorClass = 'yours';
 
     if (this.factory && this.factory.referenceMode) {
         var ref = this.referenceIcon || Seat.CONFIG.referenceIcons[0];
@@ -135,14 +135,14 @@ Seat.prototype._updateDiv = function() {
     }
     else if (this.isNew()) {
         iconName = Seat.CONFIG.iconNames.plus;
-        colorClass = 'green';
+        colorClass = 'available';
     }
     else if (this.deleted) {
         iconName = Seat.CONFIG.iconNames.no;
-        colorClass = 'grey';
+        colorClass = 'unavailable';
     }
     else if (Object.keys(this.overlay).length > 0) {
-        colorClass = 'green';
+        colorClass = 'available';
     }
 
     var newHref = window.warpGlobals.URLs['seatSprite'] + "#" + iconName;

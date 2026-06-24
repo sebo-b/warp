@@ -554,45 +554,45 @@ WarpSeat.prototype._updateView = function() {
     switch (this.state) {
 
         case WarpSeat.SeatStates.CAN_CHANGE:
-            setSeatIcon(this, 'headArrow', 'blue');
+            setSeatIcon(this, 'headArrow', 'yours');
             break;
         case WarpSeat.SeatStates.CAN_DELETE_EXACT:
-            setSeatIcon(this, 'head', 'blue');
+            setSeatIcon(this, 'head', 'yours');
             break;
         case WarpSeat.SeatStates.CAN_DELETE:
-            setSeatIcon(this, 'head', 'grey');
+            setSeatIcon(this, 'head', 'unavailable');
             break;
         case WarpSeat.SeatStates.CAN_BOOK:
             if (!this.bookable) {
                 this.state = WarpSeat.SeatStates.VIEW_ONLY;
-                setSeatIcon(this, 'no', 'grey');
+                setSeatIcon(this, 'no', 'unavailable');
             }
             else if (this.factory._conflictCount(this.exclusivityKey) > 0) {
                 this.state = WarpSeat.SeatStates.CAN_REBOOK;    //this is not very elegant
-                setSeatIcon(this, 'arrow', assignedToMe ? 'blue' : 'green');
+                setSeatIcon(this, 'arrow', assignedToMe ? 'yours' : 'available');
             }
             else {
-                setSeatIcon(this, 'plus', assignedToMe ? 'blue' : 'green');
+                setSeatIcon(this, 'plus', assignedToMe ? 'yours' : 'available');
             }
             break;
         case WarpSeat.SeatStates.ASSIGNED:
             // Seat is assigned to someone else (or out of window). Not booked.
-            setSeatIcon(this, 'assigned', 'grey');
+            setSeatIcon(this, 'assigned', 'unavailable');
             break;
         case WarpSeat.SeatStates.TAKEN:
-            setSeatIcon(this, 'head', 'grey');
+            setSeatIcon(this, 'head', 'unavailable');
         break;
         case WarpSeat.SeatStates.VIEW_ONLY:
-            setSeatIcon(this, 'no', 'grey');
+            setSeatIcon(this, 'no', 'unavailable');
             break;
         case WarpSeat.SeatStates.VIEW_ONLY_TAKEN:
-            setSeatIcon(this, 'head', 'grey');
+            setSeatIcon(this, 'head', 'unavailable');
             break;
         case WarpSeat.SeatStates.DISABLED:
-            setSeatIcon(this, 'no', 'grey');
+            setSeatIcon(this, 'no', 'unavailable');
             break;
         default: /* WarpSeat.SeatStates.NOT_AVAILABLE */
-            setSeatIcon(this, 'no', 'grey');
+            setSeatIcon(this, 'no', 'unavailable');
             break;
     }
 
@@ -663,7 +663,7 @@ WarpSeat.prototype._createDiv = function(rootDiv, spriteURL) {
         throw Error("seatDiv already created")
 
     this.seatDiv = document.createElement("div");
-    this.seatDiv.className = "seat-icon seat-icon--grey";
+    this.seatDiv.className = "seat-icon seat-icon--unavailable";
     this.seatDiv.style.position = "absolute";
     this.seatDiv.style.left = this.x + "px";
     this.seatDiv.style.top = this.y + "px";

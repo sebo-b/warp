@@ -106,6 +106,7 @@
 .warp-icon-danger   { color: var(--warp-error) !important; }
 .warp-icon-edit     { color: var(--warp-edit) !important; }
 .warp-icon-edit-alt { color: var(--warp-edit) !important; }
+.warp-text-danger   { color: var(--warp-error) !important; }
 .warp-fab-add,
 .warp-fab-add:hover {
     background-color: var(--warp-secondary) !important;
@@ -1230,6 +1231,9 @@ nav .dropdown-content li > span {
     width: 48px;
     height: 48px;
     color: var(--warp-grey-muted);
+    /* Disc base (= seat bg) for the sprite; the status classes override this
+       with their matching --warp-seat-*-bg. White for the default no-status seat. */
+    --warp-seat-bg: var(--warp-on-brand);
 }
 
 .seat-icon svg {
@@ -1239,17 +1243,24 @@ nav .dropdown-content li > span {
     pointer-events: none;
 }
 
-.seat-icon--green {
-    color: var(--warp-success);
+.seat-icon--available {
+    color: var(--warp-seat-available-fg);
+    --warp-seat-bg: var(--warp-seat-available-bg);
 }
 
-.seat-icon--blue {
-    color: var(--warp-primary);
+.seat-icon--yours {
+    color: var(--warp-seat-yours-fg);
+    --warp-seat-bg: var(--warp-seat-yours-bg);
 }
 
-.seat-icon--grey {
-    color: var(--warp-grey-text);
+.seat-icon--unavailable {
+    color: var(--warp-seat-unavailable-fg);
+    --warp-seat-bg: var(--warp-seat-unavailable-bg);
 }
+
+/* Seat status colours are the split light/dark --warp-seat-* tokens in
+   theme.css (dark mirrors light for now); the classes just map each status to
+   its fg (color/currentColor) + bg (--warp-seat-bg, read by the sprite disc). */
 
 .seat_label {
     position: absolute;
@@ -1526,6 +1537,18 @@ INPUT[type="text"] ~ .show_password_btn::after {
 
 .zone_modify_scroll .range-field input[type=range] {
     margin: 8px 0 16px;
+}
+
+/* Dark mode: Materialize colours the native range track with
+   --md-sys-color-surface-variant, which we map to --warp-grey-bg (the page bg),
+   so the track is invisible in dark. Use --warp-primary-tint — the same track
+   colour the noUiSlider theme uses — so the rail reads. The thumb already
+   uses --warp-primary and stays visible. */
+:root[theme="dark"] input[type=range]::-webkit-slider-runnable-track {
+    background-color: var(--warp-primary-tint) !important;
+}
+:root[theme="dark"] input[type=range]::-moz-range-track {
+    background-color: var(--warp-primary-tint) !important;
 }
 
 .pm-tab-content {
