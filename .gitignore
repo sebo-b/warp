@@ -11,5 +11,6 @@ node_modules/
 *.pyc
 /warp/templates/headers/
 /warp/static/dist/
-docker-compose.yml
 
+# local scratch / generated artifacts
+/graphify-out/

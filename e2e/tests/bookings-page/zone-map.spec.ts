@@ -58,7 +58,7 @@ test.describe('zone map booking flow (end-to-end)', () => {
 
     await page.goto('/bookings');
     await page.waitForLoadState('networkidle');
-    await page.locator('.tabulator-row').first().locator('.material-icons.red-text').click();
+    await page.locator('.tabulator-row').first().locator('.material-icons.warp-icon-danger').click();
     const modal = page.locator('.modal', { hasText: 'Are you sure to delete this booking?' });
     await Promise.all([
       page.waitForResponse(r => r.url().includes('/xhr/zone/apply') && r.status() === 200),

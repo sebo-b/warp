@@ -2,9 +2,10 @@
 
 import Utils from './modules/utils.js';
 import WarpModal from './modules/modal.js';
+import GroupChips from './modules/groupChips.js';
 
 import {TabulatorFull as Tabulator} from 'tabulator-tables';
-import "./css/tabulator/tabulator_materialize.scss";
+import "./css/tabulator/tabulator.css";
 
 document.addEventListener("DOMContentLoaded", function(e) {
 
@@ -17,6 +18,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
     let defaultAccountType = 20;
 
     var showEditDialog;
+    var groupChips;            // GroupChips widget, built on first open
+    var groupSourcePromise;    // cached list of all selectable groups
 
     var accountTypeFormatter = function(cell, formatterParams) {
         let value = cell.getValue();
@@ -28,7 +31,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
     }
 
     var editFormater = function(cell) {
-        return '<i class="material-icons-outlined green-text text-darken-3">edit</i>';
+        return '<i class="material-icons-outlined warp-icon-edit-alt">edit</i>';
     }
 
     var editClicked = function(e,cell) {
@@ -70,7 +73,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
     showEditDialog = function(login,account_type,name) {
 
         var editModalEl = document.getElementById('edit_modal');
-        var editModal = M.Modal.getInstance(editModalEl);
+        var editModal = warpDialog.getInstance(editModalEl);
 
         var loginEl = document.getElementById("login");
         var nameEl = document.getElementById("name");
@@ -88,7 +91,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
         if (typeof(editModal) === 'undefined') {
 
-            editModal = M.Modal.init(editModalEl, {
+            editModal = warpDialog(editModalEl, {
                 onCloseEnd: function() {
                     // we need to tear down materialize select and recreate it
                     // as there is no (exposed) API to select the option
@@ -164,9 +167,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 if (password1El.value !== "")
                     actionData['password'] = password1El.value;
 
-                let addToGroup = M.Chips.getInstance(addToGroupEl);
-                for (let g of addToGroup.getData())
-                    actionData.groups.push( Utils.makeUserStrRev(g.tag)[0] );
+                for (let g of groupChips.getData())
+                    actionData.groups.push( Utils.makeUserStrRev(g.id)[0] );
 
                 Utils.xhr.post(
                     window.warpGlobals.URLs['usersEdit'],
@@ -243,7 +245,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         loginEl.disabled = login !== "";
 
         deleteBtn.style.display =
-            login !== "" && login !== window.warpGlobals['login'] ? "inline-block": "none";
+            login !== "" && login !== window.warpGlobals['login'] ? "inline-flex": "none";
 
         nameEl.value = name;
 
@@ -271,70 +273,46 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
         M.updateTextFields();
 
-        let addToGroup = M.Chips.getInstance(addToGroupEl);
-        let autocompletePromise, chipsDataPromise = null;
-        if (addToGroup) {
-            autocompletePromise = addToGroup.options.autocompleteOptions.data;
-            addToGroup.destroy(); // we have to recreate chips instance to clean up all chips inside
-        }
-        else {
-            autocompletePromise = Utils.xhr.post(
+        if (!groupChips)
+            groupChips = new GroupChips(addToGroupEl, {
+                minLength: 1,
+                placeholder: TR("Add to group"),
+                // Render the dropdown directly in the dialog (see GroupChips):
+                // nested in .modal-content it would be clipped/hidden.
+                dropdownContainer: editModalEl
+            });
+
+        // The full list of selectable groups is stable for the session — fetch once.
+        if (!groupSourcePromise) {
+            groupSourcePromise = Utils.xhr.post(
                 window.warpGlobals.URLs['usersList'],
                 {filter: [{field:"account_type", type:">=", value:100}]},
-                {toastOnSuccess:false, errorOnFailure: false});
+                {toastOnSuccess:false, errorOnFailure: false})
+            .then( (v) => v.response.data.map( (row) => {
+                let label = Utils.makeUserStr(row['login'], row['name']);
+                return { id: label, text: label };
+            }));
         }
 
-        if (login) {
-            chipsDataPromise = Utils.xhr.get(
+        // The user's currently-assigned groups are fetched per open (new user: none).
+        let chipsDataPromise = login
+            ? Utils.xhr.get(
                 window.warpGlobals.URLs['userGroups'].replace('__LOGIN__',login),
-                {toastOnSuccess:false, errorOnFailure: false});
-        }
+                {toastOnSuccess:false, errorOnFailure: false})
+              .then( (v) => v.response.map( (row) => {
+                  let label = Utils.makeUserStr(row['login'], row['name']);
+                  return { id: label, text: label };
+              }))
+            : Promise.resolve([]);
 
-        let chipsOptions = {
-            autocompleteOptions: {
-                minLength: 2,
-                dropdownOptions: {
-                    container: document.body,
-                    constrainWidth: false
-                }
-            },
-            placeholder: TR("Add to group"),
-            limit: Infinity,
-            onChipAdd: function(chip) {
-
-                let i = this.chipsData.length - 1;  // chips are always pushed
-                let t = this.chipsData[i].tag;
-
-                if (!(t in this.autocomplete.options.data)) {
-                    this.deleteChip(i);
-                }
-            }
-        };
-
-        Promise.all([autocompletePromise,chipsDataPromise])
-        .then( (v) => {
-
-            if ('response' in v[0]) {
-                chipsOptions.autocompleteOptions.data = {};
-                for (let row of v[0].response.data)
-                    chipsOptions.autocompleteOptions.data[
-                        Utils.makeUserStr(row['login'],row['name']) ] = null;
-            }
-            else {
-                chipsOptions.autocompleteOptions.data = v[0];
-            }
-
-            if (v[1] !== null) {
-                chipsOptions.data = [];
-                for (let row of v[1].response)
-                    chipsOptions.data.push( {tag: Utils.makeUserStr(row['login'],row['name']) });
-            }
-
-            addToGroup = M.Chips.init(addToGroupEl, chipsOptions);
+        Promise.all([groupSourcePromise, chipsDataPromise])
+        .then( ([source, selected]) => {
+            groupChips.setData(source, selected);
             editModal.open();
         })
         .catch( (v) => {
-            WarpModal.getInstance().open(TR("Error"),v.errorMsg);
+            let msg = v && v.errorMsg ? v.errorMsg : String(v);
+            WarpModal.getInstance().open(TR("Error"), msg);
         });
 
     }

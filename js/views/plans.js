@@ -4,7 +4,7 @@ import Utils from './modules/utils.js';
 import WarpModal from './modules/modal.js';
 
 import {TabulatorFull as Tabulator} from 'tabulator-tables';
-import "./css/tabulator/tabulator_materialize.scss";
+import "./css/tabulator/tabulator.css";
 
 document.addEventListener("DOMContentLoaded", function(e) {
 
@@ -96,8 +96,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
         ajaxConfig: "POST",
         ajaxContentType: "json",
         columns: [
-            {formatter: iconFormater, formatterParams: {icon: "edit", colorClass: "green-text text-darken-4"}, width: 40, hozAlign: "center", cellClick: addEditClicked, headerSort: false, tooltip: TR('Edit plan')},
-            {formatter: iconFormater, formatterParams: {icon: "map", colorClass: "green-text text-darken-4", iconClass: "material-icons"}, width: 40, hozAlign: "center", cellClick: openPlanModify, headerSort: false, tooltip: TR('Edit map & seats')},
+            {formatter: iconFormater, formatterParams: {icon: "edit", colorClass: "warp-icon-edit"}, width: 40, hozAlign: "center", cellClick: addEditClicked, headerSort: false, tooltip: TR('Edit plan')},
+            {formatter: iconFormater, formatterParams: {icon: "map", colorClass: "warp-icon-edit", iconClass: "material-icons"}, width: 40, hozAlign: "center", cellClick: openPlanModify, headerSort: false, tooltip: TR('Edit map & seats')},
             {title: TR("Plan name"), field: "name", headerFilter: "input", headerFilterFunc: "starts"},
             {title: TR("Seats"), field: "seat_count"},
             {title: TR("Zones"), field: "zone_names", formatter: chipFormatter, headerSort: false, headerFilter: zoneHeaderFilter, headerFilterFunc: "="},
@@ -114,15 +114,15 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     showEditDialog = function(id, name) {
 
-        var editModal = M.Modal.getInstance(editModalEl);
+        var editModal = warpDialog.getInstance(editModalEl);
         if (typeof(editModal) === 'undefined') {
-            editModal = M.Modal.init(editModalEl);
+            editModal = warpDialog(editModalEl);
         }
 
         planNameEl.value = name || "";
         errorDiv.style.display = "none";
         errorMsg.innerText = "";
-        deleteBtn.style.display = (id === null) ? "none" : "inline-block";
+        deleteBtn.style.display = (id === null) ? "none" : "inline-flex";
 
         M.updateTextFields();
         editModal.open();

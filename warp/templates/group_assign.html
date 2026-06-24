@@ -17,7 +17,7 @@
 {% block overlays %}
     {{ super() }}
 
-    <div id="add_to_group_modal" class="modal">
+    <dialog id="add_to_group_modal" class="modal warp-form-modal warp-fields">
         <div class="modal-content">
             <h4 id="add_to_group_modal_header"></h4>
             <div class="input-field">
@@ -32,11 +32,11 @@
             <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn TR" id="add_to_group_modal_addbtn">btn.Add</a>
             <a href="#!" class="modal-close waves-effect waves-light btn-flat TR">btn.Cancel</a>
           </div>
-    </div>
+    </dialog>
 
 
     <div class="fixed-action-btn">
-        <a class="btn-floating btn-large waves-effect waves-light orange accent-4" id="add_to_group_btn">
+        <a class="btn-floating btn-large waves-effect waves-light warp-fab-add" id="add_to_group_btn">
             <i class="material-icons-outlined">person_add_alt</i>
         </a>
     </div>
@@ -50,9 +50,7 @@
     <div class="container group_assign_container">
         <div class="group_assign_title">
             <a href="{{ returnURL }}"><i class="medium material-icons">chevron_left</i></a>
-            <span>
-                <script>TR.inline('Members of: %{group}',{group:"{{ groupName }}"})</script>
-            </span>
+            <span id="group_assign_title_text"></span>
         </div>
         <div id="groupMembersTable"></div>
     </div>

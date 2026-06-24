@@ -1,5 +1,5 @@
 <!doctype html>
-<html>
+<html theme="{{ 'dark' if request.cookies.get('warp_theme') == 'dark' else 'light' }}">
 <head>
     <title>WARP</title>
 
@@ -25,13 +25,19 @@
             }
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='material_icons/material_icons.css') }}" />
-    <link type="text/css" rel="stylesheet" href="{{ url_for('static', filename='materialize/materialize.min.css') }}"  media="screen,projection"/>
 
     <script>
         window.warpGlobals = { URLs: {}, i18nUrl: "{{ url_for('static', filename=config['LANGUAGE_FILE']) }}" };
     </script>
 
     {% include 'headers/base.html' %}
+
+    <!-- Single source of truth for colours: defines the M3 tokens Materialize 2.x
+         reads (overriding its defaults — loaded AFTER the base bundle so the
+         equal-specificity :root rules win by source order), plus the app's own
+         --warp-* tokens. The active theme (light/dark) is set on <html> from the
+         warp_theme cookie above, so the first paint already matches. -->
+    <link type="text/css" rel="stylesheet" href="{{ url_for('static', filename='theme.css') }}"  media="screen,projection"/>
 
     {% block header %}{% endblock %}
     {% block header_final %}{% endblock %}
@@ -43,7 +49,5 @@
     <div class="warp-container">
     {% block content %}{% endblock %}
     </div>
-
-    <script type="text/javascript" src="{{ url_for('static', filename='materialize/materialize.min.js') }}"></script>
 </body>
 </html>

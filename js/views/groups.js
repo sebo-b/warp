@@ -4,7 +4,7 @@ import Utils from './modules/utils.js';
 import WarpModal from './modules/modal.js';
 
 import {TabulatorFull as Tabulator} from 'tabulator-tables';
-import "./css/tabulator/tabulator_materialize.scss";
+import "./css/tabulator/tabulator.css";
 
 document.addEventListener("DOMContentLoaded", function(e) {
 
@@ -49,8 +49,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
         ajaxConfig: "POST",
         ajaxContentType: "json",
         columns: [
-            {formatter:iconFormater, formatterParams:{icon:"manage_accounts",colorClass:"green-text text-darken-4"}, width:40, hozAlign:"center", cellClick:assignClicked, headerSort:false},
-            {formatter:iconFormater, formatterParams:{icon:"edit",colorClass:"green-text text-darken-4"}, width:40, hozAlign:"center", cellClick:editClicked, headerSort:false},
+            {formatter:iconFormater, formatterParams:{icon:"manage_accounts",colorClass:"warp-icon-edit"}, width:40, hozAlign:"center", cellClick:assignClicked, headerSort:false},
+            {formatter:iconFormater, formatterParams:{icon:"edit",colorClass:"warp-icon-edit"}, width:40, hozAlign:"center", cellClick:editClicked, headerSort:false},
             {title:TR("Group id"), field: "login", headerFilter:"input", headerFilterFunc:"starts"},
             {title:TR("Group name"), field: "name", headerFilter:"input", headerFilterFunc:"starts"},
         ],
@@ -66,7 +66,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
     showEditDialog = function(login,name) {
 
         var editModalEl = document.getElementById('edit_modal');
-        var editModal = M.Modal.getInstance(editModalEl);
+        var editModal = warpDialog.getInstance(editModalEl);
 
         var loginEl = document.getElementById("login");
         var nameEl = document.getElementById("name");
@@ -79,7 +79,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
         if (typeof(editModal) === 'undefined') {
 
-            editModal = M.Modal.init(editModalEl);
+            editModal = warpDialog(editModalEl);
 
             var saveBtnClicked = function(e) {
 
@@ -155,7 +155,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         loginEl.disabled = login !== "";
 
         deleteBtn.style.display =
-            login !== "" ? "inline-block": "none";
+            login !== "" ? "inline-flex": "none";
 
         nameEl.value = name;
 

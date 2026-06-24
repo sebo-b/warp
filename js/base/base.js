@@ -1,9 +1,235 @@
 'use strict';
 
+// Materialize 2.x — CSS first so app rules win the cascade, then JS.
+// The published sass/materialize.scss is unusable (forwards non-shipped
+// files), so we consume the prebuilt dist CSS+JS from the one pinned package.
+import '@materializecss/materialize/dist/css/materialize.css';
 import './style.css';
 import 'nouislider/dist/nouislider.css';
+import * as Materialize from '@materializecss/materialize';
 import Polyglot from 'node-polyglot';
 import noUiSlider from 'nouislider';
+
+// Expose Materialize as the global `M` the inline template scripts expect.
+// `import * as` yields a frozen module namespace, so we spread it into a
+// plain object and add the two 1.x helpers 2.x renamed/removed:
+//   M.toast(opts)        -> 2.x dropped the `toast` function; construct a Toast.
+//   M.updateTextFields() -> 2.x floats labels via CSS :not(:placeholder-shown);
+//      we just ensure inputs carry placeholder=" " so empty-state labels rest.
+//   (2.x's Modal is a no-op stub — modals are native <dialog>; WARP drives them
+//   through the window.warpDialog controller defined below, not M.Modal.)
+//   M.Autocomplete.init  -> 2.x changed `data` to [{id,text}] and onAutocomplete
+//      to receive AutocompleteData[]; wrap to accept the 1.x {key:null} map and
+//      pass the selected string back, so call sites are unchanged.
+const _AcInit = Materialize.Autocomplete.init;
+// 2.x changed Autocomplete `data` to [{id,text}] and onAutocomplete to receive
+// AutocompleteData[]. Wrap init to accept the 1.x {key:null} map and pass the
+// selected string back, so call sites are unchanged. (Mutate the class static
+// directly — Object.assign({}, Class) does not copy non-enumerable statics like
+// getInstance, which would break M.Autocomplete.getInstance.)
+Materialize.Autocomplete.init = function (els, options) {
+  if (options && options.data && !Array.isArray(options.data)) {
+    var map = options.data;
+    options.data = Object.keys(map).map(function (k) {
+      return { id: k, text: k, image: map[k] || undefined };
+    });
+  }
+  if (options && options.onAutocomplete) {
+    var orig = options.onAutocomplete;
+    // 2.x calls onAutocomplete with AutocompleteData[] (and fires it on input-clear
+    // with []). 1.x called it only on selection with the chosen string. Only
+    // forward when there's a real selection, passing the entry's text/id.
+    options.onAutocomplete = function (entries) {
+      var e = entries && entries[0];
+      if (!e) return;
+      // Single-select re-fires on clear/refocus with the same selectedValues.
+      // Clear them before forwarding so the re-fire passes [] and is dropped.
+      if (!this.options.isMultiSelect) this.selectedValues = [];
+      return orig.call(this, e.text || e.id);
+    };
+  }
+  return _AcInit.call(this, els, options);
+};
+
+// ---- Native <dialog> controller (replaces the dead Materialize 2.x Modal) ----
+// Materialize 2.x ships NO modal JS: `M.Modal` is an empty stub and modals are
+// plain native <dialog>. WarpDialog is the single shared controller every WARP
+// modal goes through (window.warpDialog). It wraps showModal()/close() with the
+// 1.x-style lifecycle hooks the app relies on (onOpenStart/End, onCloseStart/End)
+// and centralises the unified dismissal rules so every modal behaves identically:
+//   * Esc while a select/autocomplete dropdown is open -> close just the dropdown.
+//   * Esc / outside-click with unsaved edits           -> ignored (modal stays).
+//   * Esc / outside-click on a clean (or readonly) modal -> Cancel (close).
+// It also lifts in-modal <select> dropdowns into the top layer (position:fixed
+// popover) so they are never clipped by the <dialog> that owns the top layer.
+
+// Re-bind a FormSelect's Dropdown to render its panel as a top-layer popover at
+// the trigger's viewport coordinates, flipping above when there's more room on
+// top. M2 positions dropdowns with absolute left/top relative to the offset
+// parent and never calls showPopover(), so inside a showModal() <dialog> the
+// panel is otherwise clipped by / trapped behind the modal.
+function warpLiftSelect(input) {
+  // Accept either the FormSelect trigger input or the original <select>.
+  if (input && input.tagName === 'SELECT') {
+    var wrap = input.closest('.select-wrapper');
+    input = wrap && wrap.querySelector('input.select-dropdown');
+  }
+  if (!input) return;
+  var dd = window.M.Dropdown.getInstance(input);
+  if (!dd || dd.__warpLifted) return;
+  dd.__warpLifted = true;
+  dd.open = function () {
+    if (dd.isOpen) return;
+    dd.isOpen = true;
+    if (typeof dd.options.onOpenStart === 'function') dd.options.onOpenStart.call(dd, dd.el);
+    var r = dd.el.getBoundingClientRect();
+    var de = dd.dropdownEl;
+    de.style.display = 'block';
+    de.style.opacity = '1';
+    de.style.transform = 'none';
+    de.style.position = 'fixed';
+    de.style.left = r.left + 'px';
+    de.style.width = r.width + 'px';
+    de.style.height = '';
+    var dh = de.offsetHeight;
+    var spaceBelow = window.innerHeight - r.bottom;
+    var spaceAbove = r.top;
+    de.style.top = (dh > spaceBelow && spaceAbove > spaceBelow)
+      ? Math.max(8, spaceAbove - dh) + 'px'
+      : r.bottom + 'px';
+    de.popover = 'manual';
+    try { de.showPopover(); } catch (e) {}
+    setTimeout(function () { if (dd._setupTemporaryEventHandlers) dd._setupTemporaryEventHandlers(); }, 0);
+    dd.el.ariaExpanded = 'true';
+  };
+  dd.close = function () {
+    if (!dd.isOpen) return;
+    dd.isOpen = false;
+    if (typeof dd.options.onCloseStart === 'function') dd.options.onCloseStart.call(dd, dd.el);
+    try { dd.dropdownEl.hidePopover(); } catch (e) {}
+    dd.dropdownEl.style.display = 'none';
+    if (dd._removeTemporaryEventHandlers) dd._removeTemporaryEventHandlers();
+    dd.el.ariaExpanded = 'false';
+  };
+}
+
+// True when any Materialize dropdown panel is currently visible (a select lifted
+// to a top-layer popover, or an autocomplete rendered inline). Used to route Esc
+// / outside-click to the dropdown instead of the modal.
+function warpDropdownOpen() {
+  var panels = document.querySelectorAll('.dropdown-content');
+  for (var i = 0; i < panels.length; i++) {
+    var p = panels[i];
+    if (p.matches(':popover-open')) return true;
+    var cs = getComputedStyle(p);
+    if (cs.display !== 'none' && cs.opacity !== '0' && p.getClientRects().length) return true;
+  }
+  return false;
+}
+
+class WarpDialog {
+  constructor(el, options) {
+    this.el = el;
+    this.options = Object.assign({
+      dismissible: true,
+      onOpenStart: null, onOpenEnd: null,
+      onCloseStart: null, onCloseEnd: null
+    }, options || {});
+    this._dirty = false;       // set by any user edit since the last open()
+    this._ddEscaping = false;  // this Esc is closing a dropdown, not the modal
+    this._onEdit = function () { this._dirty = true; }.bind(this);
+    // Capture phase: runs before Materialize closes the dropdown, so we can see
+    // it was open and flag the imminent 'cancel' as a dropdown-dismiss.
+    this._onKeydown = function (ev) {
+      if (ev.key === 'Escape' && warpDropdownOpen()) this._ddEscaping = true;
+    }.bind(this);
+    this._onCancel = this._onCancel.bind(this);
+    this._onBackdrop = this._onBackdrop.bind(this);
+    this._onClose = this._onClose.bind(this);
+    el.addEventListener('input', this._onEdit);
+    el.addEventListener('change', this._onEdit);
+    el.addEventListener('keydown', this._onKeydown, true);
+    el.addEventListener('click', this._onBackdrop);
+    el.addEventListener('cancel', this._onCancel);
+    el.addEventListener('close', this._onClose);
+  }
+  // Esc. We always preventDefault and manage closing ourselves so the onClose*
+  // hooks fire (the native 'close' event alone wouldn't run them).
+  _onCancel(ev) {
+    ev.preventDefault();
+    if (this._ddEscaping) { this._ddEscaping = false; return; } // Esc closed a dropdown
+    if (this.options.dismissible === false) return;
+    if (this._dirty) return;                                    // unsaved edits -> ignore
+    this.close();
+  }
+  _onBackdrop(ev) {
+    if (ev.target !== this.el) return;   // only a click on the backdrop itself
+    if (warpDropdownOpen()) return;      // let the click dismiss the dropdown first
+    if (this.options.dismissible === false) return;
+    if (this._dirty) return;             // unsaved edits -> ignore
+    this.close();
+  }
+  // The native 'close' event fires asynchronously from el.close(); use it only to
+  // keep the .open class in sync. onCloseEnd is fired synchronously in close().
+  _onClose() { this.el.classList.remove('open'); }
+  // For edits that don't surface as a bubbling input/change event (mouse-driven
+  // custom widgets: the prefs time slider, calendar weekday chips, ...).
+  markDirty() { this._dirty = true; }
+  open() {
+    this._dirty = false;
+    this._ddEscaping = false;
+    if (this.options.onOpenStart) this.options.onOpenStart.call(this.el);
+    // Lift this modal's <select> dropdowns into the top layer (idempotent).
+    this.el.querySelectorAll('.select-wrapper input.select-dropdown').forEach(warpLiftSelect);
+    this.el.classList.add('open');
+    this.el.showModal();
+    var self = this;
+    requestAnimationFrame(function () {
+      if (self.options.onOpenEnd) self.options.onOpenEnd.call(self.el);
+    });
+    return this;
+  }
+  close() {
+    if (this.options.onCloseStart) this.options.onCloseStart.call(this.el);
+    this.el.close();
+    this.el.classList.remove('open');
+    if (this.options.onCloseEnd) this.options.onCloseEnd.call(this.el);
+    return this;
+  }
+  destroy() {
+    var el = this.el;
+    el.removeEventListener('input', this._onEdit);
+    el.removeEventListener('change', this._onEdit);
+    el.removeEventListener('keydown', this._onKeydown, true);
+    el.removeEventListener('click', this._onBackdrop);
+    el.removeEventListener('cancel', this._onCancel);
+    el.removeEventListener('close', this._onClose);
+    el._warpDialog = undefined;
+  }
+  static getInstance(el) { return el ? el._warpDialog : undefined; }
+}
+
+// Create-or-return the controller for a <dialog> — one idempotent call that
+// replaces the old M.Modal.getInstance()/init() pair. Passing options on a
+// later call updates the live options object (callers mutate onCloseStart etc.).
+function warpDialog(el, options) {
+  if (!el) return undefined;
+  if (!el._warpDialog) el._warpDialog = new WarpDialog(el, options);
+  else if (options) Object.assign(el._warpDialog.options, options);
+  return el._warpDialog;
+}
+warpDialog.getInstance = WarpDialog.getInstance;
+
+const M = Object.assign({}, Materialize, {
+  toast: function (opts) { return new Materialize.Toast(opts); },
+  updateTextFields: function () {
+    document.querySelectorAll(
+      '.input-field input:not([placeholder]), .input-field textarea:not([placeholder])'
+    ).forEach(function (el) { el.setAttribute('placeholder', ' '); });
+  },
+});
+window.M = M;
+window.warpDialog = warpDialog;
 
 if (!window?.warpGlobals?.i18nUrl)
   throw Error('warpGlobals.i18nUrl must be defined');
@@ -78,6 +304,10 @@ function initPrefs() {
   if (!prefModalEl || !planSelectEl || !daySelectEl || !saveBtn || !sliderEl)
     return;
 
+  // Render the FormSelect dropdowns into the dialog (not the scrolling
+  // .modal-content), so a long list isn't clipped by the modal's overflow.
+  var SELECT_OPTS = { dropdownOptions: { container: prefModalEl } };
+
   var DEFAULT_TIME = [9 * 3600, 17 * 3600];
   var loadedPrefs = null;
   var slider = null;
@@ -86,8 +316,8 @@ function initPrefs() {
     var time = (loadedPrefs && loadedPrefs.default_time) ? loadedPrefs.default_time : DEFAULT_TIME;
     planSelectEl.value = (loadedPrefs && loadedPrefs.default_plan) ? String(loadedPrefs.default_plan) : "";
     daySelectEl.value = (loadedPrefs && loadedPrefs.default_day) ? loadedPrefs.default_day : "same";
-    M.FormSelect.init(planSelectEl);
-    M.FormSelect.init(daySelectEl);
+    M.FormSelect.init(planSelectEl, SELECT_OPTS);
+    M.FormSelect.init(daySelectEl, SELECT_OPTS);
     if (slider) slider.set(time);
     if (showSeatNamesEl) showSeatNamesEl.checked = loadedPrefs ? loadedPrefs.zone_show_seat_names : false;
     if (showBookingPreviewEl) showBookingPreviewEl.checked = loadedPrefs ? loadedPrefs.zone_show_booking_preview : false;
@@ -113,17 +343,21 @@ function initPrefs() {
         minDiv.innerText = formatHHMM(unencoded[0]);
         maxDiv.innerText = formatHHMM(unencoded[1]);
       });
+      // User drag (not the programmatic .set on load) marks the modal dirty, so
+      // an accidental Esc/outside-click won't silently discard the change.
+      slider.on('slide', function() {
+        warpDialog.getInstance(prefModalEl)?.markDirty();
+      });
     }
 
     applyPrefsToUI();
   }
 
-  M.FormSelect.init(planSelectEl);
-  M.FormSelect.init(daySelectEl);
+  M.FormSelect.init(planSelectEl, SELECT_OPTS);
+  M.FormSelect.init(daySelectEl, SELECT_OPTS);
 
-  M.Modal.init(prefModalEl, {
-    onOpenStart: ensureSlider,
-    dismissible: false
+  warpDialog(prefModalEl, {
+    onOpenStart: ensureSlider
   });
 
   fetch('/xhr/prefs')
@@ -212,7 +446,14 @@ function initCalendar() {
   var saveBtn = document.getElementById('cal_save_btn');
   var calCancelBtn = document.getElementById('cal_cancel_btn');
 
-  var SELECT_OPTS = { dropdownOptions: { container: document.body } };
+// Keep the FormSelect dropdowns inside the calendar modal (a <dialog> shown
+  // via showModal, hence in the top layer). Appending to document.body renders
+  // them behind the modal's backdrop (blurred, unselectable). calModalEl is in
+  // the modal's top-layer subtree so the dropdowns appear above the modal.
+  var SELECT_OPTS = { dropdownOptions: { container: calModalEl } };
+
+  // (In-modal <select> dropdowns are lifted into the top layer by warpDialog on
+  // open, so they are never clipped by the modal — see WarpDialog.open().)
 
   // Sun=64, Mon=1, Tue=2, Wed=4, Thu=8, Fri=16, Sat=32
   var WEEKDAY_BITS = [64, 1, 2, 4, 8, 16, 32];
@@ -239,6 +480,7 @@ function initCalendar() {
       weekdayMask ^= WEEKDAY_BITS[i];
       chip.classList.toggle('active');
       updateReminderTabState();
+      warpDialog.getInstance(calModalEl)?.markDirty();
     });
   });
 
@@ -377,12 +619,14 @@ function initCalendar() {
       var aVal = data.reminder_ahead_days != null ? data.reminder_ahead_days : 0;
       calMissingAheadEl.value = String(aVal);
       M.FormSelect.init(calMissingAheadEl, SELECT_OPTS);
+      warpLiftSelect(calMissingAheadEl);
     }
 
     if (calReleaseAheadEl) {
       var rVal = data.reminder_release_ahead_days != null ? data.reminder_release_ahead_days : 0;
       calReleaseAheadEl.value = String(rVal);
       M.FormSelect.init(calReleaseAheadEl, SELECT_OPTS);
+      warpLiftSelect(calReleaseAheadEl);
     }
 
     // Recompute after the reminder selects have been populated above.
@@ -394,6 +638,7 @@ function initCalendar() {
         o.selected = zids.indexOf(parseInt(o.value)) !== -1;
       });
       M.FormSelect.init(calZonesEl, SELECT_OPTS);
+      warpLiftSelect(calZonesEl);
     }
 
     updateSharedSectionState();
@@ -401,10 +646,30 @@ function initCalendar() {
 
   function ensureTimepicker() {
     if (!calTimeInputEl || timepicker) return;
+    // The time is picked from the clock only — typing into the field while the
+    // picker is open is unsupported and glitchy, so make it readonly. (A click
+    // still opens the picker; the picker dialog closes on outside-click.)
+    calTimeInputEl.readOnly = true;
     timepicker = M.Timepicker.init(calTimeInputEl, {
       twelveHour: false,
-      container: document.body
+      // A clock selection is a real edit -> mark the calendar modal dirty so an
+      // accidental Esc/outside-click won't silently discard it.
+      onSelect: function() { warpDialog.getInstance(calModalEl)?.markDirty(); },
+      // autoSubmit:true (M2 default) skips the Done/Cancel buttons AND calls
+      // done() on clock-release which sets the value but never hides the modal,
+      // so the picker opens with no buttons and never closes. autoSubmit:false
+      // creates the Ok/Cancel buttons; Ok calls confirm() -> done() + hide().
+      autoSubmit: false,
+      // displayPlugin:'modal' wraps the clock face in a <dialog> (hidden until
+      // opened); without it M2 leaves the bare .timepicker-container in the DOM,
+      // always visible at the bottom of the page. Move that dialog into the
+      // calendar modal so it renders in the modal's top-layer subtree (above
+      // it) instead of at body level behind the modal.
+      displayPlugin: 'modal'
     });
+    if (timepicker.displayPlugin && timepicker.displayPlugin.container) {
+      calModalEl.appendChild(timepicker.displayPlugin.container);
+    }
   }
 
   function resetUrlVisibility() {
@@ -437,8 +702,7 @@ function initCalendar() {
     calTypeTabsInstance.select('cal-type-' + selectedType);
   }
 
-  M.Modal.init(calModalEl, {
-    dismissible: false,
+  warpDialog(calModalEl, {
     onOpenStart: function() {
       ensureTimepicker();
       resetUrlVisibility();
@@ -506,7 +770,7 @@ function initCalendar() {
 
   if (calCancelBtn) {
     calCancelBtn.addEventListener('click', function() {
-      M.Modal.getInstance(calModalEl).close();
+      warpDialog(calModalEl).close();
     });
   }
 
@@ -588,7 +852,7 @@ function initCalendar() {
           M.toast({ text: TR('Error saving calendar settings') });
         } else {
           M.toast({ text: TR('Calendar settings saved') });
-          M.Modal.getInstance(calModalEl).close();
+          warpDialog(calModalEl).close();
         }
       });
 
@@ -616,7 +880,7 @@ function initChangePassword() {
     M.updateTextFields();
   }
 
-  var cpModal = M.Modal.init(cpModalEl, {
+  var cpModal = warpDialog(cpModalEl, {
     onCloseEnd: clearFields
   });
 
@@ -666,6 +930,15 @@ function initChangePassword() {
 
 document.addEventListener("DOMContentLoaded", function(e) {
   window.TR.updateDOM();
+  M.updateTextFields(); // ensure placeholder=" " so 2.x CSS label-float works
+
+  // Opt every WARP form field into Materialize 2.x's built-in `.outlined`
+  // text-field variant (bordered box). Scoped to .warp-fields containers so the
+  // nav search and the zone "book-as" underline field are left untouched; chips
+  // are excluded (they are a multi-value container, not a text field).
+  document.querySelectorAll('.warp-fields .input-field:not(.chips)').forEach(function(el) {
+    el.classList.add('outlined');
+  });
 
   let pendingToast = window.sessionStorage.getItem('pendingToast');
   if (pendingToast) {
@@ -677,4 +950,66 @@ document.addEventListener("DOMContentLoaded", function(e) {
   initPrefs();
   initCalendar();
   initChangePassword();
+  initTriggerClasses();
+  initThemeToggle();
 });
+
+// Top-bar light/dark toggle. Flips the <html theme> attribute and persists it in
+// a long-lived cookie (survives tab close; NOT stored in the prefs DB). The server
+// reads the cookie to render <html theme> on first paint so there is no flash;
+// this only handles the in-page click. Delegated so it needs no per-page wiring.
+function initThemeToggle() {
+  document.addEventListener('click', function (ev) {
+    var tg = ev.target.closest && ev.target.closest('.warp-theme-toggle');
+    if (!tg) return;
+    ev.preventDefault();
+    var html = document.documentElement;
+    var next = html.getAttribute('theme') === 'dark' ? 'light' : 'dark';
+    html.setAttribute('theme', next);
+    document.cookie = 'warp_theme=' + next + ';path=/;max-age=31536000;samesite=lax';
+  });
+}
+
+// Materialize 2.x removed the .modal-trigger / .sidenav-trigger auto-init
+// classes (click-to-open was automatic in 1.x). Replicate that behaviour with
+// delegated listeners so it covers triggers added dynamically by view JS, and
+// so it works regardless of init order. Sidenav triggers are guarded to real
+// .sidenav elements only — WARP reuses sidenav-trigger on the zone sidepanel
+// (a plain div, not a Materialize sidenav), which must keep its own handling.
+function initTriggerClasses() {
+  document.addEventListener('click', function(ev) {
+    var modalTrig = ev.target.closest && ev.target.closest('.modal-trigger');
+    if (modalTrig) {
+      var sel = modalTrig.getAttribute('href');
+      if (sel && sel !== '#') {
+        var modalEl = document.querySelector(sel);
+        if (modalEl) {
+          ev.preventDefault();
+          warpDialog(modalEl).open();
+        }
+      }
+      return;
+    }
+    var sidenavTrig = ev.target.closest && ev.target.closest('.sidenav-trigger');
+    if (sidenavTrig) {
+      var id = sidenavTrig.getAttribute('data-target');
+      var sn = id && document.getElementById(id);
+      if (sn && sn.classList.contains('sidenav')) {
+        ev.preventDefault();
+        (M.Sidenav.getInstance(sn) || M.Sidenav.init(sn, {})).open();
+      }
+      return;
+    }
+    // .modal-close: 2.x dropped the auto-close class behaviour; close the
+    // enclosing <dialog class="modal"> (instance.close() if init'd, else native close).
+    var modalClose = ev.target.closest && ev.target.closest('.modal-close');
+    if (modalClose) {
+      var dlg = modalClose.closest('.modal');
+      if (dlg) {
+        ev.preventDefault();
+        var inst = warpDialog.getInstance(dlg);
+        if (inst) inst.close(); else dlg.close();
+      }
+    }
+  });
+}

@@ -1,0 +1,41 @@
+/*
+ * WARP noUiSlider theme = the dependency's prebuilt CSS + a thin brand override.
+ * Replaces nouislider_materialize.scss. Colours come from theme.css tokens.
+ */
+@import "nouislider/dist/nouislider.css";
+
+.noUi-target {
+    border: 0;
+    border-radius: 0;
+    background: var(--warp-primary-tint);
+}
+
+.noUi-vertical {
+    height: 100%;
+    width: 3px;
+}
+
+.noUi-vertical .noUi-connects {
+    width: 5px;
+    left: -1px;
+}
+
+.noUi-connect {
+    background: var(--warp-primary);
+}
+
+.noUi-horizontal .noUi-handle,
+.noUi-vertical .noUi-handle {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    box-shadow: none;
+    background-color: var(--warp-primary);
+    border: none;
+    transform: translateY(-10px);
+}
+
+.noUi-handle:before,
+.noUi-handle:after {
+    content: none;
+}

@@ -1,0 +1,172 @@
+/*
+ * WARP Tabulator theme = the dependency's prebuilt Materialize theme + a thin
+ * brand override. Replaces ~1769 lines of vendored SCSS (tabulator.scss,
+ * variables.scss, tabulator_materialize.scss). All colours come from the
+ * --warp-* tokens in theme.css.
+ */
+/* Relative path into node_modules: tabulator-tables' package "exports" map
+   blocks webpack's resolver from the bare dist/css specifier. */
+@import "../../../node_modules/tabulator-tables/dist/css/tabulator_materialize.min.css";
+
+/* Full-width, borderless table to match the app layout. */
+.tabulator {
+    border: none;
+    width: 100%;
+    max-width: 100%;
+}
+
+/* Brand accent — the stock theme colours these with its own red. */
+.tabulator-row.tabulator-selected,
+.tabulator-row.tabulator-selected:hover {
+    background-color: var(--warp-secondary);
+}
+.tabulator .tabulator-footer .tabulator-page.active {
+    color: var(--warp-secondary);
+}
+.tabulator-cell.tabulator-editing {
+    border: 1px solid var(--warp-secondary);
+}
+.tabulator-edit-select-list .tabulator-edit-select-list-item.active,
+.tabulator-edit-select-list .tabulator-edit-select-list-item:hover {
+    background: var(--warp-secondary);
+    color: var(--warp-surface);
+}
+
+/* Validation failures -> brand error colour. */
+.tabulator-cell.tabulator-validation-fail {
+    border: 1px solid var(--warp-error);
+}
+.tabulator-cell.tabulator-validation-fail input,
+.tabulator-cell.tabulator-validation-fail select {
+    color: var(--warp-error);
+}
+
+/* WARP loading spinner (replaces the stock "Loading..." text). Reuses the
+   spinnerRotate keyframes defined in base/style.css. */
+.tabulator .tabulator-loader {
+    background: rgba(var(--warp-surface-rgb), 0.4);
+}
+.tabulator .tabulator-loader .tabulator-loader-msg.tabulator-loading {
+    display: block;
+    width: 100px;
+    height: 100px;
+    color: transparent;
+    border-radius: 50%;
+    border: 6px solid var(--warp-secondary-pale);
+    border-left-color: var(--warp-secondary);
+    animation: spinnerRotate 1s infinite linear;
+}
+.tabulator .tabulator-loader .tabulator-loader-msg.tabulator-error {
+    background: var(--warp-surface);
+    color: var(--warp-text);
+    padding: 20px 40px;
+    border: 4px solid var(--warp-error);
+    border-radius: 10px;
+}
+
+/* Dark mode overrides for the stock Tabulator Materialize theme, which hard-codes
+   light backgrounds and dark borders. Tabulator is page content, not a raised
+   card, so the table, header, rows and footer sit on the page tier
+   (--warp-grey-bg); only the genuinely floating elements (edit-select dropdown,
+   popup container, alert) stay on the raised --warp-surface tier. Hover and
+   group/calcs bands use the lighter surface tier so they still read as
+   highlights. */
+:root[theme="dark"] .tabulator,
+:root[theme="dark"] .tabulator .tabulator-header,
+:root[theme="dark"] .tabulator .tabulator-header .tabulator-col,
+:root[theme="dark"] .tabulator .tabulator-tableholder .tabulator-table,
+:root[theme="dark"] .tabulator-row,
+:root[theme="dark"] .tabulator-row.tabulator-row-even,
+:root[theme="dark"] .tabulator .tabulator-footer {
+    background-color: var(--warp-grey-bg);
+    color: var(--warp-text);
+}
+
+/* Floating popups/menus stay on the raised surface tier. */
+:root[theme="dark"] .tabulator-edit-select-list,
+:root[theme="dark"] .tabulator-popup-container,
+:root[theme="dark"] .tabulator .tabulator-alert .tabulator-alert-msg {
+    background-color: var(--warp-surface);
+    color: var(--warp-text);
+}
+
+:root[theme="dark"] .tabulator-row.tabulator-row-even {
+    background-color: color-mix(in srgb, var(--warp-grey-bg), var(--warp-text) 5%);
+}
+
+/* Table rows/cols/footer-page hover: lighten onto the raised surface tier
+   (page-tier base → surface highlight). */
+:root[theme="dark"] .tabulator-row.tabulator-selectable:hover,
+:root[theme="dark"] .tabulator .tabulator-header .tabulator-col.tabulator-sortable.tabulator-col-sorter-element:hover,
+:root[theme="dark"] .tabulator .tabulator-footer .tabulator-page:not(disabled):hover {
+    background-color: var(--warp-surface);
+}
+
+/* Hover inside the raised popups/menus: darken onto the page tier. */
+:root[theme="dark"] .tabulator-menu .tabulator-menu-item:not(.tabulator-menu-item-disabled):hover,
+:root[theme="dark"] .tabulator-edit-select-list .tabulator-edit-select-list-item:hover {
+    background-color: var(--warp-grey-bg);
+}
+
+:root[theme="dark"] .tabulator .tabulator-header,
+:root[theme="dark"] .tabulator .tabulator-footer,
+:root[theme="dark"] .tabulator .tabulator-header .tabulator-col,
+:root[theme="dark"] .tabulator-row .tabulator-cell,
+:root[theme="dark"] .tabulator-popup-container,
+:root[theme="dark"] .tabulator-menu .tabulator-menu-separator,
+:root[theme="dark"] .tabulator-row .tabulator-responsive-collapse,
+:root[theme="dark"] .tabulator-row.tabulator-group {
+    border-color: var(--warp-grey-border);
+}
+
+:root[theme="dark"] .tabulator-row .tabulator-cell.tabulator-row-header {
+    background-color: var(--warp-grey-bg);
+    border-right-color: var(--warp-grey-border);
+}
+
+:root[theme="dark"] .tabulator .tabulator-header .tabulator-col.tabulator-moving,
+:root[theme="dark"] .tabulator .tabulator-header .tabulator-col.tabulator-range-highlight,
+:root[theme="dark"] .tabulator .tabulator-header .tabulator-calcs-holder,
+:root[theme="dark"] .tabulator .tabulator-tableholder .tabulator-table .tabulator-row.tabulator-calcs,
+:root[theme="dark"] .tabulator .tabulator-footer .tabulator-calcs-holder,
+:root[theme="dark"] .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-row,
+:root[theme="dark"] .tabulator-row.tabulator-group,
+:root[theme="dark"] .tabulator-print-table .tabulator-print-table-group,
+:root[theme="dark"] .tabulator-row .tabulator-responsive-collapse {
+    background-color: var(--warp-surface) !important;
+}
+
+:root[theme="dark"] .tabulator-row.tabulator-group span,
+:root[theme="dark"] .tabulator-print-table .tabulator-print-table-group span,
+:root[theme="dark"] .tabulator-row .tabulator-cell .tabulator-data-tree-control,
+:root[theme="dark"] .tabulator-row .tabulator-cell .tabulator-responsive-collapse-toggle,
+:root[theme="dark"] .tabulator-print-table .tabulator-data-tree-control,
+:root[theme="dark"] .tabulator .tabulator-footer .tabulator-paginator,
+:root[theme="dark"] .tabulator .tabulator-footer .tabulator-page,
+:root[theme="dark"] .tabulator .tabulator-footer .tabulator-page-size {
+    color: var(--warp-text);
+}
+
+:root[theme="dark"] .tabulator-row .tabulator-cell .tabulator-data-tree-control .tabulator-data-tree-control-collapse:after,
+:root[theme="dark"] .tabulator-row .tabulator-cell .tabulator-data-tree-control .tabulator-data-tree-control-expand,
+:root[theme="dark"] .tabulator-row .tabulator-cell .tabulator-data-tree-control .tabulator-data-tree-control-expand:after,
+:root[theme="dark"] .tabulator-print-table .tabulator-data-tree-control .tabulator-data-tree-control-collapse:after,
+:root[theme="dark"] .tabulator-print-table .tabulator-data-tree-control .tabulator-data-tree-control-expand,
+:root[theme="dark"] .tabulator-print-table .tabulator-data-tree-control .tabulator-data-tree-control-expand:after {
+    background-color: var(--warp-grey-text);
+}
+
+:root[theme="dark"] .tabulator .tabulator-footer .tabulator-page {
+    background-color: color-mix(in srgb, var(--warp-grey-border), var(--warp-surface) 40%);
+    border-color: var(--warp-grey-border);
+}
+
+:root[theme="dark"] .tabulator .tabulator-footer .tabulator-page.active {
+    background-color: var(--warp-secondary);
+    color: var(--warp-on-brand);
+}
+
+:root[theme="dark"] .tabulator .tabulator-footer .tabulator-page:not(disabled):hover {
+    background-color: var(--warp-grey-text);
+    color: var(--warp-on-brand);
+}

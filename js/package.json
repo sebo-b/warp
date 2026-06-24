@@ -12,6 +12,7 @@
   "dependencies": {
     "@babel/core": "^7.16.0",
     "@babel/preset-env": "^7.16.4",
+    "@materializecss/materialize": "^2.3.3",
     "babel-loader": "^8.2.3",
     "core-js": "^3.19.1",
     "css-loader": "^6.5.1",
@@ -23,9 +24,8 @@
     "postcss": "^8.3.11",
     "postcss-loader": "^6.2.0",
     "postcss-preset-env": "^7.0.1",
-    "sass": "^1.43.4",
-    "sass-loader": "^12.3.0",
     "tabulator-tables": "^6.4.0",
+    "terser": "^5.48.0",
     "terser-webpack-plugin": "^5.2.5",
     "webpack": "^5.64.2",
     "webpack-cli": "^4.9.1"

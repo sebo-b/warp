@@ -643,7 +643,7 @@ test.describe('calendar settings modal UI (full flow + type tabs + disabled tab 
     // Scroll the modal inner content all the way to the top; the harness viewport
     // is small and Materialize places scroll on .modal-content for tall modals.
     const modal = page.locator('#calendar_modal');
-    const content = modal.locator('.modal-content');
+    const content = modal.locator('> .modal-content');
     await content.evaluate((el: HTMLElement) => { el.scrollTop = 0; });
 
     // Give the modal open animation + layout one frame to settle.

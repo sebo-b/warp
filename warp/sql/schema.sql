@@ -71,7 +71,8 @@ CREATE TABLE zone_assign (
 CREATE TABLE plan (
     id SERIAL PRIMARY KEY,
     name text NOT NULL,
-    iid integer REFERENCES blobs(id) ON DELETE SET NULL
+    iid integer REFERENCES blobs(id) ON DELETE SET NULL,
+    dark_filter jsonb NOT NULL DEFAULT '{"id":"smart","invert":100,"grayscale":0,"sepia":0,"saturate":100,"hue":180,"brightness":100,"contrast":100}'
 );
 
 CREATE TABLE seat (
@@ -306,4 +307,4 @@ CREATE UNLOGGED TABLE calendar_cache (
 
 CREATE TABLE db_initialized (version INTEGER NOT NULL);
 
-INSERT INTO db_initialized(version) VALUES(16);
+INSERT INTO db_initialized(version) VALUES(17);

@@ -7,7 +7,7 @@ import ZoneUserData from './modules/zoneuserdata.js';
 import BookAs from './modules/bookas.js';
 
 import noUiSlider from 'nouislider';
-import "./css/zone/nouislider_materialize.scss";
+import "./css/zone/nouislider.css";
 
 function downloadSeatData(seatFactory) {
 
@@ -464,9 +464,9 @@ function initActionMenu(seatFactory) {
         if (!assignModalEl || typeof(ZoneUserData) === 'undefined')
             return null;
 
-        var assignModal = M.Modal.getInstance(assignModalEl);
+        var assignModal = warpDialog.getInstance(assignModalEl);
         if (!assignModal)
-            assignModal = M.Modal.init(assignModalEl, {});
+            assignModal = warpDialog(assignModalEl, {});
 
         var zoneUserData = ZoneUserData.getInstance();
         var userData = zoneUserData.getData();
@@ -532,7 +532,7 @@ function initActionMenu(seatFactory) {
                 var delBtn = document.createElement('a');
                 delBtn.href = '#!';
                 delBtn.className = 'btn-flat assigned_seat_delete_btn';
-                delBtn.innerHTML = '<i class="material-icons small red-text text-darken-3">delete</i>';
+                delBtn.innerHTML = '<i class="material-icons small warp-icon-danger">delete</i>';
                 delBtn.addEventListener('click', function(e) {
                     e.preventDefault();
                     assignedData = assignedData.filter(d => d.login !== item.login);
@@ -565,7 +565,7 @@ function initActionMenu(seatFactory) {
 
         M.Autocomplete.init(addInputEl, {
             data: autocompleteData,
-            dropdownOptions: { constrainWidth: false, container: document.body },
+            dropdownOptions: { constrainWidth: false, container: addInputEl.closest('dialog') || document.body },
             minLength: 2,
             limit: 10,
             onAutocomplete: function(selectedText) {
@@ -605,7 +605,7 @@ function initActionMenu(seatFactory) {
 
     // init modal
     var actionEl = document.getElementById('action_modal');
-    var actionModal =  M.Modal.init(actionEl);
+    var actionModal =  warpDialog(actionEl);
 
     // register hooks
     var actionBtns = document.getElementsByClassName('zone_action_btn');
@@ -694,10 +694,7 @@ function initActionMenu(seatFactory) {
         }
 
         for (let btn of actionBtns) {
-            if (actions.includes(btn.dataset.action))
-                btn.style.display = "inline-block";
-            else
-                btn.style.display = "none";
+            btn.classList.toggle('active', actions.includes(btn.dataset.action));
         }
 
         //var actionElTitle = document.getElementById('action_modal_title');
@@ -916,16 +913,35 @@ function initShiftSelectDates() {
 function initZoneHelp() {
 
     var helpModalEl = document.getElementById('zonemap_help_modal');
-    var helpModal = M.Modal.init(helpModalEl);
+    var helpModal = warpDialog(helpModalEl);
+
+    var helpSpriteMap = {
+        book:          { icon: 'icon-plus',      color: 'available' },
+        rebook:        { icon: 'icon-arrow',     color: 'available' },
+        conflict:      { icon: 'icon-head',      color: 'unavailable' },
+        viewOnly:      { icon: 'icon-no',        color: 'unavailable' },
+        viewOnlyTaken: { icon: 'icon-head',      color: 'unavailable' },
+        userExact:     { icon: 'icon-head',      color: 'yours' },
+        userRebook:    { icon: 'icon-head-arrow', color: 'yours' },
+        userConflict:  { icon: 'icon-head',      color: 'unavailable' },
+        bookAssigned:  { icon: 'icon-plus',      color: 'yours' },
+        rebookAssigned:{ icon: 'icon-arrow',     color: 'yours' },
+        disabled:      { icon: 'icon-no',        color: 'unavailable' },
+        assigned:      { icon: 'icon-assigned',   color: 'unavailable' }
+    };
 
     var helpModalSpriteDivs = document.getElementsByClassName("help_modal_sprite");
     for (let d of helpModalSpriteDivs) {
         d.style.width = WarpSeat.Sprites.spriteSize + "px";
         d.style.height = WarpSeat.Sprites.spriteSize + "px";
-        d.style.backgroundImage = 'url('+window.warpGlobals.URLs['seatSprite']+')';
 
-        var type = d.dataset.sprite + "Offset";
-        d.style.backgroundPositionX = WarpSeat.Sprites[type];
+        var mapping = helpSpriteMap[d.dataset.sprite];
+        if (!mapping) continue;
+
+        d.className = "help_modal_sprite seat-icon seat-icon--" + mapping.color;
+        d.innerHTML = '<svg viewBox="0 0 24 24" width="48" height="48"><use href="' +
+                      window.warpGlobals.URLs['seatSprite'] + '#' + mapping.icon +
+                      '"></use></svg>';
     }
 
     var helpDiv = document.getElementsByClassName("zonemap_help");
@@ -1087,6 +1103,42 @@ document.addEventListener("DOMContentLoaded", function() {
     var seatLabels = initSeatLabels(seatFactory);
     initSeatPreview(seatFactory, seatLabels);
     initActionMenu(seatFactory);
+    var zoneMap = document.getElementById('zonemap');
+    var zoneMapImg = zoneMap ? zoneMap.querySelector('img') : null;
+
+    if (zoneMapImg && window.warpGlobals.darkFilter) {
+        // Coerce each stored value to a number within its valid range, so a legacy or
+        // hand-edited DB row can never produce an invalid (or hostile) filter string.
+        var clampFilter = function(v, dflt, max) {
+            var n = Number(v);
+            if (!isFinite(n)) n = dflt;
+            return Math.min(max, Math.max(0, n));
+        };
+        function applyPlanMapFilter() {
+            var isDark = document.documentElement.getAttribute('theme') === 'dark';
+            if (!isDark) {
+                zoneMapImg.style.filter = '';
+                return;
+            }
+            var f = window.warpGlobals.darkFilter;
+            var parts = [
+                'invert(' + clampFilter(f.invert, 0, 100) + '%)',
+                'grayscale(' + clampFilter(f.grayscale, 0, 100) + '%)',
+                'sepia(' + clampFilter(f.sepia, 0, 100) + '%)',
+                'saturate(' + clampFilter(f.saturate, 100, 200) + '%)',
+                'hue-rotate(' + clampFilter(f.hue, 0, 360) + 'deg)',
+                'brightness(' + clampFilter(f.brightness, 100, 200) + '%)',
+                'contrast(' + clampFilter(f.contrast, 100, 200) + '%)'
+            ];
+            zoneMapImg.style.filter = parts.join(' ');
+        }
+        applyPlanMapFilter();
+        new MutationObserver(applyPlanMapFilter).observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['theme']
+        });
+    }
+
     initZoneHelp();
     initZoneSidepanel();
 

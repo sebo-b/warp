@@ -98,6 +98,8 @@ def listW(report = False):      # list is a built-in type
         if 'toTS' in value and value['toTS'] != None:
             expressions.append( Book.tots <= value['toTS'])
 
+        if not expressions:
+            return True
         return reduce(operator.and_, expressions)
 
 

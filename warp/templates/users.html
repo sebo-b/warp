@@ -15,7 +15,7 @@
 {% block overlays %}
     {{ super() }}
 
-<div id="edit_modal" class="modal">
+<dialog id="edit_modal" class="modal warp-form-modal warp-fields">
     <div class="modal-content">
         <div class="row">
             <div class="input-field col s12 m4">
@@ -44,11 +44,14 @@
             </div>
 
             <div class="input-field col s12" id="add_to_group_container">
-                <div class="chips chips-autocomplete" id="add_to_group"></div>
-
-                {#<input type="text" id="add_to_group" class="autocomplete" autocomplete="off">
-                <label for="add_to_group" class="TR">Add to group</label>
-                #}
+                <label for="add_to_group" class="add_to_group_label TR">Groups</label>
+                {# NB: no `chips` class here on purpose. Materialize 2.x's Chips.Init()
+                   auto-scans `.chips` on DOMContentLoaded and wires a broken close
+                   handler that does `chip.remove()` directly — bypassing deleteChip,
+                   so chipsData (read on save) keeps the removed group and a re-add is
+                   refused as a duplicate. M.Chips.init() adds the `chips` class itself,
+                   after that scan has run, so our instance owns the only close handler. #}
+                <div class="chips-autocomplete" id="add_to_group"></div>
             </div>
 
         </div>
@@ -59,14 +62,14 @@
     </div>
     <div class="modal-footer">
         <a href="#!" class="waves-effect waves-light btn-flat left TR" id="generate_password_btn">btn.Generate password</a>
-        <a href="#!" class="modal-close waves-effect waves-light btn red darken-2 TR" id="edit_modal_delete_btn">btn.Delete</a>
+        <a href="#!" class="modal-close waves-effect waves-light btn warp-btn-danger TR" id="edit_modal_delete_btn">btn.Delete</a>
         <a href="#!" class="waves-effect waves-light btn TR" id="edit_modal_save_btn">btn.Save</a>
         <a href="#!" class="modal-close waves-effect waves-light btn-flat TR">btn.Cancel</a>
     </div>
-</div>
+</dialog>
 
 <div class="fixed-action-btn">
-    <a class="btn-floating btn-large waves-effect waves-light orange accent-4" id="add_user_btn">
+    <a class="btn-floating btn-large waves-effect waves-light warp-fab-add" id="add_user_btn">
         <i class="material-icons-outlined">person_add_alt</i>
     </a>
 </div>

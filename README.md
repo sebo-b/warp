@@ -17,6 +17,7 @@ I've quickly evaluated a couple of existing solutions, but they were either too 
 - Generate a report of past bookings and export it to Excel file
 - Generate and subscribe to interactive iCal feeds for automatic booking reminders in any calendar app
 - Change password and manage calendar preferences from the user menu
+- Toggle between light and dark themes; map images can be filtered per-plan for dark mode
 - Receive automatic notifications for upcoming bookings
 
 ## More advanced features

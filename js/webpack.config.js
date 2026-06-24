@@ -82,7 +82,7 @@ async function generateConfig() {
       module: {
         rules: [
           {
-            test: /\.(s[ac]ss|css)$/i,
+            test: /\.css$/i,
             use: [
               MiniCssExtractPlugin.loader,
               "css-loader",
@@ -94,7 +94,6 @@ async function generateConfig() {
                   }
                 }
               },
-              "sass-loader",
             ],
           },
         ],
@@ -122,7 +121,7 @@ async function generateConfig() {
       module: {
         rules: [
           {
-            test: /\.(s[ac]ss|css)$/i,
+            test: /\.css$/i,
             use: [
               MiniCssExtractPlugin.loader,
               "css-loader",
@@ -134,7 +133,6 @@ async function generateConfig() {
                   }
                 }
               },
-              "sass-loader",
             ],
           },
         ],

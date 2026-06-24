@@ -8,8 +8,7 @@ The behaviour described here is covered by the end-to-end Playwright suite in
 [`e2e/`](e2e/) (see [`e2e/README.md`](e2e/README.md) for how to run it).
 Exceptions that cannot be exercised in a self-contained container: the external
 authentication providers (LDAP §1.2, Azure AD §1.3, OIDC §1.5, SAML §1.4), multi-language
-rendering (§20), mobile layouts (§21), and the map editor's multi-seat marquee
-transforms (§4.3).
+rendering (§20), and mobile layouts (§21).
 
 ---
 
@@ -169,7 +168,7 @@ The zone type influences what role a user effectively has:
 - When a zone has no group (the default), the **per-zone constraint** applies: one seat per zone per time slot.
 - When two or more zones share the same group name, the **per-group constraint** applies: a user may hold at most one seat across all zones in the group simultaneously.
 - Example: put "Office Floor 1" in one group so users cannot hold both a desk and a second desk on the same floor. Leave parking in no group so a desk + a parking spot can be held simultaneously.
-- The booking constraint is enforced at the database level (see §23.2).
+- The booking constraint is enforced at the database level (see §24.2).
 
 ### 3.5 Zone Type Details
 
@@ -188,19 +187,35 @@ The zone type influences what role a user effectively has:
 
 Accessible via the map icon on the Plans management page.
 
-### 4.1 Uploading / Replacing the Map Image
-- Upload a JPEG or PNG image as the background for the plan.
+### 4.1 Editor Modes (Tabs)
+The editor is split into three tabs:
+
+- **Transform** — shows the multi-seat marquee. Drag the dashed frame to move all seats,
+  drag the corner/edge grips to resize, and drag the rotate grip to rotate. The currently
+  selected seat is the **anchor/pivot** and stays locked during scale/rotate.
+- **Add mode** — click anywhere on the map to add a new seat. A zone selector chooses which
+  zone the new seat belongs to; the zone with the most seats on the plan is pre-selected
+  the first time the tab is opened.
+- **Map edit** — replace the map image, choose a dark-mode **filter preset** from
+  `map_filter_presets.json`, or fine-tune the per-plan CSS filter with seven sliders:
+  invert, grayscale, sepia, saturate, hue-rotate, brightness, contrast. The result is only
+  visible in dark mode and is persisted in the `plan.dark_filter` JSONB column.
+
+Seats can be dragged to a new position in every mode.
+
+### 4.2 Uploading / Replacing the Map Image
+- In **Map edit** mode, upload a JPEG or PNG image as the background for the plan.
 - The image is stored as a binary blob in the database.
 
-### 4.2 Adding Seats
-- Toggle the **Edit / Add seats** switch to "Add seats" mode.
-- A **zone selector** dropdown appears below the switch — choose which zone new seats will belong to.
-- If the plan already has seats, **the first time** the switch is flipped to add mode, the zone that already contains the largest number of seats on this plan is pre-selected.
+### 4.3 Adding Seats
+- Switch to the **Add mode** tab.
+- A **zone selector** dropdown appears — choose which zone new seats will belong to.
+- If the plan already has seats, **the first time** the tab is opened, the zone that already contains the largest number of seats on this plan is pre-selected.
 - If no zones exist at all, nothing is executed and a visible error is shown: "You must create a zone before adding seats."; the click on the map is ignored and a toast reiterates the requirement.
 - Click anywhere on the map to place a new seat with the chosen `zid` (the plan backend no longer has a `default_zid` — every created seat must carry an explicit zone).
 - Each seat has a **name**, **X**, **Y**, and **zone**.
 
-### 4.3 Editing Seats
+### 4.4 Editing Seats
 - Select a seat to edit its name, position (X/Y), or drag it to a new position.
 - Multi-seat selection with a marquee: drag to select multiple seats, then move or transform them together.
 - To move all selected seats, **grab the marquee border** (the dashed outline) and drag. Clicking inside the box interior does not initiate a move — but it does keep the selection (the marquee stays visible). The border has an enlarged grip area so it is easy to grab.
@@ -211,26 +226,26 @@ Accessible via the map icon on the Plans management page.
 - While rotating, the selection box and handles are hidden and replaced by a **rotation guide**: a marker on the pivot, a dashed line from the pivot to the cursor, and a live **angle readout** next to the cursor. Rotation is free (no angle snapping), so seats can be aligned to maps that are not axis-aligned.
 - All transformed seats are clamped to the map boundaries (a group move stops at the edges).
 
-### 4.4 Editor Seat Icon States
+### 4.5 Editor Seat Icon States
 - **Unchanged** seats show the standard (blue) seat icon.
 - **Modified** seats (name or position changed) show a distinct "changed" icon (blue seat in a green ring).
 - **New** seats (not yet saved) show a green **"+"** icon.
 - Seats **marked for deletion** show the gray "disabled" icon.
 - The currently selected seat(s) are highlighted with a red outline.
 
-### 4.5 Editor Seat Labels
+### 4.6 Editor Seat Labels
 - Every seat shows its **name** as an on-map label below the seat icon.
 - Labels update live as the admin renames a seat in the side panel, including newly placed seats.
 - When the plan spans **more than one zone** (based on non-deleted seats), each label also shows the zone name in a secondary line; this zone line disappears when the plan returns to a single zone.
 - Deleted seats' labels are **greyed out** (solid grey card and title, matching the greyed seat icon — no transparency); they un-grey on restore.
 - Labels are pointer-events:none so they never interfere with click, drag, or marquee hit-testing; the marquee selection box accounts for each label's full footprint so it never clips through them.
 
-### 4.6 Deleting Seats
+### 4.7 Deleting Seats
 - Mark a seat for deletion; it can be restored before saving.
 - Deletion is confirmed via a dialog showing what will be removed.
-- The seat's zone can be changed via the dropdown in the side panel when the seat is selected (Edit mode).
+- The seat's zone can be changed via the dropdown in the side panel when the seat is selected (in the **Transform** or **Add mode** tabs).
 
-### 4.7 Saving & Cancelling
+### 4.8 Saving & Cancelling
 - All changes (image, added/modified/deleted seats) are submitted together.
 - A confirmation dialog lists the pending changes before applying.
 - A **Cancel** button returns to the plans list; if there are unsaved changes, a confirmation dialog ("All unsaved changes will be lost.") is shown first.
@@ -347,7 +362,6 @@ Accessible via the user icon on the Zones management page.
 - Clicking it triggers the auto-book algorithm.
 
 ### 8.2 Auto-Book Algorithm
-<<<<<<< Updated upstream
 - For each selected date, the system tries to find an available seat:
   1. **Priority tiers**: seats directly assigned to the user are preferred; then "Everyone"/unassigned seats.
   2. **Within each tier**, seats are ranked by the user's past booking frequency (prefer seats you book often), then by overall popularity (prefer less popular seats as a tiebreaker), then by seat ID.
@@ -370,8 +384,6 @@ Auto-book runs **one day at a time**, scoped to the **current plan**. For each r
 - The algorithm never uses the site-admin super-user bypass for seat *selection* when booking for yourself; the pool is exactly the seats/ zones the subject could have booked manually.
 
 Full details (with the exact decision tree, `dia` handling, exclusivity keys, future_options, etc.) live in [AUTOBOOK.md](AUTOBOOK.md).
->>>>>>> Stashed changes
->>>>>>> Stashed changes
 
 ### 8.3 Auto-Book Results
 The backend result buckets are:
@@ -651,31 +663,49 @@ All text on these pages is translated according to the deployment-wide language 
 
 ---
 
-## 22. Booking Window Configuration
+## 22. Light / Dark Theme
 
-### 22.1 System-Wide Booking Window
+WARP ships a light and a dark theme. A toggle in the top navigation bar (left of the user/admin
+menus) switches between them, showing a **moon** icon in light mode and a **sun** icon in dark mode.
+
+- The choice is stored in a long-lived `warp_theme` cookie (it survives closing the tab; it is
+  **not** part of the user-preferences database). The server reads the cookie and renders the
+  `<html theme>` attribute on first paint, so there is no flash of the wrong theme on load.
+- Colours come entirely from `warp/static/theme.css`: a `:root[theme="dark"]` block re-points the
+  neutral surface / background / text roles, and the brand tints re-mix against the dark surface
+  automatically. Materialize's own Material 3 tokens are mapped onto the same warp tokens, so the
+  whole UI (page, nav, cards, modals, dropdowns, tables) shares one coherent two-tier palette.
+- **Plan map images** can be hard to read on a dark page, so each plan stores its own dark-mode
+  CSS filter (see §4.1, *Map edit*). The filter is applied to the map image only in dark mode, on
+  both the editor and the public booking view.
+
+---
+
+## 23. Booking Window Configuration
+
+### 23.1 System-Wide Booking Window
 - `WEEKS_IN_ADVANCE`: how many weeks after the current week users can book (default: 1). The visible date range in the plan view is from today to the end of (current week + WEEKS_IN_ADVANCE) weeks.
 - `BOOK_OPEN` / `BOOK_CLOSE`: earliest and latest bookable time of day, in seconds from midnight (default: 0 / 86400 = full day).
 
-### 22.2 Omitted Weekdays
+### 23.2 Omitted Weekdays
 - `OMITTED_WEEKDAYS`: list of weekday numbers (0=Mon, 6=Sun) to hide from the date selector. Default: none. Set to `[5, 6]` to hide weekends.
 
-### 22.3 Per-Seat Days-in-Advance
+### 23.3 Per-Seat Days-in-Advance
 - See §6.2 for the seat-level booking window restriction.
 
 ---
 
-## 23. Security & Data Integrity
+## 24. Security & Data Integrity
 
-### 23.1 Session Security
+### 24.1 Session Security
 - `SECRET_KEY` is required for signing session cookies (must be set in production).
 - Session lifetime is configurable (default: 1 day). Expired sessions force re-login.
 
-### 23.2 Database-Level Constraints
+### 24.2 Database-Level Constraints
 - **No double-booking**: a PostgreSQL trigger enforces that a seat cannot be booked by two users at the same time. Additionally, if a zone belongs to a zone group, a user cannot hold two overlapping bookings in any zones of that group simultaneously; for ungrouped zones, the constraint is one seat per zone.
 - **Referential integrity**: cascading deletes ensure that deleting a user, zone, or seat cleans up all related records.
 
-### 23.3 iCal Token Security
+### 24.3 iCal Token Security
 - Each user's iCal feed URL contains a unique token (UUID).
 - Action links in the feed use HMAC-SHA256 signatures, preventing forgery. There are three link types, each with its own token:
   - **Book token**: authorises one auto-book action (signs zone, date, and a per-link nonce).
@@ -683,17 +713,17 @@ All text on these pages is translated according to the deployment-wide language 
   - **Confirm-release token**: a separate token issued on the confirmation page, authorising the actual deletion.
 - All tokens are keyed with the user's feed token, so regenerating the feed token (see §15.2) invalidates every outstanding link.
 
-### 23.4 Input Validation
+### 24.4 Input Validation
 - All API endpoints validate input against JSON schemas before processing.
 - File uploads are validated by magic bytes (not just extension) for JPEG/PNG.
 - File size limits: 5 MB for general requests, 2 MB for map images.
 
-### 23.5 Reserved Identifiers
+### 24.5 Reserved Identifiers
 - The login `__everyone__:550e8400-...` is reserved for the virtual "Everyone" user and cannot be used as a real login.
 
 ---
 
-## 24. Debug Features (Development Only)
+## 25. Debug Features (Development Only)
 
 - When running in debug mode (`FLASK_DEBUG=1`), two debug endpoints are available:
   - `GET /debug/time`: returns the current virtual time and offset.
@@ -702,7 +732,7 @@ All text on these pages is translated according to the deployment-wide language 
 
 ---
 
-## 25. Quick Reference: Who Can Do What
+## 26. Quick Reference: Who Can Do What
 
 | Action                                | Regular User | Zone Viewer | Zone Admin | System Admin |
 |---------------------------------------|:---:|:---:|:---:|:---:|
@@ -732,7 +762,7 @@ All text on these pages is translated according to the deployment-wide language 
 
 ---
 
-## 26. Plan View Interaction Summary
+## 27. Plan View Interaction Summary
 
 | Seat State            | No Dates | Green (Book)          | Green (Rebook)      | Blue (Update) | Blue (Conflict) | Blue (Exact) | Red (Taken) | Yellow (Assigned)           | Gray (Disabled)             |
 |-----------------------|----------|-----------------------|----------------------|---------------|-----------------|--------------|-------------|-----------------------------|-----------------------------|
@@ -742,7 +772,7 @@ All text on these pages is translated according to the deployment-wide language 
 
 ---
 
-## 27. Configuration Reference
+## 28. Configuration Reference
 
 | Setting                      | Default        | Description                                          |
 |------------------------------|----------------|------------------------------------------------------|
@@ -768,7 +798,7 @@ All text on these pages is translated according to the deployment-wide language 
 
 Any setting can be provided as an environment variable with the `WARP_` prefix (e.g. `WARP_SECRET_KEY`, `WARP_WEEKS_IN_ADVANCE`); each value is parsed according to the type of the setting it maps to (string, integer, boolean, or JSON array/object). An unknown `WARP_` variable is ignored with a warning, and a value that does not match its setting's type aborts startup.
 
-### 27.1 LDAP Settings (§1.2)
+### 28.1 LDAP Settings (§1.2)
 
 | Setting                              | Default                            | Description                                          |
 |--------------------------------------|------------------------------------|------------------------------------------------------|
@@ -788,7 +818,7 @@ Any setting can be provided as an environment variable with the `WARP_` prefix (
 | `LDAP_GROUP_STRICT_MAPPING`          | `false`                            | Remove unmatched WARP group memberships on login     |
 | `LDAP_EXCLUDED_USERS`                | `[]`                               | Logins that keep local-password auth                 |
 
-### 27.2 Azure AD Settings (§1.3)
+### 28.2 Azure AD Settings (§1.3)
 
 | Setting                    | Default              | Description                                  |
 |----------------------------|----------------------|----------------------------------------------|
@@ -802,7 +832,7 @@ Any setting can be provided as an environment variable with the `WARP_` prefix (
 | `AAD_GROUP_MAP`            | `[[null, null]]`     | Same semantics as `LDAP_GROUP_MAP`           |
 | `AAD_GROUP_STRICT_MAPPING` | `false`              | Same semantics as `LDAP_GROUP_STRICT_MAPPING`|
 
-### 27.3 SAML / Mellon Settings (§1.7)
+### 28.3 SAML / Mellon Settings (§1.7)
 
 | Setting                | Default | Description                                            |
 |------------------------|---------|--------------------------------------------------------|
@@ -810,7 +840,7 @@ Any setting can be provided as an environment variable with the `WARP_` prefix (
 | `MELLON_ENDPOINT`      | —       | Mellon endpoint path on the Apache proxy, e.g. `/sp`   |
 | `MELLON_DEFAULT_GROUP` | unset   | WARP group assigned to all SAML-provisioned users      |
 
-### 27.4 OIDC Settings (§1.5)
+### 28.4 OIDC Settings (§1.5)
 
 | Setting                    | Default              | Description                                  |
 |----------------------------|----------------------|----------------------------------------------|
@@ -828,7 +858,7 @@ Any setting can be provided as an environment variable with the `WARP_` prefix (
 | `OIDC_HTTPS_SCHEME`        | `https`              | Scheme used for the redirect URI             |
 | `OIDC_USERINFO`            | `false`              | Also call the UserInfo endpoint and merge claims |
 
-### 27.5 Native SAML Settings (§1.6)
+### 28.5 Native SAML Settings (§1.6)
 
 | Setting                      | Default              | Description                                  |
 |------------------------------|----------------------|----------------------------------------------|

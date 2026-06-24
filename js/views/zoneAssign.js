@@ -4,9 +4,14 @@ import Utils from './modules/utils.js';
 import WarpModal from './modules/modal.js';
 
 import {TabulatorFull as Tabulator} from 'tabulator-tables';
-import "./css/tabulator/tabulator_materialize.scss";
+import "./css/tabulator/tabulator.css";
 
 document.addEventListener("DOMContentLoaded", function(e) {
+
+    var titleEl = document.getElementById('zone_assign_title_text');
+    if (titleEl) {
+        titleEl.textContent = TR('Users assigned to: %{zone_name}', {zone_name: window.warpGlobals.zoneName});
+    }
 
     var table;
 
@@ -104,7 +109,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         ajaxConfig: "POST",
         ajaxContentType: "json",
         columns: [
-            {formatter:iconFormater, formatterParams:{icon:"person_remove",colorClass:"red-text text-darken-3"}, width:40, hozAlign:"center", cellClick:deleteClicked, headerSort:false},
+            {formatter:iconFormater, formatterParams:{icon:"person_remove",colorClass:"warp-icon-danger"}, width:40, hozAlign:"center", cellClick:deleteClicked, headerSort:false},
             {title:TR("Login"), field: "login", formatter:userGroupFormatter, headerFilter:"input", headerFilterFunc:"starts"},
             {title:TR("User/group name"), field: "name", formatter:userGroupFormatter, headerFilter:"input", headerFilterFunc:"starts"},
             {
@@ -127,13 +132,14 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     var assignToZoneBtn = document.getElementById('assign_to_zone_btn');
     var assignToZoneModalEl = document.getElementById('assign_to_zone_modal');
+    var assignToZoneModalHeader = document.getElementById('assign_to_zone_modal_header');
     var assignToZoneModaAutocompleteEl = document.getElementById('assign_to_zone_autocomplete');
 
     let assignToZoneTable;
 
     assignToZoneBtn.addEventListener('click', function(e) {
 
-        let assignToZoneModal = M.Modal.getInstance(assignToZoneModalEl);
+        let assignToZoneModal = warpDialog.getInstance(assignToZoneModalEl);
 
         let showModal = function() {
             assignToZoneTable.clearData();
@@ -142,7 +148,10 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
         let initModal = function(usersData) {
 
-            assignToZoneModal = M.Modal.init(assignToZoneModalEl);
+            assignToZoneModal = warpDialog(assignToZoneModalEl);
+            if (assignToZoneModalHeader) {
+                assignToZoneModalHeader.textContent = TR("Assign to zone: %{zone_name}", {zone_name: window.warpGlobals.zoneName});
+            }
 
             let assignToZoneTableRemoveClicked = function(e,cell) {
                 cell.getRow().delete();
@@ -167,7 +176,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 layout:"fitDataFill",
                 headerVisible: false,
                 columns: [
-                    {formatter:iconFormater, formatterParams:{icon:"disabled_by_default",colorClass:"red-text text-darken-3"}, width:40, hozAlign:"center", cellClick:assignToZoneTableRemoveClicked},
+                    {formatter:iconFormater, formatterParams:{icon:"disabled_by_default",colorClass:"warp-icon-danger"}, width:40, hozAlign:"center", cellClick:assignToZoneTableRemoveClicked},
                     {field: "name"},
                     {field: "zone_role", editor:Utils.makeSelect(zoneRoles), formatter:zoneRoleFormatter},
                 ],
@@ -176,13 +185,14 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 ]
             });
 
-            let autocompleteData = {}
+            let autocompleteData = [];
             for (let i of usersData) {
-                autocompleteData[ Utils.makeUserStr(i['login'],i['name']) ] = null;
+                let label = Utils.makeUserStr(i['login'], i['name']);
+                autocompleteData.push({ id: label, text: label });
             }
 
-            let onAutocomplete = function(selectedText) {
-                var u = Utils.makeUserStrRev(selectedText);
+            let onAutocomplete = function(selectedLabel) {
+                var u = Utils.makeUserStrRev(selectedLabel);
                 assignToZoneTable.updateOrAddData([{"login": u[0],"name": u[1], "zone_role": defaultZoneRole}]);
                 assignToZoneModaAutocompleteEl.value = "";
                 assignToZoneModaAutocompleteEl.focus();
@@ -191,8 +201,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
             M.Autocomplete.init(assignToZoneModaAutocompleteEl,{
                 data: autocompleteData,
                 dropdownOptions: {
-                    constrainWidth: false,
-                    container: document.body
+                    constrainWidth: true,
+                    container: assignToZoneModaAutocompleteEl.closest('dialog') || document.body
                 },
                 minLength: 2,
                 limit: 10,

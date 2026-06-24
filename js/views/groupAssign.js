@@ -4,9 +4,14 @@ import Utils from './modules/utils.js';
 import WarpModal from './modules/modal.js';
 
 import {TabulatorFull as Tabulator} from 'tabulator-tables';
-import "./css/tabulator/tabulator_materialize.scss";
+import "./css/tabulator/tabulator.css";
 
 document.addEventListener("DOMContentLoaded", function(e) {
+
+    var titleEl = document.getElementById('group_assign_title_text');
+    if (titleEl) {
+        titleEl.textContent = TR('Members of: %{group}', {group: window.warpGlobals.groupName});
+    }
 
     var table;
 
@@ -79,7 +84,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         ajaxConfig: "POST",
         ajaxContentType: "json",
         columns: [
-            {formatter:iconFormater, formatterParams:{icon:"person_remove",colorClass:"red-text text-darken-3"}, width:40, hozAlign:"center", cellClick:deleteClicked, headerSort:false},
+            {formatter:iconFormater, formatterParams:{icon:"person_remove",colorClass:"warp-icon-danger"}, width:40, hozAlign:"center", cellClick:deleteClicked, headerSort:false},
             {title:TR("Login"), field: "login", formatter:userGroupFormatter, headerFilter:"input", headerFilterFunc:"starts"},
             {title:TR("User/group name"), field: "name", formatter:userGroupFormatter, headerFilter:"input", headerFilterFunc:"starts"},
             {formatter:userTypeFormater, width:40, hozAlign:"center", headerSort:false},
@@ -99,7 +104,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     addToGroupBtn.addEventListener('click', function(e) {
 
-        let addToGroupModal = M.Modal.getInstance(addToGroupModalEl);
+        let addToGroupModal = warpDialog.getInstance(addToGroupModalEl);
 
         let showModal = function() {
             addToGroupModalHeader.innerHTML = TR("Add to group %{group}",{group: window.warpGlobals.groupName});
@@ -109,7 +114,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
         let initModal = function(usersData) {
 
-            addToGroupModal = M.Modal.init(addToGroupModalEl);
+            addToGroupModal = warpDialog(addToGroupModalEl);
 
             let addToGroupTableRemoveClicked = function(e,cell) {
                 cell.getRow().delete();
@@ -137,7 +142,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 layout:"fitDataFill",
                 headerVisible: false,
                 columns: [
-                    {formatter:iconFormater, formatterParams:{icon:"disabled_by_default",colorClass:"red-text text-darken-3"}, width:40, hozAlign:"center", cellClick:addToGroupTableRemoveClicked},
+                    {formatter:iconFormater, formatterParams:{icon:"disabled_by_default",colorClass:"warp-icon-danger"}, width:40, hozAlign:"center", cellClick:addToGroupTableRemoveClicked},
                     {field: "name"},
                 ],
                 initialSort: [
@@ -145,13 +150,14 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 ]
             });
 
-            let autocompleteData = {}
+            let autocompleteData = [];
             for (let i of usersData) {
-                autocompleteData[ Utils.makeUserStr(i['login'],i['name']) ] = null;
+                let label = Utils.makeUserStr(i['login'], i['name']);
+                autocompleteData.push({ id: label, text: label });
             }
 
-            let onAutocomplete = function(selectedText) {
-                var u = Utils.makeUserStrRev(selectedText);
+            let onAutocomplete = function(selectedLabel) {
+                var u = Utils.makeUserStrRev(selectedLabel);
                 addToGroupTable.updateOrAddData([{"login": u[0],"name": u[1]}]);
                 addToGroupModaAutocompleteEl.value = "";
                 addToGroupModaAutocompleteEl.focus();
@@ -160,8 +166,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
             M.Autocomplete.init(addToGroupModaAutocompleteEl,{
                 data: autocompleteData,
                 dropdownOptions: {
-                    constrainWidth: false,
-                    container: document.body
+                    constrainWidth: true,
+                    container: addToGroupModaAutocompleteEl.closest('dialog') || document.body
                 },
                 minLength: 2,
                 limit: 10,

@@ -4,7 +4,7 @@ import Utils from './modules/utils.js';
 import WarpModal from './modules/modal.js';
 
 import {TabulatorFull as Tabulator} from 'tabulator-tables';
-import "./css/tabulator/tabulator_materialize.scss";
+import "./css/tabulator/tabulator.css";
 
 document.addEventListener("DOMContentLoaded", function(e) {
 
@@ -132,7 +132,10 @@ document.addEventListener("DOMContentLoaded", function(e) {
                         });
                 }
             })
-            .then(() => table.replaceData());
+            .then(() => table.replaceData())
+            // Dismissing the dialog (Esc / outside-click on a clean form) rejects
+            // the promise — that's a plain cancel, so swallow it.
+            .catch(() => {});
     }
 
     // Show modal when deleting a zone that has seats.
@@ -143,8 +146,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
             let seatCount = responseData.seat_count || 0;
             const hasAlternatives = otherZones.length > 0;
 
-            let modalDiv = document.createElement('div');
-            modalDiv.className = 'modal';
+            let modalDiv = document.createElement('dialog');
+            modalDiv.className = 'modal warp-form-modal warp-fields warp-modal-sm';
             modalDiv.id = 'reassign_modal';
 
             // Build content
@@ -167,7 +170,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 content.appendChild(p);
 
                 let field = document.createElement('div');
-                field.className = 'input-field';
+                field.className = 'input-field outlined';  // Materialize outlined text-field variant
                 let sel = document.createElement('select');
                 sel.id = 'reassign_zone_select';
                 for (let z of otherZones) {
@@ -193,8 +196,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
             // Red delete seats button (always shown when we reached this modal)
             let delBtn = document.createElement('a');
             delBtn.href = '#!';
-            delBtn.className = 'waves-effect waves-light btn red darken-2';
-            delBtn.style.marginLeft = '6px';
+            delBtn.className = 'waves-effect waves-light btn warp-btn-danger';
             delBtn.id = 'reassign_delete_seats';
             delBtn.textContent = TR('Delete seats');
             footer.appendChild(delBtn);
@@ -203,7 +205,6 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 let moveBtn = document.createElement('a');
                 moveBtn.href = '#!';
                 moveBtn.className = 'waves-effect waves-light btn';
-                moveBtn.style.marginLeft = '6px';
                 moveBtn.id = 'reassign_move_btn';
                 moveBtn.textContent = TR('Reassign seats');
                 footer.appendChild(moveBtn);
@@ -212,20 +213,24 @@ document.addEventListener("DOMContentLoaded", function(e) {
             let cancelBtn = document.createElement('a');
             cancelBtn.href = '#!';
             cancelBtn.className = 'modal-close waves-effect waves-light btn-flat';
-            cancelBtn.style.marginLeft = '6px';
             cancelBtn.textContent = TR('btn.Cancel');
             footer.appendChild(cancelBtn);
 
             modalDiv.appendChild(footer);
             document.body.appendChild(modalDiv);
 
-            let modalInstance = M.Modal.init(modalDiv, { dismissible: false });
+            let modalInstance = warpDialog(modalDiv);
             modalInstance.open();
 
             // Initialize Materialize select (must be after attached to DOM)
             let reassignSelect = document.getElementById('reassign_zone_select');
             if (reassignSelect) {
-                M.FormSelect.init(reassignSelect);
+                M.FormSelect.init(reassignSelect, {
+                    dropdownOptions: {
+                        container: modalDiv,
+                        constrainWidth: false
+                    }
+                });
             }
 
             let moveBtnEl = document.getElementById('reassign_move_btn');
@@ -302,8 +307,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
         ajaxConfig: "POST",
         ajaxContentType: "json",
         columns: [
-            {formatter: iconFormater, formatterParams: {icon: "manage_accounts", colorClass: "green-text text-darken-4"}, width: 40, hozAlign: "center", cellClick: clickFuncFactory('zoneAssign'), headerSort: false, tooltip: TR('Manage users')},
-            {formatter: iconFormater, formatterParams: {icon: "edit", colorClass: "green-text text-darken-4"}, width: 40, hozAlign: "center", cellClick: addEditClicked, headerSort: false, tooltip: TR('Edit zone')},
+            {formatter: iconFormater, formatterParams: {icon: "manage_accounts", colorClass: "warp-icon-edit"}, width: 40, hozAlign: "center", cellClick: clickFuncFactory('zoneAssign'), headerSort: false, tooltip: TR('Manage users')},
+            {formatter: iconFormater, formatterParams: {icon: "edit", colorClass: "warp-icon-edit"}, width: 40, hozAlign: "center", cellClick: addEditClicked, headerSort: false, tooltip: TR('Edit zone')},
             {title: TR("Zone name"), field: "name", headerFilter: "input", headerFilterFunc: "starts"},
             {title: TR("Zone type"), field: "zone_type", formatter: zoneTypeFormatter,
                 headerFilter: Utils.makeSelect(zoneTypeLabels), headerFilterFunc: "="},
@@ -355,7 +360,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 M.Autocomplete.init(zoneGroupEl, {
                     data: acData,
                     minLength: 0,
-                    dropdownOptions: { constrainWidth: false, container: document.body },
+                    dropdownOptions: { constrainWidth: false, container: zoneGroupEl.closest('dialog') || document.body },
                     onAutocomplete: updateGroupHelper
                 });
                 zoneGroupEl._warpGroups = groups;
@@ -365,9 +370,9 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     showEditDialog = function(id, name, zoneType, zoneGroup, seatCount) {
 
-        var editModal = M.Modal.getInstance(editModalEl);
+        var editModal = warpDialog.getInstance(editModalEl);
         if (typeof(editModal) === 'undefined') {
-            editModal = M.Modal.init(editModalEl, { dismissible: false });
+            editModal = warpDialog(editModalEl);
         }
 
         var zoneName = name || "";
@@ -379,12 +384,13 @@ document.addEventListener("DOMContentLoaded", function(e) {
         setupGroupAutocomplete();
         errorDiv.style.display = "none";
         errorMsg.innerText = "";
-        deleteBtn.style.display = (id === null) ? "none" : "inline-block";
+        deleteBtn.style.display = (id === null) ? "none" : "inline-flex";
 
-        // (Re)initialize Materialize selects for zone type (we use the styled version now, not browser-default)
+        // (Re)initialize Materialize selects for zone type (we use the styled version now, not browser-default).
+        // Render the dropdown into the dialog so it isn't clipped by the modal-content overflow.
         let typeInst = M.FormSelect.getInstance(zoneTypeEl);
         if (typeInst) typeInst.destroy();
-        M.FormSelect.init(zoneTypeEl);
+        M.FormSelect.init(zoneTypeEl, { dropdownOptions: { container: editModalEl } });
 
         M.updateTextFields();
         editModal.open();

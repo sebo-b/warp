@@ -5,6 +5,7 @@
 
 <script>
     window.warpGlobals.zid = {{ zid }};
+    window.warpGlobals.zoneName = "{{ zoneName }}";
 
     window.warpGlobals.URLs['zoneMembers'] = "{{ url_for('xhr.zones.members') }}";
     window.warpGlobals.URLs['zoneAssign'] = "{{ url_for('xhr.zones.assign') }}";
@@ -18,11 +19,9 @@
 {% block overlays %}
     {{ super() }}
 
-    <div id="assign_to_zone_modal" class="modal">
+    <dialog id="assign_to_zone_modal" class="modal warp-form-modal warp-fields">
         <div class="modal-content">
-            <h4>
-                <script>TR.inline("Assign to zone: %{zone_name}",{zone_name: "{{zoneName}}" })</script>
-            </h4>
+            <h4 id="assign_to_zone_modal_header"></h4>
             <div class="input-field">
                 <input type="text" id="assign_to_zone_autocomplete" class="autocomplete" autocomplete="off">
                 <label for="assign_to_zone_autocomplete" class="TR">Select user</label>
@@ -35,11 +34,11 @@
             <a href="#!" class="modal-close waves-effect waves-light btn zone_action_btn TR" id="assign_to_zone_modal_addbtn">btn.Add</a>
             <a href="#!" class="modal-close waves-effect waves-light btn-flat TR">btn.Cancel</a>
           </div>
-    </div>
+    </dialog>
 
 
     <div class="fixed-action-btn">
-        <a class="btn-floating btn-large waves-effect waves-light orange accent-4" id="assign_to_zone_btn">
+        <a class="btn-floating btn-large waves-effect waves-light warp-fab-add" id="assign_to_zone_btn">
             <i class="material-icons-outlined">person_add_alt</i>
         </a>
     </div>
@@ -53,9 +52,7 @@
     <div class="container zone_assign_container">
         <div class="zone_assign_title">
             <a href="{{ returnURL }}"><i class="medium material-icons">chevron_left</i></a>
-            <span>
-                <script>TR.inline('Users assigned to: %{zone_name}',{zone_name:"{{ zoneName }}"});</script>
-            </span>
+            <span id="zone_assign_title_text"></span>
         </div>
         <div id="zone_assignees_table"></div>
     </div>
