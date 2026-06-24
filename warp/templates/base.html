@@ -1,7 +1,16 @@
 <!doctype html>
-<html theme="{{ 'dark' if request.cookies.get('warp_theme') == 'dark' else 'light' }}">
+{% set _warp_theme = request.cookies.get('warp_theme') %}
+{% set warp_theme_choice = _warp_theme if _warp_theme in ('light', 'dark', 'auto') else 'auto' %}
+<html theme="{{ 'dark' if warp_theme_choice == 'dark' else 'light' }}" data-theme-choice="{{ warp_theme_choice }}">
 <head>
     <title>WARP</title>
+
+    {# auto: server can't see prefers-color-scheme, so default to light and let a
+       tiny pre-paint script correct to dark if the system is dark. Runs in <head>
+       before first paint → no flash. #}
+    {% if warp_theme_choice == 'auto' %}
+    <script>(function(){try{if(matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.setAttribute('theme','dark');}catch(e){}})();</script>
+    {% endif %}
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
@@ -36,7 +45,8 @@
          reads (overriding its defaults — loaded AFTER the base bundle so the
          equal-specificity :root rules win by source order), plus the app's own
          --warp-* tokens. The active theme (light/dark) is set on <html> from the
-         warp_theme cookie above, so the first paint already matches. -->
+         warp_theme cookie above (auto corrected pre-paint by the inline
+         head script), so the first paint already matches. -->
     <link type="text/css" rel="stylesheet" href="{{ url_for('static', filename='theme.css') }}"  media="screen,projection"/>
 
     {% block header %}{% endblock %}

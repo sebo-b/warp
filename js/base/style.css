@@ -26,6 +26,35 @@
     --warp-radius-pill: 999px;
 }
 
+/* ---- Theme transition (option B) ---------------------------------------- */
+/* Register the flipping colour tokens as typed custom properties so they
+   interpolate when <html theme> swaps; every consumer then blends for free
+   (no per-surface transition list). Only the broad neutral roles + primary are
+   registered — seat-status discs and rgba *-rgb channels snap instantly
+   (small/localised; not worth the extra @property lines). Derived brand tints
+   (color-mix against --warp-surface/primary) follow the interpolated source
+   vars automatically. .2s ease = a quick UI blend. Lives HERE, not in theme.css,
+   because this is behaviour, not colour definition — a deployment swapping
+   theme.css keeps the blend.
+
+   initial-value is REQUIRED by @property but is set to a hot-magenta sentinel,
+   NOT a real colour: it only applies when a token is missing entirely (unset
+   anywhere), so a swapped theme.css that omits a token fails LOUDLY (hot pink
+   surfaces) instead of silently falling back to a plausible WARP default.
+   ponytail: seat-disc + channel snap during toggle; register them too only if
+   the discontinuity becomes visible. */
+@property --warp-primary      { syntax: '<color>'; inherits: true; initial-value: #FF00FF; }
+@property --warp-primary-dark { syntax: '<color>'; inherits: true; initial-value: #FF00FF; }
+@property --warp-surface      { syntax: '<color>'; inherits: true; initial-value: #FF00FF; }
+@property --warp-text         { syntax: '<color>'; inherits: true; initial-value: #FF00FF; }
+@property --warp-grey-bg      { syntax: '<color>'; inherits: true; initial-value: #FF00FF; }
+@property --warp-grey-border  { syntax: '<color>'; inherits: true; initial-value: #FF00FF; }
+@property --warp-grey-muted   { syntax: '<color>'; inherits: true; initial-value: #FF00FF; }
+@property --warp-grey-text    { syntax: '<color>'; inherits: true; initial-value: #FF00FF; }
+:root { transition: --warp-primary .2s ease, --warp-primary-dark .2s ease,
+    --warp-surface .2s ease, --warp-text .2s ease, --warp-grey-bg .2s ease,
+    --warp-grey-border .2s ease, --warp-grey-muted .2s ease, --warp-grey-text .2s ease; }
+
 /* ---- Wire WARP colours into Materialize's M3 tokens --------------------- */
 /* Materialize 2.x themes through Material Design 3 custom properties
    (--md-sys-color-*); override the *-light variants so the framework renders in
@@ -70,12 +99,17 @@
     --md-sys-color-inverse-on-surface-dark:  var(--warp-surface);  /* picker dialogs (datepicker/timepicker) sit on the raised surface tier, not Materialize's off-tone #1a1c1e */
 }
 
-/* Top-bar light/dark toggle: show the moon in light mode (tap → dark), the sun in
-   dark mode (tap → light). Inherits nav link colour like the other nav icons. */
+/* Top-bar light/dark/auto toggle: the icon shown reflects the user's CHOICE
+   (data-theme-choice on <html>), not the resolved theme — so in auto mode you
+   see the auto icon regardless of whether the system currently resolves light
+   or dark. Inherits nav link colour like the other nav icons. */
 .warp-theme-toggle { cursor: pointer; }
-.warp-theme-toggle .tg-sun { display: none; }
-:root[theme="dark"] .warp-theme-toggle .tg-moon { display: none; }
-:root[theme="dark"] .warp-theme-toggle .tg-sun  { display: inline; }
+.warp-theme-toggle .tg-sun,
+.warp-theme-toggle .tg-moon,
+.warp-theme-toggle .tg-auto { display: none; }
+:root[data-theme-choice="light"] .warp-theme-toggle .tg-sun,
+:root[data-theme-choice="dark"]  .warp-theme-toggle .tg-moon,
+:root[data-theme-choice="auto"]  .warp-theme-toggle .tg-auto { display: inline; }
 
 /* ---- Affordance classes (replace removed Material palette utilities) ----- */
 /* Materialize 2.x ships no .red/.green/.orange palette classes, so the markup/JS
@@ -95,6 +129,16 @@
 }
 .warp-btn-primary:hover {
     background-color: var(--warp-primary-light) !important;
+}
+/* Disabled state — e.g. the plan editor Save button until the plan is dirty.
+   Reuses the muted neutral token (no new colour) so the inactive fill clearly
+   reads as unavailable vs. the brand primary active fill. pointer-events kills
+   hover/click so the :hover lightening above never fires. */
+.warp-btn-primary.disabled {
+    background-color: var(--warp-grey-muted) !important;
+    color: var(--warp-on-brand) !important;
+    pointer-events: none;
+    box-shadow: none;
 }
 .warp-btn-flat-danger {
     color: var(--warp-error) !important;
@@ -152,6 +196,12 @@ NAV {
 nav,
 .nav-wrapper {
     background-color: var(--md-sys-color-primary);
+    /* The bar swaps tokens between themes (primary in light, grey-bg in dark),
+       so the @property token blend can't cross the swap — it would jump to the
+       new token's transition-start value (a white/light-blue flicker) before
+       animating. A native background-color transition interpolates the computed
+       colour across the swap instead. colour: for nav text/icons that flip. */
+    transition: background-color .2s ease, color .2s ease;
 }
 /* Dark mode: use the same dark background as the page body so the bar doesn't
    float as a lighter strip. Nav icons/links stay on-brand white. */
