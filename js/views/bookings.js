@@ -208,8 +208,65 @@ document.addEventListener("DOMContentLoaded", function(e) {
     }
 
 
+    // Custom header filter for "User name" (non-report view only):
+    //   - defaults to the logged-in user's own bookings via an EXACT login
+    //     match (immune to name-prefix collisions like "User 1" vs "User 10"),
+    //     with the login shown in the box; the login filter is applied here at
+    //     column init (before the first data load), so the first request is
+    //     already filtered (no unfiltered flash / double load);
+    //   - ANY edit the user makes (including clearing) flips it to the regular
+    //     starts-with name filter; an empty box then shows everyone.
+    // headerFilterLiveFilter:false disables Tabulator's own keyup/search handler
+    // (which would otherwise submit the raw input string); we drive success()
+    // ourselves and return a wrapper span (Tabulator binds its handlers to the
+    // returned element). The login is read straight from window.warpGlobals, so
+    // the whole feature is local to this editor (no server-side seed needed).
+    var userNameFilterEditor = function(cell, onRendered, success, cancel, editorParams) {
+        var myLogin = window.warpGlobals['login'] || "";
+        var myName = window.warpGlobals['userName'] || "";
+
+        var container = document.createElement("span");
+        var input = container.appendChild(document.createElement("input"));
+        // type="search" gives the native clear (x) button the other filter
+        // inputs have; headerFilterLiveFilter:false (on the column) keeps
+        // Tabulator's own keyup/search handler off the wrapper span, so we
+        // drive success() from the input's input/search events ourselves.
+        input.type = "search";
+        input.style.width = "100%";
+        input.style.boxSizing = "border-box";
+
+        // If a name filter is already stored (re-render), keep showing it;
+        // otherwise default to showing the login (login-exact mode).
+        var v = cell.getValue();
+        var inNameMode = (v && typeof v === "object" && typeof v.name === "string");
+        input.value = inNameMode ? v.name : (myName || myLogin);
+
+        onRendered(function() {
+            // Apply the exact-login default once, at column init (before the
+            // first data load) so the first request is already filtered.
+            if (myLogin && !inNameMode) {
+                success({ login: myLogin });
+            }
+            // Any edit (incl. clearing via the (x) button) flips to the regular
+            // starts-with name filter; empty value = no filter (show all).
+            // `search` covers the native clear (x) button (and Enter), which
+            // fires `search` rather than `input`.
+            var submit = function() { success({ name: input.value }); };
+            input.addEventListener("input", submit);
+            input.addEventListener("search", submit);
+        });
+
+        return container;
+    };
+
+    var userNameColumn = window.warpGlobals['report']
+        ? {title:TR("User name"), field:"user_name", headerFilter:"input", headerFilterFunc:"starts"}
+        : {title:TR("User name"), field:"user_name",
+           headerFilter:userNameFilterEditor, headerFilterFunc:function(){},
+           headerFilterLiveFilter:false};
+
     var columns = [
-        {title:TR("User name"), field: "user_name", headerFilter:"input", headerFilterFunc:"starts"},
+        userNameColumn,
         {title:TR("Plan"), field: "plan_name", headerFilter:"input", headerFilterFunc:"starts"},
         {title:TR("Seat"), field: "seat_name", headerFilter:"input", headerFilterFunc:"starts"}
     ];

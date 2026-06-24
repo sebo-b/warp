@@ -89,6 +89,19 @@ def listW(report = False):      # list is a built-in type
         from functools import reduce
         import operator
 
+        # user_name custom header filter: {login:..} -> exact login match,
+        # {name:..} -> starts-with on the display name (same behaviour the
+        # column had with headerFilterFunc:"starts" once the user types).
+        # columnsMap["user_name"] is the raw Users.name column (its .name is
+        # 'name', shared with Plan/Seat), so dispatch on identity, not .name.
+        if isinstance(value, dict) and field is Users.name:
+            if value.get('login'):
+                return Users.login == value['login']
+            name = value.get('name')
+            if name:
+                return Users.name.startswith(name)
+            return True
+
         if not isinstance(value,dict) or field.name != 'fromts':
             return True
 

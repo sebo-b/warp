@@ -211,7 +211,7 @@ def session():
             flask.url_for('auth.login'))
 
     # check if user still exists and if it is not blocked
-    c = Users.select(Users.account_type).where(Users.login == login)
+    c = Users.select(Users.account_type, Users.name).where(Users.login == login)
 
     if len(c) != 1 or c[0]['account_type'] >= ACCOUNT_TYPE_BLOCKED:
         return flask.redirect(
@@ -219,6 +219,7 @@ def session():
 
     flask.g.isAdmin = c[0]['account_type'] == ACCOUNT_TYPE_ADMIN
     flask.g.login = login
+    flask.g.name = c[0]['name']
 
 
 bp.before_app_request(session)

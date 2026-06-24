@@ -5,6 +5,7 @@
 
     <script>
         window.warpGlobals.login = "{{ g.login }}";
+        window.warpGlobals.userName = {{ g.name|tojson }};
         window.warpGlobals.minPasswordLength = {{ minPasswordLength }};
 {% if hasChangePassword %}
         window.warpGlobals.URLs['changePassword'] = "{{ url_for('auth.change_password') }}";
