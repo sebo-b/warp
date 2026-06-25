@@ -36,16 +36,27 @@ export async function fillHeaderFilter(
   );
   await input.click();
   if (value) {
-    await input.press('Control+a');
+    // Select-all is OS-specific in Playwright, so clear first and type fresh.
+    await input.fill('');
     await input.pressSequentially(value, { delay: 30 });
   } else {
-    // Clear via triple-click (select all) + type a space + backspace cycle
+    // Clear via fill + an explicit input event to wake up custom editors.
     await input.fill('');
     await input.dispatchEvent('input');
   }
   // Wait for Tabulator's filter debounce to fire the remote request
   await page.waitForTimeout(400);
   await page.waitForLoadState('networkidle');
+}
+
+/**
+ * The bookings page defaults the "User name" header filter to the logged-in
+ * user's own login, so it initially shows only their own bookings. Call this
+ * after navigating to /bookings when a test needs to see bookings from other
+ * users.
+ */
+export async function clearDefaultUserFilter(page: Page): Promise<void> {
+  await fillHeaderFilter(page, 'user_name', '');
 }
 
 /** Click a Tabulator column header to toggle sort and wait for the remote sort POST. */

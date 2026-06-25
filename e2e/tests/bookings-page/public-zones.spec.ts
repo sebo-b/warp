@@ -28,7 +28,7 @@ import { test, expect } from '../../fixtures';
 import { logIn } from '../../helpers/auth';
 import { USER1, USER3 } from '../../helpers/users';
 import { getZoneSeats } from '../../helpers/booking';
-import { insertBooking } from '../../helpers/bookings-page';
+import { insertBooking, clearDefaultUserFilter } from '../../helpers/bookings-page';
 import { setZoneType } from '../../helpers/zone-setup';
 
 const ZONE_TYPE_DISABLED = 10;
@@ -82,6 +82,7 @@ test.describe('bookings page — public zone visibility', () => {
     await logIn(page, USER3);
     await page.goto('/bookings');
     await page.waitForLoadState('networkidle');
+    await clearDefaultUserFilter(page);
 
     await expect(page.locator('.tabulator-row')).toHaveCount(1);
     // Not own booking → rw=false even though PUBLIC_BOOK grants USER

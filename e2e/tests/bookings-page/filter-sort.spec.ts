@@ -2,7 +2,7 @@ import { test, expect } from '../../fixtures';
 import { logIn } from '../../helpers/auth';
 import { USER1 } from '../../helpers/users';
 import { getZoneSeats } from '../../helpers/booking';
-import { insertBooking, fillHeaderFilter, clickColumnHeader } from '../../helpers/bookings-page';
+import { insertBooking, fillHeaderFilter, clickColumnHeader, clearDefaultUserFilter } from '../../helpers/bookings-page';
 
 test.describe('bookings page filtering', () => {
 
@@ -14,6 +14,7 @@ test.describe('bookings page filtering', () => {
     await logIn(page, USER1); // zone admin sees both
     await page.goto('/bookings');
     await page.waitForLoadState('networkidle');
+    await clearDefaultUserFilter(page);
     await expect(page.locator('.tabulator-row')).toHaveCount(2);
 
     await fillHeaderFilter(page, 'seat_name', seats[0].name);
@@ -45,6 +46,7 @@ test.describe('bookings page filtering', () => {
     await logIn(page, USER1);
     await page.goto('/bookings');
     await page.waitForLoadState('networkidle');
+    await clearDefaultUserFilter(page);
     await expect(page.locator('.tabulator-row')).toHaveCount(2);
 
     await fillHeaderFilter(page, 'user_name', 'Bar');
@@ -60,6 +62,7 @@ test.describe('bookings page filtering', () => {
     await logIn(page, USER1);
     await page.goto('/bookings');
     await page.waitForLoadState('networkidle');
+    await clearDefaultUserFilter(page);
 
     await fillHeaderFilter(page, 'seat_name', seats[0].name);
     await expect(page.locator('.tabulator-row')).toHaveCount(1);

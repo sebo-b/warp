@@ -20,7 +20,7 @@ test.describe('bookings page name filter', () => {
     await querySql(
       'INSERT INTO book (login, sid, fromts, tots) VALUES ($1,$2,$3,$4), ($5,$6,$3,$4)',
       [USER1.login, seats[0].id, ts + 9 * 3600, ts + 17 * 3600,
-       USER2.login, seats[1].id, ts + 9 * 3600, ts + 17 * 3600],
+       USER2.login, seats[1].id],
     );
 
     await logIn(page, USER1);
