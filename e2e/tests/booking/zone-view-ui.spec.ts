@@ -118,7 +118,7 @@ test.describe('seat hover tooltip', () => {
     await selectOnlyDates(page, [ts]);
     await page.waitForTimeout(400);
 
-    await page.locator('#zonemap').hover({ position: { x: seat.x + 24, y: seat.y + 24 } });
+    await page.locator(`#sprite-${seat.id}`).hover();
     const preview = page.locator('.seat_preview');
     await expect(preview).toBeVisible();
     await expect(preview.locator('.seat_preview_title')).toContainText(seat.name);
@@ -133,11 +133,11 @@ test.describe('seat hover tooltip', () => {
     await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
 
-    await page.locator('#zonemap').hover({ position: { x: seat.x + 24, y: seat.y + 24 } });
+    await page.locator(`#sprite-${seat.id}`).hover();
     await expect(page.locator('.seat_preview')).toBeVisible();
 
-    await page.locator('#zonemap').hover({ position: { x: seat.x + 200, y: seat.y + 200 } });
-    await expect(page.locator('.seat_preview')).toHaveCount(0);
+    await page.mouse.move(1, 1);
+    await expect(page.locator('.seat_preview')).toBeHidden();
   });
 });
 

@@ -61,15 +61,15 @@ export async function selectOnlyDates(page: Page, timestamps: number[]): Promise
 }
 
 /** Click the center of a seat sprite within #zonemap. Seats are 48×48 px. */
+/** Click a seat by its stable OfficeMap id (#sprite-<sid>), robust to pan/zoom. */
 export async function clickZoneSeat(page: Page, seat: SeatRow): Promise<void> {
-  await page.locator('#zonemap').click({
-    position: { x: seat.x + 24, y: seat.y + 24 },
-  });
+  await page.locator(`#sprite-${seat.id}`).click();
 }
 
-/** Wait for the seat data XHR to complete (seats appear after the load). */
+/** Wait for the seat data XHR to complete and at least one seat to render. */
 export async function waitForSeatsLoaded(page: Page): Promise<void> {
   await page.waitForLoadState('networkidle');
+  await page.locator('.OMSeat').first().waitFor({ state: 'visible' });
 }
 
 /**

@@ -3,6 +3,7 @@
 import Utils from './modules/utils.js';
 import WarpModal from './modules/modal.js';
 import {WarpSeatFactory,WarpSeat,EVERYONE_KEY} from './modules/seat.js';
+import { OfficeMap } from './modules/officeMap.js';
 import ZoneUserData from './modules/zoneuserdata.js';
 import BookAs from './modules/bookas.js';
 
@@ -71,384 +72,207 @@ function initSlider() {
     return slider;
 }
 
-function initSeats() {
-
-    var seatFactory = new WarpSeatFactory(
-        window.warpGlobals.URLs['seatSprite'],
-        "zonemap",
-        window.warpGlobals.login);
-
-    var updateSeatsView = function() {
-        var dates = getSelectedDates();
-        seatFactory.updateAllStates(dates);
+function getAssignedLabelUsers(seat) {
+    var assignments = seat.getAssignments();
+    var users = [];
+    for (var key in assignments) {
+        var a = assignments[key];
+        if (a.isEveryone) continue;
+        if (a.days_in_advance !== null) continue;
+        users.push(a.name);
     }
-
-    var slider = document.getElementById('timeslider');
-    slider.noUiSlider.on('update', updateSeatsView);
-
-    for (var e of document.getElementsByClassName('date_checkbox')) {
-        e.addEventListener('change',updateSeatsView);
-    }
-
-    return seatFactory;
+    return users;
 }
 
-function initSeatLabels(seatFactory) {
+// Build the persistent seat label Node (the old .seat_label div) — now passed
+// to OfficeMap as labelBody. Returns null when nothing should show.
+function buildLabelNode(seat, prefs) {
 
-    var labelsContainer = document.getElementById("zonemap-labels");
-    if (!labelsContainer) return;
+    var showSeatNames = prefs.show_seat_names;
+    var showBookingPreview = prefs.show_booking_preview;
+    var showAssignedNames = prefs.show_assigned_names;
 
-    var prefs = window.warpGlobals['zonePreviewPrefs'] || {};
-    var labelData = {};
-    var labelSignatures = {};
-    var needsFullRender = true;
-    var hoveredSid = null;
-    var suppressTooltip = false;
-    var TITLE_HEIGHT = 14;
-    var SPRITE_CENTER_X = WarpSeat.Sprites.spriteSize / 2;
+    var bookings = showBookingPreview ? seat.getBookings() : [];
 
-    function positionLabel(div, pands) {
-        div.style.left = (pands.x + SPRITE_CENTER_X) + "px";
-        div.style.top = (pands.y + WarpSeat.Sprites.spriteSize - TITLE_HEIGHT) + "px";
+    var assignedUsers = [];
+    if (showAssignedNames && (!showBookingPreview || bookings.length === 0)) {
+        assignedUsers = getAssignedLabelUsers(seat);
     }
 
-    function getAssignedLabelUsers(seat) {
-        var assignments = seat.getAssignments();
-        var users = [];
-        for (var key in assignments) {
-            var a = assignments[key];
-            if (a.isEveryone) continue;
-            if (a.days_in_advance !== null) continue;
-            users.push(a.name);
+    if (!showSeatNames && !bookings.length && !assignedUsers.length) return null;
+
+    var div = document.createElement("div");
+    div.className = "seat_label";
+
+    if (showSeatNames) {
+        var title = div.appendChild(document.createElement("div"));
+        title.className = "seat_label_title";
+        title.textContent = seat.getName();
+    }
+
+    if (assignedUsers.length) {
+        var content = div.appendChild(document.createElement("div"));
+        content.className = "seat_label_content";
+        for (var name of assignedUsers) {
+            var row = content.appendChild(document.createElement("div"));
+            row.className = "seat_label_assigned";
+            row.textContent = name;
         }
-        return users;
     }
 
-    function computeSignature(seat, showSeatNames, showBookingPreview, showAssignedNames) {
-        var bookings = showBookingPreview ? seat.getBookings() : [];
-        var users = [];
+    if (showBookingPreview && bookings.length) {
+        var content = div.appendChild(document.createElement("div"));
+        content.className = "seat_label_content";
         var seen = new Set();
         for (var b of bookings) {
             if (seen.has(b.username)) continue;
             seen.add(b.username);
-            users.push(b.username);
+            var row = content.appendChild(document.createElement("div"));
+            row.className = "seat_label_booking";
+            row.textContent = b.username;
         }
-        var bookingPart = users.join('\x01');
-
-        var assignedPart = '';
-        if (showAssignedNames && (!showBookingPreview || bookings.length === 0)) {
-            var assignedUsers = getAssignedLabelUsers(seat);
-            if (assignedUsers.length) {
-                assignedPart = '\x02' + assignedUsers.join('\x03');
-            }
-        }
-
-        return (showSeatNames ? seat.getName() : '') + '\x00' + bookingPart + assignedPart;
     }
 
-    function buildContentDiv(seat, showSeatNames, showBookingPreview, showAssignedNames) {
+    return div;
+}
 
-        var bookings = showBookingPreview ? seat.getBookings() : [];
+// Build the hover/long-press hint Node (the old .seat_preview div) — passed to
+// OfficeMap as hintBody. Returns null when the hint would just duplicate the
+// label (the old shouldSuppressTooltip rule), so OfficeMap shows no hint.
+function buildHintNode(seat, prefs) {
 
-        var assignedUsers = [];
-        if (showAssignedNames && (!showBookingPreview || bookings.length === 0)) {
-            assignedUsers = getAssignedLabelUsers(seat);
-        }
+    var hasAssignments = Object.keys(seat.getAssignments()).length > 0;
+    var hasBookings = seat.getBookings().length > 0;
 
-        if (!showSeatNames && !bookings.length && !assignedUsers.length) return null;
-
-        var div = document.createElement("div");
-        div.className = "seat_label";
-
-        if (showSeatNames) {
-            var title = div.appendChild(document.createElement("div"));
-            title.className = "seat_label_title";
-            title.textContent = seat.getName();
-        }
-
-        if (assignedUsers.length) {
-            var content = div.appendChild(document.createElement("div"));
-            content.className = "seat_label_content";
-
-            for (var name of assignedUsers) {
-                var row = content.appendChild(document.createElement("div"));
-                row.className = "seat_label_assigned";
-                row.textContent = name;
-            }
-        }
-
-        if (showBookingPreview && bookings.length) {
-            var content = div.appendChild(document.createElement("div"));
-            content.className = "seat_label_content";
-
-            var seen = new Set();
-            for (var b of bookings) {
-                if (seen.has(b.username)) continue;
-                seen.add(b.username);
-                var row = content.appendChild(document.createElement("div"));
-                row.className = "seat_label_booking";
-                row.textContent = b.username;
-            }
-        }
-
-        return div;
+    // Suppression: label already shows everything the hint would.
+    if (prefs.show_seat_names && !hasAssignments && !hasBookings) return null;
+    if (prefs.show_assigned_names && !hasBookings) {
+        var assignedUsers = getAssignedLabelUsers(seat);
+        if (assignedUsers.length && assignedUsers.length === Object.keys(seat.getAssignments()).length)
+            return null;
     }
 
-    function renderLabels() {
+    var previewDiv = document.createElement("div");
+    previewDiv.className = 'seat_preview';
 
-        for (var sid in labelData) {
-            if (labelData[sid]) labelData[sid].remove();
+    var previewTitle = previewDiv.appendChild(document.createElement("div"));
+    previewTitle.innerText = TR("Seat %{seat_name}",{seat_name: seat.getName()});
+    previewTitle.className = "seat_preview_title";
+
+    var allAssignments = Object.values(seat.getAssignments());
+    var visibleAssignments = allAssignments.filter(a => !a.isEveryone);
+    var everyoneAssignment = allAssignments.find(a => a.isEveryone);
+
+    if (visibleAssignments.length) {
+        var header = previewDiv.appendChild(document.createElement("span"));
+        header.appendChild(document.createTextNode(TR("Assigned to:")));
+        header.className = "seat_preview_header";
+        var table = previewDiv.appendChild(document.createElement("table"));
+        for (let a of visibleAssignments) {
+            var tr = table.appendChild(document.createElement("tr"));
+            tr.appendChild(document.createElement("td")).appendChild(document.createTextNode(a.name));
+            var diaText = a.days_in_advance !== null ? "(" + a.days_in_advance + "d)" : "";
+            tr.appendChild(document.createElement("td")).appendChild(document.createTextNode(diaText));
         }
-        labelData = {};
-        labelSignatures = {};
+    }
 
-        var showSeatNames = prefs.show_seat_names;
-        var showBookingPreview = prefs.show_booking_preview;
-        var showAssignedNames = prefs.show_assigned_names;
+    if (everyoneAssignment) {
+        var evHeader = previewDiv.appendChild(document.createElement("span"));
+        var diaText = everyoneAssignment.days_in_advance !== null
+            ? TR("Available to everyone (up to %{n}d in advance)", {n: everyoneAssignment.days_in_advance})
+            : TR("Available to everyone");
+        evHeader.appendChild(document.createTextNode(diaText));
+        evHeader.className = "seat_preview_header";
+    }
 
-        if (!showSeatNames && !showBookingPreview && !showAssignedNames) {
-            needsFullRender = false;
-            return;
+    var bookings = seat.getBookings();
+    if (bookings.length) {
+        var header = previewDiv.appendChild(document.createElement("span"));
+        header.appendChild(document.createTextNode(TR("Bookings:")));
+        header.className = "seat_preview_header";
+        var table = previewDiv.appendChild(document.createElement("table"));
+        var maxToShow = 8;
+        for (var b of bookings) {
+            if (maxToShow-- == 0) {
+                b.datetime1 = "..."; b.datetime2 = ""; b.username = "";
+            }
+            var tr = table.appendChild(document.createElement("tr"));
+            tr.appendChild(document.createElement("td")).innerText = b.datetime1;
+            tr.appendChild(document.createElement("td")).innerText = b.datetime2;
+            tr.appendChild(document.createElement("td")).innerText = b.username;
+            if (maxToShow == 0) break;
         }
+    }
 
-        for (var sid in seatFactory.instances) {
-            var seat = seatFactory.instances[sid];
+    return previewDiv;
+}
+
+function buildAllSeatData(seatFactory, prefs) {
+    var seats = [];
+    for (var sid in seatFactory.instances) {
+        var seat = seatFactory.instances[sid];
+        if (seat.isOtherZone()) continue;
+        seats.push({
+            id: sid,
+            x: seat.x, y: seat.y,
+            sprite: seat.sprite,
+            labelTitle: null,
+            labelBody: buildLabelNode(seat, prefs),
+            hintTitle: null,
+            hintBody: buildHintNode(seat, prefs),
+        });
+    }
+    return seats;
+}
+
+// Build the OfficeMap component on #zonemap and wire it to the seat factory:
+// setSeatsData -> full seat-set sync (createSeats); updateAllStates -> per-seat
+// sprite/label/hint refresh (updateSeat). OfficeMap click -> factory 'click'.
+function initOfficeMap(seatFactory) {
+
+    var prefs = window.warpGlobals['zonePreviewPrefs'] || {};
+
+    var om = new OfficeMap(document.getElementById('zonemap'), {
+        mapImage: window.warpGlobals.URLs['planImage'],
+        sprite: { url: window.warpGlobals.URLs['seatSprite'], cellWidth: WarpSeat.Sprites.spriteSize, cellHeight: WarpSeat.Sprites.spriteSize },
+        zoom: { initial: 'fit', min: null, max: 4 },   // ponytail: plan default; mobile tuning deferred (see PLAN §6)
+        filter: null,                                    // dark filter applied dynamically via setFilter below
+    });
+
+    seatFactory.on('setSeatsData', function() {           // this === factory
+        om.createSeats(buildAllSeatData(this, prefs));
+    });
+
+    seatFactory.on('updateAllStates', function() {        // this === factory
+        for (var sid in this.instances) {
+            var seat = this.instances[sid];
             if (seat.isOtherZone()) continue;
-
-            var div = buildContentDiv(seat, showSeatNames, showBookingPreview, showAssignedNames);
-            if (!div) continue;
-
-            positionLabel(div, seat.getPositionAndSize());
-            if (sid == hoveredSid) div.classList.add("seat_label_hidden");
-
-            labelsContainer.appendChild(div);
-            labelData[sid] = div;
-            labelSignatures[sid] = computeSignature(seat, showSeatNames, showBookingPreview, showAssignedNames);
-        }
-
-        needsFullRender = false;
-    }
-
-    function updateBookingLabels() {
-
-        if (needsFullRender) {
-            renderLabels();
-            return;
-        }
-
-        var showSeatNames = prefs.show_seat_names;
-        var showBookingPreview = prefs.show_booking_preview;
-        var showAssignedNames = prefs.show_assigned_names;
-
-        for (var sid in seatFactory.instances) {
-            var seat = seatFactory.instances[sid];
-            if (seat.isOtherZone()) continue;
-
-            var bookings = showBookingPreview ? seat.getBookings() : [];
-            var existingDiv = labelData[sid];
-
-            if (!showSeatNames && !bookings.length && !(showAssignedNames && getAssignedLabelUsers(seat).length)) {
-                if (existingDiv) {
-                    existingDiv.remove();
-                    delete labelData[sid];
-                    delete labelSignatures[sid];
-                }
-                continue;
-            }
-
-            var newSig = computeSignature(seat, showSeatNames, showBookingPreview, showAssignedNames);
-            if (existingDiv && labelSignatures[sid] === newSig) continue;
-
-            var div = buildContentDiv(seat, showSeatNames, showBookingPreview, showAssignedNames);
-            if (!div) {
-                if (existingDiv) {
-                    existingDiv.remove();
-                    delete labelData[sid];
-                    delete labelSignatures[sid];
-                }
-                continue;
-            }
-
-            positionLabel(div, seat.getPositionAndSize());
-            if (sid == hoveredSid) div.classList.add("seat_label_hidden");
-
-            labelsContainer.appendChild(div);
-            labelData[sid] = div;
-            labelSignatures[sid] = newSig;
-
-            if (existingDiv) existingDiv.remove();
-        }
-    }
-
-    function refreshAllLabels() {
-        needsFullRender = true;
-        renderLabels();
-    }
-
-    seatFactory.on('setSeatsData', function() {
-        needsFullRender = true;
-        hoveredSid = null;
-        suppressTooltip = false;
-    });
-
-    seatFactory.on('updateAllStates', updateBookingLabels);
-
-    seatFactory.on('mouseover', function() {
-        var sid = String(this.getSid());
-        hoveredSid = sid;
-
-        var hasAssignments = Object.keys(this.getAssignments()).length > 0;
-        var hasBookings = this.getBookings().length > 0;
-
-        if (prefs.show_seat_names && !hasAssignments && !hasBookings) {
-            suppressTooltip = true;
-        } else if (prefs.show_assigned_names && !hasBookings) {
-            var assignedUsers = getAssignedLabelUsers(this);
-            if (assignedUsers.length && assignedUsers.length === Object.keys(this.getAssignments()).length) {
-                suppressTooltip = true;
-            } else {
-                suppressTooltip = false;
-                if (labelData[sid]) labelData[sid].classList.add("seat_label_hidden");
-            }
-        } else {
-            suppressTooltip = false;
-            if (labelData[sid]) labelData[sid].classList.add("seat_label_hidden");
+            om.updateSeat(sid, {
+                sprite: seat.sprite,
+                labelBody: buildLabelNode(seat, prefs),
+                hintBody: buildHintNode(seat, prefs),
+            });
         }
     });
 
-    seatFactory.on('mouseout', function() {
-        if (hoveredSid && labelData[hoveredSid]) labelData[hoveredSid].classList.remove("seat_label_hidden");
-        hoveredSid = null;
-        suppressTooltip = false;
+    om.addEventListener('click', function(e) {
+        var seat = seatFactory.instances[e.detail.id];
+        if (seat) seatFactory._fire('click', seat);
     });
 
+    // Prefs changed (show seat names / booking preview / assigned names): force
+    // a rebuild of every seat's label/hint by re-running the state pass.
     document.addEventListener('warp:prefsSaved', function(e) {
         var newPrefs = e.detail && e.detail.zonePreviewPrefs;
         if (!newPrefs) return;
         prefs.show_seat_names = !!newPrefs.show_seat_names;
         prefs.show_booking_preview = !!newPrefs.show_booking_preview;
         prefs.show_assigned_names = !!newPrefs.show_assigned_names;
-        refreshAllLabels();
+        seatFactory.updateAllStates();   // reuses current selectedDates; fires updateAllStates listener
     });
 
-    return {
-        refreshAllLabels: refreshAllLabels,
-        shouldSuppressTooltip: function() { return suppressTooltip; }
-    };
+    return om;
 }
-
-function initSeatPreview(seatFactory, seatLabels) {
-
-    var zoneMap = document.getElementById("zonemap");
-
-    seatFactory.on( 'mouseover', function() {
-
-        if (seatLabels && seatLabels.shouldSuppressTooltip()) return;
-
-        var previewDiv = document.createElement("div");
-        previewDiv.className = 'seat_preview';
-
-        var previewTitle = previewDiv.appendChild(document.createElement("div"));
-        previewTitle.innerText = TR("Seat %{seat_name}",{seat_name: this.getName()});
-        previewTitle.className = "seat_preview_title";
-
-        // position of the frame
-        var pands = this.getPositionAndSize();
-
-        var parentWidth = zoneMap.clientWidth;
-        var clientPosX = pands.x - zoneMap.scrollLeft;
-
-        if (clientPosX < parentWidth / 2) {
-            previewDiv.style.right = "";
-            previewDiv.style.left = (pands.x + pands.size * 0.70) + "px";
-        }
-        else {
-            previewDiv.style.left = "";
-            previewDiv.style.right = (parentWidth - pands.x - pands.size * 0.30) + "px";
-        }
-
-        var parentHeight = zoneMap.clientHeight;
-        var clientPosY = pands.y;
-
-        if (clientPosY < parentHeight / 2) {
-            previewDiv.style.top = (pands.y + pands.size * 0.70) + "px";
-            previewDiv.style.bottom = "";
-        }
-        else {
-            previewDiv.style.top = "";
-            previewDiv.style.bottom = (parentHeight - pands.y - pands.size * 0.30) + "px";
-        }
-
-        // content of the frame
-        var allAssignments = Object.values(this.getAssignments());
-        var visibleAssignments = allAssignments.filter(a => !a.isEveryone);
-        var everyoneAssignment = allAssignments.find(a => a.isEveryone);
-
-        if (visibleAssignments.length) {
-
-            var header = previewDiv.appendChild(document.createElement("span"));
-            header.appendChild(document.createTextNode(TR("Assigned to:")));
-            header.className = "seat_preview_header";
-
-            var table =  previewDiv.appendChild(document.createElement("table"));
-            for (let a of visibleAssignments) {
-                var tr = table.appendChild( document.createElement("tr"));
-                tr.appendChild( document.createElement("td")).appendChild( document.createTextNode(a.name));
-                var diaText = a.days_in_advance !== null ? "(" + a.days_in_advance + "d)" : "";
-                tr.appendChild( document.createElement("td")).appendChild( document.createTextNode(diaText));
-            }
-        }
-
-        if (everyoneAssignment) {
-            var evHeader = previewDiv.appendChild(document.createElement("span"));
-            var diaText = everyoneAssignment.days_in_advance !== null
-                ? TR("Available to everyone (up to %{n}d in advance)", {n: everyoneAssignment.days_in_advance})
-                : TR("Available to everyone");
-            evHeader.appendChild(document.createTextNode(diaText));
-            evHeader.className = "seat_preview_header";
-        }
-
-        var bookings = this.getBookings();
-        if (bookings.length) {
-
-            var header = previewDiv.appendChild(document.createElement("span"))
-            header.appendChild(document.createTextNode(TR("Bookings:")));
-            header.className = "seat_preview_header";
-
-            var table =  previewDiv.appendChild(document.createElement("table"));
-            var maxToShow = 8;
-
-            for (var b of bookings) {
-
-                if (maxToShow-- == 0) {
-                    b.datetime1 = "...";
-                    b.datetime2 = "";
-                    b.username = "";
-                }
-
-                var tr = table.appendChild( document.createElement("tr"));
-                tr.appendChild( document.createElement("td")).innerText = b.datetime1;
-                tr.appendChild( document.createElement("td")).innerText = b.datetime2;
-                tr.appendChild( document.createElement("td")).innerText = b.username;
-
-                if (maxToShow == 0)
-                    break;
-            }
-        }
-
-        zoneMap.appendChild(previewDiv);
-    });
-
-    seatFactory.on( 'mouseout', function() {
-        var previewDivs = document.getElementsByClassName('seat_preview');
-        for (var d of previewDivs) {
-            d.remove();
-        }
-    });
-
-}
-
-
 
 function initActionMenu(seatFactory) {
 
@@ -915,19 +739,21 @@ function initZoneHelp() {
     var helpModalEl = document.getElementById('zonemap_help_modal');
     var helpModal = warpDialog(helpModalEl);
 
+    // Help-modal semantic entry -> #cell-<name> (PLAN §3). Cells bake their own
+    // colours from the :root theme vars, so no seat-icon host class is needed.
     var helpSpriteMap = {
-        book:          { icon: 'icon-plus',      color: 'available' },
-        rebook:        { icon: 'icon-arrow',     color: 'available' },
-        conflict:      { icon: 'icon-head',      color: 'unavailable' },
-        viewOnly:      { icon: 'icon-no',        color: 'unavailable' },
-        viewOnlyTaken: { icon: 'icon-head',      color: 'unavailable' },
-        userExact:     { icon: 'icon-head',      color: 'yours' },
-        userRebook:    { icon: 'icon-head-arrow', color: 'yours' },
-        userConflict:  { icon: 'icon-head',      color: 'unavailable' },
-        bookAssigned:  { icon: 'icon-plus',      color: 'yours' },
-        rebookAssigned:{ icon: 'icon-arrow',     color: 'yours' },
-        disabled:      { icon: 'icon-no',        color: 'unavailable' },
-        assigned:      { icon: 'icon-assigned',   color: 'unavailable' }
+        book:           'available',
+        rebook:         'rebook',
+        conflict:       'taken',
+        viewOnly:       'unavailable',
+        viewOnlyTaken:  'taken',
+        userExact:      'yours',
+        userRebook:     'yoursChange',
+        userConflict:   'taken',
+        bookAssigned:   'availableAssigned',
+        rebookAssigned: 'rebookAssigned',
+        disabled:       'unavailable',
+        assigned:       'assigned'
     };
 
     var helpModalSpriteDivs = document.getElementsByClassName("help_modal_sprite");
@@ -935,12 +761,12 @@ function initZoneHelp() {
         d.style.width = WarpSeat.Sprites.spriteSize + "px";
         d.style.height = WarpSeat.Sprites.spriteSize + "px";
 
-        var mapping = helpSpriteMap[d.dataset.sprite];
-        if (!mapping) continue;
+        var cell = helpSpriteMap[d.dataset.sprite];
+        if (!cell) continue;
 
-        d.className = "help_modal_sprite seat-icon seat-icon--" + mapping.color;
+        d.className = "help_modal_sprite";
         d.innerHTML = '<svg viewBox="0 0 24 24" width="48" height="48"><use href="' +
-                      window.warpGlobals.URLs['seatSprite'] + '#' + mapping.icon +
+                      window.warpGlobals.URLs['seatSprite'] + '#cell-' + cell +
                       '"></use></svg>';
     }
 
@@ -1095,18 +921,28 @@ function showAutoBookResult(resp) {
 
 document.addEventListener("DOMContentLoaded", function() {
 
-    initSlider();
+    var slider = initSlider();
     initDateSelectorStorage();
     initShiftSelectDates();
 
-    var seatFactory = initSeats();
-    var seatLabels = initSeatLabels(seatFactory);
-    initSeatPreview(seatFactory, seatLabels);
-    initActionMenu(seatFactory);
-    var zoneMap = document.getElementById('zonemap');
-    var zoneMapImg = zoneMap ? zoneMap.querySelector('img') : null;
+    var seatFactory = new WarpSeatFactory(
+        window.warpGlobals.URLs['seatSprite'],
+        "zonemap",
+        window.warpGlobals.login);
 
-    if (zoneMapImg && window.warpGlobals.darkFilter) {
+    var om = initOfficeMap(seatFactory);
+    initActionMenu(seatFactory);
+
+    // Date/time changes recompute every seat's state + sprite + label/hint.
+    var updateSeatsView = function() {
+        seatFactory.updateAllStates(getSelectedDates());
+    };
+    slider.noUiSlider.on('update', updateSeatsView);
+    for (var e of document.getElementsByClassName('date_checkbox')) {
+        e.addEventListener('change', updateSeatsView);
+    }
+
+    if (window.warpGlobals.darkFilter) {
         // Coerce each stored value to a number within its valid range, so a legacy or
         // hand-edited DB row can never produce an invalid (or hostile) filter string.
         var clampFilter = function(v, dflt, max) {
@@ -1116,12 +952,8 @@ document.addEventListener("DOMContentLoaded", function() {
         };
         function applyPlanMapFilter() {
             var isDark = document.documentElement.getAttribute('theme') === 'dark';
-            if (!isDark) {
-                zoneMapImg.style.filter = '';
-                return;
-            }
             var f = window.warpGlobals.darkFilter;
-            var parts = [
+            var parts = isDark ? [
                 'invert(' + clampFilter(f.invert, 0, 100) + '%)',
                 'grayscale(' + clampFilter(f.grayscale, 0, 100) + '%)',
                 'sepia(' + clampFilter(f.sepia, 0, 100) + '%)',
@@ -1129,8 +961,8 @@ document.addEventListener("DOMContentLoaded", function() {
                 'hue-rotate(' + clampFilter(f.hue, 0, 360) + 'deg)',
                 'brightness(' + clampFilter(f.brightness, 100, 200) + '%)',
                 'contrast(' + clampFilter(f.contrast, 100, 200) + '%)'
-            ];
-            zoneMapImg.style.filter = parts.join(' ');
+            ] : [];
+            om.setFilter(parts.join(' ') || null);
         }
         applyPlanMapFilter();
         new MutationObserver(applyPlanMapFilter).observe(document.documentElement, {

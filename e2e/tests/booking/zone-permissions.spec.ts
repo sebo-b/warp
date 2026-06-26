@@ -358,14 +358,7 @@ test.describe('mixed-zone plan: ENABLED + PUBLIC_VIEW', () => {
     await page.waitForTimeout(400);
 
     // Click the view-only zone seat — should NOT open action modal
-    const viewSeats = await querySql(
-      'SELECT id, name, x, y FROM seat WHERE id = $1',
-      [viewSeatId],
-    );
-    const vs = viewSeats.rows[0];
-    await page.locator('#zonemap').click({
-      position: { x: Number(vs.x) + 24, y: Number(vs.y) + 24 },
-    });
+    await page.locator(`#sprite-${viewSeatId}`).click();
     await page.waitForTimeout(300);
     await expect(page.locator('#action_modal')).not.toHaveClass(/open/);
   });

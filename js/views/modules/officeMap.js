@@ -243,6 +243,11 @@ export class OfficeMap extends EventTarget {
 
   // ---- sprite scaling mode (§6) --------------------------------------------
   setSpriteMode(mode) { this._setMode(mode); }
+
+  // Update the OMBackground CSS filter (dark-mode plan filter). Pass null/'' to clear.
+  setFilter(filter) {
+    if (this.bg) this.bg.style.filter = filter || '';
+  }
   _setMode(mode) {
     if (mode !== 'follow' && mode !== 'flat' && mode !== 'clamp') mode = 'follow';
     this._mode = mode;

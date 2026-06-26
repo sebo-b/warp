@@ -1880,3 +1880,47 @@ INPUT[type="text"] ~ .show_password_btn::after {
 #zonemap_help_modal .modal-content > table tr + tr td {
     border-top: 1px solid var(--warp-grey-border);
 }
+
+
+/* ===== OfficeMap integration (booking view) =====
+   #zonemap is now the OfficeMap target. Seats, labels and the hover hint are
+   OfficeMap-owned (OMSeat / OMLabel / OMHint); the booking view reuses the
+   existing .seat_label and .seat_preview node builders as their content, so the
+   class structure (and the e2e assertions on it) is preserved — only the
+   positioning model changes: labels sit inside OMSeat and ride the
+   counter-scale; the hint is OfficeMap's positioned OMHint popup. */
+#zonemap {
+    overflow: hidden;          /* OfficeMap manages pan/zoom; no native scroll */
+    flex: 1 1 auto;            /* fill remaining width (the old <img> gave it intrinsic width) */
+    min-width: 0;
+}
+
+/* OMLabel is a passthrough wrapper; .seat_label positions itself relative to
+   OMSeat (left:24 = seat center, top:34 = title bar near the seat bottom),
+   matching the old positionLabel() offsets. */
+#zonemap .OMLabel {
+    position: static;
+    left: auto;
+    top: auto;
+    max-width: none;
+    padding: 0;
+    background: none;
+    border: none;
+    font-weight: inherit;
+}
+#zonemap .OMLabelTitle { display: none; }     /* title lives inside the .seat_label node */
+#zonemap .OMLabelBody { margin: 0; font-weight: inherit; }
+#zonemap .seat_label { left: 24px; top: 34px; }
+
+/* The hint popup is OfficeMap's OMHint; the .seat_preview node provides the
+   visual, so OMHint is a bare positioned wrapper and .seat_preview is static. */
+#zonemap .OMHint {
+    padding: 0;
+    background: none;
+    border: none;
+    box-shadow: none;
+    max-width: 320px;
+}
+#zonemap .OMHint .OMHintTitle { display: none; }
+#zonemap .OMHint .OMHintBody { font-weight: inherit; }
+#zonemap .OMHint .seat_preview { position: static; }
