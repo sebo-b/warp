@@ -1172,7 +1172,9 @@ nav .dropdown-content li > span {
    that otherwise paints over an auto-z fixed sibling. Above labels (2) too. */
 .zonemap_help {
     position: fixed;
-    right: 0px;
+    left: 0px;
+    bottom: 0px;
+    right: auto;
     color: var(--warp-primary);
     cursor: pointer;
     z-index: 4;
@@ -1180,7 +1182,7 @@ nav .dropdown-content li > span {
 
 .zonemap_help svg {
     display: block;
-    margin-top: 8px;
+    margin: 8px;
 }
 
 /* Dark mode: invert the map-corner icons — dark disc + light ring/symbol —

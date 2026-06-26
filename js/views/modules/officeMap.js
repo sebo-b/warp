@@ -14,16 +14,16 @@ const DEFAULT_CSS = `
 .OMMap{position:relative;overflow:hidden;width:100%;height:100%;touch-action:none;background:var(--warp-map-bg,#f5f5f5);user-select:none}
 .OMBackground{position:absolute;left:0;top:0;width:100%;height:100%;display:block;transform-origin:0 0;pointer-events:none}
 .OMWorld{position:absolute;left:0;top:0;transform-origin:0 0}
-.OMSeat{position:absolute;transform-origin:50% 50%;cursor:pointer;will-change:transform}
-.OMSeatGlyph{display:block;pointer-events:none}
-.OMLabel{position:absolute;left:50px;top:-2px;max-width:220px;padding:2px 6px;background:var(--warp-label-bg,rgba(255,255,255,.9));border:1px solid var(--warp-label-border,rgba(0,0,0,.15));border-radius:4px;font:12px/1.3 sans-serif;color:var(--warp-label-fg,#333);pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.OMSeat{position:absolute;cursor:pointer}
+.OMSeatGlyph{display:block;pointer-events:none;transform-origin:50% 50%;will-change:transform}
+.OMLabel{position:absolute;left:50px;top:-2px;max-width:220px;z-index:10;padding:2px 6px;background:var(--warp-label-bg,rgba(255,255,255,.9));border:1px solid var(--warp-label-border,rgba(0,0,0,.15));border-radius:4px;font:12px/1.3 sans-serif;color:var(--warp-label-fg,#333);pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .OMLabelTitle{font-weight:600}
 .OMLabelBody{margin-top:1px;font-weight:400;opacity:.85}
 .OMHint{position:absolute;z-index:10;max-width:280px;padding:8px 10px;background:var(--warp-hint-bg,#fff);border:1px solid var(--warp-hint-border,rgba(0,0,0,.2));border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.18);font:13px/1.4 sans-serif;color:var(--warp-hint-fg,#222);pointer-events:none;display:none}
 .OMHint.OMHint--visible{display:block}
 .OMHintTitle{font-weight:600;margin-bottom:2px}
 .OMHintBody{font-weight:400}
-.OMZoom{position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;gap:4px;z-index:5}
+.OMZoom{position:absolute;right:10px;top:10px;bottom:auto;display:flex;flex-direction:column;gap:4px;z-index:5}
 .OMZoom button{width:36px;height:36px;padding:0;border:1px solid var(--warp-zoom-border,#bbb);border-radius:4px;background:var(--warp-zoom-bg,#fff);color:var(--warp-zoom-fg,#333);cursor:pointer;display:flex;align-items:center;justify-content:center}
 .OMZoom button:hover{background:var(--warp-zoom-bg-hover,#eee)}
 .OMZoom svg{width:18px;height:18px;pointer-events:none}
@@ -244,8 +244,8 @@ export class OfficeMap extends EventTarget {
     const k = this._pz.getScale();
     const fn = this._sFn;
     for (const s of this._seats.values()) {
-      const cs = fn(k) / k;            // counter-scale about the seat center (50% 50%)
-      s.el.style.transform = `scale(${cs})`;
+      const cs = fn(k) / k;            // counter-scale the glyph about its center (50% 50%)
+      s.glyph.style.transform = `scale(${cs})`;
     }
   }
 
@@ -310,7 +310,6 @@ export class OfficeMap extends EventTarget {
     el.id = 'sprite-' + id;
     el.dataset.seatId = String(id);
     el.style.position = 'absolute';
-    el.style.transformOrigin = '50% 50%';
 
     const glyph = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     glyph.setAttribute('class', 'OMSeatGlyph');
@@ -432,12 +431,11 @@ export class OfficeMap extends EventTarget {
   _showHint(s) {
     if (!s) return;
     const d = s.data;
-    if (!d.hintable) return;  // no hint for this seat (assigned/booked only)
-    // Body is built lazily on hover (hintBuilder) so the hot path (slider drag)
-    // never builds hint nodes. d.hintBody (eager) takes precedence if set.
-    const body = (d.hintBody != null) ? d.hintBody
-      : (this._hintBuilder ? this._hintBuilder(s.el.dataset.seatId) : null);
-    if (d.hintTitle == null && body == null) return;
+    // Body: lazy (hintBuilder) when the seat is hintable, else the eager hintBody.
+    const body = (this._hintBuilder && d.hintable)
+      ? this._hintBuilder(s.el.dataset.seatId)
+      : d.hintBody;
+    if (d.hintTitle == null && body == null && !(typeof body === 'string' && body !== '')) return;
     this._hintSeatId = s.el.dataset.seatId;
     this.hintTitle.textContent = d.hintTitle != null ? d.hintTitle : '';
     this.hintBody.replaceChildren();

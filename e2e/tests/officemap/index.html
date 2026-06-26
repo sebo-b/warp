@@ -95,7 +95,7 @@ window.__pan   = () => om && om._pz ? om._pz.getPan() : null;
 window.__worldRect = () => om.world.getBoundingClientRect();
 window.__bgRect    = () => om.bg.getBoundingClientRect();
 window.__rootRect  = () => om.root.getBoundingClientRect();
-window.__seatRect  = (id) => { const el = document.getElementById('sprite-'+id); return el && el.getBoundingClientRect(); };
+window.__seatRect  = (id) => { const el = document.getElementById('sprite-'+id)?.querySelector('.OMSeatGlyph'); return el && el.getBoundingClientRect(); };
 window.__lastClick = null; window.__clickCount = 0;
 window.__resetClicks = () => { window.__lastClick=null; window.__clickCount=0; };
 window.__seed = seed;
