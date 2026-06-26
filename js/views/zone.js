@@ -84,90 +84,66 @@ function getAssignedLabelUsers(seat) {
     return users;
 }
 
-// Build the persistent seat label Node (the old .seat_label div) — now passed
-// to OfficeMap as labelBody. Returns null when nothing should show.
-function buildLabelNode(seat, prefs) {
-
+// Label content for a seat, KISS: a title (seat name) + a flat list of names
+// (booked users, or assigned users when there's no booking preview). One style
+// for booked vs assigned — the icon differs, the label body is just names.
+function labelContent(seat, prefs) {
     var showSeatNames = prefs.show_seat_names;
     var showBookingPreview = prefs.show_booking_preview;
     var showAssignedNames = prefs.show_assigned_names;
 
     var bookings = showBookingPreview ? seat.getBookings() : [];
-
-    var assignedUsers = [];
-    if (showAssignedNames && (!showBookingPreview || bookings.length === 0)) {
-        assignedUsers = getAssignedLabelUsers(seat);
-    }
-
-    if (!showSeatNames && !bookings.length && !assignedUsers.length) return null;
-
-    var div = document.createElement("div");
-    div.className = "seat_label";
-
-    if (showSeatNames) {
-        var title = div.appendChild(document.createElement("div"));
-        title.className = "seat_label_title";
-        title.textContent = seat.getName();
-    }
-
-    if (assignedUsers.length) {
-        var content = div.appendChild(document.createElement("div"));
-        content.className = "seat_label_content";
-        for (var name of assignedUsers) {
-            var row = content.appendChild(document.createElement("div"));
-            row.className = "seat_label_assigned";
-            row.textContent = name;
-        }
-    }
-
+    var names = [];
     if (showBookingPreview && bookings.length) {
-        var content = div.appendChild(document.createElement("div"));
-        content.className = "seat_label_content";
         var seen = new Set();
         for (var b of bookings) {
             if (seen.has(b.username)) continue;
             seen.add(b.username);
-            var row = content.appendChild(document.createElement("div"));
-            row.className = "seat_label_booking";
-            row.textContent = b.username;
+            names.push(b.username);
         }
+    } else if (showAssignedNames) {
+        names = getAssignedLabelUsers(seat);
     }
 
-    return div;
+    return {
+        title: showSeatNames ? seat.getName() : null,
+        names: names,                                   // [] when nothing to show
+    };
 }
 
-// Build the hover/long-press hint Node (the old .seat_preview div) — passed to
-// OfficeMap as hintBody. Returns null when the hint would just duplicate the
-// label (the old shouldSuppressTooltip rule), so OfficeMap shows no hint.
-function buildHintNode(seat, prefs) {
-
-    var hasAssignments = Object.keys(seat.getAssignments()).length > 0;
-    var hasBookings = seat.getBookings().length > 0;
-
-    // Suppression: label already shows everything the hint would.
-    if (prefs.show_seat_names && !hasAssignments && !hasBookings) return null;
-    if (prefs.show_assigned_names && !hasBookings) {
-        var assignedUsers = getAssignedLabelUsers(seat);
-        if (assignedUsers.length && assignedUsers.length === Object.keys(seat.getAssignments()).length)
-            return null;
+// Flat label body: one div per name (each wraps to up to 2 rows so a first +
+// surname is less likely to be cut). Returned as a fragment.
+function buildLabelBody(names) {
+    var f = document.createDocumentFragment();
+    for (var n of names) {
+        var d = document.createElement("div");
+        d.className = "seat_label_name";
+        d.textContent = n;
+        f.appendChild(d);
     }
+    return f;
+}
 
-    var previewDiv = document.createElement("div");
-    previewDiv.className = 'seat_preview';
+// Hover/long-press hint body (lazy — built only when shown): the detailed
+// assignment + bookings preview. No suppression: any seat with assignments or
+// bookings gets a hint (so assigned seats show their assignment details).
+function buildHintNode(seat) {
+    var div = document.createElement("div");
+    div.className = 'seat_preview';
 
-    var previewTitle = previewDiv.appendChild(document.createElement("div"));
-    previewTitle.innerText = TR("Seat %{seat_name}",{seat_name: seat.getName()});
-    previewTitle.className = "seat_preview_title";
+    var title = div.appendChild(document.createElement("div"));
+    title.innerText = TR("Seat %{seat_name}", {seat_name: seat.getName()});
+    title.className = "seat_preview_title";
 
     var allAssignments = Object.values(seat.getAssignments());
     var visibleAssignments = allAssignments.filter(a => !a.isEveryone);
     var everyoneAssignment = allAssignments.find(a => a.isEveryone);
 
     if (visibleAssignments.length) {
-        var header = previewDiv.appendChild(document.createElement("span"));
+        var header = div.appendChild(document.createElement("span"));
         header.appendChild(document.createTextNode(TR("Assigned to:")));
         header.className = "seat_preview_header";
-        var table = previewDiv.appendChild(document.createElement("table"));
+        var table = div.appendChild(document.createElement("table"));
         for (let a of visibleAssignments) {
             var tr = table.appendChild(document.createElement("tr"));
             tr.appendChild(document.createElement("td")).appendChild(document.createTextNode(a.name));
@@ -177,7 +153,7 @@ function buildHintNode(seat, prefs) {
     }
 
     if (everyoneAssignment) {
-        var evHeader = previewDiv.appendChild(document.createElement("span"));
+        var evHeader = div.appendChild(document.createElement("span"));
         var diaText = everyoneAssignment.days_in_advance !== null
             ? TR("Available to everyone (up to %{n}d in advance)", {n: everyoneAssignment.days_in_advance})
             : TR("Available to everyone");
@@ -187,15 +163,13 @@ function buildHintNode(seat, prefs) {
 
     var bookings = seat.getBookings();
     if (bookings.length) {
-        var header = previewDiv.appendChild(document.createElement("span"));
+        var header = div.appendChild(document.createElement("span"));
         header.appendChild(document.createTextNode(TR("Bookings:")));
         header.className = "seat_preview_header";
-        var table = previewDiv.appendChild(document.createElement("table"));
+        var table = div.appendChild(document.createElement("table"));
         var maxToShow = 8;
         for (var b of bookings) {
-            if (maxToShow-- == 0) {
-                b.datetime1 = "..."; b.datetime2 = ""; b.username = "";
-            }
+            if (maxToShow-- == 0) { b.datetime1 = "..."; b.datetime2 = ""; b.username = ""; }
             var tr = table.appendChild(document.createElement("tr"));
             tr.appendChild(document.createElement("td")).innerText = b.datetime1;
             tr.appendChild(document.createElement("td")).innerText = b.datetime2;
@@ -204,7 +178,7 @@ function buildHintNode(seat, prefs) {
         }
     }
 
-    return previewDiv;
+    return div;
 }
 
 function buildAllSeatData(seatFactory, prefs) {
@@ -212,34 +186,42 @@ function buildAllSeatData(seatFactory, prefs) {
     for (var sid in seatFactory.instances) {
         var seat = seatFactory.instances[sid];
         if (seat.isOtherZone()) continue;
+        var c = labelContent(seat, prefs);
         seats.push({
             id: sid,
             x: seat.x, y: seat.y,
             sprite: seat.sprite,
-            labelTitle: null,
-            labelBody: buildLabelNode(seat, prefs),
-            hintTitle: null,
-            hintBody: buildHintNode(seat, prefs),
+            labelTitle: c.title,
+            labelBody: c.names.length ? buildLabelBody(c.names) : null,
+            hintable: true,
         });
     }
     return seats;
 }
 
-// Build the OfficeMap component on #zonemap and wire it to the seat factory:
+// Build the OfficeMap component on #zonemap and wire it to the seat factory.
 // setSeatsData -> full seat-set sync (createSeats); updateAllStates -> per-seat
-// sprite/label/hint refresh (updateSeat). OfficeMap click -> factory 'click'.
+// sprite/hintable always, label only when its content signature changed (so a
+// slider drag updates icons instantly without rebuilding unchanged labels).
+// Hints are built lazily on hover (hintBuilder), never on the hot path.
 function initOfficeMap(seatFactory) {
 
     var prefs = window.warpGlobals['zonePreviewPrefs'] || {};
+    var labelSigs = {};   // sid -> label content signature (diff to skip rebuilds)
 
     var om = new OfficeMap(document.getElementById('zonemap'), {
         mapImage: window.warpGlobals.URLs['planImage'],
         sprite: { url: window.warpGlobals.URLs['seatSprite'], cellWidth: WarpSeat.Sprites.spriteSize, cellHeight: WarpSeat.Sprites.spriteSize },
         zoom: { initial: 'fit', min: null, max: 4 },   // ponytail: plan default; mobile tuning deferred (see PLAN §6)
         filter: null,                                    // dark filter applied dynamically via setFilter below
+        hintBuilder: function(sid) {
+            var seat = seatFactory.instances[sid];
+            return seat ? buildHintNode(seat) : null;
+        },
     });
 
     seatFactory.on('setSeatsData', function() {           // this === factory
+        labelSigs = {};
         om.createSeats(buildAllSeatData(this, prefs));
     });
 
@@ -247,11 +229,15 @@ function initOfficeMap(seatFactory) {
         for (var sid in this.instances) {
             var seat = this.instances[sid];
             if (seat.isOtherZone()) continue;
-            om.updateSeat(sid, {
-                sprite: seat.sprite,
-                labelBody: buildLabelNode(seat, prefs),
-                hintBody: buildHintNode(seat, prefs),
-            });
+            var c = labelContent(seat, prefs);
+            var sig = (c.title != null ? c.title : '\x00') + '\x01' + c.names.join('\x02');
+            var partial = { sprite: seat.sprite, hintable: true };
+            if (sig !== labelSigs[sid]) {
+                partial.labelTitle = c.title;
+                partial.labelBody = c.names.length ? buildLabelBody(c.names) : null;
+                labelSigs[sid] = sig;
+            }
+            om.updateSeat(sid, partial);
         }
     });
 
@@ -261,13 +247,14 @@ function initOfficeMap(seatFactory) {
     });
 
     // Prefs changed (show seat names / booking preview / assigned names): force
-    // a rebuild of every seat's label/hint by re-running the state pass.
+    // a rebuild of every seat's label by resetting the signatures + re-running.
     document.addEventListener('warp:prefsSaved', function(e) {
         var newPrefs = e.detail && e.detail.zonePreviewPrefs;
         if (!newPrefs) return;
         prefs.show_seat_names = !!newPrefs.show_seat_names;
         prefs.show_booking_preview = !!newPrefs.show_booking_preview;
         prefs.show_assigned_names = !!newPrefs.show_assigned_names;
+        labelSigs = {};
         seatFactory.updateAllStates();   // reuses current selectedDates; fires updateAllStates listener
     });
 

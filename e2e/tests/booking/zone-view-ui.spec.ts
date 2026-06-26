@@ -41,7 +41,7 @@ test.describe('seat name and booking preview labels', () => {
     await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
 
-    await expect(page.locator('.seat_label_title', { hasText: '1.1' })).toBeVisible();
+    await expect(page.locator('.OMLabelTitle', { hasText: '1.1' })).toBeVisible();
   });
 
   test('no labels are shown when both preferences are disabled', async ({ page }) => {
@@ -54,7 +54,8 @@ test.describe('seat name and booking preview labels', () => {
     await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
 
-    await expect(page.locator('.seat_label')).toHaveCount(0);
+    const [seat] = await getZoneSeats(1);
+    await expect(page.locator(`#sprite-${seat.id} .OMLabel`)).toBeHidden();
   });
 
   test('booking labels never show zone info even on multi-zone plans', async ({ page }) => {
@@ -81,7 +82,7 @@ test.describe('seat name and booking preview labels', () => {
     await selectOnlyDates(page, [ts]);
     await page.waitForTimeout(400);
 
-    await expect(page.locator('.seat_label_booking', { hasText: USER2.name })).toBeVisible();
+    await expect(page.locator(`#sprite-${seat.id} .seat_label_name`, { hasText: USER2.name })).toBeVisible();
   });
 
   test('booking preview labels update when the date selection changes', async ({ page }) => {
@@ -96,12 +97,12 @@ test.describe('seat name and booking preview labels', () => {
     await waitForSeatsLoaded(page);
     await selectOnlyDates(page, [ts]);
     await page.waitForTimeout(400);
-    await expect(page.locator('.seat_label_booking', { hasText: USER2.name })).toBeVisible();
+    await expect(page.locator(`#sprite-${seat.id} .seat_label_name`, { hasText: USER2.name })).toBeVisible();
 
     // Deselect every date — the preview label must disappear in place.
     await selectOnlyDates(page, []);
     await page.waitForTimeout(400);
-    await expect(page.locator('.seat_label_booking')).toHaveCount(0);
+    await expect(page.locator(`#sprite-${seat.id} .seat_label_name`)).toHaveCount(0);
   });
 });
 
@@ -220,7 +221,7 @@ test.describe('assigned-names labels', () => {
     await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
 
-    await expect(page.locator('.seat_label_assigned')).toHaveCount(0);
+    await expect(page.locator(`#sprite-${seat.id} .seat_label_name`)).toHaveCount(0);
   });
 
   test('assigned label shown when pref is on', async ({ page }) => {
@@ -233,7 +234,7 @@ test.describe('assigned-names labels', () => {
     await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
 
-    await expect(page.locator('.seat_label_assigned', { hasText: USER2.name })).toBeVisible();
+    await expect(page.locator(`#sprite-${seat.id} .seat_label_name`, { hasText: USER2.name })).toBeVisible();
   });
 
   test('booking preview wins over assigned names', async ({ page }) => {
@@ -254,8 +255,8 @@ test.describe('assigned-names labels', () => {
     await page.waitForTimeout(400);
 
     // The seat has a booking overlapping the selected date, so booking preview wins.
-    await expect(page.locator('.seat_label_booking', { hasText: USER2.name })).toBeVisible();
-    await expect(page.locator('.seat_label_assigned')).toHaveCount(0);
+    await expect(page.locator(`#sprite-${seat.id} .seat_label_name`, { hasText: USER2.name })).toBeVisible();
+    await expect(page.locator(`#sprite-${seat.id} .seat_label_name`)).toHaveCount(1);
   });
 
   test('everyone-only seat not shown', async ({ page }) => {
@@ -268,7 +269,7 @@ test.describe('assigned-names labels', () => {
     await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
 
-    await expect(page.locator('.seat_label_assigned')).toHaveCount(0);
+    await expect(page.locator(`#sprite-${seat.id} .seat_label_name`)).toHaveCount(0);
   });
 
   test('limited days_in_advance not shown', async ({ page }) => {
@@ -281,7 +282,7 @@ test.describe('assigned-names labels', () => {
     await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
 
-    await expect(page.locator('.seat_label_assigned')).toHaveCount(0);
+    await expect(page.locator(`#sprite-${seat.id} .seat_label_name`)).toHaveCount(0);
   });
 
   test('multi-user assignment shows all names', async ({ page }) => {
@@ -296,7 +297,7 @@ test.describe('assigned-names labels', () => {
     await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
 
-    await expect(page.locator('.seat_label_assigned', { hasText: USER2.name })).toBeVisible();
-    await expect(page.locator('.seat_label_assigned', { hasText: USER3.name })).toBeVisible();
+    await expect(page.locator(`#sprite-${seat.id} .seat_label_name`, { hasText: USER2.name })).toBeVisible();
+    await expect(page.locator(`#sprite-${seat.id} .seat_label_name`, { hasText: USER3.name })).toBeVisible();
   });
 });

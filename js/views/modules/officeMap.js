@@ -70,6 +70,8 @@ export class OfficeMap extends EventTarget {
     this._mode = null;               // 'follow' | 'flat' | 'clamp'
     this._sFn = null;
     this._hintSeatId = null;
+    this._hintBuilder = options.hintBuilder || null;
+    this._activePid = null;
     this._lastTap = { id: null, t: 0 };
     this._validCells = null;     // Set<string> of #cell-<name> ids in the sprite (null until loaded)
 
@@ -116,8 +118,8 @@ export class OfficeMap extends EventTarget {
     zoom.className = 'OMZoom';
     root.appendChild(zoom);
     this.zoomEl = zoom;
-    this._zoomBtn('OMZoom-in', 'Zoom in', ZOOM_IN_SVG, () => this._pz.zoomIn());
-    this._zoomBtn('OMZoom-out', 'Zoom out', ZOOM_OUT_SVG, () => this._pz.zoomOut());
+    this._zoomBtn('OMZoom-in', 'Zoom in', ZOOM_IN_SVG, () => this._pz.zoomIn({ animate: true }));
+    this._zoomBtn('OMZoom-out', 'Zoom out', ZOOM_OUT_SVG, () => this._pz.zoomOut({ animate: true }));
     this._zoomBtn('OMZoom-reset', 'Reset zoom', RESET_SVG, () => this._pz.reset());
 
     // Map image → once sized, init panzoom at the computed fit/initial scale.
@@ -137,6 +139,12 @@ export class OfficeMap extends EventTarget {
     root.addEventListener('pointercancel', (e) => this._onPointerCancel(e), true);
     root.addEventListener('click', (e) => this._onClick(e), true);
     root.addEventListener('dblclick', (e) => this._onDblClick(e), true);
+    // Track the active pointer so we can forcibly release a pan when the user
+    // right-clicks or the window loses focus (otherwise panzoom can stay stuck
+    // panning). The world pointerdown fires for every drag (incl. empty map).
+    this.world.addEventListener('pointerdown', (e) => { this._activePID = e.pointerId; }, true);
+    root.addEventListener('contextmenu', (e) => { e.preventDefault(); this._releasePan(); });
+    window.addEventListener('blur', () => this._releasePan());
   }
 
   _zoomBtn(cls, label, svg, fn) {
@@ -279,7 +287,7 @@ export class OfficeMap extends EventTarget {
   }
 
   _merge(dst, src) {
-    for (const k of ['x','y','sprite','labelTitle','hintTitle']) {
+    for (const k of ['x','y','sprite','labelTitle','hintTitle','hintable']) {
       if (src[k] !== undefined) dst[k] = (src[k] === null ? null : src[k]);
     }
     for (const k of ['labelBody','hintBody']) {
@@ -309,8 +317,6 @@ export class OfficeMap extends EventTarget {
     glyph.setAttribute('viewBox', '0 0 24 24');
     glyph.setAttribute('width', this._cellW);
     glyph.setAttribute('height', this._cellH);
-    const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
-    glyph.appendChild(use);
     el.appendChild(glyph);
 
     const labelEl = document.createElement('div');
@@ -324,7 +330,7 @@ export class OfficeMap extends EventTarget {
     el.appendChild(labelEl);
 
     this.world.appendChild(el);
-    return { data: Object.assign({}, data), el, glyph, use, fallback: null, labelEl, labelTitleEl: labelTitle, labelBodyEl: labelBody };
+    return { data: Object.assign({}, data), el, glyph, uses: new Map(), activeUse: null, fallback: null, _lastLabelBody: undefined, labelEl, labelTitleEl: labelTitle, labelBodyEl: labelBody };
   }
 
   // ---- rAF-batched redraw ---------------------------------------------------
@@ -345,24 +351,47 @@ export class OfficeMap extends EventTarget {
     const d = s.data;
     s.el.style.left = (d.x || 0) + 'px';
     s.el.style.top = (d.y || 0) + 'px';
-    // href = spriteUrl#cell-<name>
+    // Glyph: one <use> per distinct cell name, created once (its external ref
+    // resolves once) and toggled by visibility. Mutating href on an external
+    // <use> makes the browser re-resolve and blank the glyph for a frame — the
+    // seat "blink" — so we never mutate href after creation.
     const name = d.sprite || '';
-    s.use.setAttribute('href', `${this._spriteUrl}#cell-${name}`);
-    // Loud fallback ONLY for unknown sprite names: once the sprite's cells are
-    // known, a name with no matching #cell-<name> gets a red r=10.5 disc behind
-    // the (empty) <use>. Valid seats carry no fallback node at all — zero waste
-    // for the common case. §1.
+    if (name) {
+      let u = s.uses.get(name);
+      if (!u) {
+        u = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+        u.setAttribute('href', `${this._spriteUrl}#cell-${name}`);
+        s.glyph.appendChild(u);
+        s.uses.set(name, u);
+      }
+      if (s.activeUse !== u) {
+        if (s.activeUse) s.activeUse.style.display = 'none';
+        u.style.display = '';
+        s.activeUse = u;
+      }
+    } else if (s.activeUse) {
+      s.activeUse.style.display = 'none';
+      s.activeUse = null;
+    }
+    // Loud fallback ONLY for unknown sprite names (valid seats: no fallback).
     const unknown = this._validCells != null && name !== '' && !this._validCells.has(name);
     if (unknown && !s.fallback) s.fallback = this._addFallback(s.glyph);
     else if (!unknown && s.fallback) { s.fallback.remove(); s.fallback = null; }
-    // Label: shown iff title or body non-null.
+    // Label: shown iff title or body non-null. Skip DOM work when unchanged so a
+    // slider drag (sprite/label mostly stable per tick) doesn't churn the DOM.
     const showLabel = d.labelTitle != null || d.labelBody != null;
-    s.labelEl.style.display = showLabel ? '' : 'none';
-    s.labelTitleEl.textContent = d.labelTitle != null ? d.labelTitle : '';
-    // Reparent fresh body node (or clear).
-    s.labelBodyEl.replaceChildren();
-    if (d.labelBody instanceof Node) s.labelBodyEl.appendChild(d.labelBody);
-    else if (typeof d.labelBody === 'string') s.labelBodyEl.textContent = d.labelBody;
+    const disp = showLabel ? '' : 'none';
+    if (s.labelEl.style.display !== disp) s.labelEl.style.display = disp;
+    const titleStr = d.labelTitle != null ? d.labelTitle : '';
+    if (s.labelTitleEl.textContent !== titleStr) s.labelTitleEl.textContent = titleStr;
+    if (d.labelBody !== s._lastLabelBody) {
+      s.labelBodyEl.replaceChildren();
+      const hasBody = (d.labelBody instanceof Node) || (typeof d.labelBody === 'string' && d.labelBody !== '');
+      if (d.labelBody instanceof Node) s.labelBodyEl.appendChild(d.labelBody);
+      else if (typeof d.labelBody === 'string') s.labelBodyEl.textContent = d.labelBody;
+      s.labelBodyEl.style.display = hasBody ? '' : 'none';
+      s._lastLabelBody = d.labelBody;
+    }
   }
 
   // ---- sprite validation (loud failure for unknown cells) -------------------
@@ -403,12 +432,17 @@ export class OfficeMap extends EventTarget {
   _showHint(s) {
     if (!s) return;
     const d = s.data;
-    if (d.hintTitle == null && d.hintBody == null) return;  // no hint for this seat
+    if (!d.hintable) return;  // no hint for this seat (assigned/booked only)
+    // Body is built lazily on hover (hintBuilder) so the hot path (slider drag)
+    // never builds hint nodes. d.hintBody (eager) takes precedence if set.
+    const body = (d.hintBody != null) ? d.hintBody
+      : (this._hintBuilder ? this._hintBuilder(s.el.dataset.seatId) : null);
+    if (d.hintTitle == null && body == null) return;
     this._hintSeatId = s.el.dataset.seatId;
     this.hintTitle.textContent = d.hintTitle != null ? d.hintTitle : '';
     this.hintBody.replaceChildren();
-    if (d.hintBody instanceof Node) this.hintBody.appendChild(d.hintBody);
-    else if (typeof d.hintBody === 'string') this.hintBody.textContent = d.hintBody;
+    if (body instanceof Node) this.hintBody.appendChild(body);
+    else if (typeof body === 'string') this.hintBody.textContent = body;
     this._positionHint(s);
     this.hint.classList.add('OMHint--visible');
   }
@@ -419,17 +453,26 @@ export class OfficeMap extends EventTarget {
   }
 
   _positionHint(s) {
+    // Place the hint to the SIDE of the seat, flipping left/right and above/below
+    // by the seat's screen position (mirrors the old seat_preview placement).
     const sr = s.el.getBoundingClientRect();
     const rr = this.root.getBoundingClientRect();
-    // Place above the seat glyph; fall back to below if near top edge.
-    const above = sr.top - rr.top;
-    this.hint.style.left = Math.max(4, Math.min(rr.width - 200, sr.left - rr.left)) + 'px';
-    // Hint height unknown until shown; measure then adjust.
-    const wantAbove = above > 60;
-    this.hint.style.bottom = wantAbove ? '' : '';
-    this.hint.style.top = wantAbove
-      ? Math.max(4, above - this.hint.offsetHeight - 4) + 'px'
-      : (sr.bottom - rr.top + 6) + 'px';
+    const sx = sr.left - rr.left, sy = sr.top - rr.top;
+    const sw = sr.width, sh = sr.height;
+    if (sx + sw / 2 < rr.width / 2) {        // left half -> place to the right
+      this.hint.style.left = (sx + sw * 0.7) + 'px';
+      this.hint.style.right = '';
+    } else {                                  // right half -> place to the left
+      this.hint.style.right = (rr.width - sx - sw * 0.3) + 'px';
+      this.hint.style.left = '';
+    }
+    if (sy + sh / 2 < rr.height / 2) {        // top half -> place below
+      this.hint.style.top = (sy + sh * 0.7) + 'px';
+      this.hint.style.bottom = '';
+    } else {                                  // bottom half -> place above
+      this.hint.style.bottom = (rr.height - sy - sh * 0.3) + 'px';
+      this.hint.style.top = '';
+    }
   }
 
   // ---- interaction ----------------------------------------------------------
@@ -443,6 +486,17 @@ export class OfficeMap extends EventTarget {
     if (COARSE) return;
     const s = this._seatFromEvent(e);
     if (s && s.el.dataset.seatId === this._hintSeatId) this._hideHint();
+  }
+
+  // Force-release an in-progress pan: dispatch a pointerup matching the active
+  // pointer so panzoom's handleUp ends the gesture (and clear our tap state).
+  _releasePan() {
+    if (this._activePID != null) {
+      try { document.dispatchEvent(new PointerEvent('pointerup', { pointerId: this._activePID, bubbles: true, cancelable: true })); } catch (e) {}
+      this._activePID = null;
+    }
+    if (this._down && this._down.timer) clearTimeout(this._down.timer);
+    this._down = null;
   }
 
   _onPointerDown(e) {

@@ -1883,34 +1883,66 @@ INPUT[type="text"] ~ .show_password_btn::after {
 
 
 /* ===== OfficeMap integration (booking view) =====
-   #zonemap is now the OfficeMap target. Seats, labels and the hover hint are
-   OfficeMap-owned (OMSeat / OMLabel / OMHint); the booking view reuses the
-   existing .seat_label and .seat_preview node builders as their content, so the
-   class structure (and the e2e assertions on it) is preserved — only the
-   positioning model changes: labels sit inside OMSeat and ride the
-   counter-scale; the hint is OfficeMap's positioned OMHint popup. */
+   #zonemap is the OfficeMap target. Seats, labels and the hover hint are
+   OfficeMap-owned (OMSeat / OMLabel / OMHint). The label is the native
+   OMLabelTitle (seat name) + OMLabelBody (a flat list of name divs); the hint
+   is OfficeMap's positioned OMHint popup wrapping the .seat_preview node.
+   Labels sit inside OMSeat and ride the counter-scale. */
+/* The booking container fills the viewport height: the sidepanel is a slide-in
+   sidenav on mobile (position:fixed, out of flow), so without this the map would
+   collapse to 0 height. */
+.zone_container {
+    flex: 1 1 auto;
+    min-height: 0;
+}
 #zonemap {
     overflow: hidden;          /* OfficeMap manages pan/zoom; no native scroll */
     flex: 1 1 auto;            /* fill remaining width (the old <img> gave it intrinsic width) */
     min-width: 0;
 }
 
-/* OMLabel is a passthrough wrapper; .seat_label positions itself relative to
-   OMSeat (left:24 = seat center, top:34 = title bar near the seat bottom),
-   matching the old positionLabel() offsets. */
+/* Label: a small framed box centred below the seat. Title = seat name (1 line);
+   body = one div per name, each wrapping up to 2 rows so a first+surname is
+   less likely to be cut. */
 #zonemap .OMLabel {
-    position: static;
-    left: auto;
-    top: auto;
-    max-width: none;
+    position: absolute;
+    left: 50%;
+    top: 34px;                 /* overlaps the seat's lower ~14px, like the old label */
+    transform: translateX(-50%);
+    max-width: 72px;           /* ~150% of the 48px seat icon */
     padding: 0;
-    background: none;
-    border: none;
-    font-weight: inherit;
+    background: var(--warp-surface);
+    border: 2px solid var(--warp-primary);
+    border-radius: 0;
+    font-size: 10px;
+    line-height: 1.2;
+    text-align: center;
+    pointer-events: none;
+    white-space: nowrap;
 }
-#zonemap .OMLabelTitle { display: none; }     /* title lives inside the .seat_label node */
-#zonemap .OMLabelBody { margin: 0; font-weight: inherit; }
-#zonemap .seat_label { left: 24px; top: 34px; }
+#zonemap .OMLabelTitle {
+    background: var(--warp-primary);
+    color: var(--warp-on-brand);
+    padding: 0 4px;
+    line-height: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+}
+#zonemap .OMLabelBody { padding: 1px 4px; }
+#zonemap .OMLabelBody .seat_label_name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+:root[theme="dark"] #zonemap .OMLabel {
+    border-color: var(--warp-surface);
+    background: var(--warp-primary-tint);
+}
+:root[theme="dark"] #zonemap .OMLabelTitle {
+    background: var(--warp-surface);
+}
 
 /* The hint popup is OfficeMap's OMHint; the .seat_preview node provides the
    visual, so OMHint is a bare positioned wrapper and .seat_preview is static. */
