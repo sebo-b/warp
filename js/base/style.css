@@ -1842,7 +1842,9 @@ INPUT[type="text"] ~ .show_password_btn::after {
 
 /* Materialize 2.x's .modal.bottom-sheet only sets margin/max-height/radius —
    it lost 1.x's full-width, bottom-anchored, square-cornered behaviour, so the
-   "sliding menu" rendered as a centered 55%-wide rounded box. Restore it. */
+   "sliding menu" rendered as a centered 55%-wide rounded box. Restore it, and
+   slide it up from the bottom on open (display:none → flex via [open] runs the
+   keyframe animation, so the native <dialog> cutover kept the slide-in). */
 .modal.bottom-sheet {
     top: auto;
     right: 0;
@@ -1855,6 +1857,12 @@ INPUT[type="text"] ~ .show_password_btn::after {
     border-radius: 0;
     background-color: var(--warp-surface);
     color: var(--warp-text);
+    will-change: transform;
+    animation: om-sheet-slide-up .22s ease-out;
+}
+@keyframes om-sheet-slide-up {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
 }
 #action_modal .modal-content {
     padding: var(--warp-space-4) var(--warp-space-5);
@@ -1975,4 +1983,7 @@ INPUT[type="text"] ~ .show_password_btn::after {
 }
 #planmap .OMHint .OMHintTitle { display: none; }
 #planmap .OMHint .OMHintBody { font-weight: inherit; }
-#planmap .OMHint .seat_preview { position: static; }
+/* The tooltip frame must match the seat label (grey border), not the brand-blue
+   .seat_preview default, so in dark mode the popup reads as a label, not a
+   harsh coloured box. */
+#planmap .OMHint .seat_preview { position: static; border-color: var(--warp-grey-border); }

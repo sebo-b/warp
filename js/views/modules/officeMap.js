@@ -149,6 +149,12 @@ export class OfficeMap extends EventTarget {
     // panning). The world pointerdown fires for every drag (incl. empty map).
     this.world.addEventListener('pointerdown', (e) => { this._activePID = e.pointerId; }, true);
     root.addEventListener('contextmenu', (e) => { e.preventDefault(); this._releasePan(); });
+    // Wheel is bound at mount (NOT in _initPanzoom, which waits for the image to
+    // decode): in Safari the image 'load' event can be deferred, so until it
+    // fires the listener was absent and wheel scrolled/bounced the document.
+    // _onWheel preventDefaults before checking panzoom, so the page never
+    // scrolls over the map even before panzoom is ready.
+    root.addEventListener('wheel', (e) => this._onWheel(e), { passive: false });
     this._onWindowBlur = () => this._releasePan();
     window.addEventListener('blur', this._onWindowBlur);
   }
@@ -208,11 +214,6 @@ export class OfficeMap extends EventTarget {
     });
     // Panzoom has no .on(); it dispatches 'panzoomchange' on the element.
     this.world.addEventListener('panzoomchange', () => this._onTransform());
-    // Wheel/pinch/trackpad zoom — magnitude-aware and instant per event so a
-    // Mac trackpad's two-finger scroll zooms continuously (not in discrete 10%
-    // steps like panzoom's sign-only zoomWithWheel). Pan (drag) stays on the
-    // pointer; the wheel always zooms toward the cursor, like most map apps.
-    this.root.addEventListener('wheel', (e) => this._onWheel(e), { passive: false });
     this._onTransform();
   }
 
@@ -520,11 +521,13 @@ export class OfficeMap extends EventTarget {
   // per event (no transition) — rapid events ARE the motion, so a trackpad's
   // two-finger scroll zooms continuously. deltaY is normalised across deltaMode
   // so a mouse-wheel notch zooms ~the same in Chrome (px), Firefox/Safari (lines).
+  // preventDefault runs first so the page never scrolls over the map, even if
+  // panzoom isn't ready yet (image still decoding) — it just won't zoom.
   _onWheel(e) {
-    const pz = this._pz;
-    if (!pz) return;
     e.preventDefault();
     e.stopPropagation();
+    const pz = this._pz;
+    if (!pz) return;   // image not loaded yet; keep the page from scrolling but don't zoom
     // Interrupt any in-flight button-zoom animation → instant from here.
     if (this._animatingZoom) { this._animatingZoom = false; this._enableGlyphTransition(false); clearTimeout(this._zoomAnimTimer); }
     let dy = e.deltaY;
