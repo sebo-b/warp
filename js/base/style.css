@@ -1283,10 +1283,6 @@ nav .dropdown-content li > span {
     display: block;
     width: 48px;
     height: 48px;
-    color: var(--warp-grey-muted);
-    /* Disc base (= seat bg) for the sprite; the status classes override this
-       with their matching --warp-seat-*-bg. White for the default no-status seat. */
-    --warp-seat-bg: var(--warp-on-brand);
 }
 
 .seat-icon svg {
@@ -1296,24 +1292,9 @@ nav .dropdown-content li > span {
     pointer-events: none;
 }
 
-.seat-icon--available {
-    color: var(--warp-seat-available-fg);
-    --warp-seat-bg: var(--warp-seat-available-bg);
-}
-
-.seat-icon--yours {
-    color: var(--warp-seat-yours-fg);
-    --warp-seat-bg: var(--warp-seat-yours-bg);
-}
-
-.seat-icon--unavailable {
-    color: var(--warp-seat-unavailable-fg);
-    --warp-seat-bg: var(--warp-seat-unavailable-bg);
-}
-
-/* Seat status colours are the split light/dark --warp-seat-* tokens in
-   theme.css (dark mirrors light for now); the classes just map each status to
-   its fg (color/currentColor) + bg (--warp-seat-bg, read by the sprite disc). */
+/* Seat status colours are baked directly into each #cell-<name> in
+   seat_icons.svg from the split light/dark --warp-seat-*-{fg,bg} tokens in
+   theme.css, so the host needs no per-status class here. */
 
 .seat_label {
     position: absolute;

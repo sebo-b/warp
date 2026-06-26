@@ -1,10 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="496" height="104" viewBox="0 0 496 104">
+<svg xmlns="http://www.w3.org/2000/svg" width="552" height="48" viewBox="0 0 552 48">
   <!--
-    Seat status icons. Shape-only: exactly one symbol per shape.
-    Colour comes entirely from CSS `color` (currentColor) via the
-    seat-icon / seat-icon (green|blue|grey) classes; there are no
-    per-colour copies. Style: light tinted disc (currentColor @ 0.15)
-    + thin ring (currentColor @ 0.35) + solid coloured glyph.
+    Seat status cells (#cell-<name>). One per visual state; colours come from
+    the :root warp-seat-* family theme vars (fg/bground), which cross an
+    external use boundary, so the file is var-only (no currentColor). Shapes
+    are defined once in defs below and reused by the cells.
   -->
   <defs>
     <!-- Base glyph paths, defined once, reused by the symbols. -->
@@ -20,63 +19,6 @@
          without needing a clip (clip-path isn't honoured by every sprite host). -->
     <path id="figure"     d="M12,12C14.21,12 16,10.21 16,8C16,5.79 14.21,4 12,4C9.79,4 8,5.79 8,8C8,10.21 9.79,12 12,12ZM2.29,16A10.5,10.5 0 0 0 21.71,16C18,13.8 14.8,13.4 12,13.4C9.2,13.4 6,13.8 2.29,16Z"/>
     <path id="tie-path"   d="M10,14L14,14L12,17.2L10,14ZM11.5,16.5L12.5,16.5L12.8,19L12,20L11.2,19L11.5,16.5Z"/>
-
-    <!-- Disc reused by every symbol. Fill = the seat bg var (warp-seat-bg)
-         set per status on .seat-icon (a light tint of the glyph colour; white
-         for the default no-status seat). Ring + glyph are full currentColor.
-         Custom properties cross an external <use>, so the knockouts below reuse
-         the same var to match the disc in both themes. -->
-    <g id="disc">
-      <circle cx="12" cy="12" r="10.5" fill="var(--warp-seat-bg, #ffffff)"/>
-      <circle cx="12" cy="12" r="10.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
-    </g>
-
-    <!-- Symbols referenced by the app (one per shape). -->
-    <symbol id="icon-plus" viewBox="0 0 24 24">
-      <use href="#disc"/>
-      <use href="#plus-path" fill="currentColor"/>
-    </symbol>
-
-    <symbol id="icon-arrow" viewBox="0 0 24 24">
-      <use href="#disc"/>
-      <use href="#arrow-path" fill="currentColor"/>
-    </symbol>
-
-    <symbol id="icon-head" viewBox="0 0 24 24">
-      <use href="#disc"/>
-      <use href="#head-path" fill="currentColor"/>
-    </symbol>
-
-    <!-- Rebook: full-size figure (head as in #icon-head, body to the disc edge)
-         with the sync arrows in front as hollow bands — an opaque light fill
-         (= disc tint) so the figure is hidden where they cross, plus a
-         currentColor outline. Upper arc's outline is thicker than the lower. -->
-    <symbol id="icon-head-arrow" viewBox="0 0 24 24">
-      <use href="#disc"/>
-      <use href="#figure" fill="currentColor"/>
-      <use href="#arrow-upper" fill="var(--warp-seat-bg, #ffffff)"/>
-      <use href="#arrow-upper" fill="currentColor" fill-opacity="0.2"/>
-      <use href="#arrow-upper" fill="none" stroke="currentColor" stroke-width="0.9" stroke-linejoin="round"/>
-      <use href="#arrow-lower" fill="var(--warp-seat-bg, #ffffff)"/>
-      <use href="#arrow-lower" fill="currentColor" fill-opacity="0.2"/>
-      <use href="#arrow-lower" fill="none" stroke="currentColor" stroke-width="0.5" stroke-linejoin="round"/>
-    </symbol>
-
-    <symbol id="icon-no" viewBox="0 0 24 24">
-      <use href="#disc"/>
-      <!-- X = the plus glyph rotated 45°, so its stroke weight matches #icon-plus
-           and the only ring is the disc's 1.5px, like every other icon (no thick
-           prohibition circle). -->
-      <use href="#plus-path" fill="currentColor" transform="rotate(45 12 12)"/>
-    </symbol>
-
-    <symbol id="icon-assigned" viewBox="0 0 24 24">
-      <use href="#disc"/>
-      <use href="#head-path" fill="currentColor"/>
-      <!-- tie knocked out so it reads against the solid head. Fills with the
-           disc base var so the knockout matches the disc in both themes. -->
-      <use href="#tie-path" fill="var(--warp-seat-bg, #ffffff)"/>
-    </symbol>
 
     <!-- ===== Seat status cells. One g id=cell-NAME per visual state.
           Colours come from the :root theme vars (warp-seat-FAMILY-fg/-bg),
@@ -153,23 +95,16 @@
     </g>
   </defs>
 
-  <!-- Preview only (the app references the symbols above): one icon per shape. -->
-  <use href="#icon-plus"       x="0"   y="0" width="48" height="48" color="#2e7d32"/>
-  <use href="#icon-arrow"      x="56"  y="0" width="48" height="48" color="#2e7d32"/>
-  <use href="#icon-head"       x="112" y="0" width="48" height="48" color="#2C3E50"/>
-  <use href="#icon-head-arrow" x="168" y="0" width="48" height="48" color="#2C3E50"/>
-  <use href="#icon-no"         x="224" y="0" width="48" height="48" color="#616161"/>
-  <use href="#icon-assigned"   x="280" y="0" width="48" height="48" color="#616161"/>
-
-  <!-- Cell preview strip (booking-view cells; colours resolve from the file's
-       own :root vars, which the cells reference directly). -->
-  <use href="#cell-available"         x="0"   y="56" width="48" height="48"/>
-  <use href="#cell-availableAssigned" x="56"  y="56" width="48" height="48"/>
-  <use href="#cell-rebook"            x="112" y="56" width="48" height="48"/>
-  <use href="#cell-rebookAssigned"    x="168" y="56" width="48" height="48"/>
-  <use href="#cell-yours"             x="224" y="56" width="48" height="48"/>
-  <use href="#cell-yoursChange"       x="280" y="56" width="48" height="48"/>
-  <use href="#cell-taken"             x="336" y="56" width="48" height="48"/>
-  <use href="#cell-assigned"         x="392" y="56" width="48" height="48"/>
-  <use href="#cell-unavailable"       x="448" y="56" width="48" height="48"/>
+  <!-- Cell preview strip (colours resolve from the :root warp-seat-* vars
+       referenced by each cell). -->
+  <use href="#cell-available"         x="0"   y="0" width="48" height="48"/>
+  <use href="#cell-availableAssigned" x="56"  y="0" width="48" height="48"/>
+  <use href="#cell-rebook"            x="112" y="0" width="48" height="48"/>
+  <use href="#cell-rebookAssigned"    x="168" y="0" width="48" height="48"/>
+  <use href="#cell-yours"             x="224" y="0" width="48" height="48"/>
+  <use href="#cell-yoursChange"       x="280" y="0" width="48" height="48"/>
+  <use href="#cell-taken"             x="336" y="0" width="48" height="48"/>
+  <use href="#cell-assigned"         x="392" y="0" width="48" height="48"/>
+  <use href="#cell-unavailable"       x="448" y="0" width="48" height="48"/>
+  <use href="#cell-edited"           x="504" y="0" width="48" height="48"/>
 </svg>

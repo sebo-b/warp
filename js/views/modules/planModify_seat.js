@@ -26,10 +26,8 @@ Seat.CONFIG = {
     DELETED: "DELETED",
 
     // Editor seat state -> #cell-<name>. Each cell bakes its colours from the
-    // :root theme vars (see seat_icons.svg), so the editor no longer colours a
-    // shape via currentColor + a .seat-icon--<color> host class — it just picks
-    // the colour-baked cell that matches the state. Same cells as OfficeMap's
-    // booking view + the help modal.
+    // :root theme vars (see seat_icons.svg); the editor just picks the cell
+    // matching the state. Same cells as OfficeMap's booking view + the help modal.
     cells: {
         new:      'available',    // green plus  — a not-yet-saved seat
         edited:   'edited',       // green head — an existing seat with unsaved changes
