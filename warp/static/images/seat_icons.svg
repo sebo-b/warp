@@ -6,28 +6,6 @@
     per-colour copies. Style: light tinted disc (currentColor @ 0.15)
     + thin ring (currentColor @ 0.35) + solid coloured glyph.
   -->
-  <style><![CDATA[
-    /* Preview-only defaults so the #cell-* strip renders when the file is
-       opened directly. In production these are defined on :root in theme.css
-       (light) and flipped on :root[theme="dark"], and cross the external
-       use boundary (proven by #disc). Kept in sync with theme.css by hand. */
-    :root {
-      --warp-seat-available-fg:   #2e7d32;
-      --warp-seat-available-bg:   color-mix(in srgb, var(--warp-seat-available-fg), white 80%);
-      --warp-seat-yours-fg:       #2C3E50;
-      --warp-seat-yours-bg:       color-mix(in srgb, var(--warp-seat-yours-fg), white 80%);
-      --warp-seat-unavailable-fg: #616161;
-      --warp-seat-unavailable-bg:  color-mix(in srgb, var(--warp-seat-unavailable-fg), white 80%);
-    }
-    :root[theme="dark"] {
-      --warp-seat-available-fg:   #3abb41;
-      --warp-seat-available-bg:   color-mix(in srgb, var(--warp-seat-available-fg), black 80%);
-      --warp-seat-yours-fg:       #5b9bd5;
-      --warp-seat-yours-bg:       color-mix(in srgb, var(--warp-seat-yours-fg), black 80%);
-      --warp-seat-unavailable-fg: #9e9e9e;
-      --warp-seat-unavailable-bg:  color-mix(in srgb, var(--warp-seat-unavailable-fg), black 80%);
-    }
-  ]]></style>
   <defs>
     <!-- Base glyph paths, defined once, reused by the symbols. -->
     <path id="plus-path"  d="M19,13L13,13L13,19L11,19L11,13L5,13L5,11L11,11L11,5L13,5L13,11L19,11L19,13Z"/>
