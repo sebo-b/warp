@@ -1171,13 +1171,12 @@ nav .dropdown-content li > span {
    filter (zone.js applyPlanMapFilter) turns the img into a stacking context
    that otherwise paints over an auto-z fixed sibling. Above labels (2) too. */
 .zonemap_help {
-    position: fixed;
+    position: absolute;
     left: 0px;
     bottom: 0px;
-    right: auto;
     color: var(--warp-primary);
     cursor: pointer;
-    z-index: 4;
+    z-index: 6;
 }
 
 .zonemap_help svg {
