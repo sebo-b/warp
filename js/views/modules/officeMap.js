@@ -136,12 +136,19 @@ export class OfficeMap extends EventTarget {
     bg.addEventListener('load', () => this._onImageLoad());
     if (this.options.mapImage) {
       bg.src = this.options.mapImage;
-      // Safari can complete a cached/fast image before (or without) firing the
-      // 'load' event we listen to above, leaving panzoom uninitialised and wheel
-      // zoom dead until something else pokes the element. If the image is
-      // already decoded here, init panzoom straight away.
+      // Cached/instant images may already be decoded (Safari sometimes skips the
+      // 'load' event for these); set the dims now too.
       if (bg.complete && bg.naturalWidth > 0) this._onImageLoad();
     }
+    // Panzoom must init with the root actually laid out: the root is a flex
+    // child and has clientWidth=0 synchronously at mount, so a cached/instant
+    // image (which loads before the first layout) would otherwise init panzoom
+    // against zero root dims — minScale derived from a zero-width root, and
+    // wheel zoom silently does nothing until a click/resize forces a relayout.
+    // ResizeObserver fires once layout has happened, then on every viewport
+    // change; _onRootResize gates init on non-zero dims and re-clamps on resize.
+    this._ro = new ResizeObserver(() => this._onRootResize());
+    this._ro.observe(this.root);
 
     root.addEventListener('pointerenter', (e) => this._onPointerEnter(e), true);
     root.addEventListener('pointerleave', (e) => this._onPointerLeave(e), true);
@@ -185,7 +192,13 @@ export class OfficeMap extends EventTarget {
     // transforms OMWorld, so the image and seats pan/zoom together.
     this.world.style.width = this._imgW + 'px';
     this.world.style.height = this._imgH + 'px';
-    this._initPanzoom();
+    this._imgReady = true;
+    this._maybeInitPanzoom();
+  }
+
+  _onRootResize() {
+    if (this.root.clientWidth > 0) { this._rootReady = true; this._maybeInitPanzoom(); }
+    if (this._pz) this._onTransform();   // re-clamp pan with fresh root dims (resize/orientation)
   }
 
   _fitScale() {
@@ -194,8 +207,12 @@ export class OfficeMap extends EventTarget {
     return Math.min(rw / this._imgW, rh / this._imgH);
   }
 
-  _initPanzoom() {
-    if (this._pz) return;
+  _maybeInitPanzoom() {
+    // Wait for BOTH the image dims (so the world is sized + minScale computable)
+    // and the root to be laid out (non-zero dims): a flex child is 0x0
+    // synchronously at mount, and a cached image can load before the first
+    // layout, which previously inited panzoom against zero root dims.
+    if (this._pz || !this._imgReady || !this._rootReady) return;
     const fit = this._fitScale();
     const z = this.options.zoom || {};
     const min = (typeof z.min === 'number') ? z.min : fit;
@@ -631,6 +648,7 @@ export class OfficeMap extends EventTarget {
     if (this._raf) cancelAnimationFrame(this._raf);
     clearTimeout(this._zoomAnimTimer);
     if (this._down && this._down.timer) clearTimeout(this._down.timer);
+    if (this._ro) this._ro.disconnect();
     window.removeEventListener('blur', this._onWindowBlur);
     if (this._pz) this._pz.destroy();
     this.root.remove();   // removes all root-scoped listeners (this.root subtree)
