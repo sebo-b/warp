@@ -157,7 +157,7 @@ test.describe('forbidden booking actions (direct API)', () => {
   test('unauthenticated request to apply is redirected to login', async ({ page }) => {
     const [seat] = await getZoneSeats(1);
     const ts = futureDayTs(1);
-    const resp = await page.request.post('/xhr/zone/apply', {
+    const resp = await page.request.post('/xhr/plan/apply', {
       data: { book: { sid: seat.id, dates: [{ fromTS: ts + 9 * 3600, toTS: ts + 17 * 3600 }] } },
       headers: { 'Content-Type': 'application/json' },
       maxRedirects: 0,

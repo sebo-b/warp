@@ -282,7 +282,7 @@ test.describe('DISABLED zone (zone_type=10)', () => {
     await setZoneType(1, 10);
 
     await logIn(page, USER1);
-    const resp = await page.request.get('/xhr/zone/getSeats/1');
+    const resp = await page.request.get('/xhr/plan/getSeats/1');
     expect(resp.status()).toBe(200);
     const data = await resp.json();
     // All seats should have bookable: false
@@ -298,7 +298,7 @@ test.describe('DISABLED zone (zone_type=10)', () => {
 
     await logIn(page, USER1);
     const ts = futureDayTs(1);
-    const resp = await page.request.post('/xhr/zone/autoBook/1', {
+    const resp = await page.request.post('/xhr/plan/autoBook/1', {
       data: { dates: [{ fromTS: ts + 9 * 3600, toTS: ts + 17 * 3600 }] },
       headers: { 'Content-Type': 'application/json' },
     });
@@ -316,7 +316,7 @@ test.describe('mixed-zone plan: ENABLED + PUBLIC_VIEW', () => {
     const { pid, enabledSeatId, viewSeatId } = await setupMixedEnabledPublicViewPlan();
 
     await logIn(page, USER2);
-    const resp = await page.request.get(`/xhr/zone/getSeats/${pid}`);
+    const resp = await page.request.get(`/xhr/plan/getSeats/${pid}`);
     expect(resp.status()).toBe(200);
     const data = await resp.json();
 
@@ -370,7 +370,7 @@ test.describe('mixed-zone plan: ENABLED + DISABLED', () => {
     const { pid, enabledSeatId, disabledSeatId } = await setupMixedEnabledDisabledPlan();
 
     await logIn(page, USER2);
-    const resp = await page.request.get(`/xhr/zone/getSeats/${pid}`);
+    const resp = await page.request.get(`/xhr/plan/getSeats/${pid}`);
     expect(resp.status()).toBe(200);
     const data = await resp.json();
 
@@ -437,7 +437,7 @@ test.describe('getSeats bookable flag', () => {
 
   test('ENABLED zone seats have bookable=true for users', async ({ page }) => {
     await logIn(page, USER2);
-    const resp = await page.request.get('/xhr/zone/getSeats/1');
+    const resp = await page.request.get('/xhr/plan/getSeats/1');
     const data = await resp.json();
     for (const sid in data.seats) {
       if (data.seats[sid].x !== undefined) { // accessible seats only
@@ -451,7 +451,7 @@ test.describe('getSeats bookable flag', () => {
 
     // user3 has no explicit role → gets VIEWER via PUBLIC_VIEW
     await logIn(page, USER3);
-    const resp = await page.request.get('/xhr/zone/getSeats/1');
+    const resp = await page.request.get('/xhr/plan/getSeats/1');
     const data = await resp.json();
     for (const sid in data.seats) {
       if (data.seats[sid].x !== undefined) {
@@ -465,7 +465,7 @@ test.describe('getSeats bookable flag', () => {
 
     // admin has explicit ADMIN role; effectiveZoneRole picks min(ADMIN, VIEWER) = ADMIN
     await logIn(page, ADMIN);
-    const resp = await page.request.get('/xhr/zone/getSeats/1');
+    const resp = await page.request.get('/xhr/plan/getSeats/1');
     const data = await resp.json();
     for (const sid in data.seats) {
       if (data.seats[sid].x !== undefined) {
@@ -478,7 +478,7 @@ test.describe('getSeats bookable flag', () => {
     await setZoneType(1, 40);
 
     await logIn(page, USER3);
-    const resp = await page.request.get('/xhr/zone/getSeats/1');
+    const resp = await page.request.get('/xhr/plan/getSeats/1');
     const data = await resp.json();
     for (const sid in data.seats) {
       if (data.seats[sid].x !== undefined) {
@@ -491,7 +491,7 @@ test.describe('getSeats bookable flag', () => {
     await setZoneType(1, 10);
 
     await logIn(page, USER1);
-    const resp = await page.request.get('/xhr/zone/getSeats/1');
+    const resp = await page.request.get('/xhr/plan/getSeats/1');
     const data = await resp.json();
     for (const sid in data.seats) {
       if (data.seats[sid].x !== undefined) {
@@ -511,7 +511,7 @@ test.describe('getSeats bookable flag', () => {
     // user2 has no access to zid2
 
     await logIn(page, USER2);
-    const resp = await page.request.get(`/xhr/zone/getSeats/${pid}`);
+    const resp = await page.request.get(`/xhr/plan/getSeats/${pid}`);
     const data = await resp.json();
     for (const sid in data.seats) {
       const seat = data.seats[sid];
@@ -534,7 +534,7 @@ test.describe('effectiveZoneRole semantics', () => {
     // user2 has explicit USER role via group_1a; PUBLIC_VIEW gives VIEWER,
     // effectiveZoneRole picks min(USER, VIEWER) = USER → bookable
     await logIn(page, USER2);
-    const resp = await page.request.get('/xhr/zone/getSeats/1');
+    const resp = await page.request.get('/xhr/plan/getSeats/1');
     const data = await resp.json();
     for (const sid in data.seats) {
       if (data.seats[sid].x !== undefined) {
@@ -548,7 +548,7 @@ test.describe('effectiveZoneRole semantics', () => {
     // Remove user3's assignments entirely — they have no explicit role
     // PUBLIC_BOOK gives USER to everyone → bookable
     await logIn(page, USER3);
-    const resp = await page.request.get('/xhr/zone/getSeats/1');
+    const resp = await page.request.get('/xhr/plan/getSeats/1');
     const data = await resp.json();
     for (const sid in data.seats) {
       if (data.seats[sid].x !== undefined) {

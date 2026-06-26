@@ -147,7 +147,7 @@ test.describe('seat assignment via API', () => {
     );
 
     await logIn(page, USER1);
-    const resp = await page.request.get('/xhr/zone/getSeats/1');
+    const resp = await page.request.get('/xhr/plan/getSeats/1');
     const body = await resp.json();
     const seatData = body.seats[String(seat.id)];
     expect(seatData.assignments).toBeDefined();
@@ -204,7 +204,7 @@ test.describe('assign seat modal UI', () => {
     await expect(page.locator('#assigned_seat_list .collection-item')).toContainText('Bar');
 
     await Promise.all([
-      page.waitForResponse(r => r.url().includes('/xhr/zone/apply') && r.status() === 200),
+      page.waitForResponse(r => r.url().includes('/xhr/plan/apply') && r.status() === 200),
       page.locator('#assigned_seat_modal .plan_action_btn[data-action="assign"]').click(),
     ]);
     await page.waitForLoadState('networkidle');

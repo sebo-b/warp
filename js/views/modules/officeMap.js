@@ -11,11 +11,11 @@ import Panzoom from '@panzoom/panzoom';
 const STYLE_ID = 'officemap-default-styles';
 
 const DEFAULT_CSS = `
-.OMMap{position:relative;overflow:hidden;width:100%;height:100%;touch-action:none;background:var(--warp-map-bg,#f5f5f5);user-select:none}
+.OMMap{position:relative;overflow:hidden;width:100%;height:100%;touch-action:none;background:var(--warp-grey-bg,#f5f5f5);user-select:none}
 .OMBackground{position:absolute;left:0;top:0;width:100%;height:100%;display:block;transform-origin:0 0;pointer-events:none}
 .OMWorld{position:absolute;left:0;top:0;transform-origin:0 0}
 .OMSeat{position:absolute;cursor:pointer}
-.OMSeatGlyph{display:block;pointer-events:none;transform-origin:50% 50%;will-change:transform}
+.OMSeatGlyph{display:block;pointer-events:none;transform-origin:50% 50%;will-change:transform;transition:none}
 .OMLabel{position:absolute;left:50px;top:-2px;max-width:220px;z-index:10;padding:2px 6px;background:var(--warp-label-bg,rgba(255,255,255,.9));border:1px solid var(--warp-label-border,rgba(0,0,0,.15));border-radius:4px;font:12px/1.3 sans-serif;color:var(--warp-label-fg,#333);pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .OMLabelTitle{font-weight:600}
 .OMLabelBody{margin-top:1px;font-weight:400;opacity:.85}
@@ -118,8 +118,8 @@ export class OfficeMap extends EventTarget {
     zoom.className = 'OMZoom';
     root.appendChild(zoom);
     this.zoomEl = zoom;
-    this._zoomBtn('OMZoom-in', 'Zoom in', ZOOM_IN_SVG, () => this._pz.zoomIn({ animate: true }));
-    this._zoomBtn('OMZoom-out', 'Zoom out', ZOOM_OUT_SVG, () => this._pz.zoomOut({ animate: true }));
+    this._zoomBtn('OMZoom-in', 'Zoom in', ZOOM_IN_SVG, () => this._animatedZoom(() => this._pz.zoomIn({ animate: true })));
+    this._zoomBtn('OMZoom-out', 'Zoom out', ZOOM_OUT_SVG, () => this._animatedZoom(() => this._pz.zoomOut({ animate: true })));
     this._zoomBtn('OMZoom-reset', 'Reset zoom', RESET_SVG, () => this._pz.reset());
 
     // Map image → once sized, init panzoom at the computed fit/initial scale.
@@ -202,8 +202,11 @@ export class OfficeMap extends EventTarget {
     });
     // Panzoom has no .on(); it dispatches 'panzoomchange' on the element.
     this.world.addEventListener('panzoomchange', () => this._onTransform());
-    // Wheel zoom is NOT auto-bound by panzoom; bind it (non-passive so preventDefault works).
-    this.world.addEventListener('wheel', (e) => this._pz && this._pz.zoomWithWheel(e), { passive: false });
+    // Wheel/pinch/trackpad zoom — magnitude-aware and instant per event so a
+    // Mac trackpad's two-finger scroll zooms continuously (not in discrete 10%
+    // steps like panzoom's sign-only zoomWithWheel). Pan (drag) stays on the
+    // pointer; the wheel always zooms toward the cursor, like most map apps.
+    this.root.addEventListener('wheel', (e) => this._onWheel(e), { passive: false });
     this._onTransform();
   }
 
@@ -235,7 +238,7 @@ export class OfficeMap extends EventTarget {
     let oy = (sh <= rh) ? (rh - sh) / 2 : Math.min(0, Math.max(rh - sh, k * y - diffV));
     const nx = (ox + diffH) / k, ny = (oy + diffV) / k;
     if (nx !== x || ny !== y) {
-      pz.pan(nx, ny, { silent: true, force: true, animate: false });
+      pz.pan(nx, ny, { silent: true, force: true, animate: !!this._animatingZoom });
     }
   }
 
@@ -486,6 +489,47 @@ export class OfficeMap extends EventTarget {
     if (s && s.el.dataset.seatId === this._hintSeatId) this._hideHint();
   }
 
+  // Animated zoom (buttons): set a flag so _clampPan animates the pan to match
+  // (an animate:false pan would set transition:none and SNAP the world), and
+  // give the glyphs a matching transform transition so icons resize smoothly
+  // with the world during the zoom. Reset shortly after the transition ends.
+  _animatedZoom(fn) {
+    if (!this._pz) return;
+    this._animatingZoom = true;
+    this._enableGlyphTransition(true);
+    fn();
+    clearTimeout(this._zoomAnimTimer);
+    this._zoomAnimTimer = setTimeout(() => {
+      this._animatingZoom = false;
+      this._enableGlyphTransition(false);
+    }, 280);
+  }
+
+  _enableGlyphTransition(on) {
+    const t = on ? 'transform 200ms ease-in-out' : 'none';
+    for (const s of this._seats.values()) s.glyph.style.transition = t;
+  }
+
+  // Magnitude-aware wheel zoom toward the cursor, like most map apps. Instant
+  // per event (no transition) — rapid events ARE the motion, so a trackpad's
+  // two-finger scroll zooms continuously. deltaY is normalised across deltaMode
+  // so a mouse-wheel notch zooms ~the same in Chrome (px), Firefox/Safari (lines).
+  _onWheel(e) {
+    const pz = this._pz;
+    if (!pz) return;
+    e.preventDefault();
+    e.stopPropagation();
+    // Interrupt any in-flight button-zoom animation → instant from here.
+    if (this._animatingZoom) { this._animatingZoom = false; this._enableGlyphTransition(false); clearTimeout(this._zoomAnimTimer); }
+    let dy = e.deltaY;
+    if (e.deltaMode === 1) dy *= 100;          // lines → ~one mouse-notch each (≈Chrome px, ~±26%)
+    else if (e.deltaMode === 2) dy *= this.root.clientHeight;  // pages
+    const k = pz.getScale();
+    const opts = pz.getOptions();
+    const target = Math.min(opts.maxScale, Math.max(opts.minScale, k * Math.pow(2, -dy / 300)));
+    if (target !== k) pz.zoomToPoint(target, { clientX: e.clientX, clientY: e.clientY }, { animate: false });
+  }
+
   // Force-release an in-progress pan: dispatch a pointerup matching the active
   // pointer so panzoom's handleUp ends the gesture (and clear our tap state).
   _releasePan() {
@@ -500,6 +544,7 @@ export class OfficeMap extends EventTarget {
   _onPointerDown(e) {
     const s = this._seatFromEvent(e);
     this._down = s ? { id: s.el.dataset.seatId, x: e.clientX, y: e.clientY, t: Date.now(), moved: false, longFired: false, timer: 0 } : null;
+    if (this._animatingZoom) { this._animatingZoom = false; this._enableGlyphTransition(false); clearTimeout(this._zoomAnimTimer); }
     if (!s) return;
     // Long-press → show hint (touch). Suppress the click that would follow release.
     this._down.timer = setTimeout(() => {

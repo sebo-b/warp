@@ -39,7 +39,7 @@ test.describe('zone map booking flow (end-to-end)', () => {
     await clickZoneSeat(page, seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
     await Promise.all([
-      page.waitForResponse(r => r.url().includes('/xhr/zone/apply') && r.status() === 200),
+      page.waitForResponse(r => r.url().includes('/xhr/plan/apply') && r.status() === 200),
       page.locator('.plan_action_btn[data-action="delete"]').click(),
     ]);
     await page.waitForLoadState('networkidle');
@@ -61,7 +61,7 @@ test.describe('zone map booking flow (end-to-end)', () => {
     await page.locator('.tabulator-row').first().locator('.material-icons.warp-icon-danger').click();
     const modal = page.locator('.modal', { hasText: 'Are you sure to delete this booking?' });
     await Promise.all([
-      page.waitForResponse(r => r.url().includes('/xhr/zone/apply') && r.status() === 200),
+      page.waitForResponse(r => r.url().includes('/xhr/plan/apply') && r.status() === 200),
       modal.locator('a.modal-close', { hasText: /yes/i }).click(),
     ]);
     await page.waitForLoadState('networkidle');

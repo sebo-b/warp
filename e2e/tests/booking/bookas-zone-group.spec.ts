@@ -221,7 +221,7 @@ test.describe('book-as + zone group', () => {
       [USER2.login, parkingSeat.id, fromTS, toTS]);
 
     await logIn(page, USER1);
-    const resp = await page.request.get(`/xhr/zone/getSeats/1?login=${USER2.login}`, { maxRedirects: 0 });
+    const resp = await page.request.get(`/xhr/plan/getSeats/1?login=${USER2.login}`, { maxRedirects: 0 });
     expect(resp.status()).toBe(200);
     const body = await resp.json();
     const conflictSeat = body.seats[String(parkingSeat.id)];

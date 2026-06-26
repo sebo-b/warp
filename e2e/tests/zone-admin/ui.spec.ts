@@ -114,7 +114,7 @@ test.describe('disable and enable seats', () => {
     await querySql('UPDATE seat SET enabled = false WHERE id = $1', [seat.id]);
 
     await logIn(page, USER2);
-    const resp = await page.request.get('/xhr/zone/getSeats/1');
+    const resp = await page.request.get('/xhr/plan/getSeats/1');
     expect(resp.status()).toBe(200);
     const body = await resp.json();
     expect(String(seat.id) in body.seats).toBe(false);
@@ -125,7 +125,7 @@ test.describe('disable and enable seats', () => {
     await querySql('UPDATE seat SET enabled = false WHERE id = $1', [seat.id]);
 
     await logIn(page, USER1);
-    const resp = await page.request.get('/xhr/zone/getSeats/1');
+    const resp = await page.request.get('/xhr/plan/getSeats/1');
     expect(resp.status()).toBe(200);
     const body = await resp.json();
     expect(String(seat.id) in body.seats).toBe(true);

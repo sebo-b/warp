@@ -93,7 +93,7 @@ export async function bookSeatUI(
   // seat-refresh GET that fires in the .then() callback, and a brief pause for
   // Flask's request teardown to close the DB connection (commit becomes visible).
   await Promise.all([
-    page.waitForResponse(r => r.url().includes('/xhr/zone/apply') && r.status() === 200),
+    page.waitForResponse(r => r.url().includes('/xhr/plan/apply') && r.status() === 200),
     page.locator('.plan_action_btn[data-action="book"]').click(),
   ]);
   await page.waitForLoadState('networkidle');
@@ -109,21 +109,21 @@ export async function clickActionBtn(
   action: 'book' | 'delete' | 'update' | 'enable' | 'disable',
 ): Promise<void> {
   await Promise.all([
-    page.waitForResponse(r => r.url().includes('/xhr/zone/apply') && r.status() === 200),
+    page.waitForResponse(r => r.url().includes('/xhr/plan/apply') && r.status() === 200),
     page.locator(`.plan_action_btn[data-action="${action}"]`).click(),
   ]);
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(200);
 }
 
-/** Direct XHR to /xhr/zone/apply using the current page session (cookies).
+/** Direct XHR to /xhr/plan/apply using the current page session (cookies).
  *  Redirects are not followed: an expired session answers with a 302 to /login,
  *  and following it would turn that into a misleading 200 (the login page). */
 export async function apiApply(
   page: Page,
   body: object,
 ): Promise<import('@playwright/test').APIResponse> {
-  return page.request.post('/xhr/zone/apply', {
+  return page.request.post('/xhr/plan/apply', {
     data: body,
     headers: { 'Content-Type': 'application/json' },
     maxRedirects: 0,

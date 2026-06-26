@@ -63,14 +63,14 @@ test.describe('non-admin forbidden from zone admin actions', () => {
 
   test('non-zone-admin account cannot get zone users list (code 120)', async ({ page }) => {
     await logIn(page, USER2);
-    const resp = await page.request.get('/xhr/zone/getUsers/1');
+    const resp = await page.request.get('/xhr/plan/getUsers/1');
     expect(resp.status()).toBe(403);
     expect((await resp.json()).code).toBe(120);
   });
 
   test('user with no zone access cannot get zone users list', async ({ page }) => {
     await logIn(page, USER3);
-    const resp = await page.request.get('/xhr/zone/getUsers/1');
+    const resp = await page.request.get('/xhr/plan/getUsers/1');
     expect(resp.status()).toBe(403);
   });
 

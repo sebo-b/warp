@@ -149,7 +149,7 @@ test.describe('delete booking from the bookings page', () => {
     const modal = page.locator('.modal', { hasText: 'Are you sure to delete this booking?' });
     await expect(modal).toBeVisible();
     await Promise.all([
-      page.waitForResponse(r => r.url().includes('/xhr/zone/apply') && r.status() === 200),
+      page.waitForResponse(r => r.url().includes('/xhr/plan/apply') && r.status() === 200),
       modal.locator('a.modal-close', { hasText: /yes/i }).click(),
     ]);
     await page.waitForLoadState('networkidle');
@@ -191,7 +191,7 @@ test.describe('delete booking from the bookings page', () => {
 
     const modal = page.locator('.modal', { hasText: 'Are you sure to delete this booking?' });
     await Promise.all([
-      page.waitForResponse(r => r.url().includes('/xhr/zone/apply') && r.status() === 200),
+      page.waitForResponse(r => r.url().includes('/xhr/plan/apply') && r.status() === 200),
       modal.locator('a.modal-close', { hasText: /yes/i }).click(),
     ]);
     await page.waitForLoadState('networkidle');
