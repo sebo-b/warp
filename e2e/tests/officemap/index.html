@@ -20,6 +20,9 @@
   <button id="mode-follow">mode: follow</button>
   <button id="mode-flat">mode: flat</button>
   <button id="mode-clamp">mode: clamp</button>
+  <span style="width:1px;height:24px;background:#bbb;margin:0 4px"></span>
+  <button id="preset-default" title="fit initial; zoom out to fit, in to 4x; icons clamp .5..2">preset: default</button>
+  <button id="preset-mobile" title="pixel 1:1 initial & max; zoom out to 1:4; icons follow to 1:2 then hold">preset: mobile</button>
   <button id="toggle-dark">dark</button>
   <button id="clear">clear seats</button>
   <button id="reseed">reseed seats</button>
@@ -61,30 +64,49 @@ function seed() {
 }
 
 const target = document.getElementById('map');
-const om = new OfficeMap(target, {
-  mapImage: MAP,
-  sprite: { url: SPRITE_URL, cellWidth: 48, cellHeight: 48 },
-  zoom: { initial: 'fit', min: null, max: 4 },   // null min => fit
-  spriteZoom: { min: 0.5, max: 2 },              // clamp range exercised by mode:clamp
-  filter: null,
-});
+const SPRITE = { url: SPRITE_URL, cellWidth: 48, cellHeight: 48 };
 
-om.addEventListener('click', (e) => { window.__lastClick = e.detail.id; window.__clickCount = (window.__clickCount||0)+1; log(`click id=${e.detail.id}`); });
+// Preset map configs. `mobile` is the setup under evaluation:
+//   - default (initial) size = pixel 1:1, which is also the max zoom
+//   - zoom out down to 1:4 (min = 0.25)
+//   - seat icons follow the map 1:1 down to 1:2, then hold (spriteZoom min .5)
+let om;
+let currentPreset = 'default';
+const PRESETS = {
+  default: { mapImage: MAP, sprite: SPRITE, zoom: { initial: 'fit', min: null, max: 4 }, spriteZoom: { min: 0.5, max: 2 }, filter: null },
+  mobile:  { mapImage: MAP, sprite: SPRITE, zoom: { initial: 1, min: 0.25, max: 1 }, spriteZoom: { min: 0.5, max: 1 }, filter: null },
+};
 
-// Test hooks.
-window.__scale = () => om._pz ? om._pz.getScale() : null;
-window.__pan   = () => om._pz ? om._pz.getPan() : null;
+function refreshStatus(){ document.getElementById('status').textContent = 'preset=' + currentPreset + '  mode=' + om.getSpriteMode(); }
+
+function recreate(name) {
+  currentPreset = name;
+  if (om) om.destroy();
+  om = new OfficeMap(target, PRESETS[name]);
+  om.addEventListener('click', (e) => { window.__lastClick = e.detail.id; window.__clickCount = (window.__clickCount||0)+1; log(`click id=${e.detail.id}`); });
+  window.__om = om;
+  om.createSeats(seed());
+  refreshStatus();
+}
+
+// Test hooks (reference the live `om`, so they stay valid after recreate()).
+window.__scale = () => om && om._pz ? om._pz.getScale() : null;
+window.__pan   = () => om && om._pz ? om._pz.getPan() : null;
 window.__worldRect = () => om.world.getBoundingClientRect();
 window.__bgRect    = () => om.bg.getBoundingClientRect();
 window.__rootRect  = () => om.root.getBoundingClientRect();
 window.__seatRect  = (id) => { const el = document.getElementById('sprite-'+id); return el && el.getBoundingClientRect(); };
 window.__lastClick = null; window.__clickCount = 0;
 window.__resetClicks = () => { window.__lastClick=null; window.__clickCount=0; };
+window.__seed = seed;
 
-function setMode(m){ om.setSpriteMode(m); document.getElementById('status').textContent = 'mode=' + m; }
+function setMode(m){ om.setSpriteMode(m); refreshStatus(); }
 document.getElementById('mode-follow').onclick = () => setMode('follow');
 document.getElementById('mode-flat').onclick   = () => setMode('flat');
 document.getElementById('mode-clamp').onclick  = () => setMode('clamp');
+
+document.getElementById('preset-default').onclick = () => recreate('default');
+document.getElementById('preset-mobile').onclick  = () => recreate('mobile');
 
 document.getElementById('clear').onclick  = () => om.createSeats([]);
 document.getElementById('reseed').onclick = () => om.createSeats(seed());
@@ -99,10 +121,7 @@ darkBtn.onclick = () => {
 const logEl = document.getElementById('log');
 function log(msg){ console.log(msg); logEl.style.display='block'; logEl.textContent += msg + '\n'; logEl.scrollTop = 1e9; }
 
-// Expose for tests.
-window.__om = om;
-window.__seed = seed;
-om.createSeats(seed());
+recreate('default');
 </script>
 </body>
 </html>
