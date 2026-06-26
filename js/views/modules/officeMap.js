@@ -134,7 +134,14 @@ export class OfficeMap extends EventTarget {
     this._cellH = sp.cellHeight || 48;
 
     bg.addEventListener('load', () => this._onImageLoad());
-    if (this.options.mapImage) bg.src = this.options.mapImage;
+    if (this.options.mapImage) {
+      bg.src = this.options.mapImage;
+      // Safari can complete a cached/fast image before (or without) firing the
+      // 'load' event we listen to above, leaving panzoom uninitialised and wheel
+      // zoom dead until something else pokes the element. If the image is
+      // already decoded here, init panzoom straight away.
+      if (bg.complete && bg.naturalWidth > 0) this._onImageLoad();
+    }
 
     root.addEventListener('pointerenter', (e) => this._onPointerEnter(e), true);
     root.addEventListener('pointerleave', (e) => this._onPointerLeave(e), true);

@@ -1983,7 +1983,15 @@ INPUT[type="text"] ~ .show_password_btn::after {
 }
 #planmap .OMHint .OMHintTitle { display: none; }
 #planmap .OMHint .OMHintBody { font-weight: inherit; }
-/* The tooltip frame must match the seat label (grey border), not the brand-blue
-   .seat_preview default, so in dark mode the popup reads as a label, not a
-   harsh coloured box. */
-#planmap .OMHint .seat_preview { position: static; border-color: var(--warp-grey-border); }
+#planmap .OMHint .seat_preview { position: static; }
+/* The tooltip (.seat_preview inside OMHint) mirrors the seat label's theme:
+   light = brand-blue frame + blue title bar on a surface body (the .seat_preview
+   base already does this), dark = surface frame + surface title bar on a tinted
+   body — same tokens as .OMLabel so the two popups match in both modes. */
+:root[theme="dark"] #planmap .OMHint .seat_preview {
+    border-color: var(--warp-surface);
+    background-color: var(--warp-primary-tint);
+}
+:root[theme="dark"] #planmap .OMHint .seat_preview_title {
+    background-color: var(--warp-surface);
+}
