@@ -45,21 +45,11 @@ WarpSeat.SeatStates = {
 }
 
 WarpSeat.Sprites = {
-    spriteSize: 48,
-    iconNames: {
-        plus: 'icon-plus',
-        arrow: 'icon-arrow',
-        head: 'icon-head',
-        headArrow: 'icon-head-arrow',
-        no: 'icon-no',
-        assigned: 'icon-assigned'
-    }
+    spriteSize: 48
 };
 
-function WarpSeatFactory(spriteURL,rootDivId,login) {
+function WarpSeatFactory(login) {
 
-    this.spriteURL = spriteURL;          // kept for help-modal sprite rendering
-    this.rootDiv = document.getElementById(rootDivId);  // OfficeMap target (kept for reference)
     this.login = login;
     this.selectedDates = [];
 
@@ -304,18 +294,6 @@ WarpSeat.prototype.getState = function() {
 
 WarpSeat.prototype.isOtherZone = function() {
     return this.otherZone;
-}
-
-WarpSeat.prototype.getPositionAndSize = function() {
-
-    if (this.otherZone)
-        throw Error("getPositionAndSize can be called only for seats in the current zone")
-
-    return {
-        x: this.x,
-        y: this.y,
-        size: WarpSeat.Sprites.spriteSize
-     };
 }
 
 WarpSeat.prototype.getName = function() {

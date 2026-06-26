@@ -912,10 +912,7 @@ document.addEventListener("DOMContentLoaded", function() {
     initDateSelectorStorage();
     initShiftSelectDates();
 
-    var seatFactory = new WarpSeatFactory(
-        window.warpGlobals.URLs['seatSprite'],
-        "planmap",
-        window.warpGlobals.login);
+    var seatFactory = new WarpSeatFactory(window.warpGlobals.login);
 
     var om = initOfficeMap(seatFactory);
     initActionMenu(seatFactory);
