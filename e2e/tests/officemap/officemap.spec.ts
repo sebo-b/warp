@@ -178,7 +178,7 @@ test.describe('OfficeMap — counter-scale (S1 follow vs S2 flat)', () => {
     const s0 = await page.evaluate(() => window.__scale());
     await page.click('.OMZoom-in');
     await page.waitForFunction((base) => window.__scale() > base + 1e-3, s0);
-    await settle(page);
+    await page.waitForTimeout(280);  // button zoom animates (200ms transition)
     const w1 = (await page.evaluate(() => window.__seatRect('s0')))?.width;
     const s1 = await page.evaluate(() => window.__scale());
     // Glyph grew roughly proportionally with k (follow: width ≈ 48*k).
@@ -191,7 +191,7 @@ test.describe('OfficeMap — counter-scale (S1 follow vs S2 flat)', () => {
     const w0 = (await page.evaluate(() => window.__seatRect('s0')))?.width;
     await page.click('.OMZoom-in');
     await page.click('.OMZoom-in');
-    await settle(page);
+    await page.waitForTimeout(280);  // button zoom animates (200ms transition)
     const w1 = (await page.evaluate(() => window.__seatRect('s0')))?.width;
     // Stays ~48px (the cell size) regardless of zoom.
     expect(Math.abs(w1 - w0)).toBeLessThan(6);
