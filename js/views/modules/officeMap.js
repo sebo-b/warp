@@ -14,7 +14,7 @@ const DEFAULT_CSS = `
 .OMMap{position:relative;overflow:hidden;width:100%;height:100%;touch-action:none;background:var(--warp-map-bg,#f5f5f5);user-select:none}
 .OMBackground{position:absolute;left:0;top:0;width:100%;height:100%;display:block;transform-origin:0 0;pointer-events:none}
 .OMWorld{position:absolute;left:0;top:0;transform-origin:0 0}
-.OMSeat{position:absolute;transform-origin:0 0;cursor:pointer;will-change:transform}
+.OMSeat{position:absolute;transform-origin:50% 50%;cursor:pointer;will-change:transform}
 .OMSeatGlyph{display:block;pointer-events:none}
 .OMLabel{position:absolute;left:50px;top:-2px;max-width:220px;padding:2px 6px;background:var(--warp-label-bg,rgba(255,255,255,.9));border:1px solid var(--warp-label-border,rgba(0,0,0,.15));border-radius:4px;font:12px/1.3 sans-serif;color:var(--warp-label-fg,#333);pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .OMLabelTitle{font-weight:600}
@@ -234,7 +234,7 @@ export class OfficeMap extends EventTarget {
     const k = this._pz.getScale();
     const fn = this._sFn;
     for (const s of this._seats.values()) {
-      const cs = fn(k) / k;            // counter-scale about (0,0)
+      const cs = fn(k) / k;            // counter-scale about the seat center (50% 50%)
       s.el.style.transform = `scale(${cs})`;
     }
   }
@@ -295,13 +295,23 @@ export class OfficeMap extends EventTarget {
     el.id = 'sprite-' + id;
     el.dataset.seatId = String(id);
     el.style.position = 'absolute';
-    el.style.transformOrigin = '0 0';
+    el.style.transformOrigin = '50% 50%';
 
     const glyph = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     glyph.setAttribute('class', 'OMSeatGlyph');
     glyph.setAttribute('viewBox', '0 0 24 24');
     glyph.setAttribute('width', this._cellW);
     glyph.setAttribute('height', this._cellH);
+    // Fallback disc drawn behind the <use>: covered exactly by any valid
+    // cell's own r=10.5 disc, but shows as a loud red disc when the sprite
+    // name has no matching #cell-<name> (unknown state → visible failure,
+    // not a silent blank). §1.
+    const fallback = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    fallback.setAttribute('cx', '12');
+    fallback.setAttribute('cy', '12');
+    fallback.setAttribute('r', '10.5');
+    fallback.setAttribute('fill', 'var(--warp-error, #d32f2f)');
+    glyph.appendChild(fallback);
     const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
     glyph.appendChild(use);
     el.appendChild(glyph);

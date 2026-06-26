@@ -30,9 +30,16 @@ test.describe('OfficeMap — rendering & model', () => {
     const href = await page.locator('#sprite-s0 use').getAttribute('href');
     expect(href).toContain('#cell-available');
 
-    // Unknown sprite name ('bogus') renders with #cell-bogus (loud blank), still present.
-    const seatBogus = await page.locator('.OMSeat').all();
-    // find the bogus one by checking hrefs
+    // Every glyph has a fallback disc (first child) behind the <use>, covered by
+    // valid cells but shown for unknown names (loud red failure, not blank).
+    const fb = await page.locator('#sprite-s0 .OMSeatGlyph').evaluate(svg => {
+      const c = svg.firstElementChild;
+      return c ? { tag: c.tagName, r: c.getAttribute('r'), fill: c.getAttribute('fill') } : null;
+    });
+    expect(fb.tag.toLowerCase()).toBe('circle');
+    expect(fb.r).toBe('10.5');
+
+    // Unknown sprite name ('bogus') renders with #cell-bogus and shows the fallback.
     const hrefs = await page.locator('.OMSeat use').evaluateAll(els => els.map(e => e.getAttribute('href')));
     expect(hrefs.some(h => h.endsWith('#cell-bogus'))).toBeTruthy();
   });

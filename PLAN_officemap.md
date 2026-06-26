@@ -24,8 +24,10 @@ marquee/transform code.
 | Emitting `click` events; rAF-batched redraw when dirty | Persisting/restoring zoom (optional, app-level) |
 
 The component never interprets state names or colours. It builds
-`'#cell-' + sprite` into a `<use href>`; an unknown name renders blank (loud,
-obvious failure). All visual styling of labels/hints/background comes from the
+`'#cell-' + sprite` into a `<use href>`; an unknown name (no matching
+`#cell-<name>`) renders a loud red fallback disc — the glyph `<svg>` draws a
+`r=10.5` disc behind the `<use>` that any valid cell covers exactly, so only
+missing cells show it. All visual styling of labels/hints/background comes from the
 host stylesheet via the component's class names (§5).
 
 ## 2. Coordinate system
@@ -320,7 +322,7 @@ Sprite **size** is controlled by a per-seat **counter-scale** applied on each
 ```
 s(k)  = clamp(k, spriteZoom.min, spriteZoom.max)   // desired sprite scale
  cs    = s(k) / k                                    // counter-scale
- seat.style.transform = `scale(${cs})`               // transform-origin: 0 0
+ seat.style.transform = `scale(${cs})`               // transform-origin: 50% 50%
 ```
 
 The whole policy is the one-line `s(k)` function — all three modes below are the
@@ -344,9 +346,14 @@ proves var resolution is stable under transform), and the SVG scales crisply.
 
 ### Gotchas the implementer must get right
 
-1. **`transform-origin: 0 0` on `OMSeat`.** The counter-scale must keep the
-   seat's top-left (its `x,y`) anchored to its map spot. Default origin
-   (50% 50%) would drift the seat off position as it scales. One CSS rule.
+1. **`transform-origin: 50% 50%` on `OMSeat`.** The seat's logical spot is
+   its **center** — the editor stores `x,y` as the top-left of the 48×48 box
+   (`x - spriteSize/2` on creation), so the center `(x+24, y+24)` is the click
+   point and the label is centred on it. The counter-scale must anchor that
+   center so the glyph grows/shrinks around its spot (matching the 1:1 view,
+   where the center sits on the spot). `0 0` would pin the top-left and drift
+   the center off the spot whenever `cs != 1` (i.e. in flat/clamp modes). One
+   CSS rule.
 2. **Labels are children of `OMSeat`** (not a separate layer) so they ride the
    same counter-scale and stay attached to the (scaled) glyph. This differs
    from today's separate `#zonemap-labels` overlay — in the new component labels
