@@ -483,6 +483,26 @@ no longer mirrors the booking seat class. Optional tidy: extract the shared
 `WarpSeat.SeatStates → sprite name` table into one tiny module imported by both
 `plan.js` and (for its own editor-only states) the editor.
 
+**Status — DONE (commits `604b17b`, `3e9ec80`, `c291cbd`).**
+- #1 deleted the dead `seat.js` surface (`WarpSeat.Sprites.iconNames`, the
+  factory's `spriteURL`/`rootDivId` params+props, `getPositionAndSize()`).
+- #2 rewrote the editor `Seat` to render colour-baked `#cell-*` cells (no
+  `.seat-icon--<color>` host class, no `currentColor`); renamed
+  `zoneModify_seat.js` → `planModify_seat.js`. Added `cell-edited` (green head)
+  to preserve the editor's "modified existing seat = green" signal. The base
+  `seat-icon` class stayed (editor e2e counts it).
+- #3 removed `currentColor` from `seat_icons.svg` entirely (deleted `#disc` + the
+  six `#icon-*` symbols + preview row); the file is now var-only and
+  well-formed XML.
+- #4 (optional tidy) **skipped**: the booking `spriteFor` (over
+  `WarpSeat.SeatStates`) and the editor `Seat.CONFIG.cells` (over editor
+  transactionals: new/edited/existing/deleted) map **different state spaces** —
+  they share sprite *cells* as graphical objects, not *states*. Extracting a
+  shared table would add coupling with no real dedup (YAGNI).
+- Scope note: only the `seat` editor module was renamed; `zoneModify_marquee.js`
+  / `zoneModify_transform.js` keep their names — Phase 4 scoped the rename to
+  `seat`, and the plan editor already lives in `planModify.js`.
+
 **Remove `currentColor` from `seat_icons.svg`.** The pre-existing `#disc` and
 the six `#icon-*` symbols still use `currentColor` (set via `color` on the
 host `.seat-icon--<color>` class) because the editor and the pre-cutover
@@ -491,8 +511,20 @@ new `#cell-*` cells) and the Phase 4 editor rewrite (editor picks
 colour-baked symbols instead of one-shape-symbol-coloured-by-host), delete
 `currentColor` from the file entirely so the SVG is var-only.
 
+**Status — DONE (commit `c291cbd`).** `#disc`, the six `#icon-*` symbols, the
+`.seat-icon--*` CSS, and the `--warp-seat-bg` plumbing all removed. The file is
+var-only (cells read `:root --warp-seat-*-{fg,bg}` directly) and well-formed
+XML. (Side-fix uncovered: SVG/XML comments forbidding `--` — reworded comments.)
+
 During Phase 1 → 2 the old and new map code coexist (old in `plan.html`, new in
 tests); Phase 2 is the cutover. Phases 3–4 are cleanup after the cutover.
+
+**All four rollout phases are complete.** Phase 4 also added a self-containment
+pass on OfficeMap itself (own flat `--om-*` tokens with `var()` fallbacks,
+host maps them to `--warp-*` in style.css; leak-free lifecycle: the global
+`blur` listener is removed and timers cleared in `destroy()`, the synthetic
+`pointerup` release is guarded). OfficeMap is theme-agnostic and works
+standalone (fallback tokens) or themed (host-mapped).
 
 ## 11. Explicit non-goals
 
