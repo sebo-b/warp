@@ -2,7 +2,7 @@
 
 import Utils from './modules/utils.js';
 import WarpModal from './modules/modal.js';
-import { SeatFactory, spriteSize} from './modules/zoneModify_seat.js';
+import { SeatFactory, spriteSize} from './modules/planModify_seat.js';
 import { MarqueeController } from './modules/zoneModify_marquee.js';
 import { TransformController } from './modules/zoneModify_transform.js';
 

@@ -97,6 +97,12 @@
       <use href="#plus-path" fill="var(--warp-seat-yours-fg)"/>
     </g>
 
+    <g id="cell-edited">              <!-- head, green (editor: existing seat with unsaved changes) -->
+      <circle cx="12" cy="12" r="10.5" fill="var(--warp-seat-available-bg)"/>
+      <circle cx="12" cy="12" r="10.5" fill="none" stroke="var(--warp-seat-available-fg)" stroke-width="1.5"/>
+      <use href="#head-path" fill="var(--warp-seat-available-fg)"/>
+    </g>
+
     <g id="cell-rebook">             <!-- arrow, green -->
       <circle cx="12" cy="12" r="10.5" fill="var(--warp-seat-available-bg)"/>
       <circle cx="12" cy="12" r="10.5" fill="none" stroke="var(--warp-seat-available-fg)" stroke-width="1.5"/>
