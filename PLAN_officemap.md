@@ -473,6 +473,14 @@ no longer mirrors the booking seat class. Optional tidy: extract the shared
 `WarpSeat.SeatStates → sprite name` table into one tiny module imported by both
 `plan.js` and (for its own editor-only states) the editor.
 
+**Remove `currentColor` from `seat_icons.svg`.** The pre-existing `#disc` and
+the six `#icon-*` symbols still use `currentColor` (set via `color` on the
+host `.seat-icon--<color>` class) because the editor and the pre-cutover
+booking view depend on it. After the Phase 2 cutover (booking view uses the
+new `#cell-*` cells) and the Phase 4 editor rewrite (editor picks
+colour-baked symbols instead of one-shape-symbol-coloured-by-host), delete
+`currentColor` from the file entirely so the SVG is var-only.
+
 During Phase 1 → 2 the old and new map code coexist (old in `plan.html`, new in
 tests); Phase 2 is the cutover. Phases 3–4 are cleanup after the cutover.
 
