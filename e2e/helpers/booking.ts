@@ -60,7 +60,7 @@ export async function selectOnlyDates(page: Page, timestamps: number[]): Promise
   }
 }
 
-/** Click the center of a seat sprite within #zonemap. Seats are 48×48 px. */
+/** Click the center of a seat sprite within #planmap. Seats are 48×48 px. */
 /** Click a seat by its stable OfficeMap id (#sprite-<sid>), robust to pan/zoom. */
 export async function clickZoneSeat(page: Page, seat: SeatRow): Promise<void> {
   await page.locator(`#sprite-${seat.id}`).click();
@@ -94,7 +94,7 @@ export async function bookSeatUI(
   // Flask's request teardown to close the DB connection (commit becomes visible).
   await Promise.all([
     page.waitForResponse(r => r.url().includes('/xhr/zone/apply') && r.status() === 200),
-    page.locator('.zone_action_btn[data-action="book"]').click(),
+    page.locator('.plan_action_btn[data-action="book"]').click(),
   ]);
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(200);
@@ -110,7 +110,7 @@ export async function clickActionBtn(
 ): Promise<void> {
   await Promise.all([
     page.waitForResponse(r => r.url().includes('/xhr/zone/apply') && r.status() === 200),
-    page.locator(`.zone_action_btn[data-action="${action}"]`).click(),
+    page.locator(`.plan_action_btn[data-action="${action}"]`).click(),
   ]);
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(200);

@@ -33,9 +33,9 @@ test.describe('zone admin action modal', () => {
     await clickZoneSeat(page, seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
 
-    await expect(page.locator('.zone_action_btn[data-action="assign-modal"]')).toBeVisible();
-    await expect(page.locator('.zone_action_btn[data-action="disable"]')).toBeVisible();
-    await expect(page.locator('.zone_action_btn[data-action="book"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="assign-modal"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="disable"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="book"]')).toBeVisible();
   });
 
   test('regular user does NOT see Assign or Disable buttons', async ({ page }) => {
@@ -49,8 +49,8 @@ test.describe('zone admin action modal', () => {
     await clickZoneSeat(page, seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
 
-    await expect(page.locator('.zone_action_btn[data-action="assign-modal"]')).not.toBeVisible();
-    await expect(page.locator('.zone_action_btn[data-action="disable"]')).not.toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="assign-modal"]')).not.toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="disable"]')).not.toBeVisible();
   });
 
 });
@@ -87,8 +87,8 @@ test.describe('disable and enable seats', () => {
 
     await clickZoneSeat(page, seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
-    await expect(page.locator('.zone_action_btn[data-action="enable"]')).toBeVisible();
-    await expect(page.locator('.zone_action_btn[data-action="disable"]')).not.toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="enable"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="disable"]')).not.toBeVisible();
   });
 
   test('zone admin can re-enable a disabled seat', async ({ page }) => {

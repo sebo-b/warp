@@ -66,7 +66,7 @@ async function seatActions(page: any, seat: any): Promise<string[]> {
   }
   const actions: string[] = [];
   for (const a of ['book', 'update', 'delete', 'enable', 'disable']) {
-    if (await page.locator(`.zone_action_btn[data-action="${a}"]`).isVisible())
+    if (await page.locator(`.plan_action_btn[data-action="${a}"]`).isVisible())
       actions.push(a);
   }
   await page.keyboard.press('Escape');
@@ -107,7 +107,7 @@ test.describe('book-as + zone group', () => {
     // actions, no delete).
     await clickZoneSeat(page, zone2Seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
-    await expect(page.locator('.zone_action_btn[data-action="delete"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="delete"]')).toBeVisible();
   });
 
   test('rebooking across a same-group zone via book-as leaves consistent state after refresh', async ({ page }) => {
@@ -142,7 +142,7 @@ test.describe('book-as + zone group', () => {
     // Zone 1B seat is same-group → rebook (update), moving user2's booking.
     await clickZoneSeat(page, zone2Seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
-    await expect(page.locator('.zone_action_btn[data-action="update"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="update"]')).toBeVisible();
     await clickActionBtn(page, 'update');
 
     // Exactly one booking remains, now on Zone 1B, still owned by user2.
@@ -155,14 +155,14 @@ test.describe('book-as + zone group', () => {
     // booking), and the booked Zone 1B seat is deletable.
     await clickZoneSeat(page, zone1Seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
-    await expect(page.locator('.zone_action_btn[data-action="update"]')).toBeVisible();
-    await expect(page.locator('.zone_action_btn[data-action="book"]')).not.toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="update"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="book"]')).not.toBeVisible();
     await page.keyboard.press('Escape');
     await page.waitForTimeout(200);
 
     await clickZoneSeat(page, zone2Seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
-    await expect(page.locator('.zone_action_btn[data-action="delete"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="delete"]')).toBeVisible();
   });
 
   test('book-as a viewer-only user marks the seat not bookable (Fix 5)', async ({ page }) => {
@@ -185,7 +185,7 @@ test.describe('book-as + zone group', () => {
     // Sanity: as themselves (admin), the seat is bookable.
     await clickZoneSeat(page, parkingSeat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
-    await expect(page.locator('.zone_action_btn[data-action="book"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="book"]')).toBeVisible();
     await page.keyboard.press('Escape');
     await page.waitForTimeout(200);
 
@@ -262,8 +262,8 @@ test.describe('book-as + zone group', () => {
 
     await clickZoneSeat(page, zone1Seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
-    await expect(page.locator('.zone_action_btn[data-action="update"]')).toBeVisible();
-    await expect(page.locator('.zone_action_btn[data-action="book"]')).not.toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="update"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="book"]')).not.toBeVisible();
     // The conflicting Parking booking is listed for removal (built by
     // getMyConflictingBookings, which matches on the acting login).
     await expect(page.locator('#action_modal_msg2')).toContainText('Parking');

@@ -183,7 +183,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 return;
 
             Utils.xhr.post(
-                window.warpGlobals.URLs['zoneApply'],
+                window.warpGlobals.URLs['planApply'],
                 { remove: [ bid ]}
             ).then( () => {
                 cell.getTable().replaceData();

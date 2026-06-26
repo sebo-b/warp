@@ -736,7 +736,7 @@ nav .dropdown-content li > span {
    group compact, pinned, with a divider. Shared by every form dialog and the
    zone-map help modal; only the alignment differs (see below). */
 .warp-form-modal .modal-footer,
-#zonemap_help_modal .modal-footer {
+#planmap_help_modal .modal-footer {
     display: flex;
     justify-content: flex-end;
     align-items: center;   /* keep buttons of differing heights baseline-aligned */
@@ -746,10 +746,10 @@ nav .dropdown-content li > span {
     background-color: var(--warp-grey-bg);
     position: static;
 }
-#zonemap_help_modal .modal-footer { justify-content: center; }
+#planmap_help_modal .modal-footer { justify-content: center; }
 .warp-form-modal .modal-footer .btn,
 .warp-form-modal .modal-footer .btn-flat {
-    margin: 0;   /* neutralise stray margins (e.g. .zone_action_btn) so the
+    margin: 0;   /* neutralise stray margins (e.g. .plan_action_btn) so the
                     footer's gap is the only spacing */
 }
 .warp-form-modal .modal-footer .btn-flat:hover {
@@ -1011,7 +1011,7 @@ nav .dropdown-content li > span {
     float: right;
 }
 
-.zone_container,
+.plan_container,
 .zone_modify_container {
     display: flex;
     flex-direction: row;
@@ -1020,7 +1020,7 @@ nav .dropdown-content li > span {
     min-width: 0px;
 }
 
-#zone_sidepanel {
+#plan_sidepanel {
     flex: none;
     display: flex;
     flex-direction: column;
@@ -1029,23 +1029,23 @@ nav .dropdown-content li > span {
     z-index: 1;
 }
 
-.zone_sidepanel_close {
+.plan_sidepanel_close {
     display: none;
     margin-left: auto;
     cursor: pointer;
 }
 
-.zone_sidepanel_topcontainer {
+.plan_sidepanel_topcontainer {
     display: flex;
     flex-direction: row;
 }
 
-.zone_datetime_container {
+.plan_datetime_container {
     display: flex;
     flex-direction: row;
 }
 
-.zonemap_datetime_trigger {
+.planmap_datetime_trigger {
     position: fixed;
     left: 0px;
     color: var(--warp-primary);
@@ -1054,14 +1054,14 @@ nav .dropdown-content li > span {
     z-index: 4;
 }
 
-.zonemap_datetime_trigger svg {
+.planmap_datetime_trigger svg {
     display: block;
     margin-top: 8px;
     margin-left: -2px;
 }
 
 @media only screen and (max-width : 993px) {
-    #zone_sidepanel {
+    #plan_sidepanel {
         position: fixed;
         max-height: calc(100% - 56px);
         background-color: var(--warp-surface);
@@ -1073,57 +1073,57 @@ nav .dropdown-content li > span {
 
     /* nav header is becoming bigger from 601px, so we need to recalculate */
     @media only screen and (min-width: 601px) {
-        #zone_sidepanel {
+        #plan_sidepanel {
             max-height: calc(100% - 64px);
         }
     }
 
-    .zone_sidepanel_close {
+    .plan_sidepanel_close {
         display: block;
     }
 
-    .zonemap_datetime_trigger {
+    .planmap_datetime_trigger {
         display: block;
     }
 }
 
-.zone_datelist {
+.plan_datelist {
     flex: 1 1 auto;
     font-size: 1rem;
     text-align: left;
     padding: 8px 0;
 }
-.zone_datelist p,
-.zone_datelist label,
-.zone_datelist span {
+.plan_datelist p,
+.plan_datelist label,
+.plan_datelist span {
     font-size: 1rem;
 }
-.zone_datelist p {
+.plan_datelist p {
     margin: 0;
     padding: 6px 0;
     line-height: 1.4;
 }
-.zone_datelist label {
+.plan_datelist label {
     display: flex;
     align-items: center;
     gap: 10px;
 }
-.zone_datelist .filled-in {
+.plan_datelist .filled-in {
     flex-shrink: 0;
 }
-.zone_timeslider {
+.plan_timeslider {
     flex: 0 0 auto;
     display: flex;
     flex-direction: column;
     align-items: center;
     margin-left: 16px;
 }
-.zone_datetime_container {
+.plan_datetime_container {
     justify-content: space-between;
     align-items: flex-start;
 }
 
-.zone_map,
+.plan_map,
 .zone_modify_map {
     flex: 0 1 auto;
     min-width: 0px;
@@ -1170,7 +1170,7 @@ nav .dropdown-content li > span {
 /* z-index keeps this fixed overlay above the map <img>: the dark-mode image
    filter (zone.js applyPlanMapFilter) turns the img into a stacking context
    that otherwise paints over an auto-z fixed sibling. Above labels (2) too. */
-.zonemap_help {
+.planmap_help {
     position: absolute;
     left: 0px;
     bottom: 0px;
@@ -1179,7 +1179,7 @@ nav .dropdown-content li > span {
     z-index: 6;
 }
 
-.zonemap_help svg {
+.planmap_help svg {
     display: block;
     margin: 8px;
 }
@@ -1188,25 +1188,26 @@ nav .dropdown-content li > span {
    the reverse of light mode's white disc + brand ring, so they read on the
    dark map instead of a bright white disc. The disc is the only shape using
    --warp-on-brand (its fill); the ring/symbol use currentColor (color). */
-:root[theme="dark"] .zonemap_help,
-:root[theme="dark"] .zonemap_datetime_trigger {
+:root[theme="dark"] .planmap_help,
+:root[theme="dark"] .planmap_datetime_trigger {
     color: var(--warp-on-brand);
 }
-:root[theme="dark"] .zonemap_help .warp-icon-disc,
-:root[theme="dark"] .zonemap_datetime_trigger .warp-icon-disc {
+:root[theme="dark"] .planmap_help .warp-icon-disc,
+:root[theme="dark"] .planmap_datetime_trigger .warp-icon-disc {
     fill: var(--warp-grey-bg);
 }
 
-.zone_action_btn {
+.zone_action_btn,
+.plan_action_btn {
     /*width: 100px;*/
     margin: 5px;
 }
 
-#action_modal .zone_action_btn {
+#action_modal .plan_action_btn {
     display: none;
 }
 
-#action_modal .zone_action_btn.active {
+#action_modal .plan_action_btn.active {
     display: inline-flex;
 }
 
@@ -1232,7 +1233,7 @@ nav .dropdown-content li > span {
     align-items: center;
     gap: var(--warp-space-2);
 }
-.action_modal_buttons .zone_action_btn {
+.action_modal_buttons .plan_action_btn {
     margin: 0;
 }
 
@@ -1270,7 +1271,7 @@ nav .dropdown-content li > span {
     vertical-align: middle;
 }
 
-.zonemap-labels {
+.planmap-labels {
     position: absolute;
     top: 0;
     left: 0;
@@ -1861,30 +1862,30 @@ INPUT[type="text"] ~ .show_password_btn::after {
 
 /* The help modal has a tall table of sprite explanations. Make it scrollable
    with a sticky footer so the OK button is always reachable. */
-#zonemap_help_modal {
+#planmap_help_modal {
     max-height: 80vh;
     overflow-y: auto;
     background-color: var(--warp-surface);
     color: var(--warp-text);
 }
-#zonemap_help_modal .modal-content {
+#planmap_help_modal .modal-content {
     padding: var(--warp-space-5);
 }
-#zonemap_help_modal .modal-content > table {
+#planmap_help_modal .modal-content > table {
     width: 100%;
     border-collapse: collapse;
 }
-#zonemap_help_modal .modal-content > table td {
+#planmap_help_modal .modal-content > table td {
     padding: var(--warp-space-2) 0;
     vertical-align: top;
 }
-#zonemap_help_modal .modal-content > table tr + tr td {
+#planmap_help_modal .modal-content > table tr + tr td {
     border-top: 1px solid var(--warp-grey-border);
 }
 
 
 /* ===== OfficeMap integration (booking view) =====
-   #zonemap is the OfficeMap target. Seats, labels and the hover hint are
+   #planmap is the OfficeMap target. Seats, labels and the hover hint are
    OfficeMap-owned (OMSeat / OMLabel / OMHint). The label is the native
    OMLabelTitle (seat name) + OMLabelBody (a flat list of name divs); the hint
    is OfficeMap's positioned OMHint popup wrapping the .seat_preview node.
@@ -1892,11 +1893,11 @@ INPUT[type="text"] ~ .show_password_btn::after {
 /* The booking container fills the viewport height: the sidepanel is a slide-in
    sidenav on mobile (position:fixed, out of flow), so without this the map would
    collapse to 0 height. */
-.zone_container {
+.plan_container {
     flex: 1 1 auto;
     min-height: 0;
 }
-#zonemap {
+#planmap {
     overflow: hidden;          /* OfficeMap manages pan/zoom; no native scroll */
     flex: 1 1 auto;            /* fill remaining width (the old <img> gave it intrinsic width) */
     min-width: 0;
@@ -1905,7 +1906,7 @@ INPUT[type="text"] ~ .show_password_btn::after {
 /* Label: a small framed box centred below the seat. Title = seat name (1 line);
    body = one div per name, each wrapping up to 2 rows so a first+surname is
    less likely to be cut. */
-#zonemap .OMLabel {
+#planmap .OMLabel {
     position: absolute;
     left: 50%;
     top: 34px;                 /* overlaps the seat's lower ~14px, like the old label */
@@ -1921,7 +1922,7 @@ INPUT[type="text"] ~ .show_password_btn::after {
     pointer-events: none;
     white-space: nowrap;
 }
-#zonemap .OMLabelTitle {
+#planmap .OMLabelTitle {
     background: var(--warp-primary);
     color: var(--warp-on-brand);
     padding: 0 4px;
@@ -1931,29 +1932,29 @@ INPUT[type="text"] ~ .show_password_btn::after {
     white-space: nowrap;
     font-weight: 600;
 }
-#zonemap .OMLabelBody { padding: 1px 4px; }
-#zonemap .OMLabelBody .seat_label_name {
+#planmap .OMLabelBody { padding: 1px 4px; }
+#planmap .OMLabelBody .seat_label_name {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-:root[theme="dark"] #zonemap .OMLabel {
+:root[theme="dark"] #planmap .OMLabel {
     border-color: var(--warp-surface);
     background: var(--warp-primary-tint);
 }
-:root[theme="dark"] #zonemap .OMLabelTitle {
+:root[theme="dark"] #planmap .OMLabelTitle {
     background: var(--warp-surface);
 }
 
 /* The hint popup is OfficeMap's OMHint; the .seat_preview node provides the
    visual, so OMHint is a bare positioned wrapper and .seat_preview is static. */
-#zonemap .OMHint {
+#planmap .OMHint {
     padding: 0;
     background: none;
     border: none;
     box-shadow: none;
     max-width: 320px;
 }
-#zonemap .OMHint .OMHintTitle { display: none; }
-#zonemap .OMHint .OMHintBody { font-weight: inherit; }
-#zonemap .OMHint .seat_preview { position: static; }
+#planmap .OMHint .OMHintTitle { display: none; }
+#planmap .OMHint .OMHintBody { font-weight: inherit; }
+#planmap .OMHint .seat_preview { position: static; }

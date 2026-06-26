@@ -88,7 +88,7 @@ test.describe('per-zone booking constraint', () => {
     await clickZoneSeat(page, zone2Seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
     // Action should be "book" (not "update") — no conflict between different zones
-    await expect(page.locator('.zone_action_btn[data-action="book"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="book"]')).toBeVisible();
     await clickActionBtn(page, 'book');
 
     // Both bookings exist — Zone 1A was NOT removed
@@ -312,7 +312,7 @@ test.describe('zone group constraint (non-null zone_group)', () => {
     await clickZoneSeat(page, zone2Seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
     // Same zone_group → action should be "update" (rebook), not just "book"
-    await expect(page.locator('.zone_action_btn[data-action="update"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="update"]')).toBeVisible();
 
     // Confirming the rebook should move the booking from Zone 1A to Zone 1B
     await clickActionBtn(page, 'update');
@@ -347,7 +347,7 @@ test.describe('zone group constraint (non-null zone_group)', () => {
     await page.waitForTimeout(400);
     await clickZoneSeat(page, zone2Seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
-    await expect(page.locator('.zone_action_btn[data-action="update"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="update"]')).toBeVisible();
 
     // Confirming should move the booking
     await clickActionBtn(page, 'update');
@@ -395,9 +395,9 @@ test.describe('zone group constraint (non-null zone_group)', () => {
     // already has a same-group booking on plan 1
     await clickZoneSeat(page, zone2Seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
-    await expect(page.locator('.zone_action_btn[data-action="update"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="update"]')).toBeVisible();
     // Plain "book" should NOT be shown (only "update" for CAN_REBOOK)
-    await expect(page.locator('.zone_action_btn[data-action="book"]')).not.toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="book"]')).not.toBeVisible();
   });
 
   test('UI: seat shows rebook icon when same-group booking exists on a disabled seat', async ({ page }) => {
@@ -437,7 +437,7 @@ test.describe('zone group constraint (non-null zone_group)', () => {
     await page.waitForTimeout(400);
     await clickZoneSeat(page, zone2Seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
-    await expect(page.locator('.zone_action_btn[data-action="update"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="update"]')).toBeVisible();
   });
 
   test('UI: three zones in same group across two plans — all detect conflict', async ({ page }) => {
@@ -467,7 +467,7 @@ test.describe('zone group constraint (non-null zone_group)', () => {
     await page.waitForTimeout(400);
     await clickZoneSeat(page, zone2Seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
-    await expect(page.locator('.zone_action_btn[data-action="update"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="update"]')).toBeVisible();
     // Dismiss modal (Escape closes Materialize modals)
     await page.keyboard.press('Escape');
     await page.waitForTimeout(200);
@@ -479,7 +479,7 @@ test.describe('zone group constraint (non-null zone_group)', () => {
     await page.waitForTimeout(400);
     await clickZoneSeat(page, zone3Seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
-    await expect(page.locator('.zone_action_btn[data-action="update"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="update"]')).toBeVisible();
   });
 
   test('UI: no conflict when booking exists in a different zone group on another plan', async ({ page }) => {
@@ -507,8 +507,8 @@ test.describe('zone group constraint (non-null zone_group)', () => {
     await page.waitForTimeout(400);
     await clickZoneSeat(page, zone2Seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
-    await expect(page.locator('.zone_action_btn[data-action="book"]')).toBeVisible();
-    await expect(page.locator('.zone_action_btn[data-action="update"]')).not.toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="book"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="update"]')).not.toBeVisible();
   });
 
   test('UI: inaccessible same-plan zone with same group still shows rebook', async ({ page }) => {
@@ -547,8 +547,8 @@ test.describe('zone group constraint (non-null zone_group)', () => {
     await clickZoneSeat(page, otherZone1Seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
     // Same-group conflict on an inaccessible seat → rebook, not plain book
-    await expect(page.locator('.zone_action_btn[data-action="update"]')).toBeVisible();
-    await expect(page.locator('.zone_action_btn[data-action="book"]')).not.toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="update"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="book"]')).not.toBeVisible();
   });
 
 });

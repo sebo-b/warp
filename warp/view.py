@@ -136,7 +136,7 @@ def plan(pid):
     default_time = prefs.get('default_time', [9 * 3600, 17 * 3600])
     default_day = prefs.get('default_day', 'same')
 
-    zonePreviewPrefs = {
+    planPreviewPrefs = {
         'show_seat_names': prefs.get('zone_show_seat_names', False),
         'show_booking_preview': prefs.get('zone_show_booking_preview', False),
         'show_assigned_names': prefs.get('zone_show_assigned_names', False),
@@ -177,7 +177,7 @@ def plan(pid):
                                  nextWeek=nextWeek,
                                  today=utils.today(),
                                  defaultSelectedDates=defaultSelectedDates,
-                                 zonePreviewPrefs=zonePreviewPrefs)
+                                 planPreviewPrefs=planPreviewPrefs)
 
 
 @bp.route("/plan/image/<pid>")

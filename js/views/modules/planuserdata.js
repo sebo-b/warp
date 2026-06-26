@@ -2,7 +2,7 @@
 
 import Utils from "./utils";
 
-export default function ZoneUserData() {
+export default function PlanUserData() {
 
     this.__data = null;
     this.listeners = {
@@ -10,7 +10,7 @@ export default function ZoneUserData() {
     };
 }
 
-Object.defineProperty(ZoneUserData.prototype, "data", {
+Object.defineProperty(PlanUserData.prototype, "data", {
     get: function() {
 
         if (!this.__data)
@@ -31,11 +31,11 @@ Object.defineProperty(ZoneUserData.prototype, "data", {
 
 
 
-ZoneUserData.makeUserStr = function(login,name) {
+PlanUserData.makeUserStr = function(login,name) {
     return  name + " ["+login+"]";
 };
 
-ZoneUserData.makeUserStrRev = function (str) {
+PlanUserData.makeUserStrRev = function (str) {
     const regEx = /\[([^[]*)\]$/;
     var login = str.match(regEx);
 
@@ -46,29 +46,29 @@ ZoneUserData.makeUserStrRev = function (str) {
 };
 
 
-ZoneUserData.getInstance = function() {
+PlanUserData.getInstance = function() {
 
-    if (typeof(ZoneUserData.instance) === 'undefined') {
-        ZoneUserData.instance = new ZoneUserData();
+    if (typeof(PlanUserData.instance) === 'undefined') {
+        PlanUserData.instance = new PlanUserData();
     }
 
-    return ZoneUserData.instance;
+    return PlanUserData.instance;
 }
 
-ZoneUserData.prototype.getData = function() {
+PlanUserData.prototype.getData = function() {
 
     return this.data;
 }
 
-ZoneUserData.prototype.formatedIterator = function*() {
+PlanUserData.prototype.formatedIterator = function*() {
 
     for (let login in this.data) {
-        yield ZoneUserData.makeUserStr(login, this.data[login]);
+        yield PlanUserData.makeUserStr(login, this.data[login]);
     }
 }
 
 // this is just a shortcut function to warp globals
-ZoneUserData.prototype.whoami = function() {
+PlanUserData.prototype.whoami = function() {
     let login = window.warpGlobals.login;
     if (typeof(login) === 'undefined')
         throw Error('document.warpGlobals.login not defined');
@@ -76,14 +76,14 @@ ZoneUserData.prototype.whoami = function() {
     return login;
 }
 
-ZoneUserData.prototype.makeUserStr = function(login) {
+PlanUserData.prototype.makeUserStr = function(login) {
 
-    return ZoneUserData.makeUserStr( login, this.data[login]);
+    return PlanUserData.makeUserStr( login, this.data[login]);
 }
 
-ZoneUserData.prototype.makeUserStrRev = function (str) {
+PlanUserData.prototype.makeUserStrRev = function (str) {
 
-    let login = ZoneUserData.makeUserStrRev(str);
+    let login = PlanUserData.makeUserStrRev(str);
     if (!(login in this.data))
         return null;
 
@@ -91,7 +91,7 @@ ZoneUserData.prototype.makeUserStrRev = function (str) {
 }
 
 // TODO switch to Utils.listeners
-ZoneUserData.prototype.on = function (type,listener) {
+PlanUserData.prototype.on = function (type,listener) {
 
     if (type in this.listeners && typeof(listener) === 'function') {
         this.listeners[type].add(listener);
@@ -104,12 +104,12 @@ ZoneUserData.prototype.on = function (type,listener) {
     }
 }
 
-ZoneUserData.init = function() {
+PlanUserData.init = function() {
 
     Utils.xhr.get(
-        window.warpGlobals.URLs['zoneGetUsers'],
+        window.warpGlobals.URLs['planGetUsers'],
         {toastOnSuccess:false})
     .then( (e) => {
-        ZoneUserData.getInstance().data = e.response;
+        PlanUserData.getInstance().data = e.response;
     })
 }

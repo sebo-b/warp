@@ -170,7 +170,7 @@ test.describe('assign seat modal UI', () => {
     const [seat] = await getZoneSeats(1);
     await clickZoneSeat(page, seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
-    await page.locator('.zone_action_btn[data-action="assign-modal"]').click();
+    await page.locator('.plan_action_btn[data-action="assign-modal"]').click();
 
     await expect(page.locator('#assigned_seat_modal')).toHaveClass(/open/);
     await expect(page.locator('#assigned_seat_add_input')).toBeVisible();
@@ -186,7 +186,7 @@ test.describe('assign seat modal UI', () => {
     const [seat] = await getZoneSeats(1);
     await clickZoneSeat(page, seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
-    await page.locator('.zone_action_btn[data-action="assign-modal"]').click();
+    await page.locator('.plan_action_btn[data-action="assign-modal"]').click();
     await expect(page.locator('#assigned_seat_modal')).toHaveClass(/open/);
 
     const addInput = page.locator('#assigned_seat_add_input');
@@ -205,7 +205,7 @@ test.describe('assign seat modal UI', () => {
 
     await Promise.all([
       page.waitForResponse(r => r.url().includes('/xhr/zone/apply') && r.status() === 200),
-      page.locator('#assigned_seat_modal .zone_action_btn[data-action="assign"]').click(),
+      page.locator('#assigned_seat_modal .plan_action_btn[data-action="assign"]').click(),
     ]);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(200);

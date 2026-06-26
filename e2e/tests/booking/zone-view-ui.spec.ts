@@ -24,8 +24,8 @@ test.describe('zone map help legend', () => {
     await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
 
-    await page.locator('.zonemap_help').first().click();
-    const modal = page.locator('#zonemap_help_modal');
+    await page.locator('.planmap_help').first().click();
+    const modal = page.locator('#planmap_help_modal');
     await expect(modal).toHaveClass(/open/);
     // The legend explains the seat sprites (book, rebook, conflict, taken, …).
     expect(await modal.locator('.help_modal_sprite').count()).toBeGreaterThanOrEqual(5);

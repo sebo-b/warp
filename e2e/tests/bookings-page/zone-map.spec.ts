@@ -40,7 +40,7 @@ test.describe('zone map booking flow (end-to-end)', () => {
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
     await Promise.all([
       page.waitForResponse(r => r.url().includes('/xhr/zone/apply') && r.status() === 200),
-      page.locator('.zone_action_btn[data-action="delete"]').click(),
+      page.locator('.plan_action_btn[data-action="delete"]').click(),
     ]);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(200);
@@ -73,8 +73,8 @@ test.describe('zone map booking flow (end-to-end)', () => {
     await page.waitForTimeout(400);
     await clickZoneSeat(page, seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
-    await expect(page.locator('.zone_action_btn[data-action="book"]')).toBeVisible();
-    await expect(page.locator('.zone_action_btn[data-action="delete"]')).not.toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="book"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="delete"]')).not.toBeVisible();
   });
 
   test('direct API booking shows up on the bookings page', async ({ page }) => {
