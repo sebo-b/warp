@@ -1890,6 +1890,24 @@ INPUT[type="text"] ~ .show_password_btn::after {
    OMLabelTitle (seat name) + OMLabelBody (a flat list of name divs); the hint
    is OfficeMap's positioned OMHint popup wrapping the .seat_preview node.
    Labels sit inside OMSeat and ride the counter-scale. */
+
+/* Map OfficeMap's flat --om-* tokens to the app theme vars (which flip
+   light/dark in theme.css), so the component is themed by the host without
+   OfficeMap knowing about themes. */
+:root {
+    --om-map-bg: var(--warp-grey-bg);
+    --om-label-bg: var(--warp-surface);
+    --om-label-border: var(--warp-grey-border);
+    --om-label-fg: var(--warp-text);
+    --om-hint-bg: var(--warp-surface);
+    --om-hint-border: var(--warp-grey-border);
+    --om-hint-fg: var(--warp-text);
+    --om-zoom-bg: var(--warp-surface);
+    --om-zoom-border: var(--warp-grey-border);
+    --om-zoom-fg: var(--warp-text);
+    --om-zoom-bg-hover: var(--warp-grey-bg);
+    --om-fallback: var(--warp-error);
+}
 /* The booking container fills the viewport height: the sidepanel is a slide-in
    sidenav on mobile (position:fixed, out of flow), so without this the map would
    collapse to 0 height. */

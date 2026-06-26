@@ -10,22 +10,27 @@ import Panzoom from '@panzoom/panzoom';
 
 const STYLE_ID = 'officemap-default-styles';
 
+// OfficeMap's own design tokens — FLAT, mode-independent defaults, used as
+// var() fallbacks below (e.g. background:var(--om-map-bg,#f5f5f5)). The
+// component is theme-agnostic; a host defines the --om-* vars (mapped to its
+// own theme vars) to theme it. With no host override, the fallbacks apply so it
+// works standalone.
 const DEFAULT_CSS = `
-.OMMap{position:relative;overflow:hidden;width:100%;height:100%;touch-action:none;background:var(--warp-grey-bg,#f5f5f5);user-select:none}
+.OMMap{position:relative;overflow:hidden;width:100%;height:100%;touch-action:none;background:var(--om-map-bg,#f5f5f5);user-select:none}
 .OMBackground{position:absolute;left:0;top:0;width:100%;height:100%;display:block;transform-origin:0 0;pointer-events:none}
 .OMWorld{position:absolute;left:0;top:0;transform-origin:0 0}
 .OMSeat{position:absolute;cursor:pointer}
 .OMSeatGlyph{display:block;pointer-events:none;transform-origin:50% 50%;will-change:transform;transition:none}
-.OMLabel{position:absolute;left:50px;top:-2px;max-width:220px;z-index:10;padding:2px 6px;background:var(--warp-label-bg,rgba(255,255,255,.9));border:1px solid var(--warp-label-border,rgba(0,0,0,.15));border-radius:4px;font:12px/1.3 sans-serif;color:var(--warp-label-fg,#333);pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.OMLabel{position:absolute;left:50px;top:-2px;max-width:220px;z-index:10;padding:2px 6px;background:var(--om-label-bg,rgba(255,255,255,.94));border:1px solid var(--om-label-border,rgba(0,0,0,.15));border-radius:4px;font:12px/1.3 sans-serif;color:var(--om-label-fg,#333);pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .OMLabelTitle{font-weight:600}
 .OMLabelBody{margin-top:1px;font-weight:400;opacity:.85}
-.OMHint{position:absolute;z-index:10;max-width:280px;padding:8px 10px;background:var(--warp-hint-bg,#fff);border:1px solid var(--warp-hint-border,rgba(0,0,0,.2));border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.18);font:13px/1.4 sans-serif;color:var(--warp-hint-fg,#222);pointer-events:none;display:none}
+.OMHint{position:absolute;z-index:10;max-width:280px;padding:8px 10px;background:var(--om-hint-bg,#fff);border:1px solid var(--om-hint-border,rgba(0,0,0,.2));border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.18);font:13px/1.4 sans-serif;color:var(--om-hint-fg,#222);pointer-events:none;display:none}
 .OMHint.OMHint--visible{display:block}
 .OMHintTitle{font-weight:600;margin-bottom:2px}
 .OMHintBody{font-weight:400}
 .OMZoom{position:absolute;right:10px;top:10px;bottom:auto;display:flex;flex-direction:column;gap:4px;z-index:5}
-.OMZoom button{width:36px;height:36px;padding:0;border:1px solid var(--warp-zoom-border,#bbb);border-radius:4px;background:var(--warp-zoom-bg,#fff);color:var(--warp-zoom-fg,#333);cursor:pointer;display:flex;align-items:center;justify-content:center}
-.OMZoom button:hover{background:var(--warp-zoom-bg-hover,#eee)}
+.OMZoom button{width:36px;height:36px;padding:0;border:1px solid var(--om-zoom-border,#bbb);border-radius:4px;background:var(--om-zoom-bg,#fff);color:var(--om-zoom-fg,#333);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.OMZoom button:hover{background:var(--om-zoom-bg-hover,#eee)}
 .OMZoom svg{width:18px;height:18px;pointer-events:none}
 `;
 
@@ -144,7 +149,8 @@ export class OfficeMap extends EventTarget {
     // panning). The world pointerdown fires for every drag (incl. empty map).
     this.world.addEventListener('pointerdown', (e) => { this._activePID = e.pointerId; }, true);
     root.addEventListener('contextmenu', (e) => { e.preventDefault(); this._releasePan(); });
-    window.addEventListener('blur', () => this._releasePan());
+    this._onWindowBlur = () => this._releasePan();
+    window.addEventListener('blur', this._onWindowBlur);
   }
 
   _zoomBtn(cls, label, svg, fn) {
@@ -419,7 +425,7 @@ export class OfficeMap extends EventTarget {
   _addFallback(glyph) {
     const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     c.setAttribute('cx', '12'); c.setAttribute('cy', '12'); c.setAttribute('r', '10.5');
-    c.setAttribute('fill', 'var(--warp-error, #d32f2f)');
+    c.setAttribute('fill', 'var(--om-fallback, #d32f2f)');
     glyph.insertBefore(c, glyph.firstElementChild);  // behind the <use>
     return c;
   }
@@ -533,7 +539,10 @@ export class OfficeMap extends EventTarget {
   // Force-release an in-progress pan: dispatch a pointerup matching the active
   // pointer so panzoom's handleUp ends the gesture (and clear our tap state).
   _releasePan() {
-    if (this._activePID != null) {
+    if (this._activePID != null && this._pz) {
+      // panzoom binds its handleUp on document; a synthetic pointerup matching
+      // the active pointer is the only way to end a gesture stuck by right-click
+      // or window-blur. Only dispatched when a pan is active (inert otherwise).
       try { document.dispatchEvent(new PointerEvent('pointerup', { pointerId: this._activePID, bubbles: true, cancelable: true })); } catch (e) {}
       this._activePID = null;
     }
@@ -610,8 +619,11 @@ export class OfficeMap extends EventTarget {
 
   destroy() {
     if (this._raf) cancelAnimationFrame(this._raf);
+    clearTimeout(this._zoomAnimTimer);
+    if (this._down && this._down.timer) clearTimeout(this._down.timer);
+    window.removeEventListener('blur', this._onWindowBlur);
     if (this._pz) this._pz.destroy();
-    this.root.remove();
+    this.root.remove();   // removes all root-scoped listeners (this.root subtree)
   }
 }
 
