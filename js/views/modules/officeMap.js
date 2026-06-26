@@ -44,7 +44,9 @@ function ensureStyles() {
 
 const COARSE = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
 
-const TAP_MOVE_THRESHOLD = 8;      // px; beyond this a down→up is a drag, not a tap
+const TAP_FINE = 8;     // px; mouse/pen — precise pointers
+const TAP_COARSE = 18;  // px; touch — a finger tap drifts ~10-30px as it presses/lifts;
+                       //       below this a down→up is a tap, not a drag
 const LONG_PRESS_MS = 500;          // hold this long on touch → show hint
 const DOUBLE_TAP_MS = 300;          // two taps within this → double-tap zoom
 
@@ -579,7 +581,7 @@ export class OfficeMap extends EventTarget {
 
   _onPointerDown(e) {
     const s = this._seatFromEvent(e);
-    this._down = s ? { id: s.el.dataset.seatId, x: e.clientX, y: e.clientY, t: Date.now(), moved: false, longFired: false, timer: 0 } : null;
+    this._down = s ? { id: s.el.dataset.seatId, x: e.clientX, y: e.clientY, t: Date.now(), moved: false, longFired: false, timer: 0, slop: (e.pointerType === 'touch') ? TAP_COARSE : TAP_FINE } : null;
     if (this._animatingZoom) { this._animatingZoom = false; this._enableGlyphTransition(false); clearTimeout(this._zoomAnimTimer); }
     if (!s) return;
     // Long-press → show hint (touch). Suppress the click that would follow release.
@@ -594,7 +596,7 @@ export class OfficeMap extends EventTarget {
   _onPointerMove(e) {
     const d = this._down;
     if (!d) return;
-    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > TAP_MOVE_THRESHOLD) {
+    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > d.slop) {
       // It's a drag (pan): cancel the long-press hint timer and mark moved.
       if (d.timer) { clearTimeout(d.timer); d.timer = 0; }
       d.moved = true;
