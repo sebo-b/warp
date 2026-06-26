@@ -71,8 +71,10 @@ export class OfficeMap extends EventTarget {
     this._sFn = null;
     this._hintSeatId = null;
     this._lastTap = { id: null, t: 0 };
+    this._validCells = null;     // Set<string> of #cell-<name> ids in the sprite (null until loaded)
 
     this._build(targetEl);
+    this._loadSpriteCells();
     this._setMode(options.spriteZoom
       ? 'clamp'
       : (COARSE ? 'flat' : 'follow'));
@@ -302,16 +304,6 @@ export class OfficeMap extends EventTarget {
     glyph.setAttribute('viewBox', '0 0 24 24');
     glyph.setAttribute('width', this._cellW);
     glyph.setAttribute('height', this._cellH);
-    // Fallback disc drawn behind the <use>: covered exactly by any valid
-    // cell's own r=10.5 disc, but shows as a loud red disc when the sprite
-    // name has no matching #cell-<name> (unknown state → visible failure,
-    // not a silent blank). §1.
-    const fallback = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    fallback.setAttribute('cx', '12');
-    fallback.setAttribute('cy', '12');
-    fallback.setAttribute('r', '10.5');
-    fallback.setAttribute('fill', 'var(--warp-error, #d32f2f)');
-    glyph.appendChild(fallback);
     const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
     glyph.appendChild(use);
     el.appendChild(glyph);
@@ -327,7 +319,7 @@ export class OfficeMap extends EventTarget {
     el.appendChild(labelEl);
 
     this.world.appendChild(el);
-    return { data: Object.assign({}, data), el, glyph, use, labelEl, labelTitleEl: labelTitle, labelBodyEl: labelBody };
+    return { data: Object.assign({}, data), el, glyph, use, fallback: null, labelEl, labelTitleEl: labelTitle, labelBodyEl: labelBody };
   }
 
   // ---- rAF-batched redraw ---------------------------------------------------
@@ -351,6 +343,13 @@ export class OfficeMap extends EventTarget {
     // href = spriteUrl#cell-<name>
     const name = d.sprite || '';
     s.use.setAttribute('href', `${this._spriteUrl}#cell-${name}`);
+    // Loud fallback ONLY for unknown sprite names: once the sprite's cells are
+    // known, a name with no matching #cell-<name> gets a red r=10.5 disc behind
+    // the (empty) <use>. Valid seats carry no fallback node at all — zero waste
+    // for the common case. §1.
+    const unknown = this._validCells != null && name !== '' && !this._validCells.has(name);
+    if (unknown && !s.fallback) s.fallback = this._addFallback(s.glyph);
+    else if (!unknown && s.fallback) { s.fallback.remove(); s.fallback = null; }
     // Label: shown iff title or body non-null.
     const showLabel = d.labelTitle != null || d.labelBody != null;
     s.labelEl.style.display = showLabel ? '' : 'none';
@@ -359,6 +358,34 @@ export class OfficeMap extends EventTarget {
     s.labelBodyEl.replaceChildren();
     if (d.labelBody instanceof Node) s.labelBodyEl.appendChild(d.labelBody);
     else if (typeof d.labelBody === 'string') s.labelBodyEl.textContent = d.labelBody;
+  }
+
+  // ---- sprite validation (loud failure for unknown cells) -------------------
+  // Fetch the sprite once (cache-served — the <use> references already loaded
+  // it), parse its <defs> for id="cell-*", and cache the set. Then repaint so
+  // any unknown-sprite seats get the red fallback. Valid seats never get one.
+  async _loadSpriteCells() {
+    if (!this._spriteUrl) return;
+    try {
+      const txt = await (await fetch(this._spriteUrl)).text();
+      const doc = new DOMParser().parseFromString(txt, 'image/svg+xml');
+      const ids = new Set();
+      doc.querySelectorAll('[id^="cell-"]').forEach(el => ids.add(el.id.slice(5)));
+      this._validCells = ids;
+      this._markDirty();
+    } catch (e) {
+      // Fetch/parse failed (e.g. CORS): leave _validCells null → no fallback,
+      // unknown cells render blank (the original §1 behaviour). Degrade safely.
+      this._validCells = null;
+    }
+  }
+
+  _addFallback(glyph) {
+    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    c.setAttribute('cx', '12'); c.setAttribute('cy', '12'); c.setAttribute('r', '10.5');
+    c.setAttribute('fill', 'var(--warp-error, #d32f2f)');
+    glyph.insertBefore(c, glyph.firstElementChild);  // behind the <use>
+    return c;
   }
 
   // ---- hint -----------------------------------------------------------------

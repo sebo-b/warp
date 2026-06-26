@@ -30,18 +30,27 @@ test.describe('OfficeMap — rendering & model', () => {
     const href = await page.locator('#sprite-s0 use').getAttribute('href');
     expect(href).toContain('#cell-available');
 
-    // Every glyph has a fallback disc (first child) behind the <use>, covered by
-    // valid cells but shown for unknown names (loud red failure, not blank).
-    const fb = await page.locator('#sprite-s0 .OMSeatGlyph').evaluate(svg => {
-      const c = svg.firstElementChild;
-      return c ? { tag: c.tagName, r: c.getAttribute('r'), fill: c.getAttribute('fill') } : null;
-    });
-    expect(fb.tag.toLowerCase()).toBe('circle');
-    expect(fb.r).toBe('10.5');
+    // Valid seat (s0, 'available') has NO fallback node — zero waste for the
+    // common case. Its glyph's only child is the <use>.
+    const s0children = await page.locator('#sprite-s0 .OMSeatGlyph').evaluate(svg =>
+      Array.from(svg.children).map(c => c.tagName));
+    expect(s0children).toEqual(['use']);
 
-    // Unknown sprite name ('bogus') renders with #cell-bogus and shows the fallback.
-    const hrefs = await page.locator('.OMSeat use').evaluateAll(els => els.map(e => e.getAttribute('href')));
-    expect(hrefs.some(h => h.endsWith('#cell-bogus'))).toBeTruthy();
+    // Unknown sprite name ('bogus') renders with #cell-bogus and, once the
+    // sprite's cells are loaded, shows a red fallback disc behind the <use>.
+    await page.waitForFunction(() => window.__om._validCells !== null, null, { timeout: 5000 });
+    const bogus = await page.evaluate(() => {
+      const seat = [...document.querySelectorAll('.OMSeat use')]
+        .find(u => u.getAttribute('href').endsWith('#cell-bogus'))
+        .closest('.OMSeat');
+      const svg = seat.querySelector('.OMSeatGlyph');
+      const fb = svg.querySelector('circle');
+      return fb ? { r: fb.getAttribute('r'), first: svg.firstElementChild.tagName }
+                : null;
+    });
+    expect(bogus).not.toBeNull();
+    expect(bogus.r).toBe('10.5');
+    expect(bogus.first.toLowerCase()).toBe('circle');
   });
 
   test('seat position matches data x,y', async ({ page }) => {

@@ -24,10 +24,13 @@ marquee/transform code.
 | Emitting `click` events; rAF-batched redraw when dirty | Persisting/restoring zoom (optional, app-level) |
 
 The component never interprets state names or colours. It builds
-`'#cell-' + sprite` into a `<use href>`; an unknown name (no matching
-`#cell-<name>`) renders a loud red fallback disc — the glyph `<svg>` draws a
-`r=10.5` disc behind the `<use>` that any valid cell covers exactly, so only
-missing cells show it. All visual styling of labels/hints/background comes from the
+`'#cell-' + sprite` into a `<use href>`. An unknown name (no matching
+`#cell-<name>`) renders a loud red fallback disc: the component fetches the
+sprite once (cache-served) and parses its `<defs>` for `id="cell-*"`; a seat
+whose sprite name is not in that set gets a red `r=10.5` disc inserted behind
+its (empty) `<use>`. Valid seats carry no fallback node at all — zero waste for
+the common case, loud failure only when it actually happens. All visual styling
+of labels/hints/background comes from the
 host stylesheet via the component's class names (§5).
 
 ## 2. Coordinate system
