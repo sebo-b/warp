@@ -975,6 +975,7 @@ document.addEventListener("DOMContentLoaded", function() {
             weekdaysShort: window.warpGlobals.i18n.weekdaysShort,
             monthsShort: window.warpGlobals.i18n.datePicker.i18n_object.monthsShort,
             selected: persisted.dates,
+            fallback: window.warpGlobals['defaultSelectedDates'].cb,   // backend default day (grid.defaultTs) — used when persisted dates clamp to empty
             onChange: function(selectedTs) {
                 savePlanSelections({ dates: selectedTs,
                                      slider: slider.noUiSlider.get(true) });

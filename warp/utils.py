@@ -81,45 +81,72 @@ def getCalendarGrid(today_ts=None, target_ts=None):
 
     today_wday = gmtime(today_midnight).tm_wday     # 0=Mon..6=Sun (== house convention)
 
-    # Window end (last selectable day): the Sunday at the end of the week that is
-    # `weeks_in_advance` weeks ahead of the current week. Same boundary as the old
-    # getNextWeek loop (which counted Sundays until <= weeks_in_advance) — the
-    # last selectable day. (6 - today_wday) % 7 is the day-count from today to
-    # this week's ending Sunday (Sun=6); today=Sun gives 0 (boundary = today).
+    # START / END of the bookable span (see PLAN §4.1). END is the LWD of the
+    # week that is `weeks_in_advance` full weeks after the current one — same
+    # boundary as getTimeRange() (apply's code-103 check) minus one second.
+    start_midnight = today_midnight
     window_end_offset_days = ((6 - today_wday) % 7) + weeks_in_advance * 7
-    window_end_midnight = today_midnight + 24*3600 * window_end_offset_days
+    end_midnight = today_midnight + 24*3600 * window_end_offset_days
 
-    # Grid start = the configured week-start day (house convention) of the
-    # CURRENT week, on or before today. The booking window is week-aligned and
-    # forward-looking, so the grid begins at the Monday (or configured start) of
-    # today's week — days of prior weeks have no booking value and are not shown.
-    grid_start = today_midnight - ((today_wday - week_start_day) % 7) * 24*3600
+    # --- Grid bounds: always full weeks; always >= one full calendar month. ---
+    def first_of_month(y, mo):
+        return timegm((y, mo, 1, 0, 0, 0, 0, 0, 0))
+    def last_of_month(y, mo):
+        ny, nm = (y + 1, 1) if mo == 12 else (y, mo + 1)
+        return first_of_month(ny, nm) - 24*3600
+    def fwd_of(ts):
+        # The configured week-start day (house) of the week containing ts.
+        return ts - ((gmtime(ts).tm_wday - week_start_day) % 7) * 24*3600
 
-    # Grid end = last day of the month containing window_end, so a window
-    # crossing a month boundary renders through the end of that month (the
-    # post-window tail greys out to month-end, per the spec).
-    we_t = gmtime(window_end_midnight)
-    next_month_start = timegm((we_t.tm_year, we_t.tm_mon % 12 + 1, 1, 0, 0, 0, 0, 0, 0))
-    grid_end = next_month_start - 24*3600
+    start_t = gmtime(start_midnight)
+    end_t = gmtime(end_midnight)
 
-    # Weekday header: 7 indices into the frontend's weekdaysShort array (0=Sun..6=Sat
-    # = Python's %w). WEEK_START_DAY is in house convention (0=Mon..6=Sun); the
-    # conversion is %w = (house + 1) % 7. Pre-rotated so the frontend renders
-    # columns in wire order, zero date math.
-    weekday_header = [((week_start_day + i + 1) % 7) for i in range(7)]
+    # Does START..END already enclose a full calendar month? (some month M whose
+    # 1st >= START and last day <= END.)
+    enclosed = False
+    y, mo = start_t.tm_year, start_t.tm_mon
+    while (y, mo) <= (end_t.tm_year, end_t.tm_mon):
+        first = first_of_month(y, mo)
+        last = last_of_month(y, mo)
+        if first >= start_midnight and last <= end_midnight:
+            enclosed = True
+            break
+        y, mo = (y + 1, 1) if mo == 12 else (y, mo + 1)
+
+    if enclosed:
+        # Full month already covered -> don't extend; grid ends at END (an LWD,
+        # so the final week needs no trailing padding).
+        grid_start = fwd_of(start_midnight)
+        grid_end = end_midnight
+    else:
+        # No full month enclosed -> extend the grid to show the full calendar
+        # month END belongs to (its 1st..last day).
+        grid_end = last_of_month(end_t.tm_year, end_t.tm_mon)
+        if (end_t.tm_year, end_t.tm_mon) == (start_t.tm_year, start_t.tm_mon):
+            # Same month: pull the start back to the 1st so the whole month is
+            # visible (padded to FWD of that week for the rectangle rule).
+            grid_start = fwd_of(first_of_month(end_t.tm_year, end_t.tm_mon))
+        else:
+            grid_start = fwd_of(start_midnight)
 
     # One continuous run of days from grid_start to grid_end, each a real cell.
     # Weeks flow across month boundaries (a week belongs to the month of its
     # first day) so there are no empty intra-grid padding cells — only the final
-    # week is padded tail-end to complete a 7-cell row.
+    # week is padded tail-end to complete a 7-cell row when grid_end isn't an LWD.
     pad = lambda: {"timestamp": None, "day": None, "selectable": False, "isToday": False}
 
     days = []
     ts = grid_start
     while ts <= grid_end:
         wd = gmtime(ts).tm_wday
-        days.append(_cal_cell(ts, wd, today_midnight, window_end_midnight, omitted_weekdays))
+        days.append(_cal_cell(ts, wd, start_midnight, end_midnight, omitted_weekdays))
         ts += 24*3600
+
+    # Weekday header: 7 indices into the frontend's weekdaysShort array (0=Sun..6=Sat
+    # = Python's %w). WEEK_START_DAY is in house convention (0=Mon..6=Sun);
+    # conversion %w = (house + 1) % 7. Pre-rotated so the frontend renders columns
+    # in wire order, zero date math.
+    weekday_header = [((week_start_day + i + 1) % 7) for i in range(7)]
 
     # Group into 7-cell weeks; pad the trailing partial week at the very end.
     weeks = []
