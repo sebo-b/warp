@@ -545,3 +545,33 @@ standalone (fallback tokens) or themed (host-mapped).
 **obsolete** — the chosen design uses `setAttribute('href', '#cell-<name>')`
 (no transform-on-`<use>`) and the production `#disc` already proves
 var-resolution across the external `<use>` boundary. Discard the spike file.
+
+## 13. Deviations from this spec (as shipped)
+
+The component matches §1–§9, with these behavioural choices settled during
+implementation/QA (the component still *supports* the spec's options; these are
+the values `plan.js` selects, plus a few UX refinements):
+
+- **Default view is 1:1, centred** — `zoom.initial = 1` (the map at its natural
+  pixel size, seats at their 48 px cell size), centred in the viewport, on both
+  desktop and mobile. `min` stays "fit" (zoom out to see the whole floor), `max`
+  ≈ 4×. (§4/§8 listed `"fit"` as the example initial; the component still
+  accepts it.)
+- **Sprite-scaling mode** — desktop = **follow** (S1); mobile (`pointer:coarse`)
+  = **clamp** with `spriteZoom {min:0, max:1}`: from the 1:1 default, zooming in
+  keeps seats at 48 px, zooming out shrinks them with the map. The **flat** (S2)
+  mode and the per-user toggle in §6 were **not** shipped — `clamp` gave the
+  wanted feel without a toggle.
+- **Double-tap / double-click resets the zoom** (about the viewport centre, so
+  the pan stays put) instead of zooming in (§8). Taps on the zoom controls are
+  excluded from this.
+- **Long-press hint persists** — on touch the hint stays visible after the
+  finger lifts (readable, not under the finger) and is dismissed by the next
+  interaction (tap/pan/zoom). §8's "released … hides it" was changed to
+  "next interaction hides it" after device testing.
+- **Counter-scale is applied to the whole `OMSeat`** (so the label rides it, per
+  §6 gotcha #2); seats are z-ordered by vertical position so a label paints above
+  the seat below it.
+- **Hard pan-stop** — the bounds clamp writes the clamped transform synchronously
+  (matching panzoom's own format) to avoid a one-frame bounce at the edges, since
+  panzoom commits transforms on `requestAnimationFrame`.
