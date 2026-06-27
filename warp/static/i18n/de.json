@@ -372,6 +372,9 @@
         "Seats": "Plätze",
         "You will delete all seats and the log of all past bookings on this plan.": "Sie löschen alle Plätze und das Protokoll aller vergangenen Buchungen in diesem Plan.",
         "Zone group (optional)": "Zonengruppe (optional)",
-        "Zone name cannot be empty.": "Zonenname darf nicht leer sein."
+        "Zone name cannot be empty.": "Zonenname darf nicht leer sein.",
+        "calendar": {
+            "clearSelection": "Auswahl löschen"
+        }
     }
 }

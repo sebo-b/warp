@@ -63,6 +63,25 @@ function getSelectedDates() {
     return res;
 }
 
+// Seconds-of-day <-> "HH:MM" (pure arithmetic — R1: no new Date(ts).
+// getTimezoneOffset/toISOString would silently re-anchor to the browser TZ.)
+function fmtTime(secs) {
+    secs = Math.round(secs);
+    if (secs >= 24*3600) secs = 24*3600 - 1;   // display clamp: 24:00 -> 23:59
+    if (secs < 0) secs = 0;
+    var h = Math.floor(secs / 3600);
+    var m = Math.floor((secs % 3600) / 60);
+    return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
+}
+
+function parseTime(str) {
+    var m = /^\s*(\d{1,2})[:.](\d{1,2})\s*$/.exec(String(str));
+    if (!m) return null;
+    var h = Math.min(23, Math.max(0, parseInt(m[1], 10)));
+    var mm = Math.min(59, Math.max(0, parseInt(m[2], 10)));
+    return h*3600 + mm*60;
+}
+
 function initSlider() {
 
     var slider = document.getElementById('timeslider');
@@ -76,12 +95,33 @@ function initSlider() {
         range: { min: +slider.dataset.min, max: +slider.dataset.max }
     });
 
-    var minDiv = document.getElementById('timeslider-min');
-    var maxDiv = document.getElementById('timeslider-max');
-    slider.noUiSlider.on('update', function(values, handle, unencoded, tap, positions, noUiSlider) {
-        minDiv.innerText = new Date(unencoded[0]*1000).toISOString().substring(11,16)
-        maxDiv.innerText = unencoded[1] == 24*3600? "23:59": new Date(unencoded[1]*1000).toISOString().substring(11,16);
+    var minInput = document.getElementById('timeslider-min');
+    var maxInput = document.getElementById('timeslider-max');
+
+    // Slider -> inputs: format the two handles into the edit boxes.
+    slider.noUiSlider.on('update', function(values, handle, unencoded) {
+        minInput.value = fmtTime(unencoded[0]);
+        maxInput.value = fmtTime(unencoded[1]);
     });
+
+    // Inputs -> slider: parse HH:MM, clamp to the rail range + the 15-min step,
+    // keep start < end with the slider's margin. Invalid input reverts to the
+    // current handle value (the update handler repopulates the box).
+    function applyFromInputs() {
+        var lo = parseTime(minInput.value);
+        var hi = parseTime(maxInput.value);
+        if (lo === null || hi === null) {
+            slider.noUiSlider.set(slider.noUiSlider.get(true));   // revert
+            return;
+        }
+        var min = +slider.dataset.min, max = +slider.dataset.max;
+        lo = Math.min(max, Math.max(min, lo));
+        hi = Math.min(max, Math.max(min, hi));
+        if (hi - lo < 15*60) hi = Math.min(max, lo + 15*60);   // honour the margin
+        slider.noUiSlider.set([lo, hi]);
+    }
+    minInput.addEventListener('change', applyFromInputs);
+    maxInput.addEventListener('change', applyFromInputs);
 
     return slider;
 }
@@ -649,38 +689,31 @@ function initActionMenu(seatFactory) {
 
 // preserves states across pages
 //
-// New schema (planSelections):
-//   { mode:'range'|'single'|'multiple', dates:[ts...], slider:[lo,hi] }
-// R4 migration: the old { cb:[ts...], slider:[...] } shape is coerced on read
-// — `cb` becomes `dates`, the mode defaults to 'range' (the panel default),
-// and WarpCalendar silently drops any ts that's no longer a selectable day
-// (window moved, omitted weekdays changed). A stale/partial blob never crashes.
+// Schema (planSelections): { dates:[ts...], slider:[lo,hi] }
+// R4 migration: the old { cb:[ts...], slider:[...] } shape (and the now-removed
+// { mode, dates, slider } shape) coerce on read — `cb`/`dates` carries the
+// selected days, and WarpCalendar silently drops any ts that's no longer a
+// selectable day (window moved, omitted weekdays changed). A stale/partial
+// blob never crashes.
 function loadPlanSelections() {
     var dflt = window.warpGlobals['defaultSelectedDates'];
     var dfltDates = Array.isArray(dflt.cb) ? dflt.cb : [];
     var dfltSlider = dflt.slider;
 
     var raw;
-    try {
-        raw = window.sessionStorage.getItem('planSelections');
-    } catch (e) { return { mode:'range', dates:dfltDates, slider:dfltSlider }; }
+    try { raw = window.sessionStorage.getItem('planSelections'); }
+    catch (e) { return { dates: dfltDates, slider: dfltSlider }; }
 
-    if (!raw)
-        return { mode:'range', dates:dfltDates, slider:dfltSlider };
+    if (!raw) return { dates: dfltDates, slider: dfltSlider };
 
     var p;
     try { p = JSON.parse(raw); }
-    catch (e) { return { mode:'range', dates:dfltDates, slider:dfltSlider }; }
+    catch (e) { return { dates: dfltDates, slider: dfltSlider }; }
 
-    if (p && Array.isArray(p.dates) && Array.isArray(p.slider)) {
-        return { mode: (p.mode === 'single' || p.mode === 'multiple' || p.mode === 'range') ? p.mode : 'range',
-                 dates: p.dates, slider: p.slider };
-    }
-    // Old {cb, slider} shape — migrate cb -> dates, mode defaults to 'range'.
-    if (p && Array.isArray(p.cb)) {
-        return { mode:'range', dates:p.cb, slider: Array.isArray(p.slider) ? p.slider : dfltSlider };
-    }
-    return { mode:'range', dates:dfltDates, slider:dfltSlider };
+    var dates = Array.isArray(p.dates) ? p.dates
+              : (Array.isArray(p.cb) ? p.cb : dfltDates);   // migrate old {cb,slider}
+    var slider = Array.isArray(p.slider) ? p.slider : dfltSlider;
+    return { dates: dates, slider: slider };
 }
 
 function savePlanSelections(s) {
@@ -688,26 +721,11 @@ function savePlanSelections(s) {
     catch (e) { /* sessionStorage quota/disabled — degrade silently */ }
 }
 
-// Mode-toggle + clear-button wiring for the inline calendar:
-//   3 small icon buttons (.warp-cal-mode-btn[data-mode]) + a Clear button.
-// Reflects the active mode back on the toggle, and (re)seeds the calendar's
-// anchor so a lone selected day stays a valid 1-day range after a mode switch.
+// The Clear link empties the calendar selection (it's the only deselect path —
+// clicks never remove a day).
 function initCalendarControls(cal) {
-    var toggleButtons = document.querySelectorAll('.warp-cal-mode-btn');
-    for (let b of toggleButtons) {
-        b.title = TR(b.dataset.titleKey);
-        // initial active highlight
-        b.classList.toggle('active', b.dataset.mode === cal.mode);
-        b.addEventListener('click', function() {
-            cal.setMode(b.dataset.mode);
-            for (let other of toggleButtons)
-                other.classList.toggle('active', other === b);
-        });
-    }
-    var clearBtn = document.querySelector('.warp-cal-clear-btn');
-    if (clearBtn) {
-        clearBtn.addEventListener('click', function() { cal.clear(); });
-    }
+    var clearBtn = document.querySelector('.warp-cal-clear-link');
+    if (clearBtn) clearBtn.addEventListener('click', function() { cal.clear(); });
 }
 
 function initZoneHelp() {
@@ -762,6 +780,28 @@ function initZoneSidepanel() {
             e.style.transform = "";
         }
     });
+
+    // The panel is an inline column on desktop (default open) and a
+    // slide-in overlay on mobile (default closed). The collapse class frees
+    // the desktop column on close (M.Sidenav's transform is no-op on inline);
+    // inst.open()/close() drives the mobile slide animation. Materialize's
+    // body _handleTriggerClick already reopens on trigger clicks.
+    var closeBtn = document.querySelector('.plan_sidepanel_close');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            el.classList.add('plan_sidepanel_collapsed');
+            var inst = M.Sidenav.getInstance(el);
+            if (inst) inst.close();
+        });
+    }
+    var trig = document.querySelector('.planmap_datetime_trigger');
+    if (trig) {
+        trig.addEventListener('click', function() {
+            el.classList.remove('plan_sidepanel_collapsed');
+        });
+    }
 }
 
 function initBookAs(seatFactory) {
@@ -897,8 +937,8 @@ function showAutoBookResult(resp) {
 document.addEventListener("DOMContentLoaded", function() {
 
     var slider = initSlider();
-    // Restore persisted selection/mode (migration from the old {cb,slider} shape
-    // — R4). Applied BEFORE the calendar is composed so it sees stored defaults.
+    // Restore persisted selection (migration from the old {cb,slider} shape —
+    // R4). Applied BEFORE the calendar is composed so it sees stored defaults.
     var persisted = loadPlanSelections();
     slider.noUiSlider.set(persisted.slider);
 
@@ -915,26 +955,23 @@ document.addEventListener("DOMContentLoaded", function() {
     slider.noUiSlider.on('update', function() {
         // Persist slider moves with the current calendar selection.
         if (calendar)
-            savePlanSelections({ mode: calendar.mode,
-                                 dates: calendar.getSelected(),
+            savePlanSelections({ dates: calendar.getSelected(),
                                  slider: slider.noUiSlider.get(true) });
     });
 
     // Calendar grid: render the backend blob, manage selection. R1/R9: the
     // module does zero date math and stores day identity as integer
-    // timestamps taken verbatim from the backend cell ts's. Initial selected
-    // + mode come from the session, the backend default, or migration.
+    // timestamps taken verbatim from the backend cell ts's. Initial selection
+    // comes from the session, the backend default, or migration.
     calendar = new WarpCalendar(
         document.getElementById('plan_calendar_grid'),
         {
             grid: window.warpGlobals.calendarGrid,
             weekdaysShort: window.warpGlobals.i18n.weekdaysShort,
             monthsShort: window.warpGlobals.i18n.datePicker.i18n_object.monthsShort,
-            mode: persisted.mode,
             selected: persisted.dates,
             onChange: function(selectedTs) {
-                savePlanSelections({ mode: calendar.mode,
-                                     dates: selectedTs,
+                savePlanSelections({ dates: selectedTs,
                                      slider: slider.noUiSlider.get(true) });
                 updateSeatsView();
             }
