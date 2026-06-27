@@ -23,6 +23,10 @@ class DefaultSettings(object):
     # Set to [5,6] to omit weekends
     OMITTED_WEEKDAYS = []
 
+    # First weekday column of the booking calendar grid (0=Monday..6=Sunday).
+    # Same convention as OMITTED_WEEKDAYS (Python's tm_wday: 0=Mon..6=Sun).
+    WEEK_START_DAY = 0
+
     # warp uses server wall-clock (timegm(localtime())) everywhere and is
     # otherwise TZ-blind. This setting only labels iCal DTSTART/DTEND so
     # external calendar clients render the right time. Empty = auto-detect
@@ -233,6 +237,7 @@ _ENV_SETTINGS = {
     "WEEKS_IN_ADVANCE":           _fmt_int,
     "AUTOBOOK_USAGE_WINDOW_DAYS": _fmt_int,
     "OMITTED_WEEKDAYS":           _fmt_json(_ARRAY_OF_WEEKDAYS),
+    "WEEK_START_DAY":             _fmt_int,
     "BOOK_OPEN":                  _fmt_int,
     "BOOK_CLOSE":                 _fmt_int,
     "MAX_CONTENT_LENGTH":         _fmt_int,

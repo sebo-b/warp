@@ -131,7 +131,6 @@ def plan(pid):
     if not effective_roles and not flask.g.isAdmin:
         flask.abort(403)
 
-    nextWeek = utils.getNextWeek()
     prefs = get_user_prefs(flask.g.login)
     default_time = prefs.get('default_time', [9 * 3600, 17 * 3600])
     default_day = prefs.get('default_day', 'same')
@@ -155,10 +154,12 @@ def plan(pid):
     else:
         target_ts = today_ts
 
-    for d in nextWeek:
-        if d['timestamp'] >= target_ts:
-            defaultSelectedDates['cb'] = [d['timestamp']]
-            break
+    # The booking calendar grid (replaces the old getNextWeek date checkbox
+    # list). Cell range + selectable flags + default-day pick are backend-driven
+    # (TZ-safe by construction — R1, R9); the frontend only renders + selects.
+    calendarGrid = utils.getCalendarGrid(target_ts=target_ts)
+    if calendarGrid['defaultTs'] is not None:
+        defaultSelectedDates['cb'] = [calendarGrid['defaultTs']]
 
     is_plan_admin = any(r <= ZONE_ROLE_ADMIN for r in effective_roles.values()) or flask.g.isAdmin
     is_plan_viewer = effective_roles and all(r >= ZONE_ROLE_VIEWER for r in effective_roles.values()) and \
@@ -174,7 +175,7 @@ def plan(pid):
                                  **role_flags,
                                  pid=pid,
                                  dark_filter=dark_filter,
-                                 nextWeek=nextWeek,
+                                 calendarGrid=calendarGrid,
                                  today=utils.today(),
                                  defaultSelectedDates=defaultSelectedDates,
                                  planPreviewPrefs=planPreviewPrefs)

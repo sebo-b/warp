@@ -10,6 +10,11 @@
         window.warpGlobals.URLs['planImage'] = "{{ url_for('view.planImage', pid=pid) }}";
         window.warpGlobals.darkFilter = {{ dark_filter | tojson }};
 
+        // The backend-driven calendar grid (cell data + default selectable day).
+        // The frontend (WarpCalendar) only renders + handles selection; no date
+        // math lives in JS (R1) and no string lives in the blob (R9).
+        window.warpGlobals['calendarGrid'] = {{ calendarGrid | tojson }};
+
         window.warpGlobals['defaultSelectedDates'] = {{ defaultSelectedDates | tojson }};
         window.warpGlobals.today = {{ today | int }};
         window.warpGlobals['planPreviewPrefs'] = {{ planPreviewPrefs | tojson }};
