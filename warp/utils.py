@@ -81,82 +81,78 @@ def getCalendarGrid(today_ts=None, target_ts=None):
 
     today_wday = gmtime(today_midnight).tm_wday     # 0=Mon..6=Sun (== house convention)
 
-    # Window end: the Sunday at end of the week that is `weeks_in_advance`
-    # weeks ahead of the current week. Same boundary as the old getNextWeek's
-    # loop (which terminated after counting that Sunday) — equivalent to
-    # getTimeRange()['toTS'] - 24*3600. (7 - today_wday) maps Sunday=6 -> 7,
-    # which is exactly "today is the boundary Sunday" handled correctly (the
-    # boundary is today itself + weeks_in_advance weeks).
-    days_to_boundary_monday = (7 - today_wday) + weeks_in_advance * 7
-    window_end_midnight = today_midnight + 24*3600 * (days_to_boundary_monday - 1)
+    # Window end (last selectable day): the Sunday at the end of the week that is
+    # `weeks_in_advance` weeks ahead of the current week. Same boundary as the old
+    # getNextWeek loop (which counted Sundays until <= weeks_in_advance) — the
+    # last selectable day. (6 - today_wday) % 7 is the day-count from today to
+    # this week's ending Sunday (Sun=6); today=Sun gives 0 (boundary = today).
+    window_end_offset_days = ((6 - today_wday) % 7) + weeks_in_advance * 7
+    window_end_midnight = today_midnight + 24*3600 * window_end_offset_days
+
+    # Grid start = the configured week-start day (house convention) of the
+    # CURRENT week, on or before today. The booking window is week-aligned and
+    # forward-looking, so the grid begins at the Monday (or configured start) of
+    # today's week — days of prior weeks have no booking value and are not shown.
+    grid_start = today_midnight - ((today_wday - week_start_day) % 7) * 24*3600
+
+    # Grid end = last day of the month containing window_end, so a window
+    # crossing a month boundary renders through the end of that month (the
+    # post-window tail greys out to month-end, per the spec).
+    we_t = gmtime(window_end_midnight)
+    next_month_start = timegm((we_t.tm_year, we_t.tm_mon % 12 + 1, 1, 0, 0, 0, 0, 0, 0))
+    grid_end = next_month_start - 24*3600
 
     # Weekday header: 7 indices into the frontend's weekdaysShort array (0=Sun..6=Sat
     # = Python's %w). WEEK_START_DAY is in house convention (0=Mon..6=Sun); the
-    # conversion is %w = (house + 1) % 7.
+    # conversion is %w = (house + 1) % 7. Pre-rotated so the frontend renders
+    # columns in wire order, zero date math.
     weekday_header = [((week_start_day + i + 1) % 7) for i in range(7)]
 
-    # Column index of a day whose house-weekday is `wd`, in a week anchored on
-    # week_start_day (house): col = (wd - week_start_day) % 7.
-
-    # Padding cell shared by leading/trailing slots (cards render empty).
+    # One continuous run of days from grid_start to grid_end, each a real cell.
+    # Weeks flow across month boundaries (a week belongs to the month of its
+    # first day) so there are no empty intra-grid padding cells — only the final
+    # week is padded tail-end to complete a 7-cell row.
     pad = lambda: {"timestamp": None, "day": None, "selectable": False, "isToday": False}
 
+    days = []
+    ts = grid_start
+    while ts <= grid_end:
+        wd = gmtime(ts).tm_wday
+        days.append(_cal_cell(ts, wd, today_midnight, window_end_midnight, omitted_weekdays))
+        ts += 24*3600
+
+    # Group into 7-cell weeks; pad the trailing partial week at the very end.
+    weeks = []
+    for i in range(0, len(days), 7):
+        week = days[i:i+7]
+        while len(week) < 7:
+            week.append(pad())
+        weeks.append(week)
+
+    # Assign each week to a month block by its first real cell's month — a week
+    # is owned by the month it starts in, so a boundary week (e.g. Jun 29-Jul 5)
+    # sits under the June header with its July days still rendered as real cells.
     months = []
-    ts = today_midnight
-    while True:
-        t = gmtime(ts)
-        year = t.tm_year
-        month_index = t.tm_mon - 1   # 0..11
-        # Anchor to the 1st of this month so past days of today's month render
-        # as greyed cells (R: non-selectable days are shown, not hidden).
-        month_start_ts = ts - (t.tm_mday - 1) * 24*3600
+    for week in weeks:
+        first_real = next((c["timestamp"] for c in week if c["timestamp"] is not None), None)
+        if first_real is None:
+            continue
+        ft = gmtime(first_real)
+        mi, yr = ft.tm_mon - 1, ft.tm_year
+        if not months or months[-1]["monthIndex"] != mi or months[-1]["year"] != yr:
+            months.append({"year": yr, "monthIndex": mi, "weeks": []})
+        months[-1]["weeks"].append(week)
 
-        # Days of this month, ascending.
-        month_days = []
-        d = month_start_ts
-        while True:
-            dt = gmtime(d)
-            if dt.tm_year != year or dt.tm_mon != month_index + 1:
-                break
-            month_days.append(d)
-            d += 24*3600
-
-        # Build padded 7-cell weeks for this month.
-        weeks = []
-        row = [pad() for _ in range(7)]   # padding-fill defaults; overwritten where a real day lands
-        col = None
-        for day_mid in month_days:
-            wd = gmtime(day_mid).tm_wday
-            col = (wd - week_start_day) % 7
-            row[col] = _cal_cell(day_mid, wd, today_midnight, window_end_midnight, omitted_weekdays)
-            if col == 6:
-                weeks.append(row)
-                row = [pad() for _ in range(7)]
-        # Flush the trailing partial week (only present if last day's col != 6).
-        if col != 6:
-            weeks.append(row)
-
-        months.append({"year": year, "monthIndex": month_index, "weeks": weeks})
-
-        # Advance past this month; stop after the month containing window_end.
-        ts = d   # d is now the 1st of the next month
-        if (year, month_index) == (gmtime(window_end_midnight).tm_year,
-                                   gmtime(window_end_midnight).tm_mon - 1):
-            break
-
-    # defaultTs: first selectable day >= target_ts (the L151–161 default-day
+    # defaultTs: first selectable day >= target_ts (the L151-161 default-day
     # derivation now lives in view.py, where prefs are loaded; this is the
     # target-scan half, kept here because it walks the grid cells).
     if target_ts is None:
         target_ts = today_midnight
     default_ts = None
-    for m in months:
-        for week in m["weeks"]:
-            for cell in week:
-                if cell["selectable"] and cell["timestamp"] >= target_ts:
-                    default_ts = cell["timestamp"]
-                    break
-            if default_ts is not None:
+    for week in weeks:
+        for cell in week:
+            if cell["selectable"] and cell["timestamp"] >= target_ts:
+                default_ts = cell["timestamp"]
                 break
         if default_ts is not None:
             break

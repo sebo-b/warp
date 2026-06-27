@@ -1,13 +1,12 @@
 # Self-check for warp.utils.getCalendarGrid.
 #
-# The frontend trusts the backend's cell data verbatim (R1: no date math in JS;
-# R9: no strings in the blob), so the grid's structural invariants must hold
-# exactly: rectangular padded weeks, contiguous run of real day-midnights, no
-# duplicate timestamps, selectable cells only inside [today, windowEnd] and not
-# omitted, and defaultTs (when set) selectable and >= the requested target.
-#
-# Pentyl: one runnable check, no framework beyond what utils already imports —
-# aligns with the existing `python -m pytest tests/` harness from the repo
+# The grid drives the frontend plan-panel calendar (R1: no date math in JS; R9:
+# no strings in the blob), so its structural invariants must hold exactly.
+# The model is a *flowing week* grid: it starts at the configured week-start
+# day of the current week and runs to the last day of the month containing the
+# window end, with weeks flowing across month boundaries (a week belongs to
+# the month of its first day; no intra-grid padding — only the final week is
+# tail-padded to complete a 7-cell row).
 
 import calendar as _cal
 import flask
@@ -16,9 +15,6 @@ import pytest
 from warp.utils import getCalendarGrid, gmtime, strftime, today
 
 
-# The function reads WEEKS_IN_ADVANCE / OMITTED_WEEKDAYS / WEEK_START_DAY /
-# BOOK_OPEN from flask.current_app.config, so every test runs inside an app
-# context with the config pinned to a known baseline.
 def _make_app(**overrides):
     app = flask.Flask(__name__)
     cfg = {
@@ -69,10 +65,8 @@ def _assert_structure(grid):
         for week in m['weeks']:
             assert len(week) == 7, f"week not 7 cells: {week}"
             for cell in week:
-                # cell is a pure-data dict with exactly the 4 keys.
                 assert set(cell) == {'timestamp', 'day', 'selectable', 'isToday'}
                 if cell['timestamp'] is None:
-                    # padding filler
                     assert cell['day'] is None
                     assert cell['selectable'] is False
                     assert cell['isToday'] is False
@@ -83,13 +77,14 @@ def _assert_structure(grid):
                     seen.add(cell['timestamp'])
                     real_cells.append(cell)
 
-    # Real cells form a contiguous ascending run of day-midnights.
+    # Real cells form a contiguous ascending run of day-midnights (the grid has
+    # no internal gaps — weeks flow across month boundaries, no intra-padding).
     real_cells.sort(key=lambda c: c['timestamp'])
     for a, b in zip(real_cells, real_cells[1:]):
         assert b['timestamp'] - a['timestamp'] == 24 * 3600, "non-contiguous day run"
 
-    # defaultTs, when set, must be a selectable day >= target_ts (target_ts defaults
-    # to today when None).
+    # defaultTs, when set, must be a selectable day >= target_ts (target_ts
+    # defaults to today when None).
     if grid['defaultTs'] is not None:
         sel = [c for c in real_cells if c['timestamp'] == grid['defaultTs']]
         assert sel, "defaultTs not among real cells"
@@ -98,36 +93,59 @@ def _assert_structure(grid):
 
 
 def test_structure_midweek_no_omissions():
-    # Wed 2026-06-24 (tm_wday=2).
+    # Wed 2026-06-24 (tm_wday=2), WEEKS_IN_ADVANCE=1.
     ts = _midnight(2026, 6, 24)
     grid = _grid(today_ts=ts, target_ts=ts)
     _assert_structure(grid)
 
-    # Two months: June (today's month) and July (month of the window end).
+    # Two month blocks: June (from the current week's Monday) and July (through
+    # month-end of the window's month). The window ends Sun 2026-07-05.
     assert [(m['year'], m['monthIndex']) for m in grid['months']] == [(2026, 5), (2026, 6)]
 
-    # Window end = Sunday ending the week weeks_in_advance weeks ahead
-    # (= 2026-07-05 for today=2026-06-24 & WEEKS_IN_ADVANCE=1), so Jul 5 is
-    # selectable and Jul 6 is greyed.
     real = {c['timestamp']: c for c in _all_real_cells(grid)}
-    assert real[_midnight(2026, 7, 5)]['selectable'] is True
-    assert real[_midnight(2026, 7, 6)]['selectable'] is False
-
-    # Past days in today's month render as greyed REAL cells (not padding):
-    assert real[_midnight(2026, 6, 1)]['selectable'] is False
+    # Grid starts at the Monday of the current week (2026-06-22); days of prior
+    # weeks are NOT shown (the window is week-aligned and forward-looking).
+    assert min(real) == _midnight(2026, 6, 22)
+    assert _midnight(2026, 6, 21) not in real and _midnight(2026, 6, 1) not in real
+    # Past days of the current week render as greyed REAL cells (not padding):
+    assert real[_midnight(2026, 6, 22)]['selectable'] is False
     assert real[_midnight(2026, 6, 23)]['selectable'] is False
     # Today renders as today + selectable.
     assert real[ts]['isToday'] is True and real[ts]['selectable'] is True
+    # Window end: Sun 2026-07-05 selectable, Mon 2026-07-06 greyed.
+    assert real[_midnight(2026, 7, 5)]['selectable'] is True
+    assert real[_midnight(2026, 7, 6)]['selectable'] is False
+    # Grid extends to the last day of the window's month (2026-07-31).
+    assert max(real) == _midnight(2026, 7, 31)
 
-    # defaultTs default target = today → today itself.
+    # defaultTs default target = today -> today itself.
     assert grid['defaultTs'] == ts
 
 
+def test_user_scenario_two_weeks_advance():
+    # The reviewer's scenario: today Sat 2026-06-27, WEEKS_IN_ADVANCE=2.
+    # Expect: grid starts Mon 2026-06-22; selectable through Sun 2026-07-12;
+    # greyed from Mon 2026-07-13 to Fri 2026-07-31 (end of July).
+    ts = _midnight(2026, 6, 27)
+    grid = _grid(today_ts=ts, target_ts=ts, WEEKS_IN_ADVANCE=2)
+    _assert_structure(grid)
+    real = {c['timestamp']: c for c in _all_real_cells(grid)}
+    assert min(real) == _midnight(2026, 6, 22)
+    assert max(real) == _midnight(2026, 7, 31)
+    sel = sorted(t for t, c in real.items() if c['selectable'])
+    assert sel[0] == _midnight(2026, 6, 27)   # today
+    assert sel[-1] == _midnight(2026, 7, 12)  # boundary Sunday
+    # Days of the current week before today are greyed, real, not shown-as-past-week.
+    assert real[_midnight(2026, 6, 22)]['selectable'] is False
+    # Post-window tail greys through month-end.
+    assert real[_midnight(2026, 7, 13)]['selectable'] is False
+    assert real[_midnight(2026, 7, 31)]['selectable'] is False
+
+
 def test_defaultTs_boundary_target_bumps_to_tomorrow_when_past_open():
-    # WEEKS_IN_ADVANCE=1, today Wed 2026-06-24. The boundary target uses the
-    # caller-supplied target_ts (the boundary/tomorrow/same deriviation lives
-    # in view.py — getCalendarGrid only applies the scan). So pass target_ts =
-    # tomorrow and assert defaultTs = next selectable >= tomorrow.
+    # The boundary/tomorrow/same derivation lives in view.py; getCalendarGrid
+    # only applies the target scan. Pass target_ts = tomorrow and assert
+    # defaultTs = next selectable >= tomorrow.
     ts = _midnight(2026, 6, 24)
     tomorrow = ts + 24 * 3600
     grid = _grid(today_ts=ts, target_ts=tomorrow)
@@ -136,18 +154,16 @@ def test_defaultTs_boundary_target_bumps_to_tomorrow_when_past_open():
 
 
 def test_defaultTs_none_when_target_past_window_end():
-    # If the requested target is past every selectable day, defaultTs is None
-    # (graceful — the frontend falls back to an unselected calendar).
+    # If the requested target is past every selectable day, defaultTs is None.
     ts = _midnight(2026, 6, 24)
     far_future = ts + 365 * 24 * 3600
     grid = _grid(today_ts=ts, target_ts=far_future)
     _assert_structure(grid)
     assert grid['defaultTs'] is None
-    # defaultSelectedDates.cb is left unset (frontend shows no pre-selected day).
 
 
 def test_omitted_weekdays_greyed_not_hidden():
-    # OMIT_Sat,Sun: weekend cells render (real, with day numbers) but are not
+    # OMIT Sat,Sun: weekend cells render (real, with day numbers) but are not
     # selectable — they are greyed, never hidden, per the spec.
     ts = _midnight(2026, 6, 24)
     grid = _grid(today_ts=ts, target_ts=ts, OMITTED_WEEKDAYS=[5, 6])
@@ -158,36 +174,39 @@ def test_omitted_weekdays_greyed_not_hidden():
     assert real[_midnight(2026, 6, 27)]['day'] == 27
     # 2026-06-25 (Fri) still selectable.
     assert real[_midnight(2026, 6, 25)]['selectable'] is True
-    # defaultTs skips weekends (Sat/Sun not selectable).
-    assert grid['defaultTs'] == ts  # today (Wed) is selectable
+    # defaultTs skips weekends; today (Wed) is selectable.
+    assert grid['defaultTs'] == ts
 
 
 def test_week_start_day_rotates_header():
-    # Monday-first → header = [Mon..Sun] in %w indices → [1,2,3,4,5,6,0]
+    # Monday-first -> header = [Mon..Sun] in %w indices -> [1,2,3,4,5,6,0]
     assert _grid(today_ts=_midnight(2026, 6, 24),
                  target_ts=_midnight(2026, 6, 24),
                  WEEK_START_DAY=0)['weekdayHeader'] == [1, 2, 3, 4, 5, 6, 0]
-    # Saturday-first (WEEK_START_DAY=5) → header starts Sun (index 0) then Mon..
+    # Saturday-first (WEEK_START_DAY=5) -> header starts Sun (index 0) then Mon..
     assert _grid(today_ts=_midnight(2026, 6, 24),
                  target_ts=_midnight(2026, 6, 24),
                  WEEK_START_DAY=6)['weekdayHeader'] == [0, 1, 2, 3, 4, 5, 6]
 
 
-def test_month_boundary_renders_both_blocks():
-    # today near the end of June — window spans into July; both month blocks
-    # render with weekday-aligned leading/trailing padding.
-    ts = _midnight(2026, 6, 29)  # Monday
+def test_weeks_flow_across_month_boundary_no_intra_padding():
+    # The boundary week (Jun 29 - Jul 5) renders as one continuous week owned by
+    # June (its first day's month): Jul 1-5 are real selectable cells under the
+    # June header, NOT empty padding fillers. Only the very last week of the grid
+    # is tail-padded to complete a 7-cell row.
+    ts = _midnight(2026, 6, 24)   # Wed
     grid = _grid(today_ts=ts, target_ts=ts)
     _assert_structure(grid)
-    assert [(m['year'], m['monthIndex']) for m in grid['months']] == [(2026, 5), (2026, 6)]
-    # First week of June-block has the 1st at the Monday column (col 0, no leading
-    # padding) since both June 1 and June 29 are Mondays.
-    june_week0 = grid['months'][0]['weeks'][0]
-    # Last week of June-block: 29 (Mon) and 30 (Tue) then 5 padding fillers.
-    last_june_week = grid['months'][0]['weeks'][-1]
-    days_in_last_week = [c['day'] for c in last_june_week]
-    assert 29 in days_in_last_week and 30 in days_in_last_week
-    assert days_in_last_week.count(None) == 5
+    june_weeks = grid['months'][0]['weeks']
+    boundary_week = june_weeks[-1]
+    assert [c['day'] for c in boundary_week] == [29, 30, 1, 2, 3, 4, 5]
+    for c in boundary_week:
+        assert c['timestamp'] is not None      # no None padding mid-grid
+        if c['day'] in (1, 2, 3, 4, 5):
+            assert c['selectable'] is True
+    last_week = grid['months'][-1]['weeks'][-1]
+    assert last_week[4]['day'] == 31
+    assert last_week[5]['timestamp'] is None and last_week[6]['timestamp'] is None
 
 
 def test_blob_contains_no_strings():

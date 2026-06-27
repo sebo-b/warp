@@ -82,6 +82,16 @@ function parseTime(str) {
     return h*3600 + mm*60;
 }
 
+// Snap a seconds-of-day value to the slider's 15-min step. Start rounds DOWN
+// (the user always gets at least their requested start), end rounds UP (the
+// user always gets at least their requested end). Guarantees the booked slot
+// always contains thespan the user typed.
+function snapToStep(secs, direction) {
+    var step = 15*60;
+    if (direction === 'down') return Math.floor(secs / step) * step;
+    return Math.ceil(secs / step) * step;
+}
+
 function initSlider() {
 
     var slider = document.getElementById('timeslider');
@@ -104,9 +114,10 @@ function initSlider() {
         maxInput.value = fmtTime(unencoded[1]);
     });
 
-    // Inputs -> slider: parse HH:MM, clamp to the rail range + the 15-min step,
-    // keep start < end with the slider's margin. Invalid input reverts to the
-    // current handle value (the update handler repopulates the box).
+    // Inputs -> slider: parse HH:MM, snap to the 15-min step (start down, end
+    // up so the booked slot always contains the span typed), clamp to the rail
+    // range, keep start < end with the slider's margin. Invalid input reverts
+    // to the current handle value (the update handler repopulates the box).
     function applyFromInputs() {
         var lo = parseTime(minInput.value);
         var hi = parseTime(maxInput.value);
@@ -115,6 +126,8 @@ function initSlider() {
             return;
         }
         var min = +slider.dataset.min, max = +slider.dataset.max;
+        lo = snapToStep(lo, 'down');
+        hi = snapToStep(hi, 'up');
         lo = Math.min(max, Math.max(min, lo));
         hi = Math.min(max, Math.max(min, hi));
         if (hi - lo < 15*60) hi = Math.min(max, lo + 15*60);   // honour the margin
@@ -721,12 +734,9 @@ function savePlanSelections(s) {
     catch (e) { /* sessionStorage quota/disabled — degrade silently */ }
 }
 
-// The Clear link empties the calendar selection (it's the only deselect path —
-// clicks never remove a day).
-function initCalendarControls(cal) {
-    var clearBtn = document.querySelector('.warp-cal-clear-link');
-    if (clearBtn) clearBtn.addEventListener('click', function() { cal.clear(); });
-}
+// (Calendar controls removed — no mode toggle, no clear link. Click adds a
+// day, shift-click ranges; selection is additive and the only reset is a page
+// reload, which restores the prefs default day.)
 
 function initZoneHelp() {
 
@@ -772,34 +782,29 @@ function initZoneHelp() {
 
 }
 
+// The side panel is an inline column on desktop (default open) and a
+// slide-in overlay on mobile (default closed). Toggled via a data-state
+// attribute (CSS maps it to display:none on desktop, transform on mobile) — no
+// Materialize Sidenav/overlay, which was greying the whole page on reopen.
+// R6: init-time state only; the close button + schedule trigger flip the attr.
 function initZoneSidepanel() {
 
     var el = document.getElementById('plan_sidepanel');
-    M.Sidenav.init(el, {
-        onCloseEnd: function(e) {
-            e.style.transform = "";
-        }
-    });
+    var mobile = window.matchMedia('(max-width: 993px)').matches;
+    el.setAttribute('data-state', mobile ? 'closed' : 'open');
 
-    // The panel is an inline column on desktop (default open) and a
-    // slide-in overlay on mobile (default closed). The collapse class frees
-    // the desktop column on close (M.Sidenav's transform is no-op on inline);
-    // inst.open()/close() drives the mobile slide animation. Materialize's
-    // body _handleTriggerClick already reopens on trigger clicks.
     var closeBtn = document.querySelector('.plan_sidepanel_close');
     if (closeBtn) {
         closeBtn.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            el.classList.add('plan_sidepanel_collapsed');
-            var inst = M.Sidenav.getInstance(el);
-            if (inst) inst.close();
+            el.setAttribute('data-state', 'closed');
         });
     }
     var trig = document.querySelector('.planmap_datetime_trigger');
     if (trig) {
         trig.addEventListener('click', function() {
-            el.classList.remove('plan_sidepanel_collapsed');
+            el.setAttribute('data-state', 'open');
         });
     }
 }
@@ -976,7 +981,6 @@ document.addEventListener("DOMContentLoaded", function() {
                 updateSeatsView();
             }
         });
-    initCalendarControls(calendar);
 
     if (window.warpGlobals.darkFilter) {
         // Coerce each stored value to a number within its valid range, so a legacy or

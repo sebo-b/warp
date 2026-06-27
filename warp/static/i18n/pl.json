@@ -372,9 +372,6 @@
         "Seats": "Miejsca",
         "You will delete all seats and the log of all past bookings on this plan.": "Usuniesz wszystkie miejsca i historię wszystkich przeszłych rezerwacji w tym planie.",
         "Zone group (optional)": "Grupa strefy (opcjonalnie)",
-        "Zone name cannot be empty.": "Nazwa strefy nie może być pusta.",
-        "calendar": {
-            "clearSelection": "Wyczyść wybór"
-        }
+        "Zone name cannot be empty.": "Nazwa strefy nie może być pusta."
     }
 }

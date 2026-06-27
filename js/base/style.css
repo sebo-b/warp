@@ -1028,10 +1028,9 @@ nav .dropdown-content li > span {
     padding: var(--warp-space-3);
     z-index: 1;
 }
-
 /* Desktop collapse (user clicks close): free the column so the map reflows
-   back to full width. Mobile is overridden below. */
-#plan_sidepanel.plan_sidepanel_collapsed { display: none; }
+   back to full width. */
+#plan_sidepanel[data-state="closed"] { display: none; }
 
 .plan_sidepanel_close {
     display: block;            /* always visible: users on both viewports can hide the panel */
@@ -1068,9 +1067,8 @@ nav .dropdown-content li > span {
 }
 
 /* Mobile: the panel is a slide-in overlay (position: fixed; transform hides it
-   by default). M.Sidenav.open()/close() animate the transform. The collapsed
-   class (for desktop) is a no-op here — display: flex keeps it paintable while
-   transform handles the hide. */
+   by default). data-state drives the slide via a CSS transition — no
+   Materialize Sidenav/overlay (that greyed the whole page on reopen). */
 @media only screen and (max-width: 993px) {
     #plan_sidepanel {
         position: fixed;
@@ -1084,24 +1082,20 @@ nav .dropdown-content li > span {
         box-shadow: 0 2px 2px 0 rgba(var(--warp-shadow-rgb), 0.14), 0 3px 1px -2px rgba(var(--warp-shadow-rgb), 0.12), 0 1px 5px 0 rgba(var(--warp-shadow-rgb), 0.2);
         z-index: 999;   /* materializecss overlay has 997 */
         overscroll-behavior: contain;   /* a drag inside can't scroll-chain to the map behind */
-        transform: translateX(-105%);    /* hidden default; M.Sidenav.open() slides in */
+        transform: translateX(-105%);    /* closed default (JS sets data-state=closed on mobile) */
+        transition: transform .2s ease;
+        display: flex;   /* override the desktop display:none so the slide animates */
     }
-
     @media only screen and (min-width: 601px) {
-        #plan_sidepanel {
-            top: 64px;
-        }
+        #plan_sidepanel { top: 64px; }
     }
+    #plan_sidepanel[data-state="open"]   { transform: translateX(0); }
+    #plan_sidepanel[data-state="closed"] { transform: translateX(-105%); }
 
-    #plan_sidepanel.plan_sidepanel_collapsed {
-        display: flex;
-    }
+    /* Dragging the grip pans the slider, not the panel/page. */
+    .timeslider,
+    .timeslider .noUi-handle { touch-action: none; }
 }
-
-/* Dragging the grip pans the slider, not the panel/page. (Upstream noUiSlider
-   sets touch-action:none on the target; assert it on the handle too.) */
-.timeslider,
-.timeslider .noUi-handle { touch-action: none; }
 
 /* ===== WarpCalendar grid (booking panel) =====
    .warp-calendar owns its layout (grid + month headers + cells). Cells render
@@ -1117,13 +1111,7 @@ nav .dropdown-content li > span {
     padding-bottom: var(--warp-space-2);
 }
 
-.warp-cal-clear-link {
-    align-self: flex-end;      /* sits right-aligned under the grid */
-    font-size: 0.8rem;
-    color: var(--warp-grey-text);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
+.warp-cal-clear-link { display: none; }   /* removed (YAGNI) — selector kept to absorb stray refs */
 
 .warp-cal-grid {
     display: flex;
@@ -1197,12 +1185,13 @@ nav .dropdown-content li > span {
    Two editable HH:MM inputs above the rail. Scoped to the plan panel so the
    prefs-modal slider (.pref_timeslider_container .timeslider) keeps vertical. */
 .plan_timeslider {
-    flex: 0 0 auto;
+    flex: 0 0 auto;            /* don't stretch; sized by its content (inputs + rail) */
     display: flex;
     flex-direction: column;
-    gap: var(--warp-space-2);
-    padding-top: var(--warp-space-2);
+    gap: var(--warp-space-3);
+    padding-top: var(--warp-space-3);
     border-top: 1px solid var(--warp-grey-border);
+    margin-top: var(--warp-space-2);
 }
 .plan_timeslider_inputs {
     display: flex;
@@ -1223,13 +1212,32 @@ nav .dropdown-content li > span {
 }
 .timeslider-input:focus {
     border-color: var(--warp-secondary);
-    border-bottom-color: var(--warp-secondary);
     outline: none;
 }
+/* The rail: explicit height (noUiSlider horizontal needs one; `height:auto`
+   collapses it to 0 and the rail/handles vanish). Themed with the warp tokens
+   like the prefs-modal slider. */
 .plan_timeslider .timeslider {
-    height: auto !important;
+    height: 8px !important;     /* override the legacy .timeslider{height:400px} vertical default */
     margin: 0;
+    border: 0;
+    border-radius: var(--warp-radius-pill);
+    background: var(--warp-primary-tint);
 }
+.plan_timeslider .timeslider .noUi-connects { height: 100%; }
+.plan_timeslider .timeslider .noUi-connect { background: var(--warp-secondary); }
+.plan_timeslider .timeslider .noUi-handle {
+    box-shadow: none;
+    background-color: var(--warp-secondary);
+    border: none;
+    border-radius: 50%;
+    width: 16px; height: 16px;
+    top: -5px; right: -8px;
+    cursor: pointer;
+    transform: none;
+}
+.plan_timeslider .timeslider .noUi-handle:before,
+.plan_timeslider .timeslider .noUi-handle:after { content: none; }
 
 .plan_map,
 .zone_modify_map {
