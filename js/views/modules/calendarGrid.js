@@ -7,8 +7,10 @@
 //
 // Selection model (one behaviour — no mode toggle, no Clear link):
 //   click        -> toggle the day (select if absent, deselect if present).
-//   shift+click  -> replace the selection with every selectable ts in
-//                   [min(anchor,ts) .. max(anchor,ts)] inclusive.
+//                   Space/Enter on a focused cell does the same (keyboard).
+//   shift+click  -> ADD (union) every selectable ts in
+//                   [min(anchor,ts) .. max(anchor,ts)] inclusive to the
+//                   selection — other selected days are kept.
 //   drag         -> press a selectable cell (anchor) and drag onto another;
 //                   the live selection is the same contiguous selectable fill
 //                   between anchor and the cell under the pointer, re-evaluated
@@ -159,6 +161,25 @@ export class WarpCalendar {
         this.container.addEventListener('pointermove', (ev) => this._onMove(ev));
         this.container.addEventListener('pointerup', (ev) => this._onUp(ev));
         this.container.addEventListener('pointercancel', (ev) => this._onUp(ev, true));
+        // Keyboard: Space/Enter on a focused cell toggles it (the click
+        // equivalent). Cells carry role=button + tabindex=0, so this is the
+        // accessible activation path.
+        this.container.addEventListener('keydown', (ev) => this._onKey(ev));
+    }
+
+    _onKey(ev) {
+        if (ev.key !== ' ' && ev.key !== 'Enter' && ev.key !== 'Spacebar') return;
+        const ts = this._tsFromEvent(ev);
+        if (ts === null) return;
+        ev.preventDefault();   // Space would otherwise scroll the panel
+        if (this.selected.has(ts)) this.selected.delete(ts);
+        else { this.selected.add(ts); this.anchor = ts; }
+        this._render();
+        // _render() rebuilds the DOM, dropping focus — restore it to the same
+        // cell so keyboard navigation continues from where the user was.
+        const cell = this.container.querySelector('.warp-cal-day[data-ts="' + ts + '"]');
+        if (cell) cell.focus();
+        this.onChange(this.getSelected());
     }
 
     _cellTsAtPoint(x, y) {
@@ -221,6 +242,7 @@ export class WarpCalendar {
         if (ev.cancelable) ev.preventDefault();
         const ts = this._cellTsAtPoint(ev.clientX, ev.clientY);
         if (ts === null) return;
+        ds.lastTs = ts;   // remember the drag endpoint so release can re-anchor
         this.selected = this._rangeFill(Math.min(ds.anchor, ts), Math.max(ds.anchor, ts));
         this._render();
         this.onChange(this.getSelected());
@@ -230,7 +252,13 @@ export class WarpCalendar {
         const ds = this._dragState;
         if (!ds) return;
         this._dragState = null;
-        if (cancelled || ds.moved) return;   // drag already committed the range
+        if (cancelled) return;
+        if (ds.moved) {
+            // Drag already committed the range; re-anchor to the endpoint so a
+            // following shift-click extends consistently from where the drag ended.
+            if (ds.lastTs != null) this.anchor = ds.lastTs;
+            return;
+        }
         // Tap (no drag past threshold): toggle the day.
         if (ds.wasSelected) this.selected.delete(ds.ts);
         else { this.selected.add(ds.ts); this.anchor = ds.ts; }

@@ -2,11 +2,12 @@
 #
 # The grid drives the frontend plan-panel calendar (R1: no date math in JS; R9:
 # no strings in the blob), so its structural invariants must hold exactly.
-# The model is a *flowing week* grid: it starts at the configured week-start
-# day of the current week and runs to the last day of the month containing the
-# window end, with weeks flowing across month boundaries (a week belongs to
-# the month of its first day; no intra-grid padding — only the final week is
-# tail-padded to complete a 7-cell row).
+# The model is a *split-month rectangle* grid: each month is its own padded
+# 7-column rectangle. Weeks never flow across a month boundary — a boundary
+# week is split, with the previous month's last row trailing-padded after its
+# last day and the next month's first row leading-padded back to the week-start
+# before its 1st. The grid spans today's month through the month of the window
+# end, and always contains at least one full calendar month.
 
 import calendar as _cal
 import flask

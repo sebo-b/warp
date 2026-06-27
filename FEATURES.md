@@ -310,9 +310,9 @@ Accessible via the user icon on the Zones management page.
   ~4×. The map can't be dragged past its edges.
 - **Seat hint/preview**: hover a seat (desktop) or long-press it (touch) to pop a
   detail tooltip — the seat's assignments and the bookings for the selected time.
-- A **side panel** (collapsible on mobile) contains:
-  - **Date checkboxes**: the next ~2 weeks of dates (configurable via `WEEKS_IN_ADVANCE`). Omitted weekdays (e.g., Sat/Sun) are hidden.
-  - **Time slider**: a vertical dual-handle slider for selecting the start and end time. Configurable range (`BOOK_OPEN` / `BOOK_CLOSE`, default 00:00–24:00). Steps in 15-minute increments.
+- A **side panel** (open by default on desktop, closable; hidden by default on mobile, reopened via the schedule trigger) contains:
+  - **Calendar grid**: a compact month grid of whole calendar months, from the current month through the month containing the last bookable day. Bookable days (today → end of the `WEEKS_IN_ADVANCE` window) are selectable; non-bookable days (past, omitted weekdays, beyond the window) are shown **greyed out, not hidden**, so the calendar stays readable. The first column is `WEEK_START_DAY` (default Monday). Today carries a ring highlight.
+  - **Time slider**: a horizontal dual-handle slider for selecting the start and end time, with two editable `HH:MM` inputs above it. Configurable range (`BOOK_OPEN` / `BOOK_CLOSE`, default 00:00–24:00). Steps in 15-minute increments.
 - Seat states update in real-time as the user changes the date/time selection.
 
 ### 7.2 Seat Visual States (Icon Colors)
@@ -354,8 +354,10 @@ Accessible via the user icon on the Zones management page.
 - These constraints are enforced at the database level via the `book_overlap_insert` trigger (keyed by seat.zid and zone_group membership).
 
 
-### 7.7 Shift-Select for Dates
-- Holding **Shift** while clicking a date checkbox selects/deselects all dates between the last clicked date and the current one.
+### 7.7 Selecting Dates in the Calendar Grid
+- **Click** a day to toggle it (select if unselected, deselect if selected). Keyboard: focus a day and press **Space**/**Enter** for the same toggle.
+- **Shift-click** a day to **add** the whole range between the last selected day (anchor) and the clicked day to the selection — other selected days are kept. Greyed (non-bookable) days inside the range are crossed but never selected.
+- **Drag** from one day to another to select that contiguous range (this replaces the current selection). Works with mouse and touch.
 
 ### 7.8 Session Persistence of Date/Time Selection
 - The selected dates and time slider position are stored in `sessionStorage` and restored on page reload.
@@ -663,8 +665,8 @@ All text on these pages is translated according to the deployment-wide language 
 
 ## 21. Mobile Responsiveness
 
-- The plan-view side panel (date/time selection) collapses into a **sidenav** on mobile.
-- A trigger button (schedule icon) appears on the plan map to open the side panel.
+- The plan-view side panel (date/time selection) is an inline column on desktop (open by default, closable) and a slide-in overlay sheet on mobile (hidden by default).
+- A trigger button (schedule icon) appears on the plan map to open the side panel; a close button inside the panel hides it on both viewports.
 - The navigation bar collapses into a hamburger menu.
 - The user menu is available from the mobile sidenav.
 - The plan map is fully touch-driven: drag to pan, pinch to zoom, **tap** a seat to

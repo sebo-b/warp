@@ -1127,8 +1127,6 @@ nav .dropdown-content li > span {
     padding-bottom: var(--warp-space-2);
 }
 
-.warp-cal-clear-link { display: none; }   /* removed (YAGNI) — selector kept to absorb stray refs */
-
 .warp-cal-grid {
     display: flex;
     flex-direction: column;
