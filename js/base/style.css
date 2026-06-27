@@ -1213,8 +1213,7 @@ nav .dropdown-content li > span {
     text-align: center;
     font-size: 0.9rem;
     padding: 4px 6px;
-    border: 1px solid var(--warp-grey-border);
-    border-bottom: 1px solid var(--warp-secondary);   /* Materialize input look */
+    border: 1px solid var(--warp-grey-border);   /* uniform frame (no coloured underline — it read as a blue line in dark mode) */
     border-radius: var(--warp-radius);
     background: var(--warp-surface);
     color: var(--warp-text);
@@ -1224,24 +1223,34 @@ nav .dropdown-content li > span {
     outline: none;
 }
 /* The rail: explicit height (noUiSlider horizontal needs one; `height:auto`
-   collapses it to 0 and the rail/handles vanish). Themed with the warp tokens
-   like the prefs-modal slider. */
+   collapses it to 0 and the rail/handles vanish). Same thin, flat shape as the
+   prefs-modal slider, but coloured with --warp-secondary so it matches the
+   calendar grid + FAB. box-shadow:none drops noUiSlider's default inset
+   highlight, which showed as a pale line along the top of the bar in dark mode. */
 .plan_timeslider .timeslider {
-    height: 8px !important;     /* override the legacy .timeslider{height:400px} vertical default */
+    height: 3px !important;     /* override the legacy .timeslider{height:400px} vertical default */
     margin: 0;
     border: 0;
-    border-radius: var(--warp-radius-pill);
+    border-radius: 0;
     background: var(--warp-primary-tint);
+    box-shadow: none;
 }
-.plan_timeslider .timeslider .noUi-connects { height: 100%; }
+.plan_timeslider .timeslider .noUi-connects {
+    position: absolute;
+    top: -1px;
+    left: 0;
+    width: 100%;
+    height: 5px;
+}
 .plan_timeslider .timeslider .noUi-connect { background: var(--warp-secondary); }
+.plan_timeslider .timeslider .noUi-origin { top: 0; }
 .plan_timeslider .timeslider .noUi-handle {
     box-shadow: none;
     background-color: var(--warp-secondary);
     border: none;
     border-radius: 50%;
-    width: 16px; height: 16px;
-    top: -5px; right: -8px;
+    width: 15px; height: 15px;
+    top: -6px; right: -7px;
     cursor: pointer;
     transform: none;
 }
