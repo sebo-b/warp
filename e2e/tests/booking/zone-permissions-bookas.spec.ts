@@ -74,7 +74,7 @@ test.describe('site admin is a super-user over all zones', () => {
 
     await logIn(page, ADMIN);
 
-    const resp = await page.request.get(`/xhr/zone/getSeats/${pid}`);
+    const resp = await page.request.get(`/xhr/plan/getSeats/${pid}`);
     expect(resp.status()).toBe(200);
     const data = await resp.json();
     expect(data.seats[String(seatId)].bookable).toBe(true);
@@ -203,7 +203,7 @@ test.describe('auto-book as another user', () => {
   async function autoBook(page: any, pid: number, dates: object[], login?: string) {
     const data: any = { dates };
     if (login) data.login = login;
-    return page.request.post(`/xhr/zone/autoBook/${pid}`, {
+    return page.request.post(`/xhr/plan/autoBook/${pid}`, {
       data,
       headers: { 'Content-Type': 'application/json' },
       maxRedirects: 0,
@@ -317,7 +317,7 @@ test.describe('auto-book as another user', () => {
     await page.waitForTimeout(200);
 
     const [resp] = await Promise.all([
-      page.waitForResponse(r => r.url().includes('/xhr/zone/autoBook')),
+      page.waitForResponse(r => r.url().includes('/xhr/plan/autoBook')),
       page.locator('#auto_book_btn').click(),
     ]);
     expect(resp.status()).toBe(200);
@@ -541,7 +541,7 @@ test.describe('getSeats book-as guard', () => {
   test('E1: a non-admin cannot use the book-as query parameters', async ({ page }) => {
     // Zone 1A is enabled by default; user2 is a USER there (via group_1a), not an admin.
     await logIn(page, USER2);
-    const resp = await page.request.get('/xhr/zone/getSeats/1?login=user1', { maxRedirects: 0 });
+    const resp = await page.request.get('/xhr/plan/getSeats/1?login=user1', { maxRedirects: 0 });
     expect(resp.status()).toBe(403);
     expect((await resp.json()).code).toBe(131);
   });
@@ -564,7 +564,7 @@ test.describe('cross-zone book-as release confinement', () => {
   async function autoBook(page: any, pid: number, dates: object[], login?: string) {
     const data: any = { dates };
     if (login) data.login = login;
-    return page.request.post(`/xhr/zone/autoBook/${pid}`, {
+    return page.request.post(`/xhr/plan/autoBook/${pid}`, {
       data,
       headers: { 'Content-Type': 'application/json' },
       maxRedirects: 0,

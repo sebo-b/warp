@@ -9,7 +9,7 @@ from warp import auth
 from warp import utils
 from warp.db import *
 
-bp = flask.Blueprint('zone', __name__, url_prefix='zone')
+bp = flask.Blueprint('plan', __name__, url_prefix='plan')
 
 # Response format for getSeats:
 #   zones: { zidN: "Zone name" }

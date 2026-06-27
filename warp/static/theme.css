@@ -39,12 +39,12 @@
   --warp-on-brand: #ffffff;  /* text/icons ON a brand-coloured fill (buttons, headers, titles) — stays light in dark mode */
 
   /* ===== SEAT STATUS ==================================================== */
-  /* Seat sprites (seat_icons.svg) read these via an external <use>: -fg is the
-     ring/glyph colour (currentColor), -bg is the disc base (var(--warp-seat-bg)).
-     Split between light and dark below; dark mirrors light for now (tweak the
-     dark block later). -fg is a literal hex so each status is independent of the
-     brand/neutral tokens; -bg is a light tint of -fg (a solid currentColor-@-0.2
-     equivalent, usable as the sprite's knockout base). */
+  /* Seat sprites: each #cell-<name> in seat_icons.svg reads these via an
+     external <use>. -fg is the ring/glyph colour, -bg is the disc base. Split
+     between light and dark below; dark mirrors light for now (tweak the dark
+     block later). -fg is a literal hex so each status is independent of the
+     brand/neutral tokens; -bg is a light tint of -fg (a solid knockout base for
+     the rings/arrows over it). */
   --warp-seat-available-fg:   #2e7d32;  /* green — free / available seat */
   --warp-seat-available-bg:   color-mix(in srgb, var(--warp-seat-available-fg), white 80%);
   --warp-seat-yours-fg:       #2C3E50;  /* charcoal slate — your / assigned seat */

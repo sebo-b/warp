@@ -10,7 +10,7 @@
     window.warpGlobals['maxReportRows'] = {{ maxReportRows }};
     {% else %}
     window.warpGlobals.URLs['bookingsReport'] = "{{ url_for('xhr.bookings.list') }}";
-    window.warpGlobals.URLs['zoneApply'] = "{{ url_for('xhr.zone.apply') }}";
+    window.warpGlobals.URLs['planApply'] = "{{ url_for('xhr.plan.apply') }}";
     window.warpGlobals['report'] = false;
     {% endif %}
 </script>

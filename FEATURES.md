@@ -302,6 +302,14 @@ Accessible via the user icon on the Zones management page.
 - A **plan** is the floor-map page you interact with to book (“the zone view” in everyday speech). Each plan owns an image + seats; seats are labelled with a **zone** for access control.
 - A single plan may contain seats belonging to several different zones (mixed permissions on the same map).
 - The plan view shows the plan's map image with seat icons overlaid.
+- **Navigating the map**: the map is pannable and zoomable. Drag to pan; mouse
+  wheel / trackpad or a two-finger pinch to zoom; on-screen **+ / − / reset**
+  buttons in the corner; **double-tap** (or double-click) to reset the zoom to the
+  default without moving the map. It opens centred at the map's natural (1:1)
+  pixel size; you can zoom out until the whole floor fits in view, or in up to
+  ~4×. The map can't be dragged past its edges.
+- **Seat hint/preview**: hover a seat (desktop) or long-press it (touch) to pop a
+  detail tooltip — the seat's assignments and the bookings for the selected time.
 - A **side panel** (collapsible on mobile) contains:
   - **Date checkboxes**: the next ~2 weeks of dates (configurable via `WEEKS_IN_ADVANCE`). Omitted weekdays (e.g., Sat/Sun) are hidden.
   - **Time slider**: a vertical dual-handle slider for selecting the start and end time. Configurable range (`BOOK_OPEN` / `BOOK_CLOSE`, default 00:00–24:00). Steps in 15-minute increments.
@@ -659,7 +667,10 @@ All text on these pages is translated according to the deployment-wide language 
 - A trigger button (schedule icon) appears on the plan map to open the side panel.
 - The navigation bar collapses into a hamburger menu.
 - The user menu is available from the mobile sidenav.
-- Seat icons and the plan map scale to the viewport.
+- The plan map is fully touch-driven: drag to pan, pinch to zoom, **tap** a seat to
+  open its action sheet, **long-press** for the seat hint, **double-tap** to reset
+  the zoom. Seat icons stay finger-sized as you zoom in and shrink with the map as
+  you zoom out, so a zoomed-out overview stays uncluttered.
 
 ---
 

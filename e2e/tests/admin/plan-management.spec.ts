@@ -241,7 +241,7 @@ test.describe('plan management', () => {
     await page.goto('/plan/1');
     await page.waitForLoadState('networkidle');
 
-    const mapImg = page.locator('#zonemap > img');
+    const mapImg = page.locator('#planmap .OMBackground');
     const filter = await mapImg.evaluate((el: HTMLElement) => (el as HTMLImageElement).style.filter);
     expect(filter).toContain('invert');
   });

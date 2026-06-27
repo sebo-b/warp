@@ -147,7 +147,7 @@ test.describe('seat assignment via API', () => {
     );
 
     await logIn(page, USER1);
-    const resp = await page.request.get('/xhr/zone/getSeats/1');
+    const resp = await page.request.get('/xhr/plan/getSeats/1');
     const body = await resp.json();
     const seatData = body.seats[String(seat.id)];
     expect(seatData.assignments).toBeDefined();
@@ -170,7 +170,7 @@ test.describe('assign seat modal UI', () => {
     const [seat] = await getZoneSeats(1);
     await clickZoneSeat(page, seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
-    await page.locator('.zone_action_btn[data-action="assign-modal"]').click();
+    await page.locator('.plan_action_btn[data-action="assign-modal"]').click();
 
     await expect(page.locator('#assigned_seat_modal')).toHaveClass(/open/);
     await expect(page.locator('#assigned_seat_add_input')).toBeVisible();
@@ -186,7 +186,7 @@ test.describe('assign seat modal UI', () => {
     const [seat] = await getZoneSeats(1);
     await clickZoneSeat(page, seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
-    await page.locator('.zone_action_btn[data-action="assign-modal"]').click();
+    await page.locator('.plan_action_btn[data-action="assign-modal"]').click();
     await expect(page.locator('#assigned_seat_modal')).toHaveClass(/open/);
 
     const addInput = page.locator('#assigned_seat_add_input');
@@ -204,8 +204,8 @@ test.describe('assign seat modal UI', () => {
     await expect(page.locator('#assigned_seat_list .collection-item')).toContainText('Bar');
 
     await Promise.all([
-      page.waitForResponse(r => r.url().includes('/xhr/zone/apply') && r.status() === 200),
-      page.locator('#assigned_seat_modal .zone_action_btn[data-action="assign"]').click(),
+      page.waitForResponse(r => r.url().includes('/xhr/plan/apply') && r.status() === 200),
+      page.locator('#assigned_seat_modal .plan_action_btn[data-action="assign"]').click(),
     ]);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(200);

@@ -46,7 +46,7 @@ function shortSlot(dayN: number, hour: number): { fromTS: number; toTS: number }
 async function autoBook(page: any, pid: number, dates: object[], login?: string) {
   const data: any = { dates };
   if (login) data.login = login;
-  return page.request.post(`/xhr/zone/autoBook/${pid}`, {
+  return page.request.post(`/xhr/plan/autoBook/${pid}`, {
     data,
     headers: { 'Content-Type': 'application/json' },
     maxRedirects: 0,

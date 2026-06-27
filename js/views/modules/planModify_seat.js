@@ -25,23 +25,19 @@ Seat.CONFIG = {
     newSidPrefix: "DUMMY_",
     DELETED: "DELETED",
 
-    iconNames: {
-        plus: 'icon-plus',
-        head: 'icon-head',
-        no: 'icon-no'
+    // Editor seat state -> #cell-<name>. Each cell bakes its colours from the
+    // :root theme vars (see seat_icons.svg); the editor just picks the cell
+    // matching the state. Same cells as OfficeMap's booking view + the help modal.
+    cells: {
+        new:      'available',    // green plus  — a not-yet-saved seat
+        edited:   'edited',       // green head — an existing seat with unsaved changes
+        existing: 'yours',         // blue head  — an unmodified real seat
+        deleted:  'unavailable'    // grey X     — a seat marked for deletion
     },
 
-    // All sprite IDs used in the Map edit reference view, with the same colors
-    // shown in the zonemap help modal.
-    referenceIcons: [
-        { icon: 'icon-plus', color: 'available' },
-        { icon: 'icon-arrow', color: 'available' },
-        { icon: 'icon-head', color: 'yours' },
-        { icon: 'icon-head-arrow', color: 'yours' },
-        { icon: 'icon-no', color: 'unavailable' },
-        { icon: 'icon-assigned', color: 'unavailable' }
-    ]
-
+    // Reference view: cycle the full sprite vocabulary (same set as the booking
+    // help modal), keeping each shape's available/yours/unavailable colour family.
+    referenceCells: ['available', 'rebook', 'yours', 'yoursChange', 'unavailable', 'assigned']
 }
 
 Seat.prototype.silentSetXY = function(x,y) {
@@ -85,7 +81,7 @@ Seat.prototype._updateData = function(data) {
 Seat.prototype._createDiv = function(parentDiv) {
 
     this.seatDiv = document.createElement("div");
-    this.seatDiv.className = "seat-icon seat-icon--yours";
+    this.seatDiv.className = "seat-icon";
     this.seatDiv.style.position = "absolute";
     this.seatDiv.style.width = Seat.CONFIG.spriteSize + "px";
     this.seatDiv.style.height = Seat.CONFIG.spriteSize + "px";
@@ -96,7 +92,7 @@ Seat.prototype._createDiv = function(parentDiv) {
     svg.setAttribute("height", "48");
 
     this.seatUse = document.createElementNS("http://www.w3.org/2000/svg", "use");
-    this.seatUse.setAttribute("href", window.warpGlobals.URLs['seatSprite'] + "#" + Seat.CONFIG.iconNames.head);
+    this.seatUse.setAttribute("href", window.warpGlobals.URLs['seatSprite'] + "#cell-" + Seat.CONFIG.cells.existing);
 
     svg.appendChild(this.seatUse);
     this.seatDiv.appendChild(svg);
@@ -125,32 +121,22 @@ Seat.prototype._updateDiv = function() {
     this.seatDiv.style.left = this.x + "px";
     this.seatDiv.style.top = this.y + "px";
 
-    var iconName = Seat.CONFIG.iconNames.head;
-    var colorClass = 'yours';
+    var cell = Seat.CONFIG.cells.existing;
 
     if (this.factory && this.factory.referenceMode) {
-        var ref = this.referenceIcon || Seat.CONFIG.referenceIcons[0];
-        iconName = ref.icon;
-        colorClass = ref.color;
+        cell = this.referenceCell || Seat.CONFIG.referenceCells[0];
     }
     else if (this.isNew()) {
-        iconName = Seat.CONFIG.iconNames.plus;
-        colorClass = 'available';
+        cell = Seat.CONFIG.cells.new;
     }
     else if (this.deleted) {
-        iconName = Seat.CONFIG.iconNames.no;
-        colorClass = 'unavailable';
+        cell = Seat.CONFIG.cells.deleted;
     }
     else if (Object.keys(this.overlay).length > 0) {
-        colorClass = 'available';
+        cell = Seat.CONFIG.cells.edited;
     }
 
-    var newHref = window.warpGlobals.URLs['seatSprite'] + "#" + iconName;
-    var newClass = "seat-icon seat-icon--" + colorClass;
-
-    if (this.seatDiv.className !== newClass)
-        this.seatDiv.className = newClass;
-
+    var newHref = window.warpGlobals.URLs['seatSprite'] + "#cell-" + cell;
     if (this.seatUse.getAttribute("href") !== newHref)
         this.seatUse.setAttribute("href", newHref);
 
@@ -420,12 +406,12 @@ SeatFactory.prototype.getChanges = function() {
 SeatFactory.prototype.setReferenceMode = function(enabled) {
 
     this.referenceMode = enabled;
-    var icons = Seat.CONFIG.referenceIcons;
+    var icons = Seat.CONFIG.referenceCells;
     var seats = Object.values(this.instances);
 
     for (var i = 0; i < seats.length; i++) {
         var seat = seats[i];
-        seat.referenceIcon = icons[i % icons.length];
+        seat.referenceCell = icons[i % icons.length];
         seat._updateDiv();
         seat._setLabelVisible(!enabled);
     }

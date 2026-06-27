@@ -396,13 +396,13 @@ function initPrefs() {
       loadedPrefs = prefs;
       applyPrefsToUI();
       window.warpGlobals = window.warpGlobals || {};
-      window.warpGlobals['zonePreviewPrefs'] = {
+      window.warpGlobals['planPreviewPrefs'] = {
         show_seat_names: prefs.zone_show_seat_names,
         show_booking_preview: prefs.zone_show_booking_preview,
         show_assigned_names: prefs.zone_show_assigned_names
       };
       document.dispatchEvent(new CustomEvent('warp:prefsSaved', {
-        detail: { zonePreviewPrefs: window.warpGlobals['zonePreviewPrefs'] }
+        detail: { planPreviewPrefs: window.warpGlobals['planPreviewPrefs'] }
       }));
       if (callback) callback(null, prefs);
     })

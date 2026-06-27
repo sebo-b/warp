@@ -7,19 +7,19 @@ test.describe('zone access', () => {
   test('user1 (direct admin assignment) can open Zone 1A', async ({ page }) => {
     await logIn(page, USER1);
     await page.goto('/plan/1');
-    await expect(page.locator('#zonemap')).toBeVisible();
+    await expect(page.locator('#planmap')).toBeVisible();
   });
 
   test('user2 (via group_1a) can open Zone 1A', async ({ page }) => {
     await logIn(page, USER2);
     await page.goto('/plan/1');
-    await expect(page.locator('#zonemap')).toBeVisible();
+    await expect(page.locator('#planmap')).toBeVisible();
   });
 
   test('user1 (via group_1b) can open Zone 1B', async ({ page }) => {
     await logIn(page, USER1);
     await page.goto('/plan/2');
-    await expect(page.locator('#zonemap')).toBeVisible();
+    await expect(page.locator('#planmap')).toBeVisible();
   });
 
   test('user3 (no assignments) is denied access to every zone', async ({ page }) => {

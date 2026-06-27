@@ -2,7 +2,7 @@
 
 This document explains, in detail, how the **auto-book** feature decides _which_
 seat to give you (or another user) for a set of requested days/times. It
-describes — and matches — the implementation in `warp/xhr/zone.py` (`autoBook`
+describes — and matches — the implementation in `warp/xhr/plan.py` (`autoBook`
 endpoint + `runAutoBook` core).
 
 For the surrounding access model see [PERMISSIONS.md](PERMISSIONS.md); for term
@@ -20,7 +20,7 @@ definitions see [GLOSSARY.md](GLOSSARY.md).
 
 ## 1. Inputs and outputs
 
-**Request** (`POST /xhr/zone/autoBook/<pid>`):
+**Request** (`POST /xhr/plan/autoBook/<pid>`):
 
 - `dates`: a list of `{fromTS, toTS}` slots (absolute unix seconds). There may be
   several slots, possibly spanning several days.
@@ -288,7 +288,7 @@ A mix of **decisions** (marked _decided/accepted_) and still-**open** questions
    per-plan model that distinction is gone — an existing seat on the plan is taken
    at step 1 with top priority — so the bucket was never filled. Removed from
    `runAutoBook`'s result and the "Already booked in another zone" section from
-   `showAutoBookResult` in `zone.js`. (Other zones — even in the same group —
+   `showAutoBookResult` in `plan.js`. (Other zones — even in the same group —
    don't matter: clicking autobook means "book me a seat on the plan I'm looking
    at, by priority".)
 2. **Each day is solved independently — accepted.** A multi-day request may land
@@ -297,7 +297,7 @@ A mix of **decisions** (marked _decided/accepted_) and still-**open** questions
    fine** — no attempt to force one seat across the whole span.
 3. **Exact match is handled in the UI only — decided.** The auto-book button is
    already disabled when the current selection exactly matches one of your existing
-   bookings on the plan (`isExactMatch` / `updateFabState` in `zone.js`). Since
+   bookings on the plan (`isExactMatch` / `updateFabState` in `plan.js`). Since
    re-running autobook on an exact match would, at worst, re-book the seat you
    already have (a harmless no-op), the backend needs **no** exact-match
    special-casing. The narrow §7 short-circuit was left in place as a harmless

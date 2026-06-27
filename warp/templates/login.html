@@ -13,6 +13,13 @@
             width: 300px;
             height: 70%;
         }
+        /* The container is .valign-wrapper (display:flex, justify-content:start),
+           so the inner .row is a shrink-to-fit flex item that hugs the left on
+           Firefox (Chrome happens to resolve it to 100%). Force the row to fill
+           the container so the input fields are centered across browsers. */
+        .login_container .row {
+            width: 100%;
+        }
         .flash_message {
           color: var(--warp-error);
           padding-bottom: 20px;

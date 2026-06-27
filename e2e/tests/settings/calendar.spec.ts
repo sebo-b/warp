@@ -541,7 +541,7 @@ test.describe('calendar settings API', () => {
     // Add a booking (triggers cache invalidation in apply endpoint)
     const [seat] = await getZoneSeats(1);
     const ts = futureDayTs(4);
-    await page.request.post('/xhr/zone/apply', {
+    await page.request.post('/xhr/plan/apply', {
       data: { book: { sid: seat.id, dates: [{ fromTS: ts + 9 * 3600, toTS: ts + 17 * 3600 }] } },
       headers: { 'Content-Type': 'application/json' },
     });

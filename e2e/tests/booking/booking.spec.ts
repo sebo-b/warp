@@ -186,8 +186,8 @@ test.describe('seat states and conflicts', () => {
     await clickZoneSeat(page, seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
 
-    await expect(page.locator('.zone_action_btn[data-action="book"]')).not.toBeVisible();
-    await expect(page.locator('.zone_action_btn[data-action="delete"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="book"]')).not.toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="delete"]')).toBeVisible();
   });
 
   test('user1 can rebook to another seat (Update button appears on target seat)', async ({ page }) => {
@@ -205,7 +205,7 @@ test.describe('seat states and conflicts', () => {
     await page.waitForTimeout(400);
     await clickZoneSeat(page, seats[1]);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
-    await expect(page.locator('.zone_action_btn[data-action="update"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="update"]')).toBeVisible();
   });
 
   test('Update replaces the old booking with the new seat', async ({ page }) => {

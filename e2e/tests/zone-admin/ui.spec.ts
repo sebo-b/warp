@@ -33,9 +33,9 @@ test.describe('zone admin action modal', () => {
     await clickZoneSeat(page, seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
 
-    await expect(page.locator('.zone_action_btn[data-action="assign-modal"]')).toBeVisible();
-    await expect(page.locator('.zone_action_btn[data-action="disable"]')).toBeVisible();
-    await expect(page.locator('.zone_action_btn[data-action="book"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="assign-modal"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="disable"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="book"]')).toBeVisible();
   });
 
   test('regular user does NOT see Assign or Disable buttons', async ({ page }) => {
@@ -49,8 +49,8 @@ test.describe('zone admin action modal', () => {
     await clickZoneSeat(page, seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
 
-    await expect(page.locator('.zone_action_btn[data-action="assign-modal"]')).not.toBeVisible();
-    await expect(page.locator('.zone_action_btn[data-action="disable"]')).not.toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="assign-modal"]')).not.toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="disable"]')).not.toBeVisible();
   });
 
 });
@@ -87,8 +87,8 @@ test.describe('disable and enable seats', () => {
 
     await clickZoneSeat(page, seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
-    await expect(page.locator('.zone_action_btn[data-action="enable"]')).toBeVisible();
-    await expect(page.locator('.zone_action_btn[data-action="disable"]')).not.toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="enable"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="disable"]')).not.toBeVisible();
   });
 
   test('zone admin can re-enable a disabled seat', async ({ page }) => {
@@ -114,7 +114,7 @@ test.describe('disable and enable seats', () => {
     await querySql('UPDATE seat SET enabled = false WHERE id = $1', [seat.id]);
 
     await logIn(page, USER2);
-    const resp = await page.request.get('/xhr/zone/getSeats/1');
+    const resp = await page.request.get('/xhr/plan/getSeats/1');
     expect(resp.status()).toBe(200);
     const body = await resp.json();
     expect(String(seat.id) in body.seats).toBe(false);
@@ -125,7 +125,7 @@ test.describe('disable and enable seats', () => {
     await querySql('UPDATE seat SET enabled = false WHERE id = $1', [seat.id]);
 
     await logIn(page, USER1);
-    const resp = await page.request.get('/xhr/zone/getSeats/1');
+    const resp = await page.request.get('/xhr/plan/getSeats/1');
     expect(resp.status()).toBe(200);
     const body = await resp.json();
     expect(String(seat.id) in body.seats).toBe(true);

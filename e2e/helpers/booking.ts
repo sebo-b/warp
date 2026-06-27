@@ -60,16 +60,35 @@ export async function selectOnlyDates(page: Page, timestamps: number[]): Promise
   }
 }
 
-/** Click the center of a seat sprite within #zonemap. Seats are 48×48 px. */
-export async function clickZoneSeat(page: Page, seat: SeatRow): Promise<void> {
-  await page.locator('#zonemap').click({
-    position: { x: seat.x + 24, y: seat.y + 24 },
-  });
+/**
+ * Zoom the OfficeMap out to its minimum (fit) so the WHOLE map is inside
+ * #planmap and every seat is on-screen and clickable. The booking view now opens
+ * at a 1:1, centred default, which leaves seats near the map edges geometrically
+ * outside #planmap (clipped, and on the left overlapped by the sidepanel) — there
+ * a center-click lands on the sidepanel, not the seat. One big wheel-out clamps to
+ * the fit scale and brings every seat into view. Idempotent (a no-op once at fit).
+ */
+export async function fitMap(page: Page): Promise<void> {
+  const box = await page.locator('#planmap').boundingBox();
+  if (!box) return;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(0, 2400);   // large zoom-out → clamps at minScale (fit)
+  await page.waitForTimeout(50);     // let the panzoomchange settle
 }
 
-/** Wait for the seat data XHR to complete (seats appear after the load). */
+/** Click a seat by its stable OfficeMap id (#sprite-<sid>). Fits the map first so
+ *  the seat is on-screen regardless of the 1:1 default view. */
+export async function clickZoneSeat(page: Page, seat: SeatRow): Promise<void> {
+  await fitMap(page);
+  await page.locator(`#sprite-${seat.id}`).click();
+}
+
+/** Wait for the seat data XHR to complete and at least one seat to render, then
+ *  fit the map so seats are interactable (click/hover) from the default view. */
 export async function waitForSeatsLoaded(page: Page): Promise<void> {
   await page.waitForLoadState('networkidle');
+  await page.locator('.OMSeat').first().waitFor({ state: 'visible' });
+  await fitMap(page);
 }
 
 /**
@@ -93,8 +112,8 @@ export async function bookSeatUI(
   // seat-refresh GET that fires in the .then() callback, and a brief pause for
   // Flask's request teardown to close the DB connection (commit becomes visible).
   await Promise.all([
-    page.waitForResponse(r => r.url().includes('/xhr/zone/apply') && r.status() === 200),
-    page.locator('.zone_action_btn[data-action="book"]').click(),
+    page.waitForResponse(r => r.url().includes('/xhr/plan/apply') && r.status() === 200),
+    page.locator('.plan_action_btn[data-action="book"]').click(),
   ]);
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(200);
@@ -109,21 +128,21 @@ export async function clickActionBtn(
   action: 'book' | 'delete' | 'update' | 'enable' | 'disable',
 ): Promise<void> {
   await Promise.all([
-    page.waitForResponse(r => r.url().includes('/xhr/zone/apply') && r.status() === 200),
-    page.locator(`.zone_action_btn[data-action="${action}"]`).click(),
+    page.waitForResponse(r => r.url().includes('/xhr/plan/apply') && r.status() === 200),
+    page.locator(`.plan_action_btn[data-action="${action}"]`).click(),
   ]);
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(200);
 }
 
-/** Direct XHR to /xhr/zone/apply using the current page session (cookies).
+/** Direct XHR to /xhr/plan/apply using the current page session (cookies).
  *  Redirects are not followed: an expired session answers with a 302 to /login,
  *  and following it would turn that into a misleading 200 (the login page). */
 export async function apiApply(
   page: Page,
   body: object,
 ): Promise<import('@playwright/test').APIResponse> {
-  return page.request.post('/xhr/zone/apply', {
+  return page.request.post('/xhr/plan/apply', {
     data: body,
     headers: { 'Content-Type': 'application/json' },
     maxRedirects: 0,

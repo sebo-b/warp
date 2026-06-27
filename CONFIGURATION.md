@@ -52,10 +52,10 @@ environment:
 
 | Setting                      | Default      | Required | Description                                    |
 | ---------------------------- | ------------ | :------: | ---------------------------------------------- |
-| `DATABASE_ADDRESS`          | —            | **yes**  | `host` or `host:port` (port defaults to 5432) |
-| `DATABASE_NAME`             | —            | **yes**  | Database name                                 |
-| `DATABASE_USER`             | —            | **yes**  | Database username                              |
-| `DATABASE_PASSWORD`         | —            | **yes**  | Database password                              |
+| `DATABASE_ADDRESS`           | —            | **yes**  | `host` or `host:port` (port defaults to 5432)  |
+| `DATABASE_NAME`              | —            | **yes**  | Database name                                  |
+| `DATABASE_USER`              | —            | **yes**  | Database username                              |
+| `DATABASE_PASSWORD`          | —            | **yes**  | Database password                              |
 | `SECRET_KEY`                 | —            | **yes**¹ | Cookie signing key                             |
 | `DATABASE_ARGS`              | `{}`         |    no    | Extra args for the psycopg3 driver             |
 | `SESSION_LIFETIME`           | `1`          |    no    | Session duration in days                       |
@@ -68,7 +68,7 @@ environment:
 | `MIN_PASSWORD_LENGTH`        | `6`          |    no    | Minimum password length                        |
 | `LOGIN_IGNORECASE`           | `true`       |    no    | Match logins case-insensitively (all backends) |
 | `MAX_REPORT_ROWS`            | `5000`       |    no    | Maximum rows in Excel export                   |
-| `MAX_MAP_SIZE`               | `2 MB`       |    no    | Maximum zone map image size                    |
+| `MAX_MAP_SIZE`               | `2 MB`       |    no    | Maximum plan image size                        |
 | `MAX_CONTENT_LENGTH`         | `5 MB`       |    no    | Maximum request body size                      |
 | `TIMEZONE`                   | auto-detect  |    no    | Timezone label in iCal `DTSTART`/`DTEND`       |
 
@@ -198,7 +198,7 @@ WARP_OMITTED_WEEKDAYS="[5, 6]"   # hide Saturday and Sunday
 WARP_WEEKS_IN_ADVANCE=2           # two weeks of future dates
 ```
 
-Per-seat booking windows (days-in-advance) are set in the zone map editor and are
+Per-seat booking windows (days-in-advance) are set in the plan editor and are
 independent of this system-wide window.
 
 ---
@@ -232,7 +232,7 @@ independent of this system-wide window.
 | Variable             | Default | Description                                                                                                              |
 | -------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `MAX_REPORT_ROWS`    | `5000`  | Maximum rows returned in one Excel export. A warning is shown in the UI when the current filter would exceed this limit. |
-| `MAX_MAP_SIZE`       | `2 MB`  | Maximum size for zone map image uploads (JPEG or PNG).                                                                   |
+| `MAX_MAP_SIZE`       | `2 MB`  | Maximum size for plan image uploads (JPEG or PNG).                                                                   |
 | `MAX_CONTENT_LENGTH` | `5 MB`  | Maximum HTTP request body size enforced by Flask.                                                                        |
 
 ---

@@ -1,6 +1,6 @@
 'use strict';
 
-import ZoneUserData from "./zoneuserdata";
+import PlanUserData from "./planuserdata";
 
 export default function BookAs() {
 
@@ -90,7 +90,7 @@ BookAs.prototype._onBlur = function(e) {
 
 BookAs.prototype._onAutocomplete = function(el,sel) {
 
-    var login = ZoneUserData.makeUserStrRev(sel);
+    var login = PlanUserData.makeUserStrRev(sel);
     this._setSelectedLogin(login);
 
     this._callChangeListeners();
@@ -146,16 +146,11 @@ BookAs.prototype._init =  function(zoneUserData) {
         el.addEventListener('focus', function() {this.select(); })
     }
 
-    var bookAsContainers = document.getElementsByClassName("book-as_container");
-    for (let c of bookAsContainers) {
-        c.style.display = "block";
-    }
-
     for (let l of this.listeners['init']) {
         l.call(this,this);
     }
 }
 
-ZoneUserData.getInstance().on('load',function(zoneUserData) {
+PlanUserData.getInstance().on('load',function(zoneUserData) {
     BookAs.getInstance()._init(zoneUserData);
     });

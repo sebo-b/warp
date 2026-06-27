@@ -109,8 +109,6 @@ cannot log in. Sample data also defines zones 1–3 ("Zone 1", "Zone 2",
 
 ## Suggested next tests (not yet written)
 
-- Booking flow: select seat on zone map, book, verify in "My bookings".
-- Auto-book FAB behavior (see commit `edeba10`).
 - Admin user management (create user, block user → login refused).
 - Zone group autocomplete (migration 010, text-based zone_group).
 - Password change from the user menu (min length validation).

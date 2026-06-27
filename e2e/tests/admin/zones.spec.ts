@@ -55,7 +55,7 @@ test.describe('zone assignment', () => {
     await logIn(page, USER3);
     await page.goto('/plan/1');
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('.zone_action_btn[data-action="assign-modal"]')).toBeAttached();
+    await expect(page.locator('.plan_action_btn[data-action="assign-modal"]')).toBeAttached();
   });
 
   test('admin can assign viewer role (30) to a user', async ({ page }) => {
@@ -72,7 +72,7 @@ test.describe('zone assignment', () => {
     await logIn(page, USER3);
     await page.goto('/plan/1');
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('#zonemap')).toBeVisible();
+    await expect(page.locator('#planmap')).toBeVisible();
     await expect(page.locator('#auto_book_btn')).toHaveCount(0);
     await expect(page.locator('#action_modal')).toHaveCount(0);
   });

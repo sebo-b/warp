@@ -385,7 +385,6 @@ nav .dropdown-content li > span {
 }
 
 .book-as_container {
-    display: none;
     padding-top: 4px;
 }
 /* The "Book as" autocomplete in the zone sidepanel. Keep it as a clean
@@ -736,7 +735,7 @@ nav .dropdown-content li > span {
    group compact, pinned, with a divider. Shared by every form dialog and the
    zone-map help modal; only the alignment differs (see below). */
 .warp-form-modal .modal-footer,
-#zonemap_help_modal .modal-footer {
+#planmap_help_modal .modal-footer {
     display: flex;
     justify-content: flex-end;
     align-items: center;   /* keep buttons of differing heights baseline-aligned */
@@ -746,10 +745,10 @@ nav .dropdown-content li > span {
     background-color: var(--warp-grey-bg);
     position: static;
 }
-#zonemap_help_modal .modal-footer { justify-content: center; }
+#planmap_help_modal .modal-footer { justify-content: center; }
 .warp-form-modal .modal-footer .btn,
 .warp-form-modal .modal-footer .btn-flat {
-    margin: 0;   /* neutralise stray margins (e.g. .zone_action_btn) so the
+    margin: 0;   /* neutralise stray margins (e.g. .plan_action_btn) so the
                     footer's gap is the only spacing */
 }
 .warp-form-modal .modal-footer .btn-flat:hover {
@@ -1011,7 +1010,7 @@ nav .dropdown-content li > span {
     float: right;
 }
 
-.zone_container,
+.plan_container,
 .zone_modify_container {
     display: flex;
     flex-direction: row;
@@ -1020,32 +1019,33 @@ nav .dropdown-content li > span {
     min-width: 0px;
 }
 
-#zone_sidepanel {
+#plan_sidepanel {
     flex: none;
     display: flex;
     flex-direction: column;
-    overflow: auto;
+    overflow: hidden;          /* the panel itself never scrolls — only the date list does */
     padding: var(--warp-space-3);
     z-index: 1;
 }
 
-.zone_sidepanel_close {
+.plan_sidepanel_close {
     display: none;
     margin-left: auto;
     cursor: pointer;
 }
 
-.zone_sidepanel_topcontainer {
+.plan_sidepanel_topcontainer {
+    display: flex;
+    flex-direction: row;
+    flex: 0 0 auto;            /* book-as (+ close) pinned at the top */
+}
+
+.plan_datetime_container {
     display: flex;
     flex-direction: row;
 }
 
-.zone_datetime_container {
-    display: flex;
-    flex-direction: row;
-}
-
-.zonemap_datetime_trigger {
+.planmap_datetime_trigger {
     position: fixed;
     left: 0px;
     color: var(--warp-primary);
@@ -1054,76 +1054,103 @@ nav .dropdown-content li > span {
     z-index: 4;
 }
 
-.zonemap_datetime_trigger svg {
+.planmap_datetime_trigger svg {
     display: block;
     margin-top: 8px;
     margin-left: -2px;
 }
 
 @media only screen and (max-width : 993px) {
-    #zone_sidepanel {
+    #plan_sidepanel {
         position: fixed;
-        max-height: calc(100% - 56px);
+        /* Pin top (below the nav) to bottom so the panel has a DEFINITE height —
+           the full-height rail and the scrollable date list both need a fixed
+           box to size against. dvh tracks the collapsing mobile browser chrome. */
+        top: 56px;
+        left: 0;
+        bottom: 0;
+        height: auto;
+        max-height: none;
         background-color: var(--warp-surface);
         box-shadow: 0 2px 2px 0 rgba(var(--warp-shadow-rgb), 0.14), 0 3px 1px -2px rgba(var(--warp-shadow-rgb), 0.12), 0 1px 5px 0 rgba(var(--warp-shadow-rgb), 0.2);
         z-index: 999;   /* materializecss overlay has 997 */
-        overflow-y: auto;
+        overscroll-behavior: contain;   /* a drag inside can't scroll-chain to the map behind */
         transform: translateX(-105%);
     }
 
     /* nav header is becoming bigger from 601px, so we need to recalculate */
     @media only screen and (min-width: 601px) {
-        #zone_sidepanel {
-            max-height: calc(100% - 64px);
+        #plan_sidepanel {
+            top: 64px;
         }
     }
 
-    .zone_sidepanel_close {
+    .plan_sidepanel_close {
         display: block;
     }
 
-    .zonemap_datetime_trigger {
+    .planmap_datetime_trigger {
         display: block;
     }
+
+    /* Dragging the grip pans the slider, not the panel/page. (Upstream noUiSlider
+       sets touch-action:none on the target; assert it on the handle too.) */
+    .timeslider,
+    .timeslider .noUi-handle { touch-action: none; }
 }
 
-.zone_datelist {
+.plan_datelist {
     flex: 1 1 auto;
+    min-height: 0;             /* allow it to shrink below content height so it can scroll */
+    overflow-y: auto;          /* the date list is the only scrollable region in the panel */
     font-size: 1rem;
     text-align: left;
     padding: 8px 0;
 }
-.zone_datelist p,
-.zone_datelist label,
-.zone_datelist span {
+.plan_datelist p,
+.plan_datelist label,
+.plan_datelist span {
     font-size: 1rem;
 }
-.zone_datelist p {
+.plan_datelist p {
     margin: 0;
     padding: 6px 0;
     line-height: 1.4;
 }
-.zone_datelist label {
+.plan_datelist label {
     display: flex;
     align-items: center;
     gap: 10px;
 }
-.zone_datelist .filled-in {
+.plan_datelist .filled-in {
     flex-shrink: 0;
 }
-.zone_timeslider {
+.plan_timeslider {
     flex: 0 0 auto;
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;   /* centre the rail (+ hints) when the column is taller than the cap */
+    min-height: 0;
     margin-left: 16px;
 }
-.zone_datetime_container {
+/* The rail fills the panel height (full-height hour selector) up to a sane cap,
+   instead of the fixed 400px. Scoped to the plan panel so the prefs-modal slider
+   (.pref_timeslider_container .timeslider) keeps its own sizing. */
+.plan_timeslider .timeslider {
+    flex: 1 1 auto;
+    height: auto !important;
+    min-height: 120px;
+    max-height: 460px;
+}
+.plan_datetime_container {
+    flex: 1 1 auto;            /* fill the panel below the book-as row */
+    min-height: 0;            /* so the date list can scroll instead of growing the panel */
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: stretch;     /* date list and rail both span the full panel height */
 }
 
-.zone_map,
+.plan_map,
 .zone_modify_map {
     flex: 0 1 auto;
     min-width: 0px;
@@ -1134,7 +1161,7 @@ nav .dropdown-content li > span {
 
 .auto_book_fab {
     position: fixed;
-    bottom: 80px;
+    bottom: 23px;
     right: 23px;
     z-index: 10;
 }
@@ -1170,42 +1197,44 @@ nav .dropdown-content li > span {
 /* z-index keeps this fixed overlay above the map <img>: the dark-mode image
    filter (zone.js applyPlanMapFilter) turns the img into a stacking context
    that otherwise paints over an auto-z fixed sibling. Above labels (2) too. */
-.zonemap_help {
-    position: fixed;
-    right: 0px;
+.planmap_help {
+    position: absolute;
+    left: 0px;
+    bottom: 0px;
     color: var(--warp-primary);
     cursor: pointer;
-    z-index: 4;
+    z-index: 6;
 }
 
-.zonemap_help svg {
+.planmap_help svg {
     display: block;
-    margin-top: 8px;
+    margin: 8px;
 }
 
 /* Dark mode: invert the map-corner icons — dark disc + light ring/symbol —
    the reverse of light mode's white disc + brand ring, so they read on the
    dark map instead of a bright white disc. The disc is the only shape using
    --warp-on-brand (its fill); the ring/symbol use currentColor (color). */
-:root[theme="dark"] .zonemap_help,
-:root[theme="dark"] .zonemap_datetime_trigger {
+:root[theme="dark"] .planmap_help,
+:root[theme="dark"] .planmap_datetime_trigger {
     color: var(--warp-on-brand);
 }
-:root[theme="dark"] .zonemap_help .warp-icon-disc,
-:root[theme="dark"] .zonemap_datetime_trigger .warp-icon-disc {
+:root[theme="dark"] .planmap_help .warp-icon-disc,
+:root[theme="dark"] .planmap_datetime_trigger .warp-icon-disc {
     fill: var(--warp-grey-bg);
 }
 
-.zone_action_btn {
+.zone_action_btn,
+.plan_action_btn {
     /*width: 100px;*/
     margin: 5px;
 }
 
-#action_modal .zone_action_btn {
+#action_modal .plan_action_btn {
     display: none;
 }
 
-#action_modal .zone_action_btn.active {
+#action_modal .plan_action_btn.active {
     display: inline-flex;
 }
 
@@ -1231,7 +1260,7 @@ nav .dropdown-content li > span {
     align-items: center;
     gap: var(--warp-space-2);
 }
-.action_modal_buttons .zone_action_btn {
+.action_modal_buttons .plan_action_btn {
     margin: 0;
 }
 
@@ -1269,22 +1298,10 @@ nav .dropdown-content li > span {
     vertical-align: middle;
 }
 
-.zonemap-labels {
-    position: absolute;
-    top: 0;
-    left: 0;
-    pointer-events: none;
-    z-index: 2;
-}
-
 .seat-icon {
     display: block;
     width: 48px;
     height: 48px;
-    color: var(--warp-grey-muted);
-    /* Disc base (= seat bg) for the sprite; the status classes override this
-       with their matching --warp-seat-*-bg. White for the default no-status seat. */
-    --warp-seat-bg: var(--warp-on-brand);
 }
 
 .seat-icon svg {
@@ -1294,24 +1311,9 @@ nav .dropdown-content li > span {
     pointer-events: none;
 }
 
-.seat-icon--available {
-    color: var(--warp-seat-available-fg);
-    --warp-seat-bg: var(--warp-seat-available-bg);
-}
-
-.seat-icon--yours {
-    color: var(--warp-seat-yours-fg);
-    --warp-seat-bg: var(--warp-seat-yours-bg);
-}
-
-.seat-icon--unavailable {
-    color: var(--warp-seat-unavailable-fg);
-    --warp-seat-bg: var(--warp-seat-unavailable-bg);
-}
-
-/* Seat status colours are the split light/dark --warp-seat-* tokens in
-   theme.css (dark mirrors light for now); the classes just map each status to
-   its fg (color/currentColor) + bg (--warp-seat-bg, read by the sprite disc). */
+/* Seat status colours are baked directly into each #cell-<name> in
+   seat_icons.svg from the split light/dark --warp-seat-*-{fg,bg} tokens in
+   theme.css, so the host needs no per-status class here. */
 
 .seat_label {
     position: absolute;
@@ -1337,10 +1339,6 @@ nav .dropdown-content li > span {
     background-color: var(--warp-surface);
 }
 
-.seat_label_hidden {
-    display: none;
-}
-
 .seat_label_title {
     background-color: var(--warp-primary);
     color: var(--warp-on-brand);
@@ -1349,26 +1347,6 @@ nav .dropdown-content li > span {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-.seat_label_content {
-    padding: 1px 4px;
-}
-
-.seat_label_booking {
-    color: var(--warp-primary);
-    font-weight: bold;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.seat_label_assigned {
-    color: var(--warp-grey-text);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-style: italic;
 }
 
 .seat_label_zone {
@@ -1840,7 +1818,9 @@ INPUT[type="text"] ~ .show_password_btn::after {
 
 /* Materialize 2.x's .modal.bottom-sheet only sets margin/max-height/radius —
    it lost 1.x's full-width, bottom-anchored, square-cornered behaviour, so the
-   "sliding menu" rendered as a centered 55%-wide rounded box. Restore it. */
+   "sliding menu" rendered as a centered 55%-wide rounded box. Restore it, and
+   slide it up from the bottom on open (display:none → flex via [open] runs the
+   keyframe animation, so the native <dialog> cutover kept the slide-in). */
 .modal.bottom-sheet {
     top: auto;
     right: 0;
@@ -1853,6 +1833,12 @@ INPUT[type="text"] ~ .show_password_btn::after {
     border-radius: 0;
     background-color: var(--warp-surface);
     color: var(--warp-text);
+    will-change: transform;
+    animation: om-sheet-slide-up .22s ease-out;
+}
+@keyframes om-sheet-slide-up {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
 }
 #action_modal .modal-content {
     padding: var(--warp-space-4) var(--warp-space-5);
@@ -1860,23 +1846,128 @@ INPUT[type="text"] ~ .show_password_btn::after {
 
 /* The help modal has a tall table of sprite explanations. Make it scrollable
    with a sticky footer so the OK button is always reachable. */
-#zonemap_help_modal {
+#planmap_help_modal {
     max-height: 80vh;
     overflow-y: auto;
     background-color: var(--warp-surface);
     color: var(--warp-text);
 }
-#zonemap_help_modal .modal-content {
+#planmap_help_modal .modal-content {
     padding: var(--warp-space-5);
 }
-#zonemap_help_modal .modal-content > table {
+#planmap_help_modal .modal-content > table {
     width: 100%;
     border-collapse: collapse;
 }
-#zonemap_help_modal .modal-content > table td {
+#planmap_help_modal .modal-content > table td {
     padding: var(--warp-space-2) 0;
     vertical-align: top;
 }
-#zonemap_help_modal .modal-content > table tr + tr td {
+#planmap_help_modal .modal-content > table tr + tr td {
     border-top: 1px solid var(--warp-grey-border);
+}
+
+
+/* ===== OfficeMap integration (booking view) =====
+   #planmap is the OfficeMap target. Seats, labels and the hover hint are
+   OfficeMap-owned (OMSeat / OMLabel / OMHint). The label is the native
+   OMLabelTitle (seat name) + OMLabelBody (a flat list of name divs); the hint
+   is OfficeMap's positioned OMHint popup wrapping the .seat_preview node.
+   Labels sit inside OMSeat and ride the counter-scale. */
+
+/* Map OfficeMap's flat --om-* tokens to the app theme vars (which flip
+   light/dark in theme.css), so the component is themed by the host without
+   OfficeMap knowing about themes. */
+:root {
+    --om-map-bg: var(--warp-grey-bg);
+    --om-label-bg: var(--warp-surface);
+    --om-label-border: var(--warp-grey-border);
+    --om-label-fg: var(--warp-text);
+    --om-hint-bg: var(--warp-surface);
+    --om-hint-border: var(--warp-grey-border);
+    --om-hint-fg: var(--warp-text);
+    --om-zoom-bg: var(--warp-surface);
+    --om-zoom-border: var(--warp-grey-border);
+    --om-zoom-fg: var(--warp-text);
+    --om-zoom-bg-hover: var(--warp-grey-bg);
+    --om-fallback: var(--warp-error);
+}
+/* The booking container fills the viewport height: the sidepanel is a slide-in
+   sidenav on mobile (position:fixed, out of flow), so without this the map would
+   collapse to 0 height. */
+.plan_container {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+#planmap {
+    overflow: hidden;          /* OfficeMap manages pan/zoom; no native scroll */
+    flex: 1 1 auto;            /* fill remaining width (the old <img> gave it intrinsic width) */
+    min-width: 0;
+}
+
+/* Label: a small framed box centred below the seat. Title = seat name (1 line);
+   body = one div per name, each wrapping up to 2 rows so a first+surname is
+   less likely to be cut. */
+#planmap .OMLabel {
+    position: absolute;
+    left: 50%;
+    top: 34px;                 /* overlaps the seat's lower ~14px, like the old label */
+    transform: translateX(-50%);
+    max-width: 72px;           /* ~150% of the 48px seat icon */
+    padding: 0;
+    background: var(--warp-surface);
+    border: 2px solid var(--warp-primary);
+    border-radius: 0;
+    font-size: 10px;
+    line-height: 1.2;
+    text-align: center;
+    pointer-events: none;
+    white-space: nowrap;
+}
+#planmap .OMLabelTitle {
+    background: var(--warp-primary);
+    color: var(--warp-on-brand);
+    padding: 0 4px;
+    line-height: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+}
+#planmap .OMLabelBody { padding: 1px 4px; }
+#planmap .OMLabelBody .seat_label_name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+:root[theme="dark"] #planmap .OMLabel {
+    border-color: var(--warp-surface);
+    background: var(--warp-primary-tint);
+}
+:root[theme="dark"] #planmap .OMLabelTitle {
+    background: var(--warp-surface);
+}
+
+/* The hint popup is OfficeMap's OMHint; the .seat_preview node provides the
+   visual, so OMHint is a bare positioned wrapper and .seat_preview is static. */
+#planmap .OMHint {
+    padding: 0;
+    background: none;
+    border: none;
+    box-shadow: none;
+    max-width: 320px;
+}
+#planmap .OMHint .OMHintTitle { display: none; }
+#planmap .OMHint .OMHintBody { font-weight: inherit; }
+#planmap .OMHint .seat_preview { position: static; }
+/* The tooltip (.seat_preview inside OMHint) mirrors the seat label's theme:
+   light = brand-blue frame + blue title bar on a surface body (the .seat_preview
+   base already does this), dark = surface frame + surface title bar on a tinted
+   body — same tokens as .OMLabel so the two popups match in both modes. */
+:root[theme="dark"] #planmap .OMHint .seat_preview {
+    border-color: var(--warp-surface);
+    background-color: var(--warp-primary-tint);
+}
+:root[theme="dark"] #planmap .OMHint .seat_preview_title {
+    background-color: var(--warp-surface);
 }

@@ -24,7 +24,7 @@ test.describe('auto-book FAB', () => {
     const fab = page.locator('#auto_book_btn');
     await expect(fab).not.toHaveClass(/disabled/);
     await Promise.all([
-      page.waitForResponse(r => r.url().includes('/xhr/zone/autoBook') && r.status() === 200),
+      page.waitForResponse(r => r.url().includes('/xhr/plan/autoBook') && r.status() === 200),
       fab.click(),
     ]);
     await page.waitForLoadState('networkidle');

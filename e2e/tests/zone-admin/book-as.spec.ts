@@ -64,8 +64,8 @@ test.describe('booking as another user', () => {
     await clickZoneSeat(page, seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
     await Promise.all([
-      page.waitForResponse(r => r.url().includes('/xhr/zone/apply') && r.status() === 200),
-      page.locator('.zone_action_btn[data-action="book"]').click(),
+      page.waitForResponse(r => r.url().includes('/xhr/plan/apply') && r.status() === 200),
+      page.locator('.plan_action_btn[data-action="book"]').click(),
     ]);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(200);

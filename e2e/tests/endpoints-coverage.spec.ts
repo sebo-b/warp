@@ -45,10 +45,10 @@ const COVERED_ENDPOINTS: ReadonlySet<string> = new Set([
   '/xhr/bookings/report',
 
   // xhr — zone (booking operations)
-  '/xhr/zone/apply',
-  '/xhr/zone/autoBook/<int:pid>',
-  '/xhr/zone/getSeats/<int:pid>',
-  '/xhr/zone/getUsers/<int:pid>',
+  '/xhr/plan/apply',
+  '/xhr/plan/autoBook/<int:pid>',
+  '/xhr/plan/getSeats/<int:pid>',
+  '/xhr/plan/getUsers/<int:pid>',
 
   // xhr — plans (plan + seat management)
   '/xhr/plans/addoredit',

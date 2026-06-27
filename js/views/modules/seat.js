@@ -8,7 +8,7 @@ const EVERYONE_KEY = '__everyone__:550e8400-e29b-41d4-a716-446655440000';
  * WarpSeat
  * NOTE: book and assignments from seatData is not cloned, it is stored as reference
  * @param {integer} sid
- * @param {object} seatData - object described in zoneGetSeats
+ * @param {object} seatData - object described in xhr.plan getSeats
  * @returns
  */
 function WarpSeat(sid,seatData,zonesNames,usersNames,factory) {
@@ -22,14 +22,11 @@ function WarpSeat(sid,seatData,zonesNames,usersNames,factory) {
     this._setData(seatData,usersNames);
 
     if (!this.otherZone) {
-
         this.x = seatData.x;
         this.y = seatData.y;
-
-        this._createDiv(factory.rootDiv, factory.spriteURL);
     }
 
-    this.action = WarpSeat.SeatStates.NOT_AVAILABLE;
+    this.sprite = 'unavailable';
 };
 
 WarpSeat.SeatStates = {
@@ -47,21 +44,11 @@ WarpSeat.SeatStates = {
 }
 
 WarpSeat.Sprites = {
-    spriteSize: 48,
-    iconNames: {
-        plus: 'icon-plus',
-        arrow: 'icon-arrow',
-        head: 'icon-head',
-        headArrow: 'icon-head-arrow',
-        no: 'icon-no',
-        assigned: 'icon-assigned'
-    }
+    spriteSize: 48
 };
 
-function WarpSeatFactory(spriteURL,rootDivId,login) {
+function WarpSeatFactory(login) {
 
-    this.spriteURL = spriteURL;
-    this.rootDiv = document.getElementById(rootDivId);
     this.login = login;
     this.selectedDates = [];
 
@@ -269,6 +256,14 @@ WarpSeatFactory.prototype.isExactMatch = function() {
     }
 }
 
+// Dispatch an event to all registered listeners of `type`, invoking each with
+// `thisArg` as `this`. Used to bridge OfficeMap's DOM events (click) to the
+// existing factory-listener style (initActionMenu registers via .on('click')).
+WarpSeatFactory.prototype._fire = function(type, thisArg) {
+    if (!(type in this.listeners)) return;
+    for (var l of this.listeners[type]) l.call(thisArg);
+}
+
 WarpSeatFactory._formatDatePair = function(b) {
 
     var fromStr = new Date(b.fromTS*1000).toISOString();
@@ -298,18 +293,6 @@ WarpSeat.prototype.getState = function() {
 
 WarpSeat.prototype.isOtherZone = function() {
     return this.otherZone;
-}
-
-WarpSeat.prototype.getPositionAndSize = function() {
-
-    if (this.otherZone)
-        throw Error("getPositionAndSize can be called only for seats in the current zone")
-
-    return {
-        x: this.x,
-        y: this.y,
-        size: WarpSeat.Sprites.spriteSize
-     };
 }
 
 WarpSeat.prototype.getName = function() {
@@ -528,96 +511,56 @@ WarpSeat.prototype._updateState = function() {
     return this.state;
 }
 
-// as this function relays on myConflictingBookings
-// it should be called after all WarpSeats' states are updated
-function setSeatIcon(seat, iconName, colorClass) {
-    if (!seat.seatDiv || !seat.seatUse) return;
-
-    var newHref = seat.factory.spriteURL + "#" + WarpSeat.Sprites.iconNames[iconName];
-    var newClass = "seat-icon seat-icon--" + colorClass;
-
-    if (seat.seatDiv.className !== newClass)
-        seat.seatDiv.className = newClass;
-
-    if (seat.seatUse.getAttribute("href") !== newHref)
-        seat.seatUse.setAttribute("href", newHref);
+// Map a (final) seat state + assignedToMe flag to a #cell-<name> sprite name
+// (PLAN_officemap.md §3). The state must already reflect the CAN_REBOOK /
+// VIEW_ONLY side-effects applied in _updateView below.
+function spriteFor(state, assignedToMe) {
+    switch (state) {
+        case WarpSeat.SeatStates.CAN_BOOK:        return assignedToMe ? 'availableAssigned' : 'available';
+        case WarpSeat.SeatStates.CAN_REBOOK:     return assignedToMe ? 'rebookAssigned'    : 'rebook';
+        case WarpSeat.SeatStates.CAN_CHANGE:      return 'yoursChange';
+        case WarpSeat.SeatStates.CAN_DELETE_EXACT: return 'yours';
+        case WarpSeat.SeatStates.CAN_DELETE:
+        case WarpSeat.SeatStates.TAKEN:
+        case WarpSeat.SeatStates.VIEW_ONLY_TAKEN:   return 'taken';
+        case WarpSeat.SeatStates.ASSIGNED:        return 'assigned';
+        case WarpSeat.SeatStates.VIEW_ONLY:
+        case WarpSeat.SeatStates.DISABLED:
+        case WarpSeat.SeatStates.NOT_AVAILABLE:     return 'unavailable';
+    }
+    return 'unavailable';
 }
 
+// Computes the final presentational state (applying the CAN_REBOOK / VIEW_ONLY
+// side-effects that depend on the factory-wide conflict map, which is only
+// complete after every seat's _updateState has run) and stores the sprite name.
+// No DOM here — OfficeMap owns the seat DOM (PLAN §1, §7).
 WarpSeat.prototype._updateView = function() {
 
-    // seats form other zones doesn't have divs created
     if (this.otherZone)
         return;
 
     var assignedToMe = this.factory.login in this.assignments;
 
     switch (this.state) {
-
-        case WarpSeat.SeatStates.CAN_CHANGE:
-            setSeatIcon(this, 'headArrow', 'yours');
-            break;
-        case WarpSeat.SeatStates.CAN_DELETE_EXACT:
-            setSeatIcon(this, 'head', 'yours');
-            break;
-        case WarpSeat.SeatStates.CAN_DELETE:
-            setSeatIcon(this, 'head', 'unavailable');
-            break;
         case WarpSeat.SeatStates.CAN_BOOK:
-            if (!this.bookable) {
+            if (!this.bookable)
                 this.state = WarpSeat.SeatStates.VIEW_ONLY;
-                setSeatIcon(this, 'no', 'unavailable');
-            }
-            else if (this.factory._conflictCount(this.exclusivityKey) > 0) {
-                this.state = WarpSeat.SeatStates.CAN_REBOOK;    //this is not very elegant
-                setSeatIcon(this, 'arrow', assignedToMe ? 'yours' : 'available');
-            }
-            else {
-                setSeatIcon(this, 'plus', assignedToMe ? 'yours' : 'available');
-            }
+            else if (this.factory._conflictCount(this.exclusivityKey) > 0)
+                this.state = WarpSeat.SeatStates.CAN_REBOOK;   // conflict map is final here
             break;
-        case WarpSeat.SeatStates.ASSIGNED:
-            // Seat is assigned to someone else (or out of window). Not booked.
-            setSeatIcon(this, 'assigned', 'unavailable');
-            break;
-        case WarpSeat.SeatStates.TAKEN:
-            setSeatIcon(this, 'head', 'unavailable');
-        break;
-        case WarpSeat.SeatStates.VIEW_ONLY:
-            setSeatIcon(this, 'no', 'unavailable');
-            break;
-        case WarpSeat.SeatStates.VIEW_ONLY_TAKEN:
-            setSeatIcon(this, 'head', 'unavailable');
-            break;
-        case WarpSeat.SeatStates.DISABLED:
-            setSeatIcon(this, 'no', 'unavailable');
-            break;
-        default: /* WarpSeat.SeatStates.NOT_AVAILABLE */
-            setSeatIcon(this, 'no', 'unavailable');
-            break;
+        // all other states are already final from _updateState
     }
 
-    this.seatDiv.style.display = "block";
+    this.sprite = spriteFor(this.state, assignedToMe);
 }
 
 WarpSeat.prototype._destroy = function() {
-
     this.factory._removeConflict(this.exclusivityKey, this.sid);
     this.factory = null;
-
-    if (this.seatDiv) {
-        this.seatDiv.removeEventListener('click',this);
-        this.seatDiv.removeEventListener('mouseover',this);
-        this.seatDiv.removeEventListener('mouseout',this);
-        this.seatDiv.remove();
-    }
-};
-
-WarpSeat.prototype.handleEvent = function(e) {
-    if (e.type in this.factory.listeners) {
-        for (var l of this.factory.listeners[e.type]) {
-            l.call(this);
-        }
-    }
+    // No seat DOM here — OfficeMap owns it. When the seat set changes, plan.js
+    // rebuilds the whole OfficeMap seat set via createSeats(), which drops the
+    // old seat elements.
 };
 
 // NOTE: book and assignments from seatData is not cloned, it is stored as reference
@@ -657,36 +600,5 @@ WarpSeat.prototype._setData = function(seatData,usersNames) {
 }
 
 
-WarpSeat.prototype._createDiv = function(rootDiv, spriteURL) {
-
-    if (this.seatDiv)
-        throw Error("seatDiv already created")
-
-    this.seatDiv = document.createElement("div");
-    this.seatDiv.className = "seat-icon seat-icon--unavailable";
-    this.seatDiv.style.position = "absolute";
-    this.seatDiv.style.left = this.x + "px";
-    this.seatDiv.style.top = this.y + "px";
-    this.seatDiv.style.width = WarpSeat.Sprites.spriteSize + "px";
-    this.seatDiv.style.height = WarpSeat.Sprites.spriteSize + "px";
-    this.seatDiv.style.display = "none";
-
-    var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("viewBox", "0 0 24 24");
-    svg.setAttribute("width", "48");
-    svg.setAttribute("height", "48");
-
-    this.seatUse = document.createElementNS("http://www.w3.org/2000/svg", "use");
-    this.seatUse.setAttribute("href", spriteURL + "#" + WarpSeat.Sprites.iconNames.no);
-
-    svg.appendChild(this.seatUse);
-    this.seatDiv.appendChild(svg);
-
-    this.seatDiv.addEventListener('click',this);
-    this.seatDiv.addEventListener('mouseover',this);
-    this.seatDiv.addEventListener('mouseout',this);
-
-    rootDiv.appendChild(this.seatDiv);
-};
 
 export { WarpSeatFactory, WarpSeat, EVERYONE_KEY };

@@ -478,7 +478,7 @@ def book_seat(login):
         return _render_action(_action_t('Not possible to book'))
     pid = plan_row['id']
 
-    from warp.xhr.zone import runAutoBook
+    from warp.xhr.plan import runAutoBook
     result, err = runAutoBook(login, pid, [slot], allowedZids={zid})
 
     if err is not None:
