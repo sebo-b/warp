@@ -153,16 +153,16 @@
 
             <div class="plan_datetime_container">
 
-                <div class="plan_calendar" id="plan_calendar">
-                    <div class="warp-cal-grid" id="plan_calendar_grid"></div>
-                </div>
-
                 <div class="plan_timeslider">
                     <div class="plan_timeslider_inputs">
                         <input type="text" id="timeslider-min" class="timeslider-input" inputmode="numeric" placeholder="HH:MM" aria-label="start time">
                         <input type="text" id="timeslider-max" class="timeslider-input" inputmode="numeric" placeholder="HH:MM" aria-label="end time">
                     </div>
                     <div id="timeslider" class="timeslider" data-min="{{ config['BOOK_OPEN'] }}" data-max="{{ config['BOOK_CLOSE'] }}"></div>
+                </div>
+
+                <div class="plan_calendar" id="plan_calendar">
+                    <div class="warp-cal-grid" id="plan_calendar_grid"></div>
                 </div>
             </div>
 

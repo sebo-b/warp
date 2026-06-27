@@ -1022,6 +1022,8 @@ nav .dropdown-content li > span {
 #plan_sidepanel {
     flex: 0 0 320px;           /* desktop: inline-flex left column (no overlay) */
     max-width: 96vw;          /* on tiny screens don't overflow */
+    align-self: flex-start;   /* content-height, not stretched: short content = short panel (point 4) */
+    max-height: 100%;         /* capped at the container height so the calendar can scroll when tall */
     display: flex;
     flex-direction: column;
     overflow: hidden;          /* the panel itself never scrolls — only the calendar grid does */
@@ -1047,9 +1049,18 @@ nav .dropdown-content li > span {
 
 .plan_datetime_container {
     display: flex;
-    flex-direction: column;    /* calendar on top, slider below — stacked column (R5) */
+    flex-direction: column;    /* slider on top, calendar below (point 2) */
     flex: 1 1 auto;            /* fill the panel below the book-as row */
     min-height: 0;            /* so the calendar grid can scroll instead of growing the panel */
+    gap: var(--warp-space-3);  /* padding between the slider and the calendar */
+}
+
+/* Desktop: hide the show (>>) button when the panel is open — it overlaps the
+   inline column. The close button inside the panel is the hide affordance.
+   When closed (display:none panel), the trigger reappears to reopen. Mobile is
+   unaffected (the slide-in covers the trigger naturally when open). (point 3) */
+@media only screen and (min-width: 994px) {
+    #plan_sidepanel[data-state="open"] ~ .planmap_datetime_trigger { display: none; }
 }
 
 .planmap_datetime_trigger {
@@ -1175,10 +1186,6 @@ nav .dropdown-content li > span {
     background-color: var(--warp-secondary);
     color: var(--warp-on-brand);
 }
-.warp-cal-day.is-in-range {   /* interior of a shift-range band */
-    background-color: color-mix(in srgb, var(--warp-secondary), var(--warp-surface) 82%);
-    color: var(--warp-text);
-}
 .warp-cal-day.is-today.is-selected { box-shadow: none; }
 .warp-cal-day:focus-visible {
     outline: 2px solid var(--warp-secondary);
@@ -1189,13 +1196,12 @@ nav .dropdown-content li > span {
    Two editable HH:MM inputs above the rail. Scoped to the plan panel so the
    prefs-modal slider (.pref_timeslider_container .timeslider) keeps vertical. */
 .plan_timeslider {
-    flex: 0 0 auto;            /* don't stretch; sized by its content (inputs + rail) */
+    flex: 0 0 auto;            /* not scrollable: pinned above the calendar (point 2) */
     display: flex;
     flex-direction: column;
     gap: var(--warp-space-3);
-    padding-top: var(--warp-space-3);
-    border-top: 1px solid var(--warp-grey-border);
-    margin-top: var(--warp-space-2);
+    padding-bottom: var(--warp-space-2);
+    border-bottom: 1px solid var(--warp-grey-border);
 }
 .plan_timeslider_inputs {
     display: flex;

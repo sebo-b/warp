@@ -189,24 +189,32 @@ def test_week_start_day_rotates_header():
                  WEEK_START_DAY=6)['weekdayHeader'] == [0, 1, 2, 3, 4, 5, 6]
 
 
-def test_weeks_flow_across_month_boundary_no_intra_padding():
-    # The boundary week (Jun 29 - Jul 5) renders as one continuous week owned by
-    # June (its first day's month): Jul 1-5 are real selectable cells under the
-    # June header, NOT empty padding fillers. Only the very last week of the grid
-    # is tail-padded to complete a 7-cell row.
-    ts = _midnight(2026, 6, 24)   # Wed
-    grid = _grid(today_ts=ts, target_ts=ts)
+def test_months_are_split_padded_rectangles_no_flow_across_boundary():
+    # Each month is its own padded rectangle; a week crossing a month boundary
+    # is SPLIT -- June's last row ends at Jun 30 (trailing padding to complete
+    # the 7-cell row), July's first row starts at Jul 1 (leading padding back to
+    # FWD). No days flow across the boundary.
+    ts = _midnight(2026, 6, 27)   # Sat, WEEKS_IN_ADVANCE=2 -> END Jul 12
+    grid = _grid(today_ts=ts, target_ts=ts, WEEKS_IN_ADVANCE=2)
     _assert_structure(grid)
-    june_weeks = grid['months'][0]['weeks']
-    boundary_week = june_weeks[-1]
-    assert [c['day'] for c in boundary_week] == [29, 30, 1, 2, 3, 4, 5]
-    for c in boundary_week:
-        assert c['timestamp'] is not None      # no None padding mid-grid
-        if c['day'] in (1, 2, 3, 4, 5):
-            assert c['selectable'] is True
-    last_week = grid['months'][-1]['weeks'][-1]
-    assert last_week[4]['day'] == 31
-    assert last_week[5]['timestamp'] is None and last_week[6]['timestamp'] is None
+    june = grid['months'][0]
+    july = grid['months'][1]
+    # June: starts Mon 22 (FWD of current week, no leading pad), ends Tue 30,
+    # trailing padding to complete the row.
+    assert [c['day'] for c in june['weeks'][0]] == [22, 23, 24, 25, 26, 27, 28]
+    assert [c['day'] for c in june['weeks'][1]] == [29, 30, None, None, None, None, None]
+    # July: leading padding before Wed Jul 1, full middle weeks, trailing pad after Fri 31.
+    assert [c['day'] for c in july['weeks'][0]] == [None, None, 1, 2, 3, 4, 5]
+    assert [c['day'] for c in july['weeks'][-1]] == [27, 28, 29, 30, 31, None, None]
+    # No boundary week flows: June has no July days, July has no June days.
+    for w in june['weeks']:
+        for c in w:
+            if c['timestamp'] is not None:
+                assert gmtime(c['timestamp']).tm_mon == 6
+    for w in july['weeks']:
+        for c in w:
+            if c['timestamp'] is not None:
+                assert gmtime(c['timestamp']).tm_mon == 7
 
 
 def test_blob_contains_no_strings():

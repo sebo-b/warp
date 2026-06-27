@@ -129,46 +129,44 @@ def getCalendarGrid(today_ts=None, target_ts=None):
         else:
             grid_start = fwd_of(start_midnight)
 
-    # One continuous run of days from grid_start to grid_end, each a real cell.
-    # Weeks flow across month boundaries (a week belongs to the month of its
-    # first day) so there are no empty intra-grid padding cells — only the final
-    # week is padded tail-end to complete a 7-cell row when grid_end isn't an LWD.
+    # Padding cell shared by leading/trailing slots (empty cards).
     pad = lambda: {"timestamp": None, "day": None, "selectable": False, "isToday": False}
 
-    days = []
-    ts = grid_start
-    while ts <= grid_end:
-        wd = gmtime(ts).tm_wday
-        days.append(_cal_cell(ts, wd, start_midnight, end_midnight, omitted_weekdays))
-        ts += 24*3600
-
     # Weekday header: 7 indices into the frontend's weekdaysShort array (0=Sun..6=Sat
-    # = Python's %w). WEEK_START_DAY is in house convention (0=Mon..6=Sun);
-    # conversion %w = (house + 1) % 7. Pre-rotated so the frontend renders columns
-    # in wire order, zero date math.
+    # = Python's %w). WEEK_START_DAY is house (0=Mon..6=Sun); %w = (house + 1) % 7.
+    # Pre-rotated so the frontend renders columns in wire order, zero date math.
     weekday_header = [((week_start_day + i + 1) % 7) for i in range(7)]
 
-    # Group into 7-cell weeks; pad the trailing partial week at the very end.
-    weeks = []
-    for i in range(0, len(days), 7):
-        week = days[i:i+7]
-        while len(week) < 7:
-            week.append(pad())
-        weeks.append(week)
-
-    # Assign each week to a month block by its first real cell's month — a week
-    # is owned by the month it starts in, so a boundary week (e.g. Jun 29-Jul 5)
-    # sits under the June header with its July days still rendered as real cells.
+    # Each month is its own padded rectangle. A week that crosses a month
+    # boundary is SPLIT: the prev month's last row ends at its last day (then
+    # trailing padding to complete the 7-cell row), and the next month's first
+    # row starts at its 1st (leading padding back to FWD). Weeks fully inside a
+    # month are full 7-cell rows. No days flow across the boundary — month
+    # boundaries are clean breaks. (Review point 1: "full if not crossing month
+    # boundaries, otherwise split and end where they end, start with month start.")
     months = []
-    for week in weeks:
-        first_real = next((c["timestamp"] for c in week if c["timestamp"] is not None), None)
-        if first_real is None:
-            continue
-        ft = gmtime(first_real)
-        mi, yr = ft.tm_mon - 1, ft.tm_year
-        if not months or months[-1]["monthIndex"] != mi or months[-1]["year"] != yr:
-            months.append({"year": yr, "monthIndex": mi, "weeks": []})
-        months[-1]["weeks"].append(week)
+    all_cells = []   # flat real-day list, for the defaultTs scan
+    ts = grid_start
+    while ts <= grid_end:
+        t = gmtime(ts)
+        year, mo = t.tm_year, t.tm_mon
+        # First / last day of THIS month that fall within the grid.
+        m_start = max(ts, first_of_month(year, mo))
+        m_end = min(grid_end, last_of_month(year, mo))
+        m_days = []
+        d = m_start
+        while d <= m_end:
+            m_days.append(_cal_cell(d, gmtime(d).tm_wday, start_midnight, end_midnight, omitted_weekdays))
+            d += 24*3600
+        # Leading padding: columns before the first day's weekday, back to FWD.
+        lead = (gmtime(m_start).tm_wday - week_start_day) % 7
+        # Trailing padding: columns after the last day to complete the 7-cell row.
+        trail = (6 - ((gmtime(m_end).tm_wday - week_start_day) % 7)) % 7
+        cells = [pad() for _ in range(lead)] + m_days + [pad() for _ in range(trail)]
+        weeks = [cells[i:i+7] for i in range(0, len(cells), 7)]
+        months.append({"year": year, "monthIndex": mo - 1, "weeks": weeks})
+        all_cells.extend(m_days)
+        ts = m_end + 24*3600   # advance to the 1st of the next month
 
     # defaultTs: first selectable day >= target_ts (the L151-161 default-day
     # derivation now lives in view.py, where prefs are loaded; this is the
@@ -176,12 +174,9 @@ def getCalendarGrid(today_ts=None, target_ts=None):
     if target_ts is None:
         target_ts = today_midnight
     default_ts = None
-    for week in weeks:
-        for cell in week:
-            if cell["selectable"] and cell["timestamp"] >= target_ts:
-                default_ts = cell["timestamp"]
-                break
-        if default_ts is not None:
+    for cell in all_cells:
+        if cell["selectable"] and cell["timestamp"] >= target_ts:
+            default_ts = cell["timestamp"]
             break
 
     return {

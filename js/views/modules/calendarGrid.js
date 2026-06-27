@@ -115,15 +115,10 @@ export class WarpCalendar {
         }
         root.appendChild(headRow);
 
-        // In-range band: only when selection is a contiguous run of selectable
-        // days (a shift/drag result); scattered toggle-clicks leave endpoints solid.
-        let lo = null, hi = null;
-        if (this.selected.size > 1) {
-            const sel = [...this.selected];
-            lo = Math.min(...sel); hi = Math.max(...sel);
-            for (let t of this._selectableTs)
-                if (t > lo && t < hi && !this.selected.has(t)) { lo = null; hi = null; break; }
-        }
+        // A range is just a collection of selected days — every selected day
+        // renders with the same solid is-selected shade (no lighter in-range
+        // band). Review point 5: "range is always a collection of individual
+        // days, even if contiguous" — so interior dates match the endpoints.
 
         for (let m of g.months) {
             const mhead = document.createElement('div');
@@ -134,7 +129,7 @@ export class WarpCalendar {
                 const row = document.createElement('div');
                 row.className = 'warp-cal-week';
                 for (let cell of week)
-                    row.appendChild(this._renderCell(cell, lo, hi));
+                    row.appendChild(this._renderCell(cell));
                 root.appendChild(row);
             }
         }
@@ -144,7 +139,7 @@ export class WarpCalendar {
         this.container.classList.add('warp-calendar');
     }
 
-    _renderCell(cell, lo, hi) {
+    _renderCell(cell) {
         const c = document.createElement('div');
         c.className = 'warp-cal-day';
         if (cell.timestamp === null) { c.classList.add('warp-cal-padded'); return c; }
@@ -153,7 +148,6 @@ export class WarpCalendar {
         if (cell.isToday) c.classList.add('is-today');
         if (!cell.selectable) { c.classList.add('is-disabled'); c.setAttribute('aria-disabled', 'true'); return c; }
         if (this.selected.has(cell.timestamp)) c.classList.add('is-selected');
-        if (lo !== null && cell.timestamp > lo && cell.timestamp < hi) c.classList.add('is-in-range');
         c.setAttribute('role', 'button');
         c.setAttribute('tabindex', '0');
         return c;   // pointer listeners are delegated on the container
