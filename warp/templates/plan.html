@@ -135,7 +135,7 @@
 
     <div class="plan_container">
 
-        <div id="plan_sidepanel">
+        <div id="plan_sidepanel" class="sidenav-fixed">
 
             <div class="plan_sidepanel_topcontainer">
 
@@ -153,17 +153,16 @@
 
             <div class="plan_datetime_container">
 
-                <div class="plan_datelist">
-                    {% for w in nextWeek %}
-                    <p>
-                        <label>
-                            <input class="filled-in date_checkbox" type="checkbox" value="{{w['timestamp']}}" />
-                            <span>
-                                <span class="TR">weekdaysShort.{{  w['weekdayN'] }}</span>, {{ w['date'] }}
-                            </span>
-                        </label>
-                    </p>
-                    {% endfor %}
+                <div class="plan_calendar" id="plan_calendar">
+                    <div class="warp-cal-controls">
+                        <div class="warp-cal-mode-toggle" role="group">
+                            <a href="#!" class="warp-cal-mode-btn active" data-mode="range" data-title-key="calendar.modeRange"><i class="material-icons">date_range</i></a>
+                            <a href="#!" class="warp-cal-mode-btn" data-mode="multiple" data-title-key="calendar.modeMultiple"><i class="material-icons">apps</i></a>
+                            <a href="#!" class="warp-cal-mode-btn" data-mode="single" data-title-key="calendar.modeSingle"><i class="material-icons">radio_button_checked</i></a>
+                        </div>
+                        <a href="#!" class="warp-cal-clear-btn TR" data-action="clear">calendar.clearSelection</a>
+                    </div>
+                    <div class="warp-cal-grid" id="plan_calendar_grid"></div>
                 </div>
 
                 <div class="plan_timeslider">

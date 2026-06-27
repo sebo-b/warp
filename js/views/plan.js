@@ -6,12 +6,18 @@ import {WarpSeatFactory,WarpSeat,EVERYONE_KEY} from './modules/seat.js';
 import { OfficeMap } from './modules/officeMap.js';
 import PlanUserData from './modules/planuserdata.js';
 import BookAs from './modules/bookas.js';
+import { WarpCalendar } from './modules/calendarGrid.js';
 
 import noUiSlider from 'nouislider';
 import "./css/plan/nouislider.css";
 
 // The warning modal is rendered via innerHTML (WarpModal.open), so any
 // user-controlled text (usernames) interpolated into that HTML must be escaped.
+// The booking calendar (WarpCalendar) instance for this plan view. Holds the
+// selected-day set as integers from the backend grid's cell timestamps; see
+// getSelectedDates(). R1: no JS date math, no new Date(ts).
+var calendar = null;
+
 function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, function(c) {
         return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
@@ -36,6 +42,8 @@ function downloadSeatData(seatFactory) {
 }
 
 function getSelectedDates() {
+    if (!calendar)
+        return [];
     var slider = document.getElementById('timeslider');
     var times = slider.noUiSlider.get(true);
 
@@ -43,17 +51,15 @@ function getSelectedDates() {
     if (times[1] == 24*3600)
         times[1] = 24*3600-1;
 
+    var fromOff = parseInt(times[0]);
+    var toOff = parseInt(times[1]);
     var res = [];
-
-    for (var e of document.getElementsByClassName('date_checkbox')) {
-        if (e.checked) {
-            res.push( {
-                fromTS: parseInt(e.value) + parseInt(times[0]),
-                toTS: parseInt(e.value) + parseInt(times[1])
-            });
-        }
-    };
-
+    for (var ts of calendar.getSelected()) {
+        res.push({
+            fromTS: ts + fromOff,
+            toTS: ts + toOff
+        });
+    }
     return res;
 }
 
@@ -66,7 +72,7 @@ function initSlider() {
         behaviour: 'drag',
         step: 15*60,
         margin: 15*60,
-        orientation: 'vertical',
+        orientation: 'horizontal',
         range: { min: +slider.dataset.min, max: +slider.dataset.max }
     });
 
@@ -642,106 +648,66 @@ function initActionMenu(seatFactory) {
 }
 
 // preserves states across pages
-function initDateSelectorStorage() {
+//
+// New schema (planSelections):
+//   { mode:'range'|'single'|'multiple', dates:[ts...], slider:[lo,hi] }
+// R4 migration: the old { cb:[ts...], slider:[...] } shape is coerced on read
+// — `cb` becomes `dates`, the mode defaults to 'range' (the panel default),
+// and WarpCalendar silently drops any ts that's no longer a selectable day
+// (window moved, omitted weekdays changed). A stale/partial blob never crashes.
+function loadPlanSelections() {
+    var dflt = window.warpGlobals['defaultSelectedDates'];
+    var dfltDates = Array.isArray(dflt.cb) ? dflt.cb : [];
+    var dfltSlider = dflt.slider;
 
-    var storage = window.sessionStorage;
+    var raw;
+    try {
+        raw = window.sessionStorage.getItem('planSelections');
+    } catch (e) { return { mode:'range', dates:dfltDates, slider:dfltSlider }; }
 
-    // restore values from session storage
-    var restoredSelections = storage.getItem('planSelections');
-    restoredSelections = restoredSelections? JSON.parse(restoredSelections): window.warpGlobals['defaultSelectedDates'];
+    if (!raw)
+        return { mode:'range', dates:dfltDates, slider:dfltSlider };
 
-    let cleanCBSelections = []; // used to clean up the list of checkboxes doesn't exist anymore
+    var p;
+    try { p = JSON.parse(raw); }
+    catch (e) { return { mode:'range', dates:dfltDates, slider:dfltSlider }; }
 
-    // if nothing is selected, let's force default selection, hence 2 tries
-    for (let i = 0; i < 2; ++i) {
-
-        for (let cb of document.getElementsByClassName('date_checkbox')) {
-            let ts = parseInt(cb.value)
-            if (restoredSelections.cb.includes(ts)) {
-                cb.checked = true;
-                cleanCBSelections.push(ts);
-            }
-        }
-
-        if (cleanCBSelections.length)
-            break;
-
-        restoredSelections.cb = window.warpGlobals['defaultSelectedDates'].cb;
+    if (p && Array.isArray(p.dates) && Array.isArray(p.slider)) {
+        return { mode: (p.mode === 'single' || p.mode === 'multiple' || p.mode === 'range') ? p.mode : 'range',
+                 dates: p.dates, slider: p.slider };
     }
-
-    restoredSelections.cb = cleanCBSelections;
-
-    var slider = document.getElementById('timeslider');
-    slider.noUiSlider.set(restoredSelections.slider);
-
-    storage.setItem('planSelections', JSON.stringify(restoredSelections));
-
-    var cbChange = function(e) {
-        let planSelections = JSON.parse( storage.getItem('planSelections'));
-
-        let ts = parseInt(this.value);
-        if (this.checked)
-            planSelections.cb.push(ts);
-        else
-            planSelections.cb.splice( planSelections.cb.indexOf(ts), 1);
-
-        storage.setItem('planSelections', JSON.stringify(planSelections));
+    // Old {cb, slider} shape — migrate cb -> dates, mode defaults to 'range'.
+    if (p && Array.isArray(p.cb)) {
+        return { mode:'range', dates:p.cb, slider: Array.isArray(p.slider) ? p.slider : dfltSlider };
     }
-
-    for (let cb of document.getElementsByClassName('date_checkbox'))
-        cb.addEventListener('change', cbChange);
-
-    slider.noUiSlider.on('update', function(values, handle, unencoded, tap, positions, noUiSlider) {
-
-        let planSelections = JSON.parse( storage.getItem('planSelections'));
-        planSelections.slider = values;
-        storage.setItem('planSelections', JSON.stringify(planSelections));
-
-    });
-
+    return { mode:'range', dates:dfltDates, slider:dfltSlider };
 }
 
-function initShiftSelectDates() {
+function savePlanSelections(s) {
+    try { window.sessionStorage.setItem('planSelections', JSON.stringify(s)); }
+    catch (e) { /* sessionStorage quota/disabled — degrade silently */ }
+}
 
-    // find lowest selected value
-    var lastSelectedValue = 0;
-    for (let cb of document.getElementsByClassName('date_checkbox')) {
-        if (cb.checked) {
-            if (lastSelectedValue === 0)
-                lastSelectedValue = parseInt(cb.value);
-            else
-                lastSelectedValue = Math.min( parseInt(cb.value), lastSelectedValue);
-        }
+// Mode-toggle + clear-button wiring for the inline calendar:
+//   3 small icon buttons (.warp-cal-mode-btn[data-mode]) + a Clear button.
+// Reflects the active mode back on the toggle, and (re)seeds the calendar's
+// anchor so a lone selected day stays a valid 1-day range after a mode switch.
+function initCalendarControls(cal) {
+    var toggleButtons = document.querySelectorAll('.warp-cal-mode-btn');
+    for (let b of toggleButtons) {
+        b.title = TR(b.dataset.titleKey);
+        // initial active highlight
+        b.classList.toggle('active', b.dataset.mode === cal.mode);
+        b.addEventListener('click', function() {
+            cal.setMode(b.dataset.mode);
+            for (let other of toggleButtons)
+                other.classList.toggle('active', other === b);
+        });
     }
-
-    var cbClick = function(e) {
-
-        if (e.shiftKey)
-        {
-            var targetState = this.checked; // materialize has already changed the state
-            var minValue  = Math.min( parseInt(this.value), lastSelectedValue);
-            var maxValue  = Math.max( parseInt(this.value), lastSelectedValue);
-
-            for (let cb of document.getElementsByClassName('date_checkbox')) {
-                if (parseInt(cb.value) >= minValue && parseInt(cb.value) <= maxValue) {
-                    if (cb != this && cb.checked != targetState) {
-                        cb.checked = targetState;
-                        cb.dispatchEvent(
-                            new Event('change', {bubbles: true, cancelable: false}));
-                    }
-                }
-
-            }
-
-            // we should not call preventDefault() as this checkbox must be switched as well (and 'change' event dispatched)
-        }
-
-        lastSelectedValue = parseInt(this.value);
+    var clearBtn = document.querySelector('.warp-cal-clear-btn');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function() { cal.clear(); });
     }
-
-    for (let cb of document.getElementsByClassName('date_checkbox'))
-        cb.addEventListener('click', cbClick);
-
 }
 
 function initZoneHelp() {
@@ -835,10 +801,9 @@ function initAutoBook(seatFactory) {
     var slider = document.getElementById('timeslider');
     slider.noUiSlider.on('update', updateFabState);
 
-    for (var e of document.getElementsByClassName('date_checkbox')) {
-        e.addEventListener('change', updateFabState);
-    }
-
+    // Calendar selection drives fab state indirectly: onChange → updateSeatsView →
+    // seatFactory.updateAllStates → 'updateAllStates' event → here. (Old code had a
+    // per-.date_checkbox change listener; the calendar onChange replaces it.)
     seatFactory.on('updateAllStates', updateFabState);
 
     fabBtn.addEventListener('click', function() {
@@ -932,8 +897,10 @@ function showAutoBookResult(resp) {
 document.addEventListener("DOMContentLoaded", function() {
 
     var slider = initSlider();
-    initDateSelectorStorage();
-    initShiftSelectDates();
+    // Restore persisted selection/mode (migration from the old {cb,slider} shape
+    // — R4). Applied BEFORE the calendar is composed so it sees stored defaults.
+    var persisted = loadPlanSelections();
+    slider.noUiSlider.set(persisted.slider);
 
     var seatFactory = new WarpSeatFactory(window.warpGlobals.login);
 
@@ -945,9 +912,34 @@ document.addEventListener("DOMContentLoaded", function() {
         seatFactory.updateAllStates(getSelectedDates());
     };
     slider.noUiSlider.on('update', updateSeatsView);
-    for (var e of document.getElementsByClassName('date_checkbox')) {
-        e.addEventListener('change', updateSeatsView);
-    }
+    slider.noUiSlider.on('update', function() {
+        // Persist slider moves with the current calendar selection.
+        if (calendar)
+            savePlanSelections({ mode: calendar.mode,
+                                 dates: calendar.getSelected(),
+                                 slider: slider.noUiSlider.get(true) });
+    });
+
+    // Calendar grid: render the backend blob, manage selection. R1/R9: the
+    // module does zero date math and stores day identity as integer
+    // timestamps taken verbatim from the backend cell ts's. Initial selected
+    // + mode come from the session, the backend default, or migration.
+    calendar = new WarpCalendar(
+        document.getElementById('plan_calendar_grid'),
+        {
+            grid: window.warpGlobals.calendarGrid,
+            weekdaysShort: window.warpGlobals.i18n.weekdaysShort,
+            monthsShort: window.warpGlobals.i18n.datePicker.i18n_object.monthsShort,
+            mode: persisted.mode,
+            selected: persisted.dates,
+            onChange: function(selectedTs) {
+                savePlanSelections({ mode: calendar.mode,
+                                     dates: selectedTs,
+                                     slider: slider.noUiSlider.get(true) });
+                updateSeatsView();
+            }
+        });
+    initCalendarControls(calendar);
 
     if (window.warpGlobals.darkFilter) {
         // Coerce each stored value to a number within its valid range, so a legacy or
