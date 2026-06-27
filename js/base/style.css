@@ -1138,6 +1138,12 @@ nav .dropdown-content li > span {
     grid-template-columns: repeat(7, 1fr);
     gap: 2px;
 }
+.warp-cal-weekday-row {       /* pinned: days scroll under it, like the time slider above */
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--warp-surface);
+}
 .warp-cal-weekday {
     text-align: center;
     font-size: 0.7rem;
