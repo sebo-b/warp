@@ -18,7 +18,7 @@
  *   ZONE_ROLE_USER   = 20
  *   ZONE_ROLE_VIEWER = 30
  *
- * Sample-data zone assignments (warp/sql/sample_data.sql):
+ * Sample-data zone assignments (e2e/sql/sample_data.sql):
  *   zone 1: user1 (admin), group_1a→user2 (user)
  *   zone 2: group_1b→user1 (user)
  *   zone 3: group_parking (viewer)

@@ -31,3 +31,20 @@ export async function getServerTime(page: Page): Promise<{ now: number; today: n
 export async function advanceDays(page: Page, days: number): Promise<void> {
   await setTimeOffset(page, days * 86400);
 }
+
+/**
+ * Switch the deployment language (debug only). Sets LANGUAGE_FILE and clears
+ * the iCal feed cache so the feed regenerates in the new language.
+ * `lang` is a short code ('de','en',...) resolved to `i18n/<lang>.json`,
+ * or pass a full path via the second arg. Reset between tests with 'en'.
+ */
+export async function setLanguage(page: Page, lang: string, fullPath?: string): Promise<void> {
+  const languageFile = fullPath ?? `i18n/${lang}.json`;
+  const resp = await page.request.post('/debug/set_language', {
+    data: { language_file: languageFile },
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!resp.ok()) {
+    throw new Error(`set_language failed: HTTP ${resp.status()}`);
+  }
+}

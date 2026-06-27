@@ -1,4 +1,4 @@
-// Accounts created by warp/sql/schema.sql and warp/sql/sample_data.sql.
+// Accounts created by warp/sql/schema.sql and e2e/sql/sample_data.sql.
 // account_type: 10 = admin, 20 = regular user, 100 = group (cannot log in).
 
 export interface TestUser {

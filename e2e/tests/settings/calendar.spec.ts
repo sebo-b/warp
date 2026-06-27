@@ -21,8 +21,9 @@ import { openCalendarModal } from '../../helpers/settings';
 import { USER1, USER2 } from '../../helpers/users';
 import { querySql } from '../../helpers/db';
 import { futureDayTs, getZoneSeats } from '../../helpers/booking';
-import { parseIcal, filterByUidPrefix } from '../../helpers/ical';
+import { parseIcal, filterByUidPrefix, unescapeIcalText } from '../../helpers/ical';
 import { advanceDays, resetTimeOffset } from '../../helpers/debug';
+import { insertBooking } from '../../helpers/bookings-page';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -513,7 +514,39 @@ test.describe('missing-vs-release deduplication', () => {
 
 });
 
-// ─── Calendar Settings API ────────────────────────────────────────────────────
+// ─── iCal Text Escaping ──────────────────────────────────────────────────
+
+test.describe('special characters in seat names are escaped (RFC 5545 TEXT)', () => {
+  test('SUMMARY escapes \\ ; , and newline and round-trips', async ({ page }) => {
+    const [seat] = await getZoneSeats(1);
+    // Covers every char _escape_ical_text handles: backslash, semicolon,
+    // comma, and newline (escaped to literal backslash-n).
+    const specialName = 'A;B,C\\D\nE';
+    await querySql('UPDATE seat SET name = $1 WHERE id = $2', [specialName, seat.id]);
+
+    const bookId = await insertBooking(USER1.login, seat.id, 3);
+
+    await logIn(page, USER1);
+    const token = await enableIcal(page, 'user1');
+    const events = await fetchIcal(page, 'user1', token);
+
+    const ev = events.find(e => e.uid === `${bookId}@warp`);
+    expect(ev, 'booking VEVENT for the special-named seat should be present').toBeTruthy();
+
+    // The parsed SUMMARY retains the escape sequences (the helper parser does
+    // not unescape) — assert the escaped forms are actually present.
+    expect(ev!.summary).toContain('\\;');
+    expect(ev!.summary).toContain('\\,');
+    expect(ev!.summary).toContain('\\\\');
+    expect(ev!.summary).toContain('\\n');
+
+    // Unescaping the parsed value must recover the original — the escape is
+    // correct and reversible for all four special characters.
+    expect(unescapeIcalText(ev!.summary)).toBe(`Seat ${specialName}`);
+  });
+});
+
+// ─── Calendar Settings API ─────────────────────────────────────────────────────
 
 test.describe('calendar settings API', () => {
 

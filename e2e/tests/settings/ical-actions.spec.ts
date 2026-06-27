@@ -248,3 +248,82 @@ test.describe('book seat via calendar link', () => {
     expect(resp.status()).toBe(403);
   });
 });
+
+// ─── No seat available (booked=[] path) ─────────────────────────────────────
+
+test.describe('book link reports "Not possible to book"', () => {
+  test('when no seat in the target zone is available', async ({ page }) => {
+    await logIn(page, USER1);
+    const token = await enableIcal(page);
+    const { url } = await getBookLink(page, token);
+
+    // ponytail: disabling every seat in the zone is the deterministic way to
+    // force runAutoBook's booked=[] branch. The real "zone full" cause needs
+    // one booking per seat (~27 distinct accounts — infeasible with 4 test
+    // users). A timedrift into the past would instead yield "Requested date is
+    // in the past"; a future-beyond-window approach couples to WEEKS_IN_ADVANCE.
+    await querySql('UPDATE seat SET enabled = false WHERE zid = $1', [1]);
+
+    await page.goto(url);
+    await expect(page.locator('.card-title')).toHaveText('Not possible to book');
+
+    const rows = await querySql('SELECT id FROM book WHERE login = $1', [USER1.login]);
+    expect(rows.rowCount).toBe(0);
+  });
+});
+
+// ─── Lost zone access (valid HMAC, role revoked) ────────────────────────────
+
+test.describe('book link 403 when zone access was revoked', () => {
+  test('valid HMAC but user no longer holds the zone role -> Forbidden', async ({ page }) => {
+    await logIn(page, USER1);
+    const token = await enableIcal(page);
+    const { url } = await getBookLink(page, token);
+
+    // user1's only zone-1 grant is the direct zone_assign(1,'user1',10) row
+    // (group_1a grants user2, not user1; zone 1 is type ENABLED, no synthetic
+    // public row). The materialized-view trigger refreshes effective roles on
+    // delete, so book_seat's specific_role lookup returns None -> 403.
+    await querySql("DELETE FROM zone_assign WHERE zid = 1 AND login = 'user1'");
+
+    const resp = await page.request.get(url);
+    expect(resp.status()).toBe(403);
+    expect(await resp.text()).toContain('Forbidden');
+
+    const rows = await querySql('SELECT id FROM book WHERE login = $1', [USER1.login]);
+    expect(rows.rowCount).toBe(0);
+  });
+});
+
+// ─── Input validation 400s (param guards, run before token verification) ──────
+
+// The malformed-DATE 400 in book_seat (timegm parse) is NOT tested: that branch
+// sits after the HMAC check, and d is part of the signed message, so a tampered
+// date is rejected as 403 before reaching the parse guard. It is defensive.
+// The missing-param / non-integer guards below run first, token-free.
+
+test.describe('iCal action-link input validation (400 Bad Request)', () => {
+  test('book link with no parameters -> 400 Error', async ({ page }) => {
+    const resp = await page.request.get('/calendar/user1/book');
+    expect(resp.status()).toBe(400);
+    expect(await resp.text()).toContain('card-title">Error');
+  });
+
+  test('book link with non-integer zone -> 400 Error', async ({ page }) => {
+    const resp = await page.request.get('/calendar/user1/book?z=notanint&d=2026-07-01&n=1&t=1');
+    expect(resp.status()).toBe(400);
+    expect(await resp.text()).toContain('card-title">Error');
+  });
+
+  test('delete link with no parameters -> 400 Error', async ({ page }) => {
+    const resp = await page.request.get('/calendar/user1/delete');
+    expect(resp.status()).toBe(400);
+    expect(await resp.text()).toContain('card-title">Error');
+  });
+
+  test('delete link with non-integer booking id -> 400 Error', async ({ page }) => {
+    const resp = await page.request.get('/calendar/user1/delete?i=notanint&n=1&t=1');
+    expect(resp.status()).toBe(400);
+    expect(await resp.text()).toContain('card-title">Error');
+  });
+});

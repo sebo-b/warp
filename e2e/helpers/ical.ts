@@ -51,3 +51,23 @@ export function parseIcal(ical: string): ICalEvent[] {
 export function filterByUidPrefix(events: ICalEvent[], prefix: string): ICalEvent[] {
   return events.filter(e => e.uid.startsWith(prefix));
 }
+
+/** Inverse of warp/ical.py _escape_ical_text (RFC 5545 TEXT unescaping).
+ *  Used to validate that the feed escapes special chars correctly: unescape
+ *  a parsed SUMMARY and it must equal the original value. */
+export function unescapeIcalText(s: string): string {
+  let out = '';
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === '\\' && i + 1 < s.length) {
+      const c = s[i + 1];
+      if (c === '\\')      { out += '\\'; i++; }
+      else if (c === ';')   { out += ';';  i++; }
+      else if (c === ',')   { out += ',';  i++; }
+      else if (c === 'n' || c === 'N') { out += '\n'; i++; }
+      else { out += c; }
+    } else {
+      out += s[i];
+    }
+  }
+  return out;
+}

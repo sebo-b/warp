@@ -20,9 +20,26 @@ async function resetServerClock(baseURL: string): Promise<void> {
 }
 
 /**
+ * Reset the deployment language to English (see helpers/debug.ts setLanguage).
+ * LANGUAGE_FILE is process-global state; a test that switches language would
+ * otherwise poison every test after it. Tolerates 404 for a non-debug server.
+ */
+async function resetServerLanguage(baseURL: string): Promise<void> {
+  const resp = await fetch(`${baseURL}/debug/set_language`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ language_file: 'i18n/en.json' }),
+  });
+  if (!resp.ok && resp.status !== 404) {
+    throw new Error(`resetting language failed: HTTP ${resp.status}`);
+  }
+}
+
+/**
  * Project-wide test fixture: every test starts from a pristine database
- * (schema + sample data) and the real wall-clock time. Import `test`/`expect`
- * from here, not from '@playwright/test', so the isolation is automatic.
+ * (schema + sample data), real wall-clock time, and the default language.
+ * Import `test`/`expect` from here, not from '@playwright/test', so the
+ * isolation is automatic.
  */
 export const test = base.extend<{ pristineDb: void }>({
   // The container is published on a random host port (global-setup), so the
@@ -38,6 +55,7 @@ export const test = base.extend<{ pristineDb: void }>({
     async ({ baseURL }, use) => {
       await resetDb();
       await resetServerClock(baseURL!);
+      await resetServerLanguage(baseURL!);
       await use();
     },
     { auto: true },

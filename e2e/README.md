@@ -44,10 +44,15 @@ npm run report           # open last HTML report
   `postgres:postgres_password@127.0.0.1:5432/postgres` (matching the
   `DevelopmentSettings` component defaults — `DATABASE_ADDRESS`,
   `DATABASE_NAME`, `DATABASE_USER`, `DATABASE_PASSWORD`) and replays
-  `clean_db.sql` + `schema.sql` + `sample_data.sql` — the exact same scripts
-  the app runs at startup, so app and tests can never disagree about the
-  pristine state. `querySql()` is the escape hatch for custom setup or
-  asserting persisted state.
+  `warp/sql/clean_db.sql` + `warp/sql/schema.sql` (the app's own structural
+  scripts — they ARE the schema, so app and tests can never disagree on
+  structure) followed by **`e2e/sql/sample_data.sql`**. `sample_data.sql` is
+  demo seed data that may be edited in `warp/sql/` for demo/marketing reasons;
+  the e2e suite owns a frozen snapshot under `e2e/sql/` so assertions on
+  specific values (test logins, "Zone 1A", seat "1.1", …) stay stable. The app
+  still loads its own copy at first start; `resetDb()` overrides it before
+  every test. `querySql()` is the escape hatch for custom setup or asserting
+  persisted state.
 - **`fixtures.ts`**: exports `test`/`expect` with an `auto` fixture that calls
   `resetDb()` and zeroes the debug time offset before every test. **Always
   import `test` and `expect` from `../fixtures`, never from
@@ -63,7 +68,7 @@ npm run report           # open last HTML report
   `fullyParallel: false`. Do not turn parallelism on without giving each
   worker its own database.
 
-## Test accounts (from `warp/sql/schema.sql` + `sample_data.sql`)
+## Test accounts (from `warp/sql/schema.sql` + `e2e/sql/sample_data.sql`)
 
 | login   | password        | role                       |
 |---------|-----------------|----------------------------|
@@ -74,7 +79,7 @@ npm run report           # open last HTML report
 
 `group_1a`, `group_1b`, `group_parking` are groups (account_type 100) and
 cannot log in. Sample data also defines zones 1–3 ("Zone 1", "Zone 2",
-"Parking") with seats and zone assignments — see `warp/sql/sample_data.sql`.
+"Parking") with seats and zone assignments — see `e2e/sql/sample_data.sql`.
 
 ## Conventions for writing new tests
 

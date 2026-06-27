@@ -31,6 +31,25 @@ def set_time_offset():
     }
 
 
+@bp.route('/debug/set_language', methods=['POST'])
+def set_language():
+    """Switch the deployment language for e2e (debug only).
+
+    Sets LANGUAGE_FILE so _ical_phrases() loads another i18n file, and clears
+    calendar_cache: cached feed rows are language-specific, so a switch must
+    force regeneration. Pass 'i18n/en.json' (or omit) to reset to English.
+    """
+    data = flask.request.get_json(silent=True) or {}
+    lang_file = data.get('language_file') or 'i18n/en.json'
+    flask.current_app.config['LANGUAGE_FILE'] = lang_file
+    from warp.db import CalendarCache
+    CalendarCache.delete().execute()
+    return {
+        'msg': 'ok',
+        'language_file': lang_file,
+    }
+
+
 @bp.route('/debug/endpoints', methods=['GET'])
 def list_endpoints():
     """Return all non-debug registered routes — used by the e2e coverage test."""

@@ -288,7 +288,7 @@ test.describe('assigned-names labels', () => {
   test('multi-user assignment shows all names', async ({ page }) => {
     const [seat] = await getZoneSeats(1);
     await assignSeat(seat.id, USER2.login, null);
-    // USER3 needs to be a real user in the DB — sample_data.sql creates user3.
+    // USER3 needs to be a real user in the DB — e2e/sql/sample_data.sql creates user3.
     await assignSeat(seat.id, USER3.login, null);
 
     await logIn(page, USER1);
