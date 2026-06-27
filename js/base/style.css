@@ -1020,16 +1020,21 @@ nav .dropdown-content li > span {
 }
 
 #plan_sidepanel {
-    flex: none;
+    flex: 0 0 320px;           /* desktop: full-height inline column (stretches to the container height) */
+    max-width: 96vw;          /* on tiny screens don't overflow */
+    max-height: 100%;         /* capped at the container height so the calendar can scroll when tall */
     display: flex;
     flex-direction: column;
-    overflow: hidden;          /* the panel itself never scrolls — only the date list does */
+    overflow: hidden;          /* the panel itself never scrolls — only the calendar grid does */
     padding: var(--warp-space-3);
     z-index: 1;
 }
+/* Desktop collapse (user clicks close): free the column so the map reflows
+   back to full width. */
+#plan_sidepanel[data-state="closed"] { display: none; }
 
 .plan_sidepanel_close {
-    display: none;
+    display: block;            /* always visible: users on both viewports can hide the panel */
     margin-left: auto;
     cursor: pointer;
 }
@@ -1038,11 +1043,23 @@ nav .dropdown-content li > span {
     display: flex;
     flex-direction: row;
     flex: 0 0 auto;            /* book-as (+ close) pinned at the top */
+    margin-bottom: var(--warp-space-3);   /* gap between the book-as row and the calendar widget (point 4) */
 }
 
 .plan_datetime_container {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;    /* slider on top, calendar below (point 2) */
+    flex: 1 1 auto;            /* fill the panel below the book-as row */
+    min-height: 0;            /* so the calendar grid can scroll instead of growing the panel */
+    gap: var(--warp-space-3);  /* padding between the slider and the calendar */
+}
+
+/* Desktop: hide the show (>>) button when the panel is open — it overlaps the
+   inline column. The close button inside the panel is the hide affordance.
+   When closed (display:none panel), the trigger reappears to reopen. Mobile is
+   unaffected (the slide-in covers the trigger naturally when open). (point 3) */
+@media only screen and (min-width: 994px) {
+    #plan_sidepanel[data-state="open"] ~ .planmap_datetime_trigger { display: none; }
 }
 
 .planmap_datetime_trigger {
@@ -1050,7 +1067,7 @@ nav .dropdown-content li > span {
     left: 0px;
     color: var(--warp-primary);
     cursor: pointer;
-    display: none;
+    display: block;            /* always visible: opens the panel after it's been hidden */
     z-index: 4;
 }
 
@@ -1060,95 +1077,184 @@ nav .dropdown-content li > span {
     margin-left: -2px;
 }
 
-@media only screen and (max-width : 993px) {
+/* Mobile: the panel is a content-height overlay (ends where its content ends,
+   not a full-height sheet). Its height is capped at the viewport so when the
+   calendar is tall (large WEEKS_IN_ADVANCE) the calendar scrolls inside the
+   panel rather than overflowing the page. data-state drives the slide via a
+   CSS transition — no Materialize Sidenav/overlay (that greyed the page). */
+@media only screen and (max-width: 993px) {
     #plan_sidepanel {
         position: fixed;
-        /* Pin top (below the nav) to bottom so the panel has a DEFINITE height —
-           the full-height rail and the scrollable date list both need a fixed
-           box to size against. dvh tracks the collapsing mobile browser chrome. */
         top: 56px;
         left: 0;
-        bottom: 0;
-        height: auto;
-        max-height: none;
+        bottom: auto;           /* content height: the sheet ends where its content ends */
+        width: 320px;
+        max-width: 96vw;
+        max-height: calc(100vh - 56px - var(--warp-space-3));   /* cap so the calendar scrolls when tall; leave a strip of map below */
         background-color: var(--warp-surface);
         box-shadow: 0 2px 2px 0 rgba(var(--warp-shadow-rgb), 0.14), 0 3px 1px -2px rgba(var(--warp-shadow-rgb), 0.12), 0 1px 5px 0 rgba(var(--warp-shadow-rgb), 0.2);
         z-index: 999;   /* materializecss overlay has 997 */
         overscroll-behavior: contain;   /* a drag inside can't scroll-chain to the map behind */
-        transform: translateX(-105%);
+        transform: translateX(-105%);    /* closed default (JS sets data-state=closed on mobile) */
+        transition: transform .2s ease;
+        display: flex;   /* override the desktop display:none so the slide animates */
     }
-
-    /* nav header is becoming bigger from 601px, so we need to recalculate */
     @media only screen and (min-width: 601px) {
         #plan_sidepanel {
             top: 64px;
+            max-height: calc(100vh - 64px - var(--warp-space-3));
         }
     }
+    #plan_sidepanel[data-state="open"]   { transform: translateX(0); }
+    #plan_sidepanel[data-state="closed"] { transform: translateX(-105%); }
 
-    .plan_sidepanel_close {
-        display: block;
-    }
-
-    .planmap_datetime_trigger {
-        display: block;
-    }
-
-    /* Dragging the grip pans the slider, not the panel/page. (Upstream noUiSlider
-       sets touch-action:none on the target; assert it on the handle too.) */
+    /* Dragging the grip pans the slider, not the panel/page. */
     .timeslider,
     .timeslider .noUi-handle { touch-action: none; }
 }
 
-.plan_datelist {
+/* ===== WarpCalendar grid (booking panel) =====
+   .warp-calendar owns its layout (grid + month headers + cells). Cells render
+   in the backend's wire order; the module does zero date math (R1). Themes via
+   warp/static/theme.css --warp-* tokens (flip light/dark). */
+.plan_calendar {
     flex: 1 1 auto;
-    min-height: 0;             /* allow it to shrink below content height so it can scroll */
-    overflow-y: auto;          /* the date list is the only scrollable region in the panel */
-    font-size: 1rem;
-    text-align: left;
-    padding: 8px 0;
-}
-.plan_datelist p,
-.plan_datelist label,
-.plan_datelist span {
-    font-size: 1rem;
-}
-.plan_datelist p {
-    margin: 0;
-    padding: 6px 0;
-    line-height: 1.4;
-}
-.plan_datelist label {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-.plan_datelist .filled-in {
-    flex-shrink: 0;
-}
-.plan_timeslider {
-    flex: 0 0 auto;
+    min-height: 0;
+    overflow-y: auto;          /* the only scrollable region in the panel */
     display: flex;
     flex-direction: column;
+    gap: var(--warp-space-2);
+    padding-bottom: var(--warp-space-2);
+}
+
+.warp-cal-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.warp-cal-weekday-row,
+.warp-cal-week {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+}
+.warp-cal-weekday {
+    text-align: center;
+    font-size: 0.7rem;
+    color: var(--warp-grey-text);
+    padding: 4px 0;
+    text-transform: uppercase;
+}
+.warp-cal-month-header {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--warp-grey-text);
+    margin: 8px 0 2px 0;
+    text-transform: capitalize;
+}
+.warp-cal-day {
+    display: flex;
     align-items: center;
-    justify-content: center;   /* centre the rail (+ hints) when the column is taller than the cap */
-    min-height: 0;
-    margin-left: 16px;
+    justify-content: center;
+    aspect-ratio: 1 / 1;
+    min-height: 40px;      /* touch target (R6 / accessibility) */
+    touch-action: manipulation;   /* kill double-tap zoom */
+    font-size: 0.9rem;
+    cursor: pointer;
+    border-radius: var(--warp-radius);
+    color: var(--warp-text);
+    user-select: none;
 }
-/* The rail fills the panel height (full-height hour selector) up to a sane cap,
-   instead of the fixed 400px. Scoped to the plan panel so the prefs-modal slider
-   (.pref_timeslider_container .timeslider) keeps its own sizing. */
-.plan_timeslider .timeslider {
-    flex: 1 1 auto;
-    height: auto !important;
-    min-height: 120px;
-    max-height: 460px;
+.warp-cal-padded {            /* weekday fillers before the 1st / after the last day */
+    cursor: default;
+    color: transparent;
+    background: transparent;
+    pointer-events: none;
 }
-.plan_datetime_container {
-    flex: 1 1 auto;            /* fill the panel below the book-as row */
-    min-height: 0;            /* so the date list can scroll instead of growing the panel */
+.warp-cal-day.is-today {
+    box-shadow: inset 0 0 0 1.5px var(--warp-secondary);   /* today ring */
+    font-weight: 700;
+}
+.warp-cal-day.is-disabled {   /* past / omitted / post-window: shown greyed, not hidden (R3) */
+    cursor: default;
+    color: var(--warp-grey-muted);
+    background: transparent;
+    pointer-events: none;
+}
+.warp-cal-day.is-selected {
+    background-color: var(--warp-secondary);
+    color: var(--warp-on-brand);
+}
+.warp-cal-day.is-today.is-selected { box-shadow: none; }
+.warp-cal-day:focus-visible {
+    outline: 2px solid var(--warp-secondary);
+    outline-offset: 1px;
+}
+
+/* ===== Time inputs + horizontal slider (plan panel) =====
+   Two editable HH:MM inputs above the rail. Scoped to the plan panel so the
+   prefs-modal slider (.pref_timeslider_container .timeslider) keeps vertical. */
+.plan_timeslider {
+    flex: 0 0 auto;            /* not scrollable: pinned above the calendar (point 2) */
+    display: flex;
+    flex-direction: column;
+    gap: var(--warp-space-3);
+    padding-bottom: var(--warp-space-2);
+}
+.plan_timeslider_inputs {
+    display: flex;
+    align-items: center;
     justify-content: space-between;
-    align-items: stretch;     /* date list and rail both span the full panel height */
+    gap: var(--warp-space-2);
 }
+.timeslider-input {
+    width: 5em;
+    text-align: center;
+    font-size: 0.9rem;
+    padding: 4px 6px;
+    border: 1px solid var(--warp-grey-border);   /* uniform frame (no coloured underline — it read as a blue line in dark mode) */
+    border-radius: var(--warp-radius);
+    background: var(--warp-surface);
+    color: var(--warp-text);
+}
+.timeslider-input:focus {
+    border-color: var(--warp-secondary);
+    outline: none;
+}
+/* The rail: explicit height (noUiSlider horizontal needs one; `height:auto`
+   collapses it to 0 and the rail/handles vanish). Same thin, flat shape as the
+   prefs-modal slider, but coloured with --warp-secondary so it matches the
+   calendar grid + FAB. box-shadow:none drops noUiSlider's default inset
+   highlight, which showed as a pale line along the top of the bar in dark mode. */
+.plan_timeslider .timeslider {
+    height: 3px !important;     /* override the legacy .timeslider{height:400px} vertical default */
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    background: var(--warp-primary-tint);
+    box-shadow: none;
+}
+.plan_timeslider .timeslider .noUi-connects {
+    position: absolute;
+    top: -1px;
+    left: 0;
+    width: 100%;
+    height: 5px;
+}
+.plan_timeslider .timeslider .noUi-connect { background: var(--warp-secondary); }
+.plan_timeslider .timeslider .noUi-origin { top: 0; }
+.plan_timeslider .timeslider .noUi-handle {
+    box-shadow: none;
+    background-color: var(--warp-secondary);
+    border: none;
+    border-radius: 50%;
+    width: 15px; height: 15px;
+    top: -6px; right: -7px;
+    cursor: pointer;
+    transform: none;
+}
+.plan_timeslider .timeslider .noUi-handle:before,
+.plan_timeslider .timeslider .noUi-handle:after { content: none; }
 
 .plan_map,
 .zone_modify_map {
@@ -1767,20 +1873,26 @@ INPUT[type="text"] ~ .show_password_btn::after {
     right: 0;
     bottom: 0;
     z-index: 1000;
-    display: flex;
+    /* Hidden via display:none — NOT visibility/opacity. This is a full-viewport
+       position:fixed overlay shown during the initial data XHR. If it only
+       went visibility:hidden it would STAY in the render tree as a compositing
+       layer, and Safari caches the page's wheel/scroll event region with that
+       overlay on top: after it hides, wheel/scroll keep hitting the invisible
+       spinner and the page just rubber-bands — until a window resize or a
+       top-layer <dialog> (any modal) forces the region to recompute. (That is
+       exactly the "only a modal/resize fixes it" symptom, and it hit the whole
+       viewport: both the office map's wheel-zoom and the calendar's scroll.)
+       display:none removes the layer entirely, so there is nothing to cache. */
+    display: none;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     background-color: var(--warp-surface);
-    opacity: 0;
-    visibility: hidden;
-    transition: visibility 0.3s ease-in-out 0s, opacity 0.3s ease-in-out 0s;
+    opacity: 0.8;
 }
 
 #spinner.active {
-    opacity: 0.8;
-    visibility: visible;
-    transition: visibility 1s ease-in-out 0s, opacity 1s ease-in-out 1s;
+    display: flex;
 }
 
 #spinner::after {

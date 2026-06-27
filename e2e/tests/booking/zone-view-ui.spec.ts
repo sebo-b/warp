@@ -12,6 +12,7 @@ import { insertBooking } from '../../helpers/bookings-page';
 import {
   futureDayTs,
   getZoneSeats,
+  getSelectableDates,
   selectOnlyDates,
   waitForSeatsLoaded,
 } from '../../helpers/booking';
@@ -144,44 +145,35 @@ test.describe('seat hover tooltip', () => {
 
 test.describe('date selection UX', () => {
 
-  test('shift-click selects the whole date range', async ({ page }) => {
+  test('range fills the contiguous run (click start, shift-click end)', async ({ page }) => {
     await logIn(page, USER1);
     await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
 
-    const checkboxes = page.locator('.date_checkbox');
-    const count = await checkboxes.count();
-    test.skip(count < 4, 'needs at least 4 selectable dates');
+    const selectable = await getSelectableDates(page);
+    test.skip(selectable.length < 4, 'needs at least 4 selectable dates');
 
-    await selectOnlyDates(page, []);
-    // Click the first date, then shift-click the fourth one.
-    await checkboxes.nth(0).click({ force: true });
-    await checkboxes.nth(3).click({ force: true, modifiers: ['Shift'] });
-
-    for (let i = 0; i < 4; i++) {
-      await expect(checkboxes.nth(i)).toBeChecked();
-    }
+    await selectOnlyDates(page, []);   // clear (toggle each selected off)
+    // Click the first selectable day (sets the anchor), then shift-click the
+    // fourth: shift-click ADDs the anchor..target range (union).
+    await page.locator(`.warp-cal-day[data-ts="${selectable[0]}"]`).click();
+    await page.locator(`.warp-cal-day[data-ts="${selectable[3]}"]`).click({ modifiers: ['Shift'] });
+    await expect(page.locator('.warp-cal-day.is-selected')).toHaveCount(4);
   });
 
-  test('shift-click also deselects a whole range', async ({ page }) => {
+  test('clicking a selected day deselects it (toggle)', async ({ page }) => {
     await logIn(page, USER1);
     await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
 
-    const checkboxes = page.locator('.date_checkbox');
-    const count = await checkboxes.count();
-    test.skip(count < 4, 'needs at least 4 selectable dates');
+    const selectable = await getSelectableDates(page);
+    expect(selectable.length).toBeGreaterThanOrEqual(1);
 
-    // Select the 0..3 range, then clear it again with shift-click.
-    await selectOnlyDates(page, []);
-    await checkboxes.nth(0).click({ force: true });
-    await checkboxes.nth(3).click({ force: true, modifiers: ['Shift'] });
-    await checkboxes.nth(0).click({ force: true });
-    await checkboxes.nth(3).click({ force: true, modifiers: ['Shift'] });
-
-    for (let i = 0; i < 4; i++) {
-      await expect(checkboxes.nth(i)).not.toBeChecked();
-    }
+    await selectOnlyDates(page, [selectable[0]]);
+    await expect(page.locator('.warp-cal-day.is-selected')).toHaveCount(1);
+    // Click it again -> toggled off (no clear-link; the only deselect path).
+    await page.locator(`.warp-cal-day[data-ts="${selectable[0]}"]`).click();
+    await expect(page.locator('.warp-cal-day.is-selected')).toHaveCount(0);
   });
 
   test('selected dates persist across a page reload (sessionStorage)', async ({ page }) => {
@@ -195,17 +187,11 @@ test.describe('date selection UX', () => {
     await page.reload();
     await waitForSeatsLoaded(page);
 
-    const checkboxes = page.locator('.date_checkbox');
-    const count = await checkboxes.count();
-    for (let i = 0; i < count; i++) {
-      const cb = checkboxes.nth(i);
-      const val = Number(await cb.inputValue());
-      if (val === ts) {
-        await expect(cb).toBeChecked();
-      } else {
-        await expect(cb).not.toBeChecked();
-      }
-    }
+    // The selected-day cell carries the .is-selected class with data-ts === ts;
+    // every other cell is not selected.
+    const selected = page.locator('.warp-cal-day.is-selected');
+    expect(await selected.count()).toBe(1);
+    expect(await selected.getAttribute('data-ts')).toBe(String(ts));
   });
 });
 

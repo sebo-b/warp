@@ -6,12 +6,18 @@ import {WarpSeatFactory,WarpSeat,EVERYONE_KEY} from './modules/seat.js';
 import { OfficeMap } from './modules/officeMap.js';
 import PlanUserData from './modules/planuserdata.js';
 import BookAs from './modules/bookas.js';
+import { WarpCalendar } from './modules/calendarGrid.js';
 
 import noUiSlider from 'nouislider';
 import "./css/plan/nouislider.css";
 
 // The warning modal is rendered via innerHTML (WarpModal.open), so any
 // user-controlled text (usernames) interpolated into that HTML must be escaped.
+// The booking calendar (WarpCalendar) instance for this plan view. Holds the
+// selected-day set as integers from the backend grid's cell timestamps; see
+// getSelectedDates(). R1: no JS date math, no new Date(ts).
+var calendar = null;
+
 function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, function(c) {
         return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
@@ -36,6 +42,8 @@ function downloadSeatData(seatFactory) {
 }
 
 function getSelectedDates() {
+    if (!calendar)
+        return [];
     var slider = document.getElementById('timeslider');
     var times = slider.noUiSlider.get(true);
 
@@ -43,18 +51,45 @@ function getSelectedDates() {
     if (times[1] == 24*3600)
         times[1] = 24*3600-1;
 
+    var fromOff = parseInt(times[0]);
+    var toOff = parseInt(times[1]);
     var res = [];
-
-    for (var e of document.getElementsByClassName('date_checkbox')) {
-        if (e.checked) {
-            res.push( {
-                fromTS: parseInt(e.value) + parseInt(times[0]),
-                toTS: parseInt(e.value) + parseInt(times[1])
-            });
-        }
-    };
-
+    for (var ts of calendar.getSelected()) {
+        res.push({
+            fromTS: ts + fromOff,
+            toTS: ts + toOff
+        });
+    }
     return res;
+}
+
+// Seconds-of-day <-> "HH:MM" (pure arithmetic — R1: no new Date(ts).
+// getTimezoneOffset/toISOString would silently re-anchor to the browser TZ.)
+function fmtTime(secs) {
+    secs = Math.round(secs);
+    if (secs >= 24*3600) secs = 24*3600 - 1;   // display clamp: 24:00 -> 23:59
+    if (secs < 0) secs = 0;
+    var h = Math.floor(secs / 3600);
+    var m = Math.floor((secs % 3600) / 60);
+    return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
+}
+
+function parseTime(str) {
+    var m = /^\s*(\d{1,2})[:.](\d{1,2})\s*$/.exec(String(str));
+    if (!m) return null;
+    var h = Math.min(23, Math.max(0, parseInt(m[1], 10)));
+    var mm = Math.min(59, Math.max(0, parseInt(m[2], 10)));
+    return h*3600 + mm*60;
+}
+
+// Snap a seconds-of-day value to the slider's 15-min step. Start rounds DOWN
+// (the user always gets at least their requested start), end rounds UP (the
+// user always gets at least their requested end). Guarantees the booked slot
+// always contains thespan the user typed.
+function snapToStep(secs, direction) {
+    var step = 15*60;
+    if (direction === 'down') return Math.floor(secs / step) * step;
+    return Math.ceil(secs / step) * step;
 }
 
 function initSlider() {
@@ -66,16 +101,40 @@ function initSlider() {
         behaviour: 'drag',
         step: 15*60,
         margin: 15*60,
-        orientation: 'vertical',
+        orientation: 'horizontal',
         range: { min: +slider.dataset.min, max: +slider.dataset.max }
     });
 
-    var minDiv = document.getElementById('timeslider-min');
-    var maxDiv = document.getElementById('timeslider-max');
-    slider.noUiSlider.on('update', function(values, handle, unencoded, tap, positions, noUiSlider) {
-        minDiv.innerText = new Date(unencoded[0]*1000).toISOString().substring(11,16)
-        maxDiv.innerText = unencoded[1] == 24*3600? "23:59": new Date(unencoded[1]*1000).toISOString().substring(11,16);
+    var minInput = document.getElementById('timeslider-min');
+    var maxInput = document.getElementById('timeslider-max');
+
+    // Slider -> inputs: format the two handles into the edit boxes.
+    slider.noUiSlider.on('update', function(values, handle, unencoded) {
+        minInput.value = fmtTime(unencoded[0]);
+        maxInput.value = fmtTime(unencoded[1]);
     });
+
+    // Inputs -> slider: parse HH:MM, snap to the 15-min step (start down, end
+    // up so the booked slot always contains the span typed), clamp to the rail
+    // range, keep start < end with the slider's margin. Invalid input reverts
+    // to the current handle value (the update handler repopulates the box).
+    function applyFromInputs() {
+        var lo = parseTime(minInput.value);
+        var hi = parseTime(maxInput.value);
+        if (lo === null || hi === null) {
+            slider.noUiSlider.set(slider.noUiSlider.get(true));   // revert
+            return;
+        }
+        var min = +slider.dataset.min, max = +slider.dataset.max;
+        lo = snapToStep(lo, 'down');
+        hi = snapToStep(hi, 'up');
+        lo = Math.min(max, Math.max(min, lo));
+        hi = Math.min(max, Math.max(min, hi));
+        if (hi - lo < 15*60) hi = Math.min(max, lo + 15*60);   // honour the margin
+        slider.noUiSlider.set([lo, hi]);
+    }
+    minInput.addEventListener('change', applyFromInputs);
+    maxInput.addEventListener('change', applyFromInputs);
 
     return slider;
 }
@@ -642,107 +701,42 @@ function initActionMenu(seatFactory) {
 }
 
 // preserves states across pages
-function initDateSelectorStorage() {
+//
+// Schema (planSelections): { dates:[ts...], slider:[lo,hi] }
+// R4 migration: the old { cb:[ts...], slider:[...] } shape (and the now-removed
+// { mode, dates, slider } shape) coerce on read — `cb`/`dates` carries the
+// selected days, and WarpCalendar silently drops any ts that's no longer a
+// selectable day (window moved, omitted weekdays changed). A stale/partial
+// blob never crashes.
+function loadPlanSelections() {
+    var dflt = window.warpGlobals['defaultSelectedDates'];
+    var dfltDates = Array.isArray(dflt.cb) ? dflt.cb : [];
+    var dfltSlider = dflt.slider;
 
-    var storage = window.sessionStorage;
+    var raw;
+    try { raw = window.sessionStorage.getItem('planSelections'); }
+    catch (e) { return { dates: dfltDates, slider: dfltSlider }; }
 
-    // restore values from session storage
-    var restoredSelections = storage.getItem('planSelections');
-    restoredSelections = restoredSelections? JSON.parse(restoredSelections): window.warpGlobals['defaultSelectedDates'];
+    if (!raw) return { dates: dfltDates, slider: dfltSlider };
 
-    let cleanCBSelections = []; // used to clean up the list of checkboxes doesn't exist anymore
+    var p;
+    try { p = JSON.parse(raw); }
+    catch (e) { return { dates: dfltDates, slider: dfltSlider }; }
 
-    // if nothing is selected, let's force default selection, hence 2 tries
-    for (let i = 0; i < 2; ++i) {
-
-        for (let cb of document.getElementsByClassName('date_checkbox')) {
-            let ts = parseInt(cb.value)
-            if (restoredSelections.cb.includes(ts)) {
-                cb.checked = true;
-                cleanCBSelections.push(ts);
-            }
-        }
-
-        if (cleanCBSelections.length)
-            break;
-
-        restoredSelections.cb = window.warpGlobals['defaultSelectedDates'].cb;
-    }
-
-    restoredSelections.cb = cleanCBSelections;
-
-    var slider = document.getElementById('timeslider');
-    slider.noUiSlider.set(restoredSelections.slider);
-
-    storage.setItem('planSelections', JSON.stringify(restoredSelections));
-
-    var cbChange = function(e) {
-        let planSelections = JSON.parse( storage.getItem('planSelections'));
-
-        let ts = parseInt(this.value);
-        if (this.checked)
-            planSelections.cb.push(ts);
-        else
-            planSelections.cb.splice( planSelections.cb.indexOf(ts), 1);
-
-        storage.setItem('planSelections', JSON.stringify(planSelections));
-    }
-
-    for (let cb of document.getElementsByClassName('date_checkbox'))
-        cb.addEventListener('change', cbChange);
-
-    slider.noUiSlider.on('update', function(values, handle, unencoded, tap, positions, noUiSlider) {
-
-        let planSelections = JSON.parse( storage.getItem('planSelections'));
-        planSelections.slider = values;
-        storage.setItem('planSelections', JSON.stringify(planSelections));
-
-    });
-
+    var dates = Array.isArray(p.dates) ? p.dates
+              : (Array.isArray(p.cb) ? p.cb : dfltDates);   // migrate old {cb,slider}
+    var slider = Array.isArray(p.slider) ? p.slider : dfltSlider;
+    return { dates: dates, slider: slider };
 }
 
-function initShiftSelectDates() {
-
-    // find lowest selected value
-    var lastSelectedValue = 0;
-    for (let cb of document.getElementsByClassName('date_checkbox')) {
-        if (cb.checked) {
-            if (lastSelectedValue === 0)
-                lastSelectedValue = parseInt(cb.value);
-            else
-                lastSelectedValue = Math.min( parseInt(cb.value), lastSelectedValue);
-        }
-    }
-
-    var cbClick = function(e) {
-
-        if (e.shiftKey)
-        {
-            var targetState = this.checked; // materialize has already changed the state
-            var minValue  = Math.min( parseInt(this.value), lastSelectedValue);
-            var maxValue  = Math.max( parseInt(this.value), lastSelectedValue);
-
-            for (let cb of document.getElementsByClassName('date_checkbox')) {
-                if (parseInt(cb.value) >= minValue && parseInt(cb.value) <= maxValue) {
-                    if (cb != this && cb.checked != targetState) {
-                        cb.checked = targetState;
-                        cb.dispatchEvent(
-                            new Event('change', {bubbles: true, cancelable: false}));
-                    }
-                }
-
-            }
-
-            // we should not call preventDefault() as this checkbox must be switched as well (and 'change' event dispatched)
-        }
-
-        lastSelectedValue = parseInt(this.value);
-    }
-
-    for (let cb of document.getElementsByClassName('date_checkbox'))
-        cb.addEventListener('click', cbClick);
-
+function savePlanSelections(s) {
+    try { window.sessionStorage.setItem('planSelections', JSON.stringify(s)); }
+    catch (e) { /* sessionStorage quota/disabled — degrade silently */ }
 }
+
+// (Calendar controls removed — no mode toggle, no clear link. Click adds a
+// day, shift-click ranges; selection is additive and the only reset is a page
+// reload, which restores the prefs default day.)
 
 function initZoneHelp() {
 
@@ -788,14 +782,31 @@ function initZoneHelp() {
 
 }
 
+// The side panel is an inline column on desktop (default open) and a
+// slide-in overlay on mobile (default closed). Toggled via a data-state
+// attribute (CSS maps it to display:none on desktop, transform on mobile) — no
+// Materialize Sidenav/overlay, which was greying the whole page on reopen.
+// R6: init-time state only; the close button + schedule trigger flip the attr.
 function initZoneSidepanel() {
 
     var el = document.getElementById('plan_sidepanel');
-    M.Sidenav.init(el, {
-        onCloseEnd: function(e) {
-            e.style.transform = "";
-        }
-    });
+    var mobile = window.matchMedia('(max-width: 993px)').matches;
+    el.setAttribute('data-state', mobile ? 'closed' : 'open');
+
+    var closeBtn = document.querySelector('.plan_sidepanel_close');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            el.setAttribute('data-state', 'closed');
+        });
+    }
+    var trig = document.querySelector('.planmap_datetime_trigger');
+    if (trig) {
+        trig.addEventListener('click', function() {
+            el.setAttribute('data-state', 'open');
+        });
+    }
 }
 
 function initBookAs(seatFactory) {
@@ -835,10 +846,9 @@ function initAutoBook(seatFactory) {
     var slider = document.getElementById('timeslider');
     slider.noUiSlider.on('update', updateFabState);
 
-    for (var e of document.getElementsByClassName('date_checkbox')) {
-        e.addEventListener('change', updateFabState);
-    }
-
+    // Calendar selection drives fab state indirectly: onChange → updateSeatsView →
+    // seatFactory.updateAllStates → 'updateAllStates' event → here. (Old code had a
+    // per-.date_checkbox change listener; the calendar onChange replaces it.)
     seatFactory.on('updateAllStates', updateFabState);
 
     fabBtn.addEventListener('click', function() {
@@ -932,8 +942,10 @@ function showAutoBookResult(resp) {
 document.addEventListener("DOMContentLoaded", function() {
 
     var slider = initSlider();
-    initDateSelectorStorage();
-    initShiftSelectDates();
+    // Restore persisted selection (migration from the old {cb,slider} shape —
+    // R4). Applied BEFORE the calendar is composed so it sees stored defaults.
+    var persisted = loadPlanSelections();
+    slider.noUiSlider.set(persisted.slider);
 
     var seatFactory = new WarpSeatFactory(window.warpGlobals.login);
 
@@ -945,9 +957,31 @@ document.addEventListener("DOMContentLoaded", function() {
         seatFactory.updateAllStates(getSelectedDates());
     };
     slider.noUiSlider.on('update', updateSeatsView);
-    for (var e of document.getElementsByClassName('date_checkbox')) {
-        e.addEventListener('change', updateSeatsView);
-    }
+    slider.noUiSlider.on('update', function() {
+        // Persist slider moves with the current calendar selection.
+        if (calendar)
+            savePlanSelections({ dates: calendar.getSelected(),
+                                 slider: slider.noUiSlider.get(true) });
+    });
+
+    // Calendar grid: render the backend blob, manage selection. R1/R9: the
+    // module does zero date math and stores day identity as integer
+    // timestamps taken verbatim from the backend cell ts's. Initial selection
+    // comes from the session, the backend default, or migration.
+    calendar = new WarpCalendar(
+        document.getElementById('plan_calendar_grid'),
+        {
+            grid: window.warpGlobals.calendarGrid,
+            weekdaysShort: window.warpGlobals.i18n.weekdaysShort,
+            monthsShort: window.warpGlobals.i18n.datePicker.i18n_object.monthsShort,
+            selected: persisted.dates,
+            fallback: window.warpGlobals['defaultSelectedDates'].cb,   // backend default day (grid.defaultTs) — used when persisted dates clamp to empty
+            onChange: function(selectedTs) {
+                savePlanSelections({ dates: selectedTs,
+                                     slider: slider.noUiSlider.get(true) });
+                updateSeatsView();
+            }
+        });
 
     if (window.warpGlobals.darkFilter) {
         // Coerce each stored value to a number within its valid range, so a legacy or

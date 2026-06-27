@@ -63,7 +63,8 @@ environment:
 | `WEEKS_IN_ADVANCE`           | `1`          |    no    | Weeks after current week available for booking |
 | `BOOK_OPEN`                  | `0`          |    no    | Earliest bookable time (seconds from midnight) |
 | `BOOK_CLOSE`                 | `86400`      |    no    | Latest bookable time (seconds from midnight)   |
-| `OMITTED_WEEKDAYS`           | `[]`         |    no    | Weekday numbers to hide (0=Mon … 6=Sun)        |
+| `OMITTED_WEEKDAYS`           | `[]`         |    no    | Weekday numbers to grey out (0=Mon … 6=Sun)    |
+| `WEEK_START_DAY`             | `0`          |    no    | First column of the booking calendar (0=Mon … 6=Sun) |
 | `AUTOBOOK_USAGE_WINDOW_DAYS` | `30`         |    no    | Days window for auto-book seat ranking         |
 | `MIN_PASSWORD_LENGTH`        | `6`          |    no    | Minimum password length                        |
 | `LOGIN_IGNORECASE`           | `true`       |    no    | Match logins case-insensitively (all backends) |
@@ -184,18 +185,20 @@ button labels.
 
 | Variable           | Default | Description                                                                                                                    |
 | ------------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `WEEKS_IN_ADVANCE` | `1`     | How many weeks past the current week are visible in the date picker. `0` means only the current week; `1` means next week too. |
+| `WEEKS_IN_ADVANCE` | `1`     | How many weeks past the current week are bookable in the calendar grid. `0` means only the current week; `1` means next week too. Days past the window render greyed out (not selectable). |
 | `BOOK_OPEN`        | `0`     | Earliest bookable time, in seconds from midnight. `0` = 00:00.                                                                 |
 | `BOOK_CLOSE`       | `86400` | Latest bookable time, in seconds from midnight. `86400` = 24:00.                                                               |
-| `OMITTED_WEEKDAYS` | `[]`    | List of weekday numbers to hide from the date picker. `0`=Monday, `6`=Sunday.                                                  |
+| `OMITTED_WEEKDAYS` | `[]`    | List of weekday numbers that are not bookable. They render **greyed out** in the calendar grid (shown for context, not hidden). `0`=Monday, `6`=Sunday. |
+| `WEEK_START_DAY`   | `0`     | The weekday shown in the first (leftmost) column of the booking calendar grid. `0`=Monday (default), `6`=Sunday. Same numbering as `OMITTED_WEEKDAYS`. Affects display only — it does not change which days are bookable. |
 
 Common examples:
 
 ```sh
 WARP_BOOK_OPEN=32400              # 09:00 AM  (9 × 3600)
 WARP_BOOK_CLOSE=64800             # 06:00 PM  (18 × 3600)
-WARP_OMITTED_WEEKDAYS="[5, 6]"   # hide Saturday and Sunday
+WARP_OMITTED_WEEKDAYS="[5, 6]"   # grey out Saturday and Sunday
 WARP_WEEKS_IN_ADVANCE=2           # two weeks of future dates
+WARP_WEEK_START_DAY=6             # start the calendar week on Sunday
 ```
 
 Per-seat booking windows (days-in-advance) are set in the plan editor and are

@@ -9,6 +9,7 @@ import {
   futureDayTs,
   getZoneSeats,
   getFirstZoneDate,
+  getSelectableDates,
   selectOnlyDates,
   clickZoneSeat,
   waitForSeatsLoaded,
@@ -93,11 +94,10 @@ test.describe('multi-day booking', () => {
     await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
 
-    const allCbs = page.locator('.date_checkbox');
-    if (await allCbs.count() < 2) test.skip();
-
-    const ts1 = Number(await allCbs.nth(0).inputValue());
-    const ts2 = Number(await allCbs.nth(1).inputValue());
+    const selectable = await getSelectableDates(page);
+    if (selectable.length < 2) test.skip();
+    const ts1 = selectable[0];
+    const ts2 = selectable[1];
 
     await selectOnlyDates(page, [ts1, ts2]);
     await page.waitForTimeout(400);
@@ -119,11 +119,10 @@ test.describe('multi-day booking', () => {
     await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
 
-    const allCbs = page.locator('.date_checkbox');
-    if (await allCbs.count() < 2) test.skip();
-
-    const ts1 = Number(await allCbs.nth(0).inputValue());
-    const ts2 = Number(await allCbs.nth(1).inputValue());
+    const selectable = await getSelectableDates(page);
+    if (selectable.length < 2) test.skip();
+    const ts1 = selectable[0];
+    const ts2 = selectable[1];
 
     await selectOnlyDates(page, [ts1, ts2]);
     await page.waitForTimeout(400);

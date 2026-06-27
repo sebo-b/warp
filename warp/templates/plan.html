@@ -10,6 +10,11 @@
         window.warpGlobals.URLs['planImage'] = "{{ url_for('view.planImage', pid=pid) }}";
         window.warpGlobals.darkFilter = {{ dark_filter | tojson }};
 
+        // The backend-driven calendar grid (cell data + default selectable day).
+        // The frontend (WarpCalendar) only renders + handles selection; no date
+        // math lives in JS (R1) and no string lives in the blob (R9).
+        window.warpGlobals['calendarGrid'] = {{ calendarGrid | tojson }};
+
         window.warpGlobals['defaultSelectedDates'] = {{ defaultSelectedDates | tojson }};
         window.warpGlobals.today = {{ today | int }};
         window.warpGlobals['planPreviewPrefs'] = {{ planPreviewPrefs | tojson }};
@@ -141,30 +146,23 @@
                 </div>
                 {% endif %}
 
-                <div class="plan_sidepanel_close sidenav-close" data-target="plan_sidepanel">
+                <div class="plan_sidepanel_close">
                     <i class="material-icons">close</i>
                 </div>
             </div>
 
             <div class="plan_datetime_container">
 
-                <div class="plan_datelist">
-                    {% for w in nextWeek %}
-                    <p>
-                        <label>
-                            <input class="filled-in date_checkbox" type="checkbox" value="{{w['timestamp']}}" />
-                            <span>
-                                <span class="TR">weekdaysShort.{{  w['weekdayN'] }}</span>, {{ w['date'] }}
-                            </span>
-                        </label>
-                    </p>
-                    {% endfor %}
+                <div class="plan_timeslider">
+                    <div class="plan_timeslider_inputs">
+                        <input type="text" id="timeslider-min" class="timeslider-input" inputmode="numeric" placeholder="HH:MM" aria-label="start time">
+                        <input type="text" id="timeslider-max" class="timeslider-input" inputmode="numeric" placeholder="HH:MM" aria-label="end time">
+                    </div>
+                    <div id="timeslider" class="timeslider" data-min="{{ config['BOOK_OPEN'] }}" data-max="{{ config['BOOK_CLOSE'] }}"></div>
                 </div>
 
-                <div class="plan_timeslider">
-                    <div id="timeslider-min" class="timeslider-hint">12:00</div>
-                    <div id="timeslider" class="timeslider" data-min="{{ config['BOOK_OPEN'] }}" data-max="{{ config['BOOK_CLOSE'] }}"></div>
-                    <div id="timeslider-max" class="timeslider-hint">12:00</div>
+                <div class="plan_calendar" id="plan_calendar">
+                    <div class="warp-cal-grid" id="plan_calendar_grid"></div>
                 </div>
             </div>
 
@@ -176,7 +174,7 @@
                 {% include 'icons/help_icon.html' %}
             </div>
         </div>
-        <div class="planmap_datetime_trigger sidenav-trigger" data-target="plan_sidepanel">
+        <div class="planmap_datetime_trigger">
             {% include 'icons/schedule_icon_side.html' %}
         </div>
 
