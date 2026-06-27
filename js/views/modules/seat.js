@@ -8,7 +8,7 @@ const EVERYONE_KEY = '__everyone__:550e8400-e29b-41d4-a716-446655440000';
  * WarpSeat
  * NOTE: book and assignments from seatData is not cloned, it is stored as reference
  * @param {integer} sid
- * @param {object} seatData - object described in zoneGetSeats
+ * @param {object} seatData - object described in xhr.plan getSeats
  * @returns
  */
 function WarpSeat(sid,seatData,zonesNames,usersNames,factory) {
@@ -558,9 +558,9 @@ WarpSeat.prototype._updateView = function() {
 WarpSeat.prototype._destroy = function() {
     this.factory._removeConflict(this.exclusivityKey, this.sid);
     this.factory = null;
-    // No seat DOM here — OfficeMap owns it. The OfficeMap instance is told to
-    // drop the seat via updateSeat(id, null) by the caller (zone.js) when the
-    // seat set changes.
+    // No seat DOM here — OfficeMap owns it. When the seat set changes, plan.js
+    // rebuilds the whole OfficeMap seat set via createSeats(), which drops the
+    // old seat elements.
 };
 
 // NOTE: book and assignments from seatData is not cloned, it is stored as reference

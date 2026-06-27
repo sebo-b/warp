@@ -22,10 +22,10 @@
 
     <!-- ===== Seat status cells. One g id=cell-NAME per visual state.
           Colours come from the :root theme vars (warp-seat-FAMILY-fg/-bg),
-          which cross the external use boundary (proven by #disc). Light/dark flip
-          via :root[theme=dark]. Shapes reused from the defs above; duplicated
-          across colour families as needed. Added alongside the existing symbols
-          and #disc, which the plan editor still uses. ===== -->
+          which cross the external use boundary. Light/dark flip via
+          :root[theme=dark]. Shapes reused from the defs above; duplicated
+          across colour families as needed. Both the booking view and the plan
+          editor render these cells (the file is var-only — no currentColor). ===== -->
 
     <g id="cell-available">          <!-- plus, green -->
       <circle cx="12" cy="12" r="10.5" fill="var(--warp-seat-available-bg)"/>

@@ -384,11 +384,10 @@ export class OfficeMap extends EventTarget {
   }
 
   _merge(dst, src) {
-    for (const k of ['x','y','sprite','labelTitle','hintTitle','hintable']) {
-      if (src[k] !== undefined) dst[k] = (src[k] === null ? null : src[k]);
-    }
-    for (const k of ['labelBody','hintBody']) {
-      if (Object.prototype.hasOwnProperty.call(src, k)) dst[k] = src[k]; // Node|null
+    // undefined => preserve the existing value; null => clear; anything else => set.
+    // (labelBody/hintBody are Node|null and follow the same rule as the rest.)
+    for (const k of ['x','y','sprite','labelTitle','hintTitle','hintable','labelBody','hintBody']) {
+      if (src[k] !== undefined) dst[k] = src[k];
     }
   }
 
@@ -663,6 +662,9 @@ export class OfficeMap extends EventTarget {
     const s = this._seatFromEvent(e);
     // A fresh touch dismisses any hint left up by a previous long-press (tap-away, §8).
     if (COARSE && this._hintSeatId) this._hideHint();
+    // Taps on the zoom controls are handled by their own click listeners — don't
+    // track them as taps, or a double-tap on a zoom button would also reset zoom.
+    if (e.target.closest('.OMZoom')) { this._down = null; return; }
     // Track every tap (id=null on the empty map too) so a double-tap anywhere can
     // reset the zoom.
     this._down = { id: s ? s.el.dataset.seatId : null, x: e.clientX, y: e.clientY, t: Date.now(), moved: false, longFired: false, timer: 0, slop: (e.pointerType === 'touch') ? TAP_COARSE : TAP_FINE };
