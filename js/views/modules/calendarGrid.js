@@ -172,8 +172,6 @@ export class WarpCalendar {
     _onDown(ev) {
         const ts = this._tsFromEvent(ev);
         if (ts === null) return;
-        ev.preventDefault();
-        try { this.container.setPointerCapture(ev.pointerId); } catch (e) {}
         // shift+click: range from the existing anchor (no drag). Commits immediately.
         if (ev.shiftKey && this.anchor !== null && this.anchor !== ts) {
             this.selected = this._rangeFill(Math.min(this.anchor, ts), Math.max(this.anchor, ts));
@@ -181,13 +179,16 @@ export class WarpCalendar {
             this.onChange(this.getSelected());
             return;
         }
-        // Record the gesture; don't mutate selection yet — a tap is decided on
-        // pointerup (toggle), a drag is decided on the first move past threshold.
+        // Record the gesture; do NOT preventDefault or capture the pointer yet —
+        // on touch that would kill native vertical scroll of the calendar. Capture
+        // + selection happen only once a drag is confirmed in _onMove. A tap is
+        // decided on pointerup (toggle).
         this._dragState = {
             ts: ts,
+            pointerType: ev.pointerType,
             wasSelected: this.selected.has(ts),
             startX: ev.clientX, startY: ev.clientY,
-            anchor: ts, moved: false
+            anchor: ts, moved: false, captured: false
         };
     }
 
@@ -195,10 +196,25 @@ export class WarpCalendar {
         if (!this._dragState) return;
         const ds = this._dragState;
         if (!ds.moved) {
-            if (Math.abs(ev.clientX - ds.startX) < DRAG_THRESHOLD &&
-                Math.abs(ev.clientY - ds.startY) < DRAG_THRESHOLD) return;
+            const dx = Math.abs(ev.clientX - ds.startX);
+            const dy = Math.abs(ev.clientY - ds.startY);
+            if (dx < DRAG_THRESHOLD && dy < DRAG_THRESHOLD) return;
+            // Touch: a vertical-dominant motion is a calendar scroll — cancel the
+            // gesture and let the browser scroll. Horizontal-dominant = drag-select.
+            // Mouse: any past-threshold motion is a drag-select.
+            if (ds.pointerType === 'touch' && dy > dx) {
+                this._dragState = null;
+                return;
+            }
             ds.moved = true;
         }
+        // First confirmed drag move: capture the pointer + stop the page scroll so
+        // the drag tracks cleanly across cells.
+        if (!ds.captured) {
+            ds.captured = true;
+            try { this.container.setPointerCapture(ev.pointerId); } catch (e) {}
+        }
+        if (ev.cancelable) ev.preventDefault();
         const ts = this._cellTsAtPoint(ev.clientX, ev.clientY);
         if (ts === null) return;
         this.selected = this._rangeFill(Math.min(ds.anchor, ts), Math.max(ds.anchor, ts));
