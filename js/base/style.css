@@ -1078,18 +1078,18 @@ nav .dropdown-content li > span {
     margin-left: -2px;
 }
 
-/* Mobile: the panel is a slide-in overlay (position: fixed; transform hides it
-   by default). data-state drives the slide via a CSS transition — no
-   Materialize Sidenav/overlay (that greyed the whole page on reopen). */
+/* Mobile: the panel is a full-height slide-in overlay sheet. When open it
+   covers the map entirely (a clear overlay, not a content-height float that
+   partial-overlaps the map). data-state drives the slide via a CSS transition —
+   no Materialize Sidenav/overlay (that greyed the whole page on reopen). */
 @media only screen and (max-width: 993px) {
     #plan_sidepanel {
         position: fixed;
         top: 56px;
         left: 0;
-        bottom: auto;           /* size to content, not full viewport: leave the map visible under the panel */
+        bottom: 0;               /* full-height sheet: covers the map when open (proper overlay) */
         width: 320px;
         max-width: 96vw;
-        max-height: calc(100vh - 56px - var(--warp-space-3));   /* never reach the bottom edge — a strip of map stays visible */
         background-color: var(--warp-surface);
         box-shadow: 0 2px 2px 0 rgba(var(--warp-shadow-rgb), 0.14), 0 3px 1px -2px rgba(var(--warp-shadow-rgb), 0.12), 0 1px 5px 0 rgba(var(--warp-shadow-rgb), 0.2);
         z-index: 999;   /* materializecss overlay has 997 */
@@ -1099,10 +1099,7 @@ nav .dropdown-content li > span {
         display: flex;   /* override the desktop display:none so the slide animates */
     }
     @media only screen and (min-width: 601px) {
-        #plan_sidepanel {
-            top: 64px;
-            max-height: calc(100vh - 64px - var(--warp-space-3));
-        }
+        #plan_sidepanel { top: 64px; }
     }
     #plan_sidepanel[data-state="open"]   { transform: translateX(0); }
     #plan_sidepanel[data-state="closed"] { transform: translateX(-105%); }
