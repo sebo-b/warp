@@ -1200,7 +1200,6 @@ nav .dropdown-content li > span {
     flex-direction: column;
     gap: var(--warp-space-3);
     padding-bottom: var(--warp-space-2);
-    border-bottom: 1px solid var(--warp-grey-border);
 }
 .plan_timeslider_inputs {
     display: flex;
