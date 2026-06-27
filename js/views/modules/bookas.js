@@ -146,11 +146,6 @@ BookAs.prototype._init =  function(zoneUserData) {
         el.addEventListener('focus', function() {this.select(); })
     }
 
-    var bookAsContainers = document.getElementsByClassName("book-as_container");
-    for (let c of bookAsContainers) {
-        c.style.display = "block";
-    }
-
     for (let l of this.listeners['init']) {
         l.call(this,this);
     }

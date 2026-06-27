@@ -134,10 +134,12 @@
 
             <div class="plan_sidepanel_topcontainer">
 
+                {% if isZoneAdmin %}
                 <div class="input-field book-as_container">
                     <input type="text" id="book-as" class="autocomplete book-as_input" autocomplete="off">
                     <label for="book-as" class="active TR">Book as</label>
                 </div>
+                {% endif %}
 
                 <div class="plan_sidepanel_close sidenav-close" data-target="plan_sidepanel">
                     <i class="material-icons">close</i>

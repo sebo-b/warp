@@ -10,6 +10,14 @@ import BookAs from './modules/bookas.js';
 import noUiSlider from 'nouislider';
 import "./css/plan/nouislider.css";
 
+// The warning modal is rendered via innerHTML (WarpModal.open), so any
+// user-controlled text (usernames) interpolated into that HTML must be escaped.
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function(c) {
+        return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+}
+
 function downloadSeatData(seatFactory) {
 
     var url = window.warpGlobals.URLs['getSeat'];
@@ -168,13 +176,16 @@ function buildHintNode(seat) {
         header.className = "seat_preview_header";
         var table = div.appendChild(document.createElement("table"));
         var maxToShow = 8;
-        for (var b of bookings) {
-            if (maxToShow-- == 0) { b.datetime1 = "..."; b.datetime2 = ""; b.username = ""; }
+        for (var i = 0; i < bookings.length; ++i) {
             var tr = table.appendChild(document.createElement("tr"));
+            if (i === maxToShow) {                 // more than maxToShow → "…" row, stop
+                tr.appendChild(document.createElement("td")).innerText = "...";
+                break;
+            }
+            var b = bookings[i];
             tr.appendChild(document.createElement("td")).innerText = b.datetime1;
             tr.appendChild(document.createElement("td")).innerText = b.datetime2;
             tr.appendChild(document.createElement("td")).innerText = b.username;
-            if (maxToShow == 0) break;
         }
     }
 
@@ -209,10 +220,22 @@ function initOfficeMap(seatFactory) {
     var prefs = window.warpGlobals['planPreviewPrefs'] || {};
     var labelSigs = {};   // sid -> label content signature (diff to skip rebuilds)
 
+    // Touch devices get the "clamp" sprite mode below; fine-pointer devices get
+    // plain follow (seats scale 1:1 with the map).
+    var coarse = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
+
     var om = new OfficeMap(document.getElementById('planmap'), {
         mapImage: window.warpGlobals.URLs['planImage'],
         sprite: { url: window.warpGlobals.URLs['seatSprite'], cellWidth: WarpSeat.Sprites.spriteSize, cellHeight: WarpSeat.Sprites.spriteSize },
-        zoom: { initial: 'fit', min: null, max: 4 },   // ponytail: plan default; mobile tuning deferred (see PLAN §6)
+        // Default view is 1:1 — the map at its natural pixel size and seats at
+        // their 48px cell size, on both desktop and mobile. min = fit (zoom out to
+        // see the whole map), max = 4x.
+        zoom: { initial: 1, min: null, max: 4 },
+        // Mobile only: from the 1:1 default, zooming IN keeps seats at 48px (they
+        // don't grow), zooming OUT lets them shrink with the map (more map visible).
+        // max = 1 is the default scale; min = 0 so they follow the map all the way
+        // down. Desktop (no spriteZoom) = follow: seats scale 1:1 with the map.
+        spriteZoom: coarse ? { min: 0, max: 1 } : undefined,
         filter: null,                                    // dark filter applied dynamically via setFilter below
         hintBuilder: function(sid) {
             var seat = seatFactory.instances[sid];
@@ -573,7 +596,7 @@ function initActionMenu(seatFactory) {
                 let rList = [];
                 for (let r of value.response.conflicts_in_disable) {
                     let dateStr = WarpSeatFactory._formatDatePair(r);
-                    rList.push( r.username + "&nbsp;on&nbsp;" + dateStr.datetime1 + "&nbsp;" + dateStr.datetime2);
+                    rList.push( escapeHtml(r.username) + "&nbsp;on&nbsp;" + dateStr.datetime1 + "&nbsp;" + dateStr.datetime2);
                 }
                 msg += rList.join('<br>');
             }
@@ -584,7 +607,7 @@ function initActionMenu(seatFactory) {
                 let rList = [];
                 for (let r of value.response.conflicts_in_assign) {
                     let dateStr = WarpSeatFactory._formatDatePair(r);
-                    rList.push( r.username + "&nbsp;on&nbsp;" + dateStr.datetime1 + "&nbsp;" + dateStr.datetime2);
+                    rList.push( escapeHtml(r.username) + "&nbsp;on&nbsp;" + dateStr.datetime1 + "&nbsp;" + dateStr.datetime2);
                 }
                 msg += rList.join('<br>');
             }
@@ -595,7 +618,7 @@ function initActionMenu(seatFactory) {
                 let rList = [];
                 for (let r of value.response.conflicts_in_window) {
                     let dateStr = WarpSeatFactory._formatDatePair(r);
-                    rList.push( r.username + "&nbsp;on&nbsp;" + dateStr.datetime1 + "&nbsp;" + dateStr.datetime2);
+                    rList.push( escapeHtml(r.username) + "&nbsp;on&nbsp;" + dateStr.datetime1 + "&nbsp;" + dateStr.datetime2);
                 }
                 msg += rList.join('<br>');
             }

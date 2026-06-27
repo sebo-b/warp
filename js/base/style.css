@@ -385,7 +385,6 @@ nav .dropdown-content li > span {
 }
 
 .book-as_container {
-    display: none;
     padding-top: 4px;
 }
 /* The "Book as" autocomplete in the zone sidepanel. Keep it as a clean
@@ -1024,7 +1023,7 @@ nav .dropdown-content li > span {
     flex: none;
     display: flex;
     flex-direction: column;
-    overflow: auto;
+    overflow: hidden;          /* the panel itself never scrolls — only the date list does */
     padding: var(--warp-space-3);
     z-index: 1;
 }
@@ -1038,6 +1037,7 @@ nav .dropdown-content li > span {
 .plan_sidepanel_topcontainer {
     display: flex;
     flex-direction: row;
+    flex: 0 0 auto;            /* book-as (+ close) pinned at the top */
 }
 
 .plan_datetime_container {
@@ -1063,18 +1063,25 @@ nav .dropdown-content li > span {
 @media only screen and (max-width : 993px) {
     #plan_sidepanel {
         position: fixed;
-        max-height: calc(100% - 56px);
+        /* Pin top (below the nav) to bottom so the panel has a DEFINITE height —
+           the full-height rail and the scrollable date list both need a fixed
+           box to size against. dvh tracks the collapsing mobile browser chrome. */
+        top: 56px;
+        left: 0;
+        bottom: 0;
+        height: auto;
+        max-height: none;
         background-color: var(--warp-surface);
         box-shadow: 0 2px 2px 0 rgba(var(--warp-shadow-rgb), 0.14), 0 3px 1px -2px rgba(var(--warp-shadow-rgb), 0.12), 0 1px 5px 0 rgba(var(--warp-shadow-rgb), 0.2);
         z-index: 999;   /* materializecss overlay has 997 */
-        overflow-y: auto;
+        overscroll-behavior: contain;   /* a drag inside can't scroll-chain to the map behind */
         transform: translateX(-105%);
     }
 
     /* nav header is becoming bigger from 601px, so we need to recalculate */
     @media only screen and (min-width: 601px) {
         #plan_sidepanel {
-            max-height: calc(100% - 64px);
+            top: 64px;
         }
     }
 
@@ -1085,10 +1092,17 @@ nav .dropdown-content li > span {
     .planmap_datetime_trigger {
         display: block;
     }
+
+    /* Dragging the grip pans the slider, not the panel/page. (Upstream noUiSlider
+       sets touch-action:none on the target; assert it on the handle too.) */
+    .timeslider,
+    .timeslider .noUi-handle { touch-action: none; }
 }
 
 .plan_datelist {
     flex: 1 1 auto;
+    min-height: 0;             /* allow it to shrink below content height so it can scroll */
+    overflow-y: auto;          /* the date list is the only scrollable region in the panel */
     font-size: 1rem;
     text-align: left;
     padding: 8px 0;
@@ -1116,11 +1130,24 @@ nav .dropdown-content li > span {
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;   /* centre the rail (+ hints) when the column is taller than the cap */
+    min-height: 0;
     margin-left: 16px;
 }
+/* The rail fills the panel height (full-height hour selector) up to a sane cap,
+   instead of the fixed 400px. Scoped to the plan panel so the prefs-modal slider
+   (.pref_timeslider_container .timeslider) keeps its own sizing. */
+.plan_timeslider .timeslider {
+    flex: 1 1 auto;
+    height: auto !important;
+    min-height: 120px;
+    max-height: 460px;
+}
 .plan_datetime_container {
+    flex: 1 1 auto;            /* fill the panel below the book-as row */
+    min-height: 0;            /* so the date list can scroll instead of growing the panel */
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: stretch;     /* date list and rail both span the full panel height */
 }
 
 .plan_map,
@@ -1134,7 +1161,7 @@ nav .dropdown-content li > span {
 
 .auto_book_fab {
     position: fixed;
-    bottom: 80px;
+    bottom: 23px;
     right: 23px;
     z-index: 10;
 }

@@ -27,7 +27,6 @@ function WarpSeat(sid,seatData,zonesNames,usersNames,factory) {
     }
 
     this.sprite = 'unavailable';
-    this.action = WarpSeat.SeatStates.NOT_AVAILABLE;
 };
 
 WarpSeat.SeatStates = {
@@ -602,4 +601,4 @@ WarpSeat.prototype._setData = function(seatData,usersNames) {
 
 
 
-export { WarpSeatFactory, WarpSeat, EVERYONE_KEY, spriteFor };
+export { WarpSeatFactory, WarpSeat, EVERYONE_KEY };
