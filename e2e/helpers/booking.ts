@@ -60,16 +60,35 @@ export async function selectOnlyDates(page: Page, timestamps: number[]): Promise
   }
 }
 
-/** Click the center of a seat sprite within #planmap. Seats are 48×48 px. */
-/** Click a seat by its stable OfficeMap id (#sprite-<sid>), robust to pan/zoom. */
+/**
+ * Zoom the OfficeMap out to its minimum (fit) so the WHOLE map is inside
+ * #planmap and every seat is on-screen and clickable. The booking view now opens
+ * at a 1:1, centred default, which leaves seats near the map edges geometrically
+ * outside #planmap (clipped, and on the left overlapped by the sidepanel) — there
+ * a center-click lands on the sidepanel, not the seat. One big wheel-out clamps to
+ * the fit scale and brings every seat into view. Idempotent (a no-op once at fit).
+ */
+export async function fitMap(page: Page): Promise<void> {
+  const box = await page.locator('#planmap').boundingBox();
+  if (!box) return;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(0, 2400);   // large zoom-out → clamps at minScale (fit)
+  await page.waitForTimeout(50);     // let the panzoomchange settle
+}
+
+/** Click a seat by its stable OfficeMap id (#sprite-<sid>). Fits the map first so
+ *  the seat is on-screen regardless of the 1:1 default view. */
 export async function clickZoneSeat(page: Page, seat: SeatRow): Promise<void> {
+  await fitMap(page);
   await page.locator(`#sprite-${seat.id}`).click();
 }
 
-/** Wait for the seat data XHR to complete and at least one seat to render. */
+/** Wait for the seat data XHR to complete and at least one seat to render, then
+ *  fit the map so seats are interactable (click/hover) from the default view. */
 export async function waitForSeatsLoaded(page: Page): Promise<void> {
   await page.waitForLoadState('networkidle');
   await page.locator('.OMSeat').first().waitFor({ state: 'visible' });
+  await fitMap(page);
 }
 
 /**
