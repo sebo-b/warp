@@ -174,9 +174,9 @@ export class WarpCalendar {
         if (ts === null) return;
         // shift+click: ADD the range (union) from the anchor — does NOT unselect
         // days outside the range. Drag-select is the replace path (current
-        // behaviour). Anchor stays the original origin so consecutive shift-clicks
-        // extend from the same start.
-        if (ev.shiftKey && this.anchor !== null && this.anchor !== ts) {
+        // behaviour). Anchor stays the origin; anchor===target is the valid
+        // 1-day-range case (adds {ts}).
+        if (ev.shiftKey && this.anchor !== null) {
             const range = this._rangeFill(Math.min(this.anchor, ts), Math.max(this.anchor, ts));
             this.selected = new Set([...this.selected, ...range]);
             this._render();

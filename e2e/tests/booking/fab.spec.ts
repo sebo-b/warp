@@ -59,10 +59,10 @@ test.describe('auto-book FAB', () => {
     await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
 
-    const allCbs = page.locator('.date_checkbox');
-    const count = await allCbs.count();
-    for (let i = 0; i < count; i++) {
-      await allCbs.nth(i).uncheck({ force: true });
+    // Deselect every currently-selected day (click toggles; no clear-link).
+    // No dates selected => FAB disabled.
+    while (await page.locator('.warp-cal-day.is-selected').count()) {
+      await page.locator('.warp-cal-day.is-selected').first().click();
     }
     await page.waitForTimeout(400);
 
