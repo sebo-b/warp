@@ -1865,20 +1865,26 @@ INPUT[type="text"] ~ .show_password_btn::after {
     right: 0;
     bottom: 0;
     z-index: 1000;
-    display: flex;
+    /* Hidden via display:none — NOT visibility/opacity. This is a full-viewport
+       position:fixed overlay shown during the initial data XHR. If it only
+       went visibility:hidden it would STAY in the render tree as a compositing
+       layer, and Safari caches the page's wheel/scroll event region with that
+       overlay on top: after it hides, wheel/scroll keep hitting the invisible
+       spinner and the page just rubber-bands — until a window resize or a
+       top-layer <dialog> (any modal) forces the region to recompute. (That is
+       exactly the "only a modal/resize fixes it" symptom, and it hit the whole
+       viewport: both the office map's wheel-zoom and the calendar's scroll.)
+       display:none removes the layer entirely, so there is nothing to cache. */
+    display: none;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     background-color: var(--warp-surface);
-    opacity: 0;
-    visibility: hidden;
-    transition: visibility 0.3s ease-in-out 0s, opacity 0.3s ease-in-out 0s;
+    opacity: 0.8;
 }
 
 #spinner.active {
-    opacity: 0.8;
-    visibility: visible;
-    transition: visibility 1s ease-in-out 0s, opacity 1s ease-in-out 1s;
+    display: flex;
 }
 
 #spinner::after {
