@@ -265,7 +265,7 @@ The ORM uses Peewee's `Table` class (not models) for lightweight queries:
 
 2. **Materialized view for zone roles**: `user_to_zone_roles` recursively expands group memberships, giving efficient joins for permission checks. Refreshed by triggers on writes to `zone_assign` and `groups`.
 
-3. **Time handling**: Timestamps are stored as wall-clock fake-UTC integers (`timegm(localtime_in_plan_tz())`). Each plan has an IANA `timezone` column. A `book_utc` SQL view converts wall-clock integers to real UTC instants for cross-TZ conflict detection. iCal feeds emit per-booking `TZID` stamps and RFC 5545 VTIMEZONE blocks. `DEFAULT_PLAN_TIMEZONE` sets the default for new plans; `TIMEZONE` is a deprecated alias.
+3. **Time handling**: Timestamps are stored as wall-clock fake-UTC integers (`timegm(localtime_in_plan_tz())`). Each plan has an IANA `timezone` column (default UTC; set per-plan in the Plans admin). A `book_utc` SQL view converts wall-clock integers to real UTC instants for cross-TZ conflict detection. iCal feeds emit per-booking `TZID` stamps and RFC 5545 `VTIMEZONE` blocks; reminder events are gridded in each reminder zone's own plan TZ.
 
 4. **Everyone seat assignment**: Seat assignments can have a `NULL` login (virtual "everyone"), meaning any user in the zone can book it. The sentinel key `__everyone__:550e8400-...` is used frontend-only.
 

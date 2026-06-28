@@ -57,8 +57,8 @@ share its timezone. Bookings are stored as **wall-clock** integers in the plan's
 TZ (the "airline ticket" guarantee: 06:00–18:00 stays 06:00–18:00 to anyone
 viewing that office, even across DST). Real UTC instants are **derived at the
 edges** for the work that genuinely needs them: cross-plan conflict comparison
-(see `book_utc`) and iCal `VTIMEZONE`. New plans default to the deployment's
-`DEFAULT_PLAN_TIMEZONE`.
+(see `book_utc`) and iCal `VTIMEZONE`. New plans default to UTC; an admin sets
+the office TZ at plan creation (the Plans modal pre-selects UTC).
 
 ### Zone
 

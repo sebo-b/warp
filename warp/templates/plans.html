@@ -8,7 +8,6 @@
     window.warpGlobals.URLs['plansDelete'] = "{{ url_for('xhr.plans.delete') }}";
     window.warpGlobals.URLs['plansAddOrEdit'] = "{{ url_for('xhr.plans.addOrEdit') }}";
     window.warpGlobals.URLs['plansTimezones'] = "{{ url_for('xhr.plans.timezones') }}";
-    window.warpGlobals.defaultPlanTimezone = {{ config['DEFAULT_PLAN_TIMEZONE'] | tojson }};
     window.warpGlobals.URLs['planModify'] = "{{ url_for('view.planModify', pid='__PID__', return=request.url) }}";
     window.warpGlobals.URLs['zoneNames'] = "{{ url_for('xhr.zones.names') }}";
 </script>

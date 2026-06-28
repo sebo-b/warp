@@ -24,6 +24,9 @@ to use the fake-UTC integers directly.
 `DEFAULT_PLAN_TIMEZONE` (`WARP_DEFAULT_PLAN_TIMEZONE`) sets the default for
 new plans and anchors the iCal reminder feed. `TIMEZONE` is a deprecated alias.
 
+New plans default to UTC; an admin sets the office TZ at plan creation. There
+is no global default-TZ config (`DEFAULT_PLAN_TIMEZONE`/`TIMEZONE` removed).
+
 > Throughout the codebase this scale is called **"fake-UTC"**: an integer that
 > *looks* like a UNIX-UTC second but is actually local wall-clock treated as UTC.
 
@@ -150,12 +153,12 @@ not.
 - `runAutoBook`: `today = utils.today(tz=plan_tz)`.
 
 ### `warp/ical.py` (iCal feed + HMAC action endpoints)
-- `ical_feed`: anchors `today_ts`/`now_ts` on the user's **reference TZ**
-  (`_get_user_ref_tz` = default-plan TZ → `DEFAULT_PLAN_TIMEZONE`).
+- `ical_feed`: anchors `today_ts`/`now_ts` on **UTC** (the feed/cache clock).
 - `_generate_bookings_vevents`: joins `Plan.timezone` per booking; emits
   `DTSTART;TZID=<plan_tz>:YYYYMMDDTHHMMSS` (wall-clock in plan TZ).
-- `_generate_reminders_vevents`: anchored on `ref_tz`; emits
-  `DTSTART;TZID=<ref_tz>:…`.
+- `_generate_reminders_vevents`: **per reminder zone** — each zone is gridded
+  in its own plan TZ ("day before in NY is day before in NY"); emits
+  `DTSTART;TZID=<zone_plan_tz>:…`.
 - `_vtimezone_block(tz, since, until)`: emits RFC 5545 VTIMEZONE with explicit
   STANDARD/DAYLIGHT observances (minute-precise, no RRULE guessing).
 - `_get_or_cache`: generates VTIMEZONE blocks for all distinct TZs in the feed,
@@ -271,18 +274,16 @@ client formats with its own TZ). See PLAN §4.
 
 ## 6. iCal output (`warp/config.py`, `warp/ical.py`)
 
-- `DefaultSettings.DEFAULT_PLAN_TIMEZONE = ""` — env `WARP_DEFAULT_PLAN_TIMEZONE`.
-  Used as the fallback for new plans and as the reference TZ for iCal reminders.
-  `TIMEZONE` / `WARP_TIMEZONE` is a deprecated alias.
-- Auto-detect (when empty): checks `TZ` env var → `/etc/timezone` →
-  `readlink /etc/localtime`. The same sources `localtime()` consults.
+- `DefaultSettings` no longer carries a default-TZ setting —
+  `DEFAULT_PLAN_TIMEZONE`/`TIMEZONE` were removed (per-plan TZ supersedes them;
+  reminders are per-zone, not user-level). New plans default to UTC.
 - Each booking VEVENT carries `DTSTART;TZID=<plan_tz>:YYYYMMDDTHHMMSS`.
   The feed includes one `VTIMEZONE` block per distinct plan TZ encountered,
   with explicit STANDARD/DAYLIGHT observances (minute-precise transitions via
   binary search in `zoneinfo`). RFC 5545 §3.6.5 compliance — no RRULE guessing.
-- Reminders are anchored on the user's reference TZ (default-plan TZ or
-  `DEFAULT_PLAN_TIMEZONE`) so `today` in the 30-day horizon is the user's
-  home office wall-clock, not the server's.
+- Reminders are gridded **per reminder zone**, in that zone's own plan TZ, so
+  the horizon day is each office's wall-clock day — a user reminded about the
+  NY office sees NY-day grid + NY `TZID`.
 
 ### Calendar cache
 `calendar_cache` is `UNLOGGED`, `PRIMARY KEY (login, type)`, upserted via
@@ -301,8 +302,9 @@ booking/assign/prefs/calendar write via `invalidate_calendar_cache(logins)`.
   musl needs it for Python `zoneinfo` and `localtime()` to resolve IANA names).
 - `ENV TZ=UTC` is set as a safe default in both images; operators override it
   with `TZ=Europe/Warsaw` in their compose/quadlet environment. The `TZ` env
-  var is honoured by `_detect_system_tz()` and therefore sets
-  `DEFAULT_PLAN_TIMEZONE` on startup (if not explicitly configured).
+  var pins the container OS clock (used by the migration's
+  `current_setting('TIMEZONE')` backfill); it does not set any app config
+  now that `DEFAULT_PLAN_TIMEZONE` is removed.
 - `compose.yaml` documents `TZ` with a commented example.
 - `warp/__init__.py` registers `debug.bp` only when `app.debug` (dev / e2e).
 - e2e harness: `e2e/fixtures.ts` zeroes `/debug/set_time_offset` before every
@@ -323,8 +325,10 @@ booking/assign/prefs/calendar write via `invalidate_calendar_cache(logins)`.
    unambiguously (wall-clock digit is unique). The iCal cache regenerates
    daily, so the DST drift in the 30-day horizon is self-correcting within
    24 h. Accepted limitation.
-3. **`readlink('/etc/localtime')`** assumes the canonical zoneinfo path layout;
-   non-standard setups silently leave `DEFAULT_PLAN_TIMEZONE` undetected.
+3. **`readlink('/etc/localtime')`** is no longer consulted by the app (the
+   `_detect_system_tz()` auto-detect path was removed with
+   `DEFAULT_PLAN_TIMEZONE`); only the migration's PG-server-TZ backfill reads
+   `current_setting('TIMEZONE')`.
 4. **`calendar_cache` has no GC of stale-by-day rows**, but the PK upsert
    bounds it to ≤2 rows/login. Not a real concern.
 5. **Cross-plan conflict display** (the `getSeats` UX feedback, not the trigger)
@@ -344,9 +348,8 @@ booking/assign/prefs/calendar write via `invalidate_calendar_cache(logins)`.
   mutual-exclusivity of bookings per user.
 - **book_utc** (view): derives real UTC instants from wall-clock + plan TZ.
 - **days_in_advance** (`seat_assign`): a booking-window cutoff, not a scheduler.
-- **DEFAULT_PLAN_TIMEZONE** (config): default IANA TZ for new plans and iCal
-  reminders. Auto-detected from `TZ` env → `/etc/timezone` → `/etc/localtime`
-  symlink. `TIMEZONE` is a deprecated alias.
+- **Per-plan TZ**: each plan carries an IANA `timezone` (default UTC, set at
+  plan creation). There is no global default-TZ config.
 - **R1 / R9**: the frontend disciplines "no `new Date(ts)` for day identity"
   (R1) and "pure data, no localized strings" (R9) established by
   `PLAN_calendar_refactor.md`.

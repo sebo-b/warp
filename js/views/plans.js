@@ -187,7 +187,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
             // then open — so open() resets _dirty AFTER FormSelect fires its change
             // event, and warpLiftSelect() runs when the .select-wrapper already exists.
             loadTimezones().then(function(tzList) {
-                var current = timezone || window.warpGlobals.defaultPlanTimezone || '';
+                var current = timezone || 'UTC';
                 planTzEl.innerHTML = '';
                 var found = false;
                 for (var tz of tzList) {
