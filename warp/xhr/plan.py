@@ -343,10 +343,12 @@ applySchema = {
 def apply():
 
     apply_data = flask.request.get_json()
-    # Resolve the plan's TZ for TZ-aware booking-window checks. Only needed when
-    # a booking is being created; other operations (enable/disable/assign/remove)
-    # fall back to the default TZ, which is fine for those admin-side paths.
-    plan_tz = None
+    # Resolve the plan's TZ for TZ-aware booking-window checks. Only known when
+    # a booking is being created (resolved from the seat's plan); for other
+    # operations (enable/disable/assign/remove) there's no single plan to read,
+    # so default to UTC — the scale-agnostic feed/cache clock. getTimeRange
+    # requires a concrete zone now (utils.now/today fail-fast without one).
+    plan_tz = 'UTC'
     if 'book' in apply_data:
         seat_plan_tz = Seat.select(Plan.timezone.alias('timezone')) \
             .join(Plan, on=(Seat.pid == Plan.id)) \
