@@ -21,6 +21,11 @@ UserPrefs = Table('user_prefs',('login','default_plan','default_day','default_ti
 
 UserToZoneRoles = Table('user_to_zone_roles',('login','zid','zone_role'))
 
+# Read-only peewee mapping over the book_utc VIEW (PLAN per_plan_timezone §2):
+# derives real UTC instants from wall-clock storage + per-plan TZ. Same pattern
+# as UserToZoneRoles (a Table over a view) — for SELECT only; never written.
+BookUTC = Table('book_utc',('bid','login','sid','zid','zone_group','timezone','fromts','tots','from_utc','to_utc'))
+
 CalendarCache = Table('calendar_cache', ('login', 'type', 'ics', 'day', 'generated_at'))
 
 COUNT_STAR = fn.COUNT(SQL('*'))
@@ -54,7 +59,7 @@ EVERYONE_KEY = '__everyone__:550e8400-e29b-41d4-a716-446655440000'
 # (window.warpGlobals.ungroupedFilterKey); never duplicated as a JS literal.
 UNGROUPED_FILTER_KEY = '__ungrouped__:088891f7-4de2-4b08-a8a7-fa2d0d035fa3'
 
-__all__ = ["DB", "Blobs", "Users", "Groups", "Plan", "Seat", "Zone", "ZoneAssign", "Book", "SeatAssign", "UserPrefs", "UserToZoneRoles", "CalendarCache",
+__all__ = ["DB", "Blobs", "Users", "Groups", "Plan", "Seat", "Zone", "ZoneAssign", "Book", "SeatAssign", "UserPrefs", "UserToZoneRoles", "BookUTC", "CalendarCache",
            "EVERYONE_KEY", "UNGROUPED_FILTER_KEY",
            "IntegrityError", "COUNT_STAR", "SQL_ONE",
            'ACCOUNT_TYPE_ADMIN','ACCOUNT_TYPE_USER','ACCOUNT_TYPE_BLOCKED','ACCOUNT_TYPE_GROUP',
@@ -123,6 +128,7 @@ def init(app):
     SeatAssign.bind(DB)
     UserPrefs.bind(DB)
     UserToZoneRoles.bind(DB)
+    BookUTC.bind(DB)
     CalendarCache.bind(DB)
 
     app.before_request(_connect)

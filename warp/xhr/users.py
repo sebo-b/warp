@@ -150,15 +150,17 @@ def delete():
         # A booking is "past" if it started before today in its OWN plan TZ.
         # fromts is wall-clock storage (PLAN per_plan_timezone §B); comparing it
         # to today() in a single default TZ is wrong once a user has bookings on
-        # plans in different zones. book_utc.from_utc is the real instant; today
-        # in the booking's plan TZ is its wall-clock midnight as a real instant.
+        # plans in different zones. BookUTC.from_utc is the real instant; today in
+        # the booking's plan TZ is its wall-clock midnight as a real instant.
         # Same semantics as the old `fromts < today()` when all plans share a TZ.
-        rowCount = DB.execute_sql("""
-            SELECT COUNT(*) FROM book_utc bu
-            WHERE bu.login = %s
-              AND bu.from_utc < (date_trunc('day', now() AT TIME ZONE bu.timezone)
-                                 AT TIME ZONE bu.timezone)
-        """, (login,)).fetchone()[0]
+        from peewee import Expression, fn
+        today_local = Expression(
+            fn.date_trunc('day', Expression(fn.now(), 'AT TIME ZONE', BookUTC.timezone)),
+            'AT TIME ZONE', BookUTC.timezone)
+        rowCount = BookUTC.select(COUNT_STAR) \
+                       .where(BookUTC.login == login) \
+                       .where(BookUTC.from_utc < today_local) \
+                       .scalar()
 
         if rowCount:
             return {"msg": "User has past bookings", "bookCount": rowCount, "code": 173}, 406
