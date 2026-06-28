@@ -93,10 +93,22 @@ def listW(report = False):      # list is a built-in type
     # the view includes synthetic rows for public zones) and not in the past.
     if not report:
 
+        # Privacy cutoff is per-booking TZ-aware (PLAN per_plan_timezone §7):
+        # each booking's date is shown in its OWN plan TZ (airline-ticket storage),
+        # so "starts today or later" is judged in that TZ, not the deployment
+        # default. Plan.timezone is already joined above; _FROM_UTC_SQL is the
+        # real start instant (bigint epoch) from Book.fromts + Plan.timezone,
+        # compared against today-midnight in that same plan TZ, also as epoch
+        # (mirrors users.delete, which compares view timestamptz columns).
+        from peewee import Expression, fn
+        today_in_plan_tz = fn.date_part('epoch',
+            Expression(
+                fn.date_trunc('day', Expression(fn.now(), 'AT TIME ZONE', Plan.timezone)),
+                'AT TIME ZONE', Plan.timezone)).cast('bigint')
         query = query.select_extend(UserToZoneRoles.zone_role) \
                 .join(UserToZoneRoles, on=(UserToZoneRoles.zid == Seat.zid)) \
                 .where((UserToZoneRoles.login == flask.g.login) &
-                       (Book.fromts >= utils.today()))
+                       (_FROM_UTC_SQL >= today_in_plan_tz))
 
     columnsMap = {
         "id": Book.id,
