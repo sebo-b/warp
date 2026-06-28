@@ -93,8 +93,10 @@ def bookings(report):
     if report == "report" and not flask.g.isAdmin:
         flask.abort(403)
     # The report's default 2-week filter window is sourced from the backend
-    # (PLAN per_plan_timezone §7): today in the viewer's reference TZ, so it does
-    # not shift with the admin's browser timezone. Only the report view uses it.
+    # (PLAN per_plan_timezone §7): today in a FIXED reference (UTC), so the
+    # window doesn't shift with the admin's browser timezone. The report spans
+    # plans in many TZs, so there's no single "viewer" zone — UTC is the neutral
+    # anchor, and this is only the default filter (cosmetic). Report view only.
     return flask.render_template('bookings.html',
                                  report=(report == "report"),
                                  maxReportRows=flask.current_app.config['MAX_REPORT_ROWS'],

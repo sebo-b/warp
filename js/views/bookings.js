@@ -291,7 +291,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
             {column:"login", dir:"asc"}
         );
 
-        // Backend-sourced today in the viewer's reference TZ (PLAN
+        // Backend-sourced today in a fixed reference (UTC) (PLAN
         // per_plan_timezone §7) — not browser-local, so the default window
         // doesn't shift with the admin's timezone.
         let todayTS = window.warpGlobals.today;

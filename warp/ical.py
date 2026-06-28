@@ -238,8 +238,25 @@ def invalidate_calendar_cache(logins):
 # VEVENT generators
 # ---------------------------------------------------------------------------
 
+def _span_update(spans, tz, lo, hi):
+    """Grow spans[tz] = [min_ts, max_ts] to include [lo, hi] (wall-clock ints)."""
+    cur = spans.get(tz)
+    if cur is None:
+        spans[tz] = [lo, hi]
+    else:
+        if lo < cur[0]:
+            cur[0] = lo
+        if hi > cur[1]:
+            cur[1] = hi
+
+
 def _generate_bookings_vevents(login, ical_token, now_ts, phrases):
-    """Return (list of VEVENT strings, set of tz names used) for seat booking events."""
+    """Return (list of VEVENT strings, {tz: [min_ts, max_ts]}) for seat booking events.
+
+    The span per TZ is the wall-clock range of the events emitted in it, so the
+    caller can build a VTIMEZONE that actually covers them — bookings have no
+    upper time bound, so a fixed horizon would miss DST observances for
+    far-future bookings (PLAN per_plan_timezone §6)."""
     lookback = 7 * 24 * 3600
     min_ts = now_ts - lookback
     dtstamp = _ts_to_ical_dt(now_ts)
@@ -252,11 +269,11 @@ def _generate_bookings_vevents(login, ical_token, now_ts, phrases):
                     .tuples())
 
     lines = []
-    tznames = set()
+    tz_spans = {}
     for book_id, fromts, tots, seat_name, plan_tz in bookings:
         tz = plan_tz or None
         if tz:
-            tznames.add(tz)
+            _span_update(tz_spans, tz, fromts, tots)
         nonce = secrets.token_hex(8)
         tok = delete_token(ical_token, book_id, nonce)
         del_url = flask.url_for(
@@ -275,16 +292,18 @@ def _generate_bookings_vevents(login, ical_token, now_ts, phrases):
             description=_escape_ical_text(phrases['booking_desc']).replace('{url}', url_escaped),
             tz=tz,
         ))
-    return lines, tznames
+    return lines, tz_spans
 
 
 def _generate_reminders_vevents(login, ical_token, now_ts, today_ts, phrases):
-    """Return (list of VEVENT strings, set of tz names used) for calendar reminder events.
+    """Return (list of VEVENT strings, {tz: [min_ts, max_ts]}) for reminder events.
 
-    now_ts/today_ts are the UTC clock (cache key + bookings horizon/lookback).
-    Each reminder is gridded in its OWN zone's plan TZ — "day before in NY is
-    day before in NY": wall-clock day arithmetic in the zone's scale, stamped
-    with that zone's TZID. No real-instant TZ math (PLAN per_plan_timezone §6)."""
+    now_ts/today_ts are the UTC clock (bookings horizon/lookback). Each reminder
+    is gridded in its OWN zone's plan TZ — "day before in NY is day before in
+    NY": wall-clock day arithmetic in the zone's scale, stamped with that zone's
+    TZID. No real-instant TZ math (PLAN per_plan_timezone §6). The per-TZ span is
+    the wall-clock range of emitted reminders, so the caller's VTIMEZONE covers
+    exactly them."""
 
     row = UserPrefs.select(
         UserPrefs.reminder_weekdays,
@@ -295,7 +314,7 @@ def _generate_reminders_vevents(login, ical_token, now_ts, today_ts, phrases):
     ).where(UserPrefs.login == login).first()
 
     if row is None:
-        return [], set()
+        return [], {}
 
     weekdays_mask = row['reminder_weekdays']
     ahead_days = row['reminder_ahead_days']
@@ -306,7 +325,7 @@ def _generate_reminders_vevents(login, ical_token, now_ts, today_ts, phrases):
     release_enabled = release_ahead_days > 0
 
     if not reminder_zones or (not missing_enabled and not release_enabled):
-        return [], set()
+        return [], {}
 
     # Each reminder zone's office TZ: a zone's seats sit on plans, so resolve
     # zid -> plan.timezone. A zone may span plans in different TZs (edge case);
@@ -337,7 +356,7 @@ def _generate_reminders_vevents(login, ical_token, now_ts, today_ts, phrases):
                                     .tuples())
 
     if not missing_enabled and not private_seats:
-        return [], set()
+        return [], {}
 
     horizon_days = 30
     # Clock bounds for the bookings lookback/horizon (UTC, generous: any zone's
@@ -414,7 +433,7 @@ def _generate_reminders_vevents(login, ical_token, now_ts, today_ts, phrases):
     release_keys = {(ts, z) for ts, uid, summary, kind, z, _d, _tz in events if kind == 'release'}
 
     lines = []
-    tznames = set()
+    tz_spans = {}
     for reminder_ts, uid, summary, kind, zid, action_day_str, event_tz in events:
         if kind == 'missing' and (reminder_ts, zid) in release_keys:
             continue
@@ -436,9 +455,9 @@ def _generate_reminders_vevents(login, ical_token, now_ts, today_ts, phrases):
 
         lines.append(_format_vevent(uid, dtstamp, dtstart, dtend, summary,
                                     url=url, description=description, tz=event_tz))
-        tznames.add(event_tz)
+        _span_update(tz_spans, event_tz, reminder_ts, reminder_ts + 900)
 
-    return lines, tznames
+    return lines, tz_spans
 
 
 # ---------------------------------------------------------------------------
@@ -456,30 +475,66 @@ def _strip_calendar_wrapper(ics):
     return ics[start:end + len('END:VEVENT\r\n')]
 
 
+def _reminders_cache_day(login, fallback_today):
+    """Cache-validity day for the reminders feed.
+
+    Reminders are gridded per zone-local 'today', so a plain UTC-day key would
+    serve a stale grid to zones that roll before/after UTC midnight. Key instead
+    on the EARLIEST-rolling reminder zone (the largest today(tz), i.e. the
+    biggest UTC offset) so the cache invalidates as soon as any of the user's
+    zones could have advanced; regeneration then re-grids every zone at its own
+    correct 'today'. Single-TZ (the common case) is exact. Residual multi-TZ
+    edge: a more-western zone rolling later the same UTC day reuses the cache
+    until the next invalidation, so its far-future tail reminder may appear up to
+    its UTC offset late — never wrong, only slightly late."""
+    pref = (UserPrefs.select(UserPrefs.reminder_zones)
+                     .where(UserPrefs.login == login).first())
+    if pref is None or not pref['reminder_zones']:
+        return fallback_today
+    tzs = [(r[0] or 'UTC') for r in
+           (Plan.select(fn.DISTINCT(Plan.timezone))
+                .join(Seat, on=(Seat.pid == Plan.id))
+                .where(Seat.zid.in_(list(pref['reminder_zones'])))
+                .tuples())]
+    if not tzs:
+        return fallback_today
+    return max(utils.today(tz=tz) for tz in tzs)
+
+
 def _get_or_cache(login, ical_token, now_ts, today_ts, type_):
     """Return a full ICS string for one type (bookings or reminders), using/updating cache."""
+    # Bookings don't depend on a per-zone grid, so UTC today is a sound key;
+    # reminders need a zone-rollover-aware key (see _reminders_cache_day).
+    cache_day = today_ts
+    if type_ == ICAL_TYPE_REMINDERS:
+        cache_day = _reminders_cache_day(login, today_ts)
+
     row = (CalendarCache.select(CalendarCache.ics, CalendarCache.day)
                         .where((CalendarCache.login == login) &
                                (CalendarCache.type == type_))
                         .first())
 
-    if row is not None and row['day'] == today_ts:
+    if row is not None and row['day'] == cache_day:
         return row['ics']
 
     phrases = _ical_phrases()
 
     if type_ == ICAL_TYPE_BOOKINGS:
-        vevents, tznames = _generate_bookings_vevents(login, ical_token, now_ts, phrases)
+        vevents, tz_spans = _generate_bookings_vevents(login, ical_token, now_ts, phrases)
     else:
-        vevents, tznames = _generate_reminders_vevents(
+        vevents, tz_spans = _generate_reminders_vevents(
             login, ical_token, now_ts, today_ts, phrases)
 
-    vtimezone_since = now_ts - 7 * 86400
-    vtimezone_until = today_ts + 31 * 86400
+    # One VTIMEZONE per zone, covering exactly the wall-clock span of the events
+    # emitted in it (plus _vtimezone_block's own ±slack for the wall-clock↔UTC
+    # skew). Bookings have no upper time bound, so a fixed horizon would omit DST
+    # observances for far-future bookings and clients would render them off by
+    # the missed offset.
     vtimezone_blocks = []
-    for tz_name in sorted(tznames):
+    for tz_name in sorted(tz_spans):
+        lo, hi = tz_spans[tz_name]
         try:
-            vtimezone_blocks.append(_vtimezone_block(tz_name, vtimezone_since, vtimezone_until))
+            vtimezone_blocks.append(_vtimezone_block(tz_name, lo, hi))
         except Exception:
             pass
 
@@ -489,13 +544,13 @@ def _get_or_cache(login, ical_token, now_ts, today_ts, type_):
         CalendarCache.login: login,
         CalendarCache.type: type_,
         CalendarCache.ics: ics,
-        CalendarCache.day: today_ts,
+        CalendarCache.day: cache_day,
         CalendarCache.generated_at: now_ts,
     }).on_conflict(
         conflict_target=[CalendarCache.login, CalendarCache.type],
         update={
             CalendarCache.ics: ics,
-            CalendarCache.day: today_ts,
+            CalendarCache.day: cache_day,
             CalendarCache.generated_at: now_ts,
         }
     ).execute()

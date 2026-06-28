@@ -68,6 +68,18 @@ def is_valid_iana(name):
     except (ZoneInfoNotFoundError, KeyError, ValueError):
         return False
 
+def is_valid_plan_timezone(name):
+    """Return True iff name is storable as a plan timezone: present in the
+    startup-computed python ∩ postgres set (config VALID_TIMEZONES), so both the
+    app and every `AT TIME ZONE plan.timezone` query in Postgres can resolve it.
+
+    Falls back to a plain zoneinfo check when the set isn't loaded (e.g. unit
+    tests with no DB / app context)."""
+    valid = flask.current_app.config.get('VALID_TIMEZONES') if flask.current_app else None
+    if not valid:
+        return is_valid_iana(name)
+    return name in valid
+
 # format { "fromTS": 123, "toTS": 123 }
 def getTimeRange(tz, extended=False):
     """ Returns a dict with fromTS and toTS """

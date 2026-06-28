@@ -123,8 +123,11 @@ def addOrEdit():
     class ApplyError(Exception):
         pass
 
+    # Validate against the python ∩ postgres set (the filter before it reaches the
+    # DB): a zone Python accepts but Postgres can't resolve would break every
+    # book_utc / overlap / report query on this plan.
     tz = jsonData['timezone']
-    if not utils.is_valid_iana(tz):
+    if not utils.is_valid_plan_timezone(tz):
         return {"msg": "Invalid timezone", "code": 323}, 400
 
     try:
@@ -167,9 +170,15 @@ _COMMON_TIMEZONES = [
 def timezones():
     if not flask.g.isAdmin:
         return {"msg": "Forbidden"}, 403
+    # Offer only zones in the startup python ∩ postgres set, so every option is
+    # guaranteed storable (matches the addOrEdit filter). When the set isn't
+    # loaded (no app context), fall back to offering the whole curated list.
+    valid = flask.current_app.config.get('VALID_TIMEZONES')
     now_utc = datetime.datetime.now(tz=datetime.timezone.utc)
     result = []
     for z in _COMMON_TIMEZONES:
+        if valid and z not in valid:
+            continue
         try:
             tz = ZoneInfo(z)
             offset = now_utc.astimezone(tz).utcoffset()

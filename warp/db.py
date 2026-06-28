@@ -136,6 +136,27 @@ def init(app):
 
     with app.app_context():
         initDB()
+        _loadValidTimezones(app)
+
+def _loadValidTimezones(app):
+    """Compute app.config['VALID_TIMEZONES'] once at startup: the intersection of
+    Python's zoneinfo names and Postgres' pg_timezone_names.
+
+    A plan timezone is consumed by BOTH runtimes — the app labels/validates it via
+    zoneinfo, but every book_utc / overlap query does `AT TIME ZONE plan.timezone`
+    in Postgres, whose tz database can differ (newly-added zones, trimmed container
+    tzdata). Persisting only names both sides accept makes that mismatch class
+    impossible: a zone valid in Python but absent in PG can never reach a plan row
+    and break its bookings/overlap/report queries."""
+    from zoneinfo import available_timezones
+    py_names = available_timezones()
+    with DB:
+        pg_names = {r[0] for r in DB.execute_sql("SELECT name FROM pg_timezone_names").fetchall()}
+    # UTC is the schema default and always resolvable on both sides; keep it
+    # defensively so a stripped image can never end up with an empty offering.
+    valid = frozenset(py_names & pg_names) | {'UTC'}
+    app.config['VALID_TIMEZONES'] = valid
+    print(f"Loaded {len(valid)} valid timezones (python ∩ postgres)")
 
 def initDB():
 

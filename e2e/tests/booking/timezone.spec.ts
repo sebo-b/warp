@@ -86,6 +86,71 @@ test.describe('per-plan timezone', () => {
     expect((await nyOverlap.json()).code).toBe(109);  // "Overlapping time"
   });
 
+  test('back-to-back real instants across TZs are allowed (touching, not overlapping)', async ({ page }) => {
+    await logIn(page, ADMIN);
+    await setupCrossTzPlans();
+    await querySql("DELETE FROM book WHERE sid IN (SELECT id FROM seat WHERE zid IN (1,2))");
+
+    const [zone1Seat] = await getZoneSeats(1);   // Warsaw
+    const [zone2Seat] = await getZoneSeats(2);    // New York
+    const day = DAY();
+
+    // Warsaw 14:00-16:00 = UTC 12:00-14:00.
+    const warsaw = await apiApply(page, {
+      book: { sid: zone1Seat.id, dates: [{ fromTS: day + H(14), toTS: day + H(16) }] },
+    });
+    expect(warsaw.status()).toBe(200);
+
+    // New York 10:00-14:00 = UTC 14:00-18:00 — meets the Warsaw booking exactly
+    // at UTC 14:00 (half-open), so it must be ALLOWED, not rejected.
+    const nyAdjacent = await apiApply(page, {
+      book: { sid: zone2Seat.id, dates: [{ fromTS: day + H(10), toTS: day + H(14) }] },
+    });
+    expect(nyAdjacent.status()).toBe(200);
+    expect((await nyAdjacent.json()).msg).toBe('ok');
+  });
+
+  test('one ungrouped zone spanning two TZ plans rejects a real-instant overlap', async ({ page }) => {
+    // Build a single UNGROUPED zone (zone 1) holding seats on plans in two TZs:
+    // relocate a New-York-plan (plan 2) seat into zone 1, alongside its Warsaw
+    // (plan 1) seats. This exercises the trigger's `bu.zid = booking_zid` branch
+    // across TZs — distinct from the zone_group branch the other tests hit.
+    await logIn(page, ADMIN);
+    await querySql("UPDATE plan SET timezone = 'Europe/Warsaw' WHERE id = 1");
+    await querySql("UPDATE plan SET timezone = 'America/New_York' WHERE id = 2");
+    await querySql("UPDATE zone SET zone_group = NULL WHERE id = 1");
+
+    const warsawSeat = Number((await querySql(
+      "SELECT id FROM seat WHERE pid = 1 AND zid = 1 ORDER BY id LIMIT 1")).rows[0].id);
+    const nySeat = Number((await querySql(
+      "SELECT id FROM seat WHERE pid = 2 AND zid = 2 ORDER BY id LIMIT 1")).rows[0].id);
+    await querySql("UPDATE seat SET zid = 1 WHERE id = $1", [nySeat]);
+    // Clear every booking now in zone 1 (incl. the relocated seat) so the result
+    // can't depend on leftovers from earlier specs.
+    await querySql("DELETE FROM book WHERE sid IN (SELECT id FROM seat WHERE zid = 1)");
+
+    try {
+      const day = DAY();
+      // Warsaw 14:00-15:00 = UTC 12:00-13:00.
+      const warsaw = await apiApply(page, {
+        book: { sid: warsawSeat, dates: [{ fromTS: day + H(14), toTS: day + H(15) }] },
+      });
+      expect(warsaw.status()).toBe(200);
+
+      // NY 08:00-09:00 = UTC 12:00-13:00 — same real instant, same (ungrouped)
+      // zone, different seat/TZ → rejected by the zid branch.
+      const nyOverlap = await apiApply(page, {
+        book: { sid: nySeat, dates: [{ fromTS: day + H(8), toTS: day + H(9) }] },
+      });
+      expect(nyOverlap.status()).toBe(400);
+      expect((await nyOverlap.json()).code).toBe(109);
+    } finally {
+      // Restore the relocated seat so the shared seed is unchanged for later specs.
+      await querySql("DELETE FROM book WHERE sid IN ($1, $2)", [warsawSeat, nySeat]);
+      await querySql("UPDATE seat SET zid = 2 WHERE id = $1", [nySeat]);
+    }
+  });
+
   test('iCal feed emits VTIMEZONE + per-booking TZID (not floating Z)', async ({ page }) => {
     // Plan 1 is Warsaw. Put a user1 booking at wall 14:00-15:00 on a plan-1 seat
     // and fetch the feed; the VEVENT must stamp the plan TZ, not float as UTC.

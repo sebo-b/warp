@@ -56,6 +56,25 @@ def test_now_tz_wall_clock_digits():
     assert expected_wall == calendar.timegm((2024, 7, 15, 14, 0, 0, 0, 0, 0))
 
 
+# ── KNOWN, ACCEPTED EDGE: debug time-offset is applied in two domains ─────────
+#
+# The e2e virtual-clock offset (utils._debug_time_offset, set via
+# /debug/set_time_offset) is added in DIFFERENT domains by the Python and SQL
+# time helpers, and we deliberately do NOT reconcile them:
+#
+#   * Python now(tz)/today(tz) add the offset to the fake-UTC WALL-CLOCK integer
+#     (after timegm of the zone's wall-clock).
+#   * SQL now_sql()/today_in_tz_sql() add it to a REAL timestamptz (now() +
+#     make_interval) BEFORE the AT TIME ZONE conversion.
+#
+# A pure time shift commutes with the wall-clock<->real conversion EXCEPT across
+# a DST transition that the shift itself steps over, where the two domains can
+# disagree by the DST delta (≤1h). This only affects e2e tests that set a large
+# virtual offset landing on the far side of a DST boundary; in production the
+# offset is always 0, so the two paths are identical. Not worth the complexity
+# of carrying the offset through a single domain — documented here instead.
+
+
 # ── DB fixture ────────────────────────────────────────────────────────────────
 
 _CONN = "host=127.0.0.1 port=5432 dbname=postgres user=postgres password=postgres_password"
@@ -205,11 +224,50 @@ def db():
         )
         sny_id = conn.execute("SELECT id FROM seat WHERE name='SNY'").fetchone()[0]
 
+        # ── Extra fixtures for cross-TZ edge-case coverage ───────────────────
+        # Two more whole-/half-hour offset plans (no DST): Tokyo (UTC+9) and
+        # Kolkata (UTC+5:30), so we exercise a 3rd zone and a :30 offset.
+        def _plan(name, tz):
+            return conn.execute("INSERT INTO plan(name,timezone) VALUES (%s,%s) RETURNING id",
+                                (name, tz)).fetchone()[0]
+        def _zone(name, grp):
+            return conn.execute("INSERT INTO zone(name,zone_group) VALUES (%s,%s) RETURNING id",
+                                (name, grp)).fetchone()[0]
+        def _seat(pid, zid, name):
+            return conn.execute("INSERT INTO seat(pid,zid,name) VALUES (%s,%s,%s) RETURNING id",
+                                (pid, zid, name)).fetchone()[0]
+
+        ptok_id = _plan('Tokyo', 'Asia/Tokyo')        # UTC+9, no DST
+        pkol_id = _plan('Kolkata', 'Asia/Kolkata')    # UTC+5:30, no DST
+
+        # ONE ungrouped zone (zone_group NULL) whose seats live on plans in FOUR
+        # different TZs — the trigger's `bu.zid = booking_zid` branch must compare
+        # real instants across all of them.
+        zu_id = _zone('ZU', None)
+        su_w   = _seat(pw_id,  zu_id, 'SU_W')    # Warsaw
+        su_ny  = _seat(pny_id, zu_id, 'SU_NY')   # New York
+        su_tok = _seat(ptok_id, zu_id, 'SU_TOK') # Tokyo
+        su_kol = _seat(pkol_id, zu_id, 'SU_KOL') # Kolkata
+
+        # THREE zones in ONE zone_group ('grp3'), each on a plan in a different TZ
+        # — the trigger's `bu.zone_group = zone_grp` branch must compare real
+        # instants across zones AND TZs.
+        g3w_id   = _zone('G3W',   'grp3')
+        g3ny_id  = _zone('G3NY',  'grp3')
+        g3tok_id = _zone('G3TOK', 'grp3')
+        g3sw   = _seat(pw_id,   g3w_id,   'G3SW')
+        g3sny  = _seat(pny_id,  g3ny_id,  'G3SNY')
+        g3stok = _seat(ptok_id, g3tok_id, 'G3STOK')
+
         # Store IDs on the connection for tests
         conn._tz_ids = {
             'sw': sw_id, 'sny': sny_id,
             'zw': zw_id, 'zny': zny_id,
             'schema': schema,
+            'pw': pw_id, 'pny': pny_id, 'ptok': ptok_id, 'pkol': pkol_id,
+            'zu': zu_id, 'su_w': su_w, 'su_ny': su_ny, 'su_tok': su_tok, 'su_kol': su_kol,
+            'g3w': g3w_id, 'g3ny': g3ny_id, 'g3tok': g3tok_id,
+            'g3sw': g3sw, 'g3sny': g3sny, 'g3stok': g3stok,
         }
 
         yield conn
@@ -227,6 +285,18 @@ def _book(conn, sid, fromts, tots):
         "INSERT INTO book(login,sid,fromts,tots) VALUES ('u1',%s,%s,%s)",
         (sid, fromts, tots)
     )
+
+
+def _book_ok(conn, sid, fromts, tots):
+    """Insert must succeed (no exclusion). Autocommit => each stmt its own txn,
+    so a prior _book_rejected doesn't poison this one."""
+    _book(conn, sid, fromts, tots)
+
+
+def _book_rejected(conn, sid, fromts, tots):
+    """Insert must be rejected by book_overlap_insert with exclusion_violation."""
+    with pytest.raises(psycopg.errors.ExclusionViolation):
+        _book(conn, sid, fromts, tots)
 
 
 def _del_all_books(conn):
@@ -433,3 +503,334 @@ def test_from_utc_query_survives_peewee_join_aliasing(db):
     finally:
         pdb.close()
         db.execute("DELETE FROM book WHERE sid=%s AND fromts=%s", (sw, fts))
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CORE: cross-TZ booking exclusivity — the heart of the app.
+#
+# Reference offsets used below (all dates chosen in summer unless a DST test):
+#   Europe/Warsaw  = UTC+2 (CEST)   America/New_York = UTC-4 (EDT)
+#   Asia/Tokyo     = UTC+9 (no DST)  Asia/Kolkata     = UTC+5:30 (no DST)
+# Storage is wall-clock-as-fake-UTC; the real instant is wall_clock - offset.
+# The book_overlap_insert trigger is the ONLY authoritative exclusivity guard,
+# so these drive it directly through real INSERTs.
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ── A. ONE ungrouped zone whose seats span MANY TZ plans (zid branch) ──────────
+
+def test_ungrouped_zone_multi_tz_real_overlap_rejected(db):
+    """ZU holds seats on Warsaw/NY plans. Warsaw 14:00-15:00 (UTC 12:00-13:00)
+    and NY 08:00-09:00 (UTC 12:00-13:00) are the SAME real instant → rejected
+    even though they are different seats on different-TZ plans in one zone."""
+    _del_all_books(db)
+    _book_ok(db, db._tz_ids['su_w'],  _wc(2024, 7, 15, 14), _wc(2024, 7, 15, 15))
+    _book_rejected(db, db._tz_ids['su_ny'], _wc(2024, 7, 15, 8), _wc(2024, 7, 15, 9))
+    _del_all_books(db)
+
+
+def test_ungrouped_zone_multi_tz_same_wallclock_allowed(db):
+    """Same wall-clock digits in Warsaw vs NY are different real instants
+    (UTC 12-13 vs UTC 18-19) → both allowed in the same zone."""
+    _del_all_books(db)
+    _book_ok(db, db._tz_ids['su_w'],  _wc(2024, 7, 15, 14), _wc(2024, 7, 15, 15))
+    _book_ok(db, db._tz_ids['su_ny'], _wc(2024, 7, 15, 14), _wc(2024, 7, 15, 15))
+    _del_all_books(db)
+
+
+def test_ungrouped_zone_multi_tz_back_to_back_allowed(db):
+    """Touching-but-not-overlapping real instants are allowed (half-open):
+    Warsaw 14:00-16:00 = UTC 12:00-14:00; NY 10:00-14:00 = UTC 14:00-18:00.
+    They meet exactly at UTC 14:00 → no overlap."""
+    _del_all_books(db)
+    _book_ok(db, db._tz_ids['su_w'],  _wc(2024, 7, 15, 14), _wc(2024, 7, 15, 16))
+    _book_ok(db, db._tz_ids['su_ny'], _wc(2024, 7, 15, 10), _wc(2024, 7, 15, 14))
+    _del_all_books(db)
+
+
+def test_ungrouped_zone_multi_tz_one_minute_overlap_rejected(db):
+    """Adjacency boundary: shift NY one minute EARLIER than the back-to-back case
+    so the real intervals overlap by 1 minute (UTC 13:59-14:00) → rejected."""
+    _del_all_books(db)
+    _book_ok(db, db._tz_ids['su_w'],  _wc(2024, 7, 15, 14), _wc(2024, 7, 15, 16))
+    # NY 09:59-14:00 = UTC 13:59-18:00; overlaps Warsaw's UTC 12:00-14:00 by 1 min.
+    _book_rejected(db, db._tz_ids['su_ny'], _wc(2024, 7, 15, 9, 59), _wc(2024, 7, 15, 14))
+    _del_all_books(db)
+
+
+def test_ungrouped_zone_tokyo_overlaps_warsaw_rejected(db):
+    """Third TZ in the same zone: Tokyo 21:00-22:00 (UTC+9 → UTC 12:00-13:00)
+    is the same real instant as Warsaw 14:00-15:00 → rejected."""
+    _del_all_books(db)
+    _book_ok(db, db._tz_ids['su_w'],   _wc(2024, 7, 15, 14), _wc(2024, 7, 15, 15))
+    _book_rejected(db, db._tz_ids['su_tok'], _wc(2024, 7, 15, 21), _wc(2024, 7, 15, 22))
+    _del_all_books(db)
+
+
+def test_ungrouped_zone_half_hour_offset_overlap_rejected(db):
+    """Half-hour offset zone: Kolkata 17:30-18:30 (UTC+5:30 → UTC 12:00-13:00)
+    overlaps Warsaw 14:00-15:00 (UTC 12:00-13:00) → rejected."""
+    _del_all_books(db)
+    _book_ok(db, db._tz_ids['su_w'],   _wc(2024, 7, 15, 14), _wc(2024, 7, 15, 15))
+    _book_rejected(db, db._tz_ids['su_kol'], _wc(2024, 7, 15, 17, 30), _wc(2024, 7, 15, 18, 30))
+    _del_all_books(db)
+
+
+def test_ungrouped_zone_half_hour_offset_back_to_back_allowed(db):
+    """Kolkata 18:30-19:30 (UTC 13:00-14:00) meets Warsaw 14:00-15:00
+    (UTC 12:00-13:00) exactly at UTC 13:00 → allowed."""
+    _del_all_books(db)
+    _book_ok(db, db._tz_ids['su_w'],   _wc(2024, 7, 15, 14), _wc(2024, 7, 15, 15))
+    _book_ok(db, db._tz_ids['su_kol'], _wc(2024, 7, 15, 18, 30), _wc(2024, 7, 15, 19, 30))
+    _del_all_books(db)
+
+
+def test_ungrouped_zone_same_seat_double_book_rejected(db):
+    """Same seat is still caught by the cheap raw-integer same-seat branch
+    (same plan ⇒ same TZ), independent of the cross-TZ real-instant logic."""
+    _del_all_books(db)
+    _book_ok(db, db._tz_ids['su_w'], _wc(2024, 7, 15, 10), _wc(2024, 7, 15, 16))
+    _book_rejected(db, db._tz_ids['su_w'], _wc(2024, 7, 15, 12), _wc(2024, 7, 15, 18))
+    _del_all_books(db)
+
+
+# ── B. MANY zones in ONE zone_group, spanning MANY TZ plans (group branch) ─────
+
+def test_group_multi_zone_multi_tz_real_overlap_rejected(db):
+    """grp3 spans Warsaw/NY/Tokyo zones. Warsaw 14:00-15:00 then NY 08:00-09:00
+    (both UTC 12:00-13:00) are DIFFERENT zones in the SAME group at the SAME real
+    instant → the group branch rejects."""
+    _del_all_books(db)
+    _book_ok(db, db._tz_ids['g3sw'],  _wc(2024, 7, 15, 14), _wc(2024, 7, 15, 15))
+    _book_rejected(db, db._tz_ids['g3sny'], _wc(2024, 7, 15, 8), _wc(2024, 7, 15, 9))
+    _del_all_books(db)
+
+
+def test_group_multi_zone_multi_tz_same_wallclock_allowed(db):
+    """Same wall-clock in two group zones in different TZs → different instants
+    → allowed."""
+    _del_all_books(db)
+    _book_ok(db, db._tz_ids['g3sw'],  _wc(2024, 7, 15, 14), _wc(2024, 7, 15, 15))
+    _book_ok(db, db._tz_ids['g3sny'], _wc(2024, 7, 15, 14), _wc(2024, 7, 15, 15))
+    _del_all_books(db)
+
+
+def test_group_multi_zone_back_to_back_allowed(db):
+    """Touching instants across group zones are allowed: Warsaw UTC 12:00-14:00,
+    NY 10:00-14:00 = UTC 14:00-18:00, meeting at UTC 14:00."""
+    _del_all_books(db)
+    _book_ok(db, db._tz_ids['g3sw'],  _wc(2024, 7, 15, 14), _wc(2024, 7, 15, 16))
+    _book_ok(db, db._tz_ids['g3sny'], _wc(2024, 7, 15, 10), _wc(2024, 7, 15, 14))
+    _del_all_books(db)
+
+
+def test_group_three_tz_chain_overlaps_rejected(db):
+    """All three group TZs at the same real instant (UTC 12:00-13:00):
+    Warsaw 14:00, NY 08:00, Tokyo 21:00 — the 2nd and 3rd both reject against
+    the 1st across distinct zones/TZs."""
+    _del_all_books(db)
+    _book_ok(db, db._tz_ids['g3sw'],   _wc(2024, 7, 15, 14), _wc(2024, 7, 15, 15))
+    _book_rejected(db, db._tz_ids['g3sny'],  _wc(2024, 7, 15, 8),  _wc(2024, 7, 15, 9))
+    _book_rejected(db, db._tz_ids['g3stok'], _wc(2024, 7, 15, 21), _wc(2024, 7, 15, 22))
+    _del_all_books(db)
+
+
+def test_isolation_ungrouped_vs_group_same_instant_allowed(db):
+    """A booking in the ungrouped zone ZU and one in a grp3 zone at the SAME real
+    instant must NOT conflict: ZU only guards its own zid, grp3 only its group —
+    they share neither. Pins that the cross-TZ logic doesn't over-reject."""
+    _del_all_books(db)
+    _book_ok(db, db._tz_ids['su_w'], _wc(2024, 7, 15, 14), _wc(2024, 7, 15, 15))   # ZU / Warsaw
+    _book_ok(db, db._tz_ids['g3sny'], _wc(2024, 7, 15, 8), _wc(2024, 7, 15, 9))    # grp3 / NY, same UTC
+    _del_all_books(db)
+
+
+def test_different_groups_same_instant_allowed(db):
+    """'office' group (zone ZNY) and 'grp3' group (zone G3SW) at the same real
+    instant don't conflict — exclusivity is per-group, not global."""
+    _del_all_books(db)
+    _book_ok(db, db._tz_ids['sny'],  _wc(2024, 7, 15, 8),  _wc(2024, 7, 15, 9))    # office / NY, UTC 12-13
+    _book_ok(db, db._tz_ids['g3sw'], _wc(2024, 7, 15, 14), _wc(2024, 7, 15, 15))   # grp3 / Warsaw, UTC 12-13
+    _del_all_books(db)
+
+
+# ── C. DST transitions — offsets must be resolved per real instant ─────────────
+
+def test_dst_spring_forward_offset_applied(db):
+    """After EU spring-forward (2024-03-31), Warsaw is CEST (+2). Warsaw wall
+    05:00-06:00 = UTC 03:00-04:00; NY (already EDT, -4) wall 2024-03-30 23:00-
+    23:59 = UTC 2024-03-31 03:00-03:59 → overlap → rejected. (If +1 were used by
+    mistake Warsaw would be UTC 04:00-05:00 and this would NOT overlap, so the
+    rejection proves the post-transition +2 offset is applied.)"""
+    _del_all_books(db)
+    _book_ok(db, db._tz_ids['su_w'],  _wc(2024, 3, 31, 5), _wc(2024, 3, 31, 6))
+    _book_rejected(db, db._tz_ids['su_ny'], _wc(2024, 3, 30, 23), _wc(2024, 3, 30, 23, 59))
+    _del_all_books(db)
+
+
+def test_dst_spring_forward_non_overlap_allowed(db):
+    """Same spring-forward date, non-overlapping: Warsaw UTC 03:00-04:00 meets
+    NY 2024-03-31 00:00-00:30 (EDT → UTC 04:00-04:30) at UTC 04:00 → allowed."""
+    _del_all_books(db)
+    _book_ok(db, db._tz_ids['su_w'],  _wc(2024, 3, 31, 5), _wc(2024, 3, 31, 6))
+    _book_ok(db, db._tz_ids['su_ny'], _wc(2024, 3, 31, 0), _wc(2024, 3, 31, 0, 30))
+    _del_all_books(db)
+
+
+def test_dst_fall_back_offset_applied(db):
+    """After EU fall-back (2024-10-27), Warsaw is CET (+1). Warsaw wall 04:00-
+    05:00 = UTC 03:00-04:00; NY (still EDT, -4) wall 2024-10-26 23:00-23:59 =
+    UTC 2024-10-27 03:00-03:59 → overlap → rejected. (If +2 were used Warsaw
+    would be UTC 02:00-03:00 and this would NOT overlap; rejection proves the
+    post-fall-back +1 offset.)"""
+    _del_all_books(db)
+    _book_ok(db, db._tz_ids['su_w'],  _wc(2024, 10, 27, 4), _wc(2024, 10, 27, 5))
+    _book_rejected(db, db._tz_ids['su_ny'], _wc(2024, 10, 26, 23), _wc(2024, 10, 26, 23, 59))
+    _del_all_books(db)
+
+
+# ── D. getSeats conflict-window: windowed in the OPEN plan's scale ─────────────
+# The plan-panel conflict hints (warp/xhr/plan.py:getSeats) must window the
+# user's other-zone bookings by their TRANSLATED open-plan-scale instants
+# (open_from/open_to), not their own-plan wall-clock — otherwise a cross-TZ
+# booking near the window edge is shown (un)available out of step with the real
+# overlap the trigger enforces. These mirror the OLD (own wall-clock) and NEW
+# (open-scale) predicates against book_utc and assert NEW tracks the real
+# instant where OLD diverged.
+
+_OPEN_TZ = 'Europe/Warsaw'   # the plan being opened
+
+def _window_count(conn, zid, tr_from, tr_to, mode):
+    if mode == 'new':   # open-plan-scale instants (the fix)
+        sql = (
+            "SELECT count(*) FROM book_utc bu WHERE bu.login='u1' AND bu.zid=%s "
+            "AND date_part('epoch',(bu.from_utc AT TIME ZONE '" + _OPEN_TZ + "' AT TIME ZONE 'UTC'))::bigint < %s "
+            "AND date_part('epoch',(bu.to_utc   AT TIME ZONE '" + _OPEN_TZ + "' AT TIME ZONE 'UTC'))::bigint > %s"
+        )
+    else:               # old: booking's own-plan wall-clock
+        sql = ("SELECT count(*) FROM book_utc bu WHERE bu.login='u1' AND bu.zid=%s "
+               "AND bu.fromts < %s AND bu.tots > %s")
+    return conn.execute(sql, (zid, tr_to, tr_from)).fetchone()[0]
+
+
+def test_conflict_window_low_edge_included_by_open_scale(db):
+    """Open plan = Warsaw; window = [2024-07-15 00:00, 2024-07-22 00:00) Warsaw.
+    An NY booking wall 2024-07-14 23:00-23:30 has real instant UTC 2024-07-15
+    03:00 = Warsaw 05:00 → INSIDE the window. The NEW (open-scale) predicate
+    includes it; the OLD (own wall-clock) predicate wrongly excludes it (own
+    end 23:30 < window start), which is the missed-conflict bug."""
+    _del_all_books(db)
+    g3ny = db._tz_ids['g3ny']
+    _book(db, db._tz_ids['g3sny'], _wc(2024, 7, 14, 23), _wc(2024, 7, 14, 23, 30))
+    tr_from, tr_to = _wc(2024, 7, 15, 0), _wc(2024, 7, 22, 0)
+    assert _window_count(db, g3ny, tr_from, tr_to, 'new') == 1
+    assert _window_count(db, g3ny, tr_from, tr_to, 'old') == 0
+    _del_all_books(db)
+
+
+def test_conflict_window_high_edge_excluded_by_open_scale(db):
+    """Same open window. An NY booking wall 2024-07-21 20:00-20:30 has real
+    instant UTC 2024-07-22 00:00 = Warsaw 02:00 → OUTSIDE the window. The NEW
+    predicate excludes it; the OLD predicate wrongly includes it (own start
+    20:00 < window end), which is the phantom-conflict (seat shown unavailable)
+    bug the user flagged."""
+    _del_all_books(db)
+    g3ny = db._tz_ids['g3ny']
+    _book(db, db._tz_ids['g3sny'], _wc(2024, 7, 21, 20), _wc(2024, 7, 21, 20, 30))
+    tr_from, tr_to = _wc(2024, 7, 15, 0), _wc(2024, 7, 22, 0)
+    assert _window_count(db, g3ny, tr_from, tr_to, 'new') == 0
+    assert _window_count(db, g3ny, tr_from, tr_to, 'old') == 1
+    _del_all_books(db)
+
+
+def test_conflict_window_same_tz_old_and_new_agree(db):
+    """When the booking's plan TZ equals the open plan TZ, open-scale == own
+    wall-clock, so OLD and NEW agree (no regression for the common case)."""
+    _del_all_books(db)
+    # G3SW is on the Warsaw plan == open plan TZ.
+    g3w = db._tz_ids['g3w']
+    _book(db, db._tz_ids['g3sw'], _wc(2024, 7, 16, 10), _wc(2024, 7, 16, 11))
+    tr_from, tr_to = _wc(2024, 7, 15, 0), _wc(2024, 7, 22, 0)
+    assert _window_count(db, g3w, tr_from, tr_to, 'new') == 1
+    assert _window_count(db, g3w, tr_from, tr_to, 'old') == 1
+    _del_all_books(db)
+
+
+# ── E. resolve_conflict_bookings — the EXTRACTED, Flask-free core ──────────────
+# warp.xhr.plan.resolve_conflict_bookings is the conflict-resolution logic lifted
+# out of getSeats so it can be imported and run against a DB with no app context.
+# These tests drive the REAL production function (not a raw-SQL mirror), pinning:
+# the open-scale windowing fix, the open-scale fromTS/toTS translation values,
+# and the cross-TZ vs same-TZ display payload.
+
+@pytest.fixture
+def bound_db(db):
+    """Bind warp.db peewee models to the test schema so Flask-independent helpers
+    run against it. Same connection/schema the raw `db` fixture seeds (autocommit,
+    so its inserts are visible here)."""
+    import playhouse.postgres_ext as ppe
+    from warp.db import Users, Plan, Seat, Zone, Book, BookUTC
+    pdb = ppe.Psycopg3Database('postgres', host='127.0.0.1', port=5432,
+                               user='postgres', password='postgres_password',
+                               autoconnect=False)
+    pdb.connect()
+    pdb.execute_sql(f'SET search_path TO "{db._tz_ids["schema"]}"')
+    for m in (Users, Plan, Seat, Zone, Book, BookUTC):
+        m.bind(pdb)
+    try:
+        yield pdb
+    finally:
+        pdb.close()
+
+
+_TR = {'fromTS': _wc(2024, 7, 15, 0), 'toTS': _wc(2024, 7, 22, 0)}   # Warsaw-scale window
+
+
+def test_resolve_conflict_bookings_low_edge_and_cross_tz_payload(db, bound_db):
+    """Cross-TZ booking whose own wall-clock is BEFORE the open window but whose
+    real instant is INSIDE it is returned (open-scale windowing), translated to
+    open-plan-scale fromTS/toTS, and carries the own-office display payload."""
+    from warp.xhr.plan import resolve_conflict_bookings
+    _del_all_books(db)
+    # NY wall 2024-07-14 23:00-23:30 → real UTC 07-15 03:00 → Warsaw 05:00 (in window).
+    _book(db, db._tz_ids['g3sny'], _wc(2024, 7, 14, 23), _wc(2024, 7, 14, 23, 30))
+    rows = resolve_conflict_bookings({db._tz_ids['g3ny']}, 'u1', 'Europe/Warsaw', _TR)
+    assert len(rows) == 1
+    r = rows[0]
+    # Overlap math fields are in the OPEN (Warsaw) scale: 05:00-05:30.
+    assert r['fromTS'] == _wc(2024, 7, 15, 5)
+    assert r['toTS'] == _wc(2024, 7, 15, 5, 30)
+    # Display payload shows the booking's OWN office wall-clock + TZ.
+    assert r['tz'] == 'America/New_York'
+    assert r['fromStr'] == '2024-07-14 23:00'
+    assert r['toStr'] == '2024-07-14 23:30'
+    _del_all_books(db)
+
+
+def test_resolve_conflict_bookings_high_edge_excluded(db, bound_db):
+    """Cross-TZ booking whose own wall-clock is INSIDE the open window but whose
+    real instant is PAST the high edge is NOT returned — no phantom conflict."""
+    from warp.xhr.plan import resolve_conflict_bookings
+    _del_all_books(db)
+    # NY wall 2024-07-21 20:00-20:30 → real UTC 07-22 00:00 → Warsaw 02:00 (out of window).
+    _book(db, db._tz_ids['g3sny'], _wc(2024, 7, 21, 20), _wc(2024, 7, 21, 20, 30))
+    assert resolve_conflict_bookings({db._tz_ids['g3ny']}, 'u1', 'Europe/Warsaw', _TR) == []
+    _del_all_books(db)
+
+
+def test_resolve_conflict_bookings_same_tz_no_payload_and_exclude(db, bound_db):
+    """Same-TZ booking: open-scale == own wall-clock, no display payload; and
+    exclude_sids drops a seat already present in the response."""
+    from warp.xhr.plan import resolve_conflict_bookings
+    _del_all_books(db)
+    g3sw = db._tz_ids['g3sw']
+    _book(db, g3sw, _wc(2024, 7, 16, 10), _wc(2024, 7, 16, 11))
+    rows = resolve_conflict_bookings({db._tz_ids['g3w']}, 'u1', 'Europe/Warsaw', _TR)
+    assert len(rows) == 1
+    r = rows[0]
+    assert 'tz' not in r and 'fromStr' not in r and 'toStr' not in r
+    assert r['fromTS'] == _wc(2024, 7, 16, 10)   # unchanged: Warsaw plan == open TZ
+    assert r['toTS'] == _wc(2024, 7, 16, 11)
+    # exclude_sids removes the seat from the result.
+    assert resolve_conflict_bookings({db._tz_ids['g3w']}, 'u1', 'Europe/Warsaw', _TR,
+                                     exclude_sids=[g3sw]) == []
+    _del_all_books(db)

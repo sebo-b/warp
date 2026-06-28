@@ -37,6 +37,76 @@ bp = flask.Blueprint('plan', __name__, url_prefix='plan')
 # Optional query args:
 #   login=string       – view/operate the plan as this login (book-as; requires
 #                        plan admin). Conflict bookings are scoped to this login.
+def resolve_conflict_bookings(conflict_zids, login, open_tz, tr, exclude_sids=()):
+    """Resolve a user's conflicting bookings for the plan being opened.
+
+    Flask-independent (no request/g/app context): depends only on the bound
+    peewee models, so it can be imported and exercised against a test DB. This is
+    the core the plan panel relies on to flag CAN_REBOOK vs CAN_BOOK.
+
+    conflict_zids : zids sharing an exclusivity scope with the open plan (a
+                    zone_group spans plans; an ungrouped zone is exclusive to
+                    itself) — mirrors book_overlap_insert.
+    open_tz       : the open plan's IANA zone; bookings are translated into its
+                    wall-clock scale so the frontend's integer overlap compares
+                    in ONE scale.
+    tr            : {'fromTS','toTS'} window in the OPEN plan's wall-clock scale.
+    exclude_sids  : seats already present in the response (skip duplicates).
+
+    Returns a list (ordered by booking start) of dicts:
+        {sid, name, zid, bid, login, fromTS, toTS[, fromStr, toStr, tz]}
+    fromTS/toTS are open-plan-scale fake-UTC ints (what the client overlaps); the
+    optional fromStr/toStr/tz display payload is set only for bookings whose own
+    plan TZ differs from open_tz, so the UI can show their own-office time.
+    """
+    # Real instant -> open-plan wall-clock -> fake-UTC int (the inverse of
+    # book_utc's derivation); open_tz is a parameterised literal (Value), not
+    # interpolated, so a plan.timezone value can never reach SQL text.
+    open_from = peewee.fn.date_part('epoch',
+        peewee.Expression(peewee.Expression(BookUTC.from_utc, 'AT TIME ZONE', peewee.Value(open_tz)),
+                          'AT TIME ZONE', peewee.SQL("'UTC'"))).cast('bigint')
+    open_to = peewee.fn.date_part('epoch',
+        peewee.Expression(peewee.Expression(BookUTC.to_utc, 'AT TIME ZONE', peewee.Value(open_tz)),
+                          'AT TIME ZONE', peewee.SQL("'UTC'"))).cast('bigint')
+
+    conflict_q = (BookUTC
+        .select(BookUTC.sid, Seat.name, BookUTC.zid, BookUTC.bid, BookUTC.login,
+                BookUTC.fromts, BookUTC.tots,
+                open_from.alias('from_open'), open_to.alias('to_open'),
+                BookUTC.timezone)
+        .join(Seat, on=(BookUTC.sid == Seat.id))
+        .where(BookUTC.zid.in_(list(conflict_zids)))
+        .where(BookUTC.login == login)
+        # Window on the TRANSLATED open-plan-scale instants (from_open/to_open),
+        # NOT the booking's own-plan wall-clock (fromts/tots). tr is the open
+        # plan's window, and the frontend computes overlap against from_open/
+        # to_open — so filtering in that same scale makes the loaded set match
+        # exactly what the client reasons about. Filtering on own-plan wall-clock
+        # would, for a cross-TZ booking near the window edge, load/omit it by up
+        # to the TZ offset and mark a seat (un)available out of step with the real
+        # overlap. The cost: this range no longer hits the fromts/tots index, but
+        # the rows are already narrowed to the user's bookings in conflict_zids,
+        # so the set is tiny.
+        .where(open_from < tr['toTS'])
+        .where(open_to > tr['fromTS'])
+        .order_by(BookUTC.fromts))
+    if exclude_sids:
+        conflict_q = conflict_q.where(BookUTC.sid.not_in(list(exclude_sids)))
+
+    out = []
+    for b in conflict_q.iterator():
+        entry = {"sid": b['sid'], "name": b['name'], "zid": b['zid'],
+                 "bid": b['bid'], "login": b['login'],
+                 "fromTS": b['from_open'], "toTS": b['to_open']}
+        booking_tz = b['timezone']
+        if booking_tz and booking_tz != open_tz:
+            entry["fromStr"] = utils.formatTimestamp(b['fromts'])
+            entry["toStr"]   = utils.formatTimestamp(b['tots'])
+            entry["tz"]      = booking_tz
+        out.append(entry)
+    return out
+
+
 @bp.route("getSeats/<int:pid>")
 def getSeats(pid):
 
@@ -44,8 +114,10 @@ def getSeats(pid):
     plan = Plan.select(Plan.id, Plan.timezone).where(Plan.id == pid).first()
     if plan is None:
         return {"msg": "Forbidden", "code": 130}, 403
+    # plan_tz is the "open" plan's zone; alias open_tz reads naturally in the
+    # cross-TZ conflict-translation block below.
     plan_tz = plan['timezone'] or "UTC"
-    open_tz = plan_tz or 'UTC'
+    open_tz = plan_tz
 
     res = {"seats": {}, "plan_timezone": open_tz}
 
@@ -213,55 +285,19 @@ def getSeats(pid):
 
     if conflict_zids:
         already_present_sids = [int(sid) for sid in res['seats']]
-
-        # Use book_utc to get real instants and translate to the open plan's
-        # wall-clock scale so the frontend's integer overlap logic compares in
-        # one scale unchanged. A display payload (fromStr/toStr/tz) is added for
-        # bookings from a different TZ so the UI can show their own-office time.
-        # Real instant -> open-plan wall-clock -> fake-UTC int (the inverse of
-        # book_utc's derivation); open_tz is a parameterised literal (Value),
-        # not interpolated, so a plan.timezone value can never reach SQL text.
-        open_from = peewee.fn.date_part('epoch',
-            peewee.Expression(peewee.Expression(BookUTC.from_utc, 'AT TIME ZONE', peewee.Value(open_tz)),
-                              'AT TIME ZONE', peewee.SQL("'UTC'"))).cast('bigint')
-        open_to = peewee.fn.date_part('epoch',
-            peewee.Expression(peewee.Expression(BookUTC.to_utc, 'AT TIME ZONE', peewee.Value(open_tz)),
-                              'AT TIME ZONE', peewee.SQL("'UTC'"))).cast('bigint')
-
-        conflict_q = (BookUTC
-            .select(BookUTC.sid, Seat.name, BookUTC.zid, BookUTC.bid, BookUTC.login,
-                    BookUTC.fromts, BookUTC.tots,
-                    open_from.alias('from_open'), open_to.alias('to_open'),
-                    BookUTC.timezone)
-            .join(Seat, on=(BookUTC.sid == Seat.id))
-            .where(BookUTC.zid.in_(list(conflict_zids)))
-            .where(BookUTC.login == login)
-            # bu.fromts/tots are the booking's OWN-plan wall-clock,
-            # while the window tr is the OPEN plan's - a cross-TZ booking
-            # straddling the window edge may be hinted slightly off. The
-            # book_overlap_insert trigger is the authoritative exclusivity guard,
-            # so this is display-only. Upgrade: compare the translated open-scale
-            # instants (from_open/to_open) in the WHERE too.
-            .where(BookUTC.fromts < tr['toTS'])
-            .where(BookUTC.tots > tr['fromTS'])
-            .order_by(BookUTC.fromts))
-        if already_present_sids:
-            conflict_q = conflict_q.where(BookUTC.sid.not_in(already_present_sids))
-
-        for b in conflict_q.iterator():
+        for b in resolve_conflict_bookings(conflict_zids, login, open_tz, tr,
+                                           exclude_sids=already_present_sids):
             sid = str(b['sid'])
             if sid not in res['seats']:
                 res['seats'][sid] = {"name": b['name'], "zid": b['zid'], "book": []}
                 usedZids.add(b['zid'])
             book_entry = {"bid": b['bid'], "login": b['login'],
-                          "fromTS": b['from_open'], "toTS": b['to_open']}
-            # Display payload for bookings on a different-TZ plan: show time in
-            # the booking's own office TZ (fromts/tots are already that wall-clock).
-            booking_tz = b['timezone']
-            if booking_tz and booking_tz != open_tz:
-                book_entry["fromStr"] = utils.formatTimestamp(b['fromts'])
-                book_entry["toStr"]   = utils.formatTimestamp(b['tots'])
-                book_entry["tz"]      = booking_tz
+                          "fromTS": b['fromTS'], "toTS": b['toTS']}
+            # Carry the different-TZ display payload through unchanged.
+            if 'tz' in b:
+                book_entry["fromStr"] = b['fromStr']
+                book_entry["toStr"]   = b['toStr']
+                book_entry["tz"]      = b['tz']
             res['seats'][sid]['book'].append(book_entry)
             usedUsers.add(b['login'])
 
