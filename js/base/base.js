@@ -955,30 +955,10 @@ document.addEventListener("DOMContentLoaded", function(e) {
 });
 
 // Top-bar light/dark/auto toggle. Cycles light → dark → auto → light and
-// persists the CHOICE in the warp_theme cookie (light|dark|auto). The resolved
-// <html theme> is always light/dark: for auto it follows prefers-color-scheme
-// live via a media listener (removed when the user picks light/dark). The
-// server renders data-theme-choice + theme from the cookie (auto corrected
-// pre-paint by an inline head script) so there is no flash; this only handles
-// the in-page click. Delegated so it needs no per-page wiring.
-var _warpThemeMq = null;
-function warpThemeApply(choice) {
-  var html = document.documentElement;
-  html.setAttribute('data-theme-choice', choice);
-  if (_warpThemeMq) { _warpThemeMq.onchange = null; _warpThemeMq = null; }
-  var resolved;
-  if (choice === 'auto') {
-    try { _warpThemeMq = matchMedia('(prefers-color-scheme: dark)'); } catch (e) { _warpThemeMq = null; }
-    resolved = (_warpThemeMq && _warpThemeMq.matches) ? 'dark' : 'light';
-    if (_warpThemeMq) _warpThemeMq.onchange = function (ev) {
-      document.documentElement.setAttribute('theme', ev.matches ? 'dark' : 'light');
-    };
-  } else {
-    resolved = choice;
-  }
-  html.setAttribute('theme', resolved);
-  document.cookie = 'warp_theme=' + choice + ';path=/;max-age=31536000;samesite=lax';
-}
+// delegates to window.warpThemeApply (defined by the inline pre-paint script in
+// base.html), which owns the cookie, the <html> attributes, and live
+// prefers-color-scheme following. This only handles the in-page click. Delegated
+// so it needs no per-page wiring.
 function initThemeToggle() {
   document.addEventListener('click', function (ev) {
     var tg = ev.target.closest && ev.target.closest('.warp-theme-toggle');
@@ -987,7 +967,7 @@ function initThemeToggle() {
     var cur = document.documentElement.getAttribute('data-theme-choice') || 'auto';
     var order = ['light', 'dark', 'auto'];
     var next = order[(order.indexOf(cur) + 1) % order.length];
-    warpThemeApply(next);
+    if (window.warpThemeApply) window.warpThemeApply(next);
   });
 }
 
