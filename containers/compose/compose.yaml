@@ -41,6 +41,11 @@ services:
       WARP_DATABASE_PASSWORD_FILE: /run/secrets/warp_db_password
       WARP_SECRET_KEY_FILE: /run/secrets/warp_secret_key
       WARP_LANGUAGE_FILE: "i18n/en.json"
+      # Timezone used as the default for new plans and for reminders.
+      # Sets DEFAULT_PLAN_TIMEZONE; also recognised by Python zoneinfo and
+      # localtime() inside the container (musl needs tzdata, already in image).
+      # Per-plan timezones override this after plans are created.
+      # TZ: "Europe/Berlin"
       # Seed sample zones/users on first start. Uncomment for a quick demo; leave
       # commented for production (the schema is created automatically and the
       # initial admin is set up on an empty database).

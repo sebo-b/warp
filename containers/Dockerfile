@@ -30,8 +30,12 @@ FROM alpine:3.24
 ENV WARPAPP_UID=200
 ENV WARPAPP_GID=200
 ENV WARPAPP_RUN_DIR=/run/warp
+# Sane default; operators override via compose/quadlet environment: TZ=Europe/Berlin
+ENV TZ=UTC
 
 RUN apk add python3 py3-pip uwsgi-python3 \
+    # tzdata is required by Python zoneinfo (and localtime()) on musl/Alpine
+    tzdata \
     # Alpine-native py3-lxml/py3-xmlsec share the same libxml2.so as uWSGI (no version mismatch)
     py3-lxml py3-xmlsec libxslt
 
