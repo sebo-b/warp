@@ -2,10 +2,18 @@ import flask
 import xlsxwriter
 import io
 from jsonschema import validate, ValidationError
+from peewee import SQL
 
 from warp.db import *
 from warp import utils
 from warp.utils_tabulator import *
+
+# Real-UTC instant for wall-clock timestamps: re-interprets the stored
+# wall-clock digits as local time in the booking's plan TZ.
+_FROM_UTC_SQL = SQL(
+    "EXTRACT(EPOCH FROM (to_timestamp(\"book\".\"fromts\")"
+    " AT TIME ZONE 'UTC' AT TIME ZONE \"plan\".\"timezone\"))::bigint"
+)
 
 bp = flask.Blueprint('bookings', __name__, url_prefix='bookings')
 
@@ -58,11 +66,18 @@ def listW(report = False):      # list is a built-in type
     if not report and 'export' in requestData:
         flask.abort(403)
 
-    query = Book.select(Book.id, Users.name.alias('user_name'), Users.login, Plan.name.alias('plan_name'), Seat.name.alias('seat_name'), Book.fromts, Book.tots) \
-                      .join(Seat, on=(Book.sid == Seat.id)) \
-                      .join(Plan, on=(Seat.pid == Plan.id)) \
-                      .join(Zone, on=(Seat.zid == Zone.id)) \
-                      .join(Users, on=(Book.login == Users.login))
+    query = Book.select(
+        Book.id,
+        Users.name.alias('user_name'), Users.login,
+        Plan.name.alias('plan_name'), Plan.timezone.alias('plan_timezone'),
+        Seat.name.alias('seat_name'),
+        Book.fromts, Book.tots,
+        _FROM_UTC_SQL.alias('from_utc'),
+    ) \
+        .join(Seat, on=(Book.sid == Seat.id)) \
+        .join(Plan, on=(Seat.pid == Plan.id)) \
+        .join(Zone, on=(Seat.zid == Zone.id)) \
+        .join(Users, on=(Book.login == Users.login))
 
     # user restrictions (in non-report mode)
     # visibility: accessible zones (a row in the view means effective access —
@@ -81,7 +96,8 @@ def listW(report = False):      # list is a built-in type
         "plan_name": Plan.name,
         "seat_name": Seat.name,
         "fromTS": Book.fromts,
-        "toTS": Book.tots
+        "toTS": Book.tots,
+        "from_utc": _FROM_UTC_SQL,
     }
 
     def funOperator(field,value):
@@ -134,21 +150,24 @@ def listW(report = False):      # list is a built-in type
         worksheet = workbook.add_worksheet()
 
         # TODO_TR
-        columnsHeader = [ "User name", "Login", "Plan name", "Seat name", "From", "To" ]
-        columnsContent = [ "user_name", "login", "plan_name", "seat_name", "fromts", "tots" ]
+        columnsHeader = ["User name", "Login", "Plan name", "Seat name", "From", "To", "Timezone"]
+        columnsContent = ["user_name", "login", "plan_name", "seat_name", "fromts", "tots", "plan_timezone"]
 
-        worksheet.write_row(0,0,columnsHeader)
+        # Sort export by real UTC instant so multi-TZ output is chronological.
+        query = query.order_by(_FROM_UTC_SQL.asc())
 
-        for rowNo,dbRow in enumerate(query.iterator(),1):
+        worksheet.write_row(0, 0, columnsHeader)
+
+        for rowNo, dbRow in enumerate(query.iterator(), 1):
 
             rowData = []
             for i in columnsContent:
                 if i[-2:] == "ts":
-                    rowData.append( (dbRow[i] / 86400)+25569 )
+                    rowData.append((dbRow[i] / 86400) + 25569)
                 else:
                     rowData.append(dbRow[i])
 
-            worksheet.write_row(rowNo,0,rowData)
+            worksheet.write_row(rowNo, 0, rowData)
 
         dateFormat = workbook.add_format({'num_format': 'yyyy-mm-dd hh:mm'})
         for colNo, col in enumerate(columnsContent):
@@ -180,9 +199,11 @@ def listW(report = False):      # list is a built-in type
                 "id": row["id"],
                 "user_name": row["user_name"],
                 "plan_name": row["plan_name"],
+                "plan_timezone": row["plan_timezone"],
                 "seat_name": row["seat_name"],
                 "fromTS": row["fromts"],
-                "toTS": row["tots"]
+                "toTS": row["tots"],
+                "from_utc": row["from_utc"],
             }
 
             if not report:

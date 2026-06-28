@@ -282,12 +282,12 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
         columns.push(
             {title:TR("From"), field: "fromTS", width: 150, formatter:tsFormatter, headerFilter:dateFilterEditor, headerFilterFunc:">="},
-            {title:TR("To"), field: "toTS", width: 150, formatter:tsFormatter, headerFilter:dateFilterEditor, headerFilterParams: { offset: 24*3600-1 }, headerFilterFunc:"<="}
+            {title:TR("To"), field: "toTS", width: 150, formatter:tsFormatter, headerFilter:dateFilterEditor, headerFilterParams: { offset: 24*3600-1 }, headerFilterFunc:"<="},
+            {title:TR("Timezone"), field: "plan_timezone", headerFilter:"input", headerFilterFunc:"starts"},
         );
 
         initialSort.push(
-            {column:"toTS", dir:"desc"},
-            {column:"fromTS", dir:"desc"},
+            {column:"from_utc", dir:"desc"},
             {column:"login", dir:"asc"}
         );
 
