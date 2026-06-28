@@ -80,6 +80,7 @@ export class OfficeMap extends EventTarget {
     this._hintSeatId = null;
     this._hintBuilder = options.hintBuilder || null;
     this._activePid = null;
+    this._gestureActive = false;   // true between panzoomstart/end (drag or pinch)
     this._lastTap = { x: 0, y: 0, t: 0 };
     this._validCells = null;     // Set<string> of #cell-<name> ids in the sprite (null until loaded)
 
@@ -126,8 +127,8 @@ export class OfficeMap extends EventTarget {
     zoom.className = 'OMZoom';
     root.appendChild(zoom);
     this.zoomEl = zoom;
-    this._zoomBtn('OMZoom-in', 'Zoom in', ZOOM_IN_SVG, () => this._animatedZoom(() => this._pz.zoomIn({ animate: true })));
-    this._zoomBtn('OMZoom-out', 'Zoom out', ZOOM_OUT_SVG, () => this._animatedZoom(() => this._pz.zoomOut({ animate: true })));
+    this._zoomBtn('OMZoom-in', 'Zoom in', ZOOM_IN_SVG, () => this._zoomAboutCenter(1));
+    this._zoomBtn('OMZoom-out', 'Zoom out', ZOOM_OUT_SVG, () => this._zoomAboutCenter(-1));
     this._zoomBtn('OMZoom-reset', 'Reset zoom', RESET_SVG, () => this._pz.reset());
 
     // Map image → once sized, init panzoom at the computed fit/initial scale.
@@ -280,6 +281,11 @@ export class OfficeMap extends EventTarget {
     });
     // Panzoom has no .on(); it dispatches 'panzoomchange' on the element.
     this.world.addEventListener('panzoomchange', () => this._onTransform());
+    // Track active gestures (drag/pinch) so _clampPan can stop force-centring
+    // the map mid-gesture (which fought panzoom's focal-point pinch → flicker).
+    // Re-clamp on end to re-centre letterboxed scales.
+    this.world.addEventListener('panzoomstart', () => { this._gestureActive = true; });
+    this.world.addEventListener('panzoomend', () => { this._gestureActive = false; this._onTransform(); });
     this._onTransform();
   }
 
@@ -306,9 +312,16 @@ export class OfficeMap extends EventTarget {
     const iw = this._imgW, ih = this._imgH;
     const sw = iw * k, sh = ih * k;
     const diffH = iw * (k - 1) / 2, diffV = ih * (k - 1) / 2;
-    // desired bg top-left screen offset from the parent (root) origin
-    let ox = (sw <= rw) ? (rw - sw) / 2 : Math.min(0, Math.max(rw - sw, k * x - diffH));
-    let oy = (sh <= rh) ? (rh - sh) / 2 : Math.min(0, Math.max(rh - sh, k * y - diffV));
+    // desired bg top-left screen offset from the parent (root) origin. curX/curY
+    // is the current one (no-op when we want to leave it).
+    // While a drag/pinch is active, DON'T force-centre the letterboxed axis: that
+    // overrode panzoom's focal-point pan every frame (image yanked to centre) and
+    // read as flicker when the fingers were off-centre. Edge-clamp (cover regime)
+    // still runs — it keeps the image on-screen and only bites at the edges, so it
+    // doesn't fight the gesture. Re-centre happens on panzoomend (above).
+    const curX = k * x - diffH, curY = k * y - diffV;
+    let ox = (sw <= rw) ? (this._gestureActive ? curX : (rw - sw) / 2) : Math.min(0, Math.max(rw - sw, curX));
+    let oy = (sh <= rh) ? (this._gestureActive ? curY : (rh - sh) / 2) : Math.min(0, Math.max(rh - sh, curY));
     const nx = (ox + diffH) / k, ny = (oy + diffV) / k;
     if (nx !== x || ny !== y) {
       // panzoom writes the transform AND fires panzoomchange inside a rAF, so the
@@ -743,8 +756,44 @@ export class OfficeMap extends EventTarget {
   }
 
   _onDblClick(e) {
+    // A double-click ON THE ZOOM BUTTONS (e.g. clicking zoom-in twice fast) must
+    // NOT reset to fit: the button's own click calls stopPropagation, but that's
+    // the 'click' event — dblclick is separate and still reached this capture
+    // listener, so rapid zoom-in clicks intermittently snapped back to startScale.
+    if (e.target.closest('.OMZoom')) return;
     // Desktop parity with the touch double-tap: revert the zoom to the default.
     if (this._pz) { e.stopPropagation(); this._resetZoom(); }
+  }
+
+  // Zoom to `target` about the VIEWPORT CENTRE, animated. panzoom's zoomIn/
+  // zoomOut/zoomToPoint can't do this: zoomIn/Out have no focal (they zoom about
+  // the world's centre = image centre, off-screen once the image is panned past
+  // fit); zoomToPoint computes the focal right but hardcodes animate:false, so
+  // the world would snap. zoom() takes a public `focal` option (same math
+  // zoomToPoint uses) and honours animate:true → we feed it the viewport-centre
+  // point so the screen point under the centre stays fixed. (OMMap/OMWorld carry
+  // no padding/border/margin, so the focal simplifies to (rootW/2 − imgW/2).)
+  _zoomToCenter(target) {
+    const pz = this._pz;
+    if (!pz) return target;
+    const opts = pz.getOptions();
+    target = Math.min(Math.max(target, opts.minScale), opts.maxScale);
+    if (target === pz.getScale()) return target;
+    const rr = this.root.getBoundingClientRect();
+    const k = pz.getScale();
+    const ew = this.world.getBoundingClientRect().width / k;   // untransformed world = imgW
+    const eh = this.world.getBoundingClientRect().height / k;  // imgH
+    const focal = { x: (rr.width / 2 - ew / 2) * target, y: (rr.height / 2 - eh / 2) * target };
+    this._animatedZoom(() => pz.zoom(target, { animate: true, focal, force: true }));
+    return target;
+  }
+
+  // Zoom in/out (dir = +1 / -1) about the viewport centre, mirroring panzoom's
+  // zoomInOut scale step (scale * exp(dir*step)).
+  _zoomAboutCenter(dir) {
+    if (!this._pz) return;
+    const opts = this._pz.getOptions();
+    this._zoomToCenter(this._pz.getScale() * Math.exp(dir * opts.step));
   }
 
   // Revert the zoom to the default scale WITHOUT moving the map — zoom about the
@@ -752,12 +801,7 @@ export class OfficeMap extends EventTarget {
   // reset() would also snap the pan back to the start position; we don't want that.
   _resetZoom() {
     if (!this._pz) return;
-    const startScale = this._pz.getOptions().startScale;
-    const r = this.root.getBoundingClientRect();
-    this._animatedZoom(() => this._pz.zoomToPoint(
-      startScale,
-      { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 },
-      { animate: true }));
+    this._zoomToCenter(this._pz.getOptions().startScale);
   }
 
   destroy() {

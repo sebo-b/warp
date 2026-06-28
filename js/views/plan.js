@@ -286,10 +286,7 @@ function initOfficeMap(seatFactory) {
     var om = new OfficeMap(document.getElementById('planmap'), {
         mapImage: window.warpGlobals.URLs['planImage'],
         sprite: { url: window.warpGlobals.URLs['seatSprite'], cellWidth: WarpSeat.Sprites.spriteSize, cellHeight: WarpSeat.Sprites.spriteSize },
-        // Default view is 1:1 — the map at its natural pixel size and seats at
-        // their 48px cell size, on both desktop and mobile. min = fit (zoom out to
-        // see the whole map), max = 4x.
-        zoom: { initial: 1, min: null, max: 4 },
+        zoom: { initial: 'fit', min: null, max: 4 },
         // Mobile only: from the 1:1 default, zooming IN keeps seats at 48px (they
         // don't grow), zooming OUT lets them shrink with the map (more map visible).
         // max = 1 is the default scale; min = 0 so they follow the map all the way
