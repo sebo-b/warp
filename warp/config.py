@@ -33,11 +33,14 @@ class DefaultSettings(object):
     # Same convention as OMITTED_WEEKDAYS (Python's tm_wday: 0=Mon..6=Sun).
     WEEK_START_DAY = 0
 
-    # warp uses server wall-clock (timegm(localtime())) everywhere and is
-    # otherwise TZ-blind. This setting only labels iCal DTSTART/DTEND so
-    # external calendar clients render the right time. Empty = auto-detect
-    # from the system at startup.
+    # DEPRECATED: use DEFAULT_PLAN_TIMEZONE instead. Kept as an alias so
+    # existing deployments are not broken; a startup warning is emitted.
+    # Will be removed in a future release.
     TIMEZONE = ""
+
+    # Default IANA timezone for newly-created plans (e.g. 'Europe/Warsaw').
+    # Empty = auto-detect from system TZ at startup (same logic as TIMEZONE).
+    DEFAULT_PLAN_TIMEZONE = ""
 
     # opening and closing time in seconds from 00:00
     BOOK_OPEN = 0
@@ -240,6 +243,7 @@ _ENV_SETTINGS = {
     "LANGUAGE_FILE":              _fmt_str,
     "THEME_FILE":                 _fmt_str,
     "TIMEZONE":                   _fmt_str,
+    "DEFAULT_PLAN_TIMEZONE":      _fmt_str,
     "SESSION_LIFETIME":           _fmt_int,
     "WEEKS_IN_ADVANCE":           _fmt_int,
     "AUTOBOOK_USAGE_WINDOW_DAYS": _fmt_int,
@@ -389,15 +393,31 @@ def initConfig(app):
     if missing:
         raise Exception(f'Required environment variable(s) not set: {", ".join(missing)}')
 
-    if not app.config.get('TIMEZONE'):
-        try:
-            with open('/etc/timezone') as f:
-                app.config['TIMEZONE'] = f.read().strip()
-        except OSError:
-            try:
-                link = os.readlink('/etc/localtime')
-                idx = link.rfind('zoneinfo/')
-                if idx != -1:
-                    app.config['TIMEZONE'] = link[idx + len('zoneinfo/'):]
-            except OSError:
-                pass
+    if app.config.get('TIMEZONE'):
+        print("WARNING: WARP_TIMEZONE is deprecated; use WARP_DEFAULT_PLAN_TIMEZONE instead.", file=sys.stderr, flush=True)
+        if not app.config.get('DEFAULT_PLAN_TIMEZONE'):
+            app.config['DEFAULT_PLAN_TIMEZONE'] = app.config['TIMEZONE']
+
+    if not app.config.get('DEFAULT_PLAN_TIMEZONE'):
+        detected = _detect_system_tz()
+        if detected:
+            app.config['DEFAULT_PLAN_TIMEZONE'] = detected
+            app.config['TIMEZONE'] = detected
+
+def _detect_system_tz():
+    tz_env = os.environ.get('TZ')
+    if tz_env:
+        return tz_env
+    try:
+        with open('/etc/timezone') as f:
+            return f.read().strip()
+    except OSError:
+        pass
+    try:
+        link = os.readlink('/etc/localtime')
+        idx = link.rfind('zoneinfo/')
+        if idx != -1:
+            return link[idx + len('zoneinfo/'):]
+    except OSError:
+        pass
+    return None

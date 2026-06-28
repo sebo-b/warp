@@ -72,7 +72,8 @@ CREATE TABLE plan (
     id SERIAL PRIMARY KEY,
     name text NOT NULL,
     iid integer REFERENCES blobs(id) ON DELETE SET NULL,
-    dark_filter jsonb NOT NULL DEFAULT '{"id":"smart","invert":100,"grayscale":0,"sepia":0,"saturate":100,"hue":180,"brightness":100,"contrast":100}'
+    dark_filter jsonb NOT NULL DEFAULT '{"id":"smart","invert":100,"grayscale":0,"sepia":0,"saturate":100,"hue":180,"brightness":100,"contrast":100}',
+    timezone text NOT NULL DEFAULT 'UTC'
 );
 
 CREATE TABLE seat (
@@ -144,6 +145,20 @@ ON book(fromts);
 
 CREATE INDEX book_toTS
 ON book(tots);
+
+-- Derives real UTC instants from wall-clock storage + per-plan IANA timezone.
+-- Used by the overlap trigger for cross-TZ conflict comparison and any read-side
+-- logic that needs real instants. Being a plain view it reflects plan.timezone
+-- edits automatically — no stored UTC to keep in sync.
+CREATE VIEW book_utc AS
+SELECT b.id AS bid, b.login, b.sid, s.zid, z.zone_group, p.timezone,
+       b.fromts, b.tots,
+       (to_timestamp(b.fromts) AT TIME ZONE 'UTC' AT TIME ZONE p.timezone) AS from_utc,
+       (to_timestamp(b.tots)   AT TIME ZONE 'UTC' AT TIME ZONE p.timezone) AS to_utc
+FROM book b
+JOIN seat s ON s.id = b.sid
+JOIN zone z ON z.id = s.zid
+JOIN plan p ON p.id = s.pid;
 
 -- Single source of truth for zone access.  A row exists iff the user has
 -- effective access to the zone; zone_role is the effective (minimum) role,
@@ -242,14 +257,17 @@ CREATE FUNCTION book_overlap_insert()
  LANGUAGE plpgsql
 AS $$
 DECLARE
-    booking_zid INTEGER;
-    zone_grp    TEXT;
+    booking_zid  INTEGER;
+    zone_grp     TEXT;
+    new_tz       TEXT;
+    new_from_utc timestamptz;
+    new_to_utc   timestamptz;
 BEGIN
     IF NEW.fromTS >= NEW.toTS THEN
         RAISE EXCEPTION 'Incorrect time';
     END IF;
 
-    -- Always prevent double-booking the same seat
+    -- Same seat: same plan => same TZ => raw integer overlap is correct and index-friendly
     IF EXISTS (
         SELECT 1 FROM book b
         WHERE b.sid = NEW.sid
@@ -258,29 +276,31 @@ BEGIN
         RAISE 'Overlapping time for this seat or users' USING ERRCODE = 'exclusion_violation';
     END IF;
 
-    SELECT s.zid, z.zone_group INTO booking_zid, zone_grp
-    FROM seat s JOIN zone z ON z.id = s.zid WHERE s.id = NEW.sid;
+    SELECT s.zid, z.zone_group, p.timezone
+      INTO booking_zid, zone_grp, new_tz
+    FROM seat s JOIN zone z ON z.id = s.zid JOIN plan p ON p.id = s.pid
+    WHERE s.id = NEW.sid;
+
+    new_from_utc := to_timestamp(NEW.fromTS) AT TIME ZONE 'UTC' AT TIME ZONE new_tz;
+    new_to_utc   := to_timestamp(NEW.toTS)   AT TIME ZONE 'UTC' AT TIME ZONE new_tz;
 
     IF zone_grp IS NOT NULL THEN
-        -- Zone-group mode: user cannot hold two seats in any zone of the same group simultaneously
+        -- Zone-group may span plans/TZs: compare real instants via book_utc
         IF EXISTS (
-            SELECT 1 FROM book b
-            JOIN seat s ON s.id = b.sid
-            JOIN zone z ON z.id = s.zid
-            WHERE b.login = NEW.login
-              AND z.zone_group = zone_grp
-              AND b.fromTS < NEW.toTS AND b.toTS > NEW.fromTS
+            SELECT 1 FROM book_utc bu
+            WHERE bu.login = NEW.login
+              AND bu.zone_group = zone_grp
+              AND bu.from_utc < new_to_utc AND bu.to_utc > new_from_utc
         ) THEN
             RAISE 'Overlapping time for this seat or users' USING ERRCODE = 'exclusion_violation';
         END IF;
     ELSE
-        -- Per-zone mode: user cannot hold two seats in the same zone simultaneously
+        -- Ungrouped: same zone (a zone may also span plans) -> real instants
         IF EXISTS (
-            SELECT 1 FROM book b
-            JOIN seat s ON s.id = b.sid
-            WHERE b.login = NEW.login
-              AND s.zid = booking_zid
-              AND b.fromTS < NEW.toTS AND b.toTS > NEW.fromTS
+            SELECT 1 FROM book_utc bu
+            WHERE bu.login = NEW.login
+              AND bu.zid = booking_zid
+              AND bu.from_utc < new_to_utc AND bu.to_utc > new_from_utc
         ) THEN
             RAISE 'Overlapping time for this seat or users' USING ERRCODE = 'exclusion_violation';
         END IF;
@@ -307,4 +327,4 @@ CREATE UNLOGGED TABLE calendar_cache (
 
 CREATE TABLE db_initialized (version INTEGER NOT NULL);
 
-INSERT INTO db_initialized(version) VALUES(17);
+INSERT INTO db_initialized(version) VALUES(18);
