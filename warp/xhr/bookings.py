@@ -100,10 +100,20 @@ def listW(report = False):      # list is a built-in type
         # real start instant (bigint epoch) from Book.fromts + Plan.timezone,
         # compared against today-midnight in that same plan TZ, also as epoch
         # (mirrors users.delete, which compares view timestamptz columns).
-        from peewee import Expression, fn
+        #
+        # Honours utils._debug_time_offset (e2e virtual time via
+        # /debug/set_time_offset): the offset is a Python int (0 in prod),
+        # passed as a bound parameter inside now() + make_interval(secs => $1)
+        # — so the cutoff advances with the debug clock exactly like
+        # utils.now()/today() do, consistent with the report path's
+        # warpGlobals.today = today(ref_tz). No interpolation: a value can
+        # never reach SQL text.
+        from peewee import Expression, fn, SQL
+        _shifted_now = SQL("(now() + make_interval(secs => %s))",
+                           (utils._debug_time_offset,))
         today_in_plan_tz = fn.date_part('epoch',
             Expression(
-                fn.date_trunc('day', Expression(fn.now(), 'AT TIME ZONE', Plan.timezone)),
+                fn.date_trunc('day', Expression(_shifted_now, 'AT TIME ZONE', Plan.timezone)),
                 'AT TIME ZONE', Plan.timezone)).cast('bigint')
         query = query.select_extend(UserToZoneRoles.zone_role) \
                 .join(UserToZoneRoles, on=(UserToZoneRoles.zid == Seat.zid)) \

@@ -153,9 +153,16 @@ def delete():
         # plans in different zones. BookUTC.from_utc is the real instant; today in
         # the booking's plan TZ is its wall-clock midnight as a real instant.
         # Same semantics as the old `fromts < today()` when all plans share a TZ.
-        from peewee import Expression, fn
+        #
+        # Honours utils._debug_time_offset (e2e virtual time): the offset is a
+        # Python int (0 in prod), passed as a bound parameter inside
+        # now() + make_interval(secs => $1), so the guard advances with the
+        # debug clock exactly like the utils.today() it replaced.
+        from peewee import Expression, fn, SQL
+        _shifted_now = SQL("(now() + make_interval(secs => %s))",
+                           (utils._debug_time_offset,))
         today_local = Expression(
-            fn.date_trunc('day', Expression(fn.now(), 'AT TIME ZONE', BookUTC.timezone)),
+            fn.date_trunc('day', Expression(_shifted_now, 'AT TIME ZONE', BookUTC.timezone)),
             'AT TIME ZONE', BookUTC.timezone)
         rowCount = BookUTC.select(COUNT_STAR) \
                        .where(BookUTC.login == login) \
