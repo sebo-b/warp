@@ -68,6 +68,28 @@
     --md-sys-color-on-secondary-light: var(--warp-on-brand);
     --md-sys-color-error-light:        var(--warp-error);
     --md-sys-color-on-error-light:     var(--warp-on-brand);
+
+    /* Materialize tints raised surfaces (.card/.modal use mix(surface,
+       surface-tint 17%)) with its own blue #006495, which clashes with the brand.
+       Pin the tint to the surface itself so the mix collapses to a flat
+       --warp-surface — no blue cast on cards/modals. */
+    --md-sys-color-surface-tint-light: var(--warp-surface);
+
+    /* Collapse Materialize's light neutral tokens onto warp's two-tier system
+       (mirrors the dark block): page/nav on --warp-grey-bg, every raised surface
+       (cards, modals, dropdowns, sidenav, date/time pickers) on --warp-surface.
+       Without this, light mode keeps Materialize's cool off-whites (#fcfcff /
+       #f0f0f3) and greys that read as off-tone against warp's #ffffff surfaces.
+       Reuses only existing --warp-* roles; no new colour. */
+    --md-sys-color-background-light:         var(--warp-grey-bg);
+    --md-sys-color-on-background-light:      var(--warp-text);
+    --md-sys-color-surface-light:            var(--warp-surface);
+    --md-sys-color-on-surface-light:         var(--warp-text);
+    --md-sys-color-outline-light:            var(--warp-grey-border);
+    --md-sys-color-outline-variant-light:    var(--warp-grey-border);
+    --md-sys-color-on-surface-variant-light: var(--warp-grey-text);
+    --md-sys-color-surface-variant-light:    var(--warp-grey-bg);
+    --md-sys-color-inverse-on-surface-light: var(--warp-surface);  /* datepicker/timepicker dialogs on the raised tier, not #f0f0f3 */
 }
 /* Dark mode: Materialize resolves --md-sys-color-* to its *-dark variants under
    [theme="dark"], so map both the brand roles AND the neutral surface/background
@@ -82,6 +104,10 @@
     --md-sys-color-on-secondary-dark: var(--warp-on-brand);
     --md-sys-color-error-dark:        var(--warp-error);
     --md-sys-color-on-error-dark:     var(--warp-on-brand);
+
+    /* Same blue-tint kill as light (dark tint is #8fcdff): collapse the
+       card/modal surface-tint mix to a flat --warp-surface. */
+    --md-sys-color-surface-tint-dark: var(--warp-surface);
 
     --md-sys-color-background-dark:        var(--warp-grey-bg);
     --md-sys-color-on-background-dark:     var(--warp-text);
@@ -191,23 +217,25 @@ NAV {
 
 /* Top app bar: Materialize 2.x styles .nav-wrapper with the surface colour and
    dark text, and has NO `nav{}` height rule (1.x set nav{height:56/64px}). Restore
-   WARP's brand-purple bar with white text + the navbar height via the M3 primary
-   tokens (defined in theme.css). */
+   WARP's branded bar with white text + the navbar height.
+
+   The bar's fill is a single themeable slot, --warp-nav-bg: a solid colour, a
+   gradient, or a url() image, set per theme in theme.css and falling back to the
+   flat --warp-primary when unset. This is the only structural hook in the bundle;
+   all bar COLOUR (light + dark variants) lives in theme.css, so a deployment can
+   re-skin the bar by overlaying theme.css alone — no rebuild. The size/repeat/
+   position defaults make a url() image full-bleed; they're inert for colours and
+   gradients. */
 nav,
 .nav-wrapper {
-    background-color: var(--md-sys-color-primary);
-    /* The bar swaps tokens between themes (primary in light, grey-bg in dark),
-       so the @property token blend can't cross the swap — it would jump to the
-       new token's transition-start value (a white/light-blue flicker) before
-       animating. A native background-color transition interpolates the computed
-       colour across the swap instead. colour: for nav text/icons that flip. */
-    transition: background-color .2s ease, color .2s ease;
-}
-/* Dark mode: use the same dark background as the page body so the bar doesn't
-   float as a lighter strip. Nav icons/links stay on-brand white. */
-:root[theme="dark"] nav,
-:root[theme="dark"] .nav-wrapper {
-    background-color: var(--md-sys-color-background);
+    background: var(--warp-nav-bg, var(--warp-primary));
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    /* Only colour transitions: nav text/icons flip between themes, but the
+       background may be an image/gradient (which can't interpolate), so it
+       swaps instantly on theme toggle rather than crossfading. */
+    transition: color .2s ease;
 }
 nav {
     height: var(--navbar-height-mobile, 56px);
@@ -329,9 +357,22 @@ nav .dropdown-content li > span {
     height: 100%;
 }
 
+/* Nav-bar wordmark: an inline <svg><use href="logo.svg#wordmark"> whose path is
+   fill="currentColor", so it tints to whatever `color` we set — no coloured asset.
+   Used on every <nav> (app bar, login, ical, auth_error). The wrapper svg carries
+   the viewBox, so height:100% from the bar drives the width; padding keeps the old
+   10px breathing room. */
 .logo {
     height: 100%;
     padding: 10px;
+    box-sizing: border-box;
+    color: var(--warp-nav-logo-bg, #fff);
+}
+/* Same wordmark on the index splash, tinted with the brand primary. */
+.logo-hero {
+    width: 320px;
+    max-width: 80vw;   /* viewport-relative: the parent div shrink-wraps to content, so % would resolve against the logo's own width and cap it below 320px */
+    color: var(--warp-primary);
 }
 
 .warp-container {
@@ -1142,7 +1183,7 @@ nav .dropdown-content li > span {
     position: sticky;
     top: 0;
     z-index: 1;
-    background: var(--warp-surface);
+    background: var(--warp-grey-bg);  /* match the (transparent) sidepanel's page-tier bg so the pinned row blends in, not a white strip */
 }
 .warp-cal-weekday {
     text-align: center;
@@ -1979,7 +2020,10 @@ INPUT[type="text"] ~ .show_password_btn::after {
 }
 #planmap_help_modal .modal-content > table td {
     padding: var(--warp-space-2) 0;
-    vertical-align: top;
+    vertical-align: middle;   /* centre the text against the seat sprite */
+}
+#planmap_help_modal .modal-content > table td + td {
+    padding-left: var(--warp-space-3);   /* gap between the sprite and its description */
 }
 #planmap_help_modal .modal-content > table tr + tr td {
     border-top: 1px solid var(--warp-grey-border);

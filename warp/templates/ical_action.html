@@ -19,6 +19,9 @@
             width: 100%;
             max-width: 480px;
         }
+        .confirm-links {
+            margin-top: 24px;
+        }
     </style>
 {% endblock %}
 
@@ -27,7 +30,7 @@
 
     <nav>
         <div class="nav-wrapper">
-            <div class="center"><img class="logo" src="{{ url_for('static', filename='images/logo.png') }}"></div>
+            <div class="center"><svg class="logo" viewBox="0 0 390 85" role="img" aria-label="WARP"><use href="{{ url_for('static', filename='images/logo.svg') }}#wordmark"/></svg></div>
         </div>
     </nav>
 
@@ -37,6 +40,12 @@
                 <span class="card-title">{{ title }}</span>
                 {% if details %}
                 <p>{{ details }}</p>
+                {% endif %}
+                {% if confirm_url %}
+                <div class="confirm-links">
+                    <a href="{{ confirm_url }}" class="waves-effect waves-light btn warp-btn-primary">{{ confirm_label }}</a>
+                    <a href="{{ cancel_url }}" class="waves-effect btn-flat">{{ cancel_label }}</a>
+                </div>
                 {% endif %}
             </div>
         </div>

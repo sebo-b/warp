@@ -271,7 +271,7 @@
 
         <div class="nav-wrapper">
             <div class='right'>
-                <a href="{{ url_for('view.index')}}" class="right"><img class="logo" src="{{ url_for('static', filename='images/logo.png') }}"></a>
+                <a href="{{ url_for('view.index')}}" class="right"><svg class="logo" viewBox="0 0 390 85" role="img" aria-label="WARP"><use href="{{ url_for('static', filename='images/logo.svg') }}#wordmark"/></svg></a>
             </div>
             <ul class="right">
                 <li>{% include 'icons/theme_toggle.html' %}</li>

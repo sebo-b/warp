@@ -64,109 +64,112 @@
     border-radius: 10px;
 }
 
-/* Dark mode overrides for the stock Tabulator Materialize theme, which hard-codes
-   light backgrounds and dark borders. Tabulator is page content, not a raised
-   card, so the table, header, rows and footer sit on the page tier
+/* Theme overrides for the stock Tabulator Materialize theme, which hard-codes its
+   own light backgrounds (#fff header/rows, #f8f8f8 zebra, #e6e6e6 footer) and dark
+   borders. These no longer match WARP's unified surfaces, so we drive them from
+   --warp-* tokens in BOTH themes (selector is [theme], which is always present —
+   the values flip light/dark via theme.css). Tabulator is page content, not a
+   raised card, so the table, header, rows and footer sit on the page tier
    (--warp-grey-bg); only the genuinely floating elements (edit-select dropdown,
    popup container, alert) stay on the raised --warp-surface tier. Hover and
    group/calcs bands use the lighter surface tier so they still read as
    highlights. */
-:root[theme="dark"] .tabulator,
-:root[theme="dark"] .tabulator .tabulator-header,
-:root[theme="dark"] .tabulator .tabulator-header .tabulator-col,
-:root[theme="dark"] .tabulator .tabulator-tableholder .tabulator-table,
-:root[theme="dark"] .tabulator-row,
-:root[theme="dark"] .tabulator-row.tabulator-row-even,
-:root[theme="dark"] .tabulator .tabulator-footer {
+:root[theme] .tabulator,
+:root[theme] .tabulator .tabulator-header,
+:root[theme] .tabulator .tabulator-header .tabulator-col,
+:root[theme] .tabulator .tabulator-tableholder .tabulator-table,
+:root[theme] .tabulator-row,
+:root[theme] .tabulator-row.tabulator-row-even,
+:root[theme] .tabulator .tabulator-footer {
     background-color: var(--warp-grey-bg);
     color: var(--warp-text);
 }
 
 /* Floating popups/menus stay on the raised surface tier. */
-:root[theme="dark"] .tabulator-edit-select-list,
-:root[theme="dark"] .tabulator-popup-container,
-:root[theme="dark"] .tabulator .tabulator-alert .tabulator-alert-msg {
+:root[theme] .tabulator-edit-select-list,
+:root[theme] .tabulator-popup-container,
+:root[theme] .tabulator .tabulator-alert .tabulator-alert-msg {
     background-color: var(--warp-surface);
     color: var(--warp-text);
 }
 
-:root[theme="dark"] .tabulator-row.tabulator-row-even {
+:root[theme] .tabulator-row.tabulator-row-even {
     background-color: color-mix(in srgb, var(--warp-grey-bg), var(--warp-text) 5%);
 }
 
 /* Table rows/cols/footer-page hover: lighten onto the raised surface tier
    (page-tier base → surface highlight). */
-:root[theme="dark"] .tabulator-row.tabulator-selectable:hover,
-:root[theme="dark"] .tabulator .tabulator-header .tabulator-col.tabulator-sortable.tabulator-col-sorter-element:hover,
-:root[theme="dark"] .tabulator .tabulator-footer .tabulator-page:not(disabled):hover {
+:root[theme] .tabulator-row.tabulator-selectable:hover,
+:root[theme] .tabulator .tabulator-header .tabulator-col.tabulator-sortable.tabulator-col-sorter-element:hover,
+:root[theme] .tabulator .tabulator-footer .tabulator-page:not(disabled):hover {
     background-color: var(--warp-surface);
 }
 
 /* Hover inside the raised popups/menus: darken onto the page tier. */
-:root[theme="dark"] .tabulator-menu .tabulator-menu-item:not(.tabulator-menu-item-disabled):hover,
-:root[theme="dark"] .tabulator-edit-select-list .tabulator-edit-select-list-item:hover {
+:root[theme] .tabulator-menu .tabulator-menu-item:not(.tabulator-menu-item-disabled):hover,
+:root[theme] .tabulator-edit-select-list .tabulator-edit-select-list-item:hover {
     background-color: var(--warp-grey-bg);
 }
 
-:root[theme="dark"] .tabulator .tabulator-header,
-:root[theme="dark"] .tabulator .tabulator-footer,
-:root[theme="dark"] .tabulator .tabulator-header .tabulator-col,
-:root[theme="dark"] .tabulator-row .tabulator-cell,
-:root[theme="dark"] .tabulator-popup-container,
-:root[theme="dark"] .tabulator-menu .tabulator-menu-separator,
-:root[theme="dark"] .tabulator-row .tabulator-responsive-collapse,
-:root[theme="dark"] .tabulator-row.tabulator-group {
+:root[theme] .tabulator .tabulator-header,
+:root[theme] .tabulator .tabulator-footer,
+:root[theme] .tabulator .tabulator-header .tabulator-col,
+:root[theme] .tabulator-row .tabulator-cell,
+:root[theme] .tabulator-popup-container,
+:root[theme] .tabulator-menu .tabulator-menu-separator,
+:root[theme] .tabulator-row .tabulator-responsive-collapse,
+:root[theme] .tabulator-row.tabulator-group {
     border-color: var(--warp-grey-border);
 }
 
-:root[theme="dark"] .tabulator-row .tabulator-cell.tabulator-row-header {
+:root[theme] .tabulator-row .tabulator-cell.tabulator-row-header {
     background-color: var(--warp-grey-bg);
     border-right-color: var(--warp-grey-border);
 }
 
-:root[theme="dark"] .tabulator .tabulator-header .tabulator-col.tabulator-moving,
-:root[theme="dark"] .tabulator .tabulator-header .tabulator-col.tabulator-range-highlight,
-:root[theme="dark"] .tabulator .tabulator-header .tabulator-calcs-holder,
-:root[theme="dark"] .tabulator .tabulator-tableholder .tabulator-table .tabulator-row.tabulator-calcs,
-:root[theme="dark"] .tabulator .tabulator-footer .tabulator-calcs-holder,
-:root[theme="dark"] .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-row,
-:root[theme="dark"] .tabulator-row.tabulator-group,
-:root[theme="dark"] .tabulator-print-table .tabulator-print-table-group,
-:root[theme="dark"] .tabulator-row .tabulator-responsive-collapse {
+:root[theme] .tabulator .tabulator-header .tabulator-col.tabulator-moving,
+:root[theme] .tabulator .tabulator-header .tabulator-col.tabulator-range-highlight,
+:root[theme] .tabulator .tabulator-header .tabulator-calcs-holder,
+:root[theme] .tabulator .tabulator-tableholder .tabulator-table .tabulator-row.tabulator-calcs,
+:root[theme] .tabulator .tabulator-footer .tabulator-calcs-holder,
+:root[theme] .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-row,
+:root[theme] .tabulator-row.tabulator-group,
+:root[theme] .tabulator-print-table .tabulator-print-table-group,
+:root[theme] .tabulator-row .tabulator-responsive-collapse {
     background-color: var(--warp-surface) !important;
 }
 
-:root[theme="dark"] .tabulator-row.tabulator-group span,
-:root[theme="dark"] .tabulator-print-table .tabulator-print-table-group span,
-:root[theme="dark"] .tabulator-row .tabulator-cell .tabulator-data-tree-control,
-:root[theme="dark"] .tabulator-row .tabulator-cell .tabulator-responsive-collapse-toggle,
-:root[theme="dark"] .tabulator-print-table .tabulator-data-tree-control,
-:root[theme="dark"] .tabulator .tabulator-footer .tabulator-paginator,
-:root[theme="dark"] .tabulator .tabulator-footer .tabulator-page,
-:root[theme="dark"] .tabulator .tabulator-footer .tabulator-page-size {
+:root[theme] .tabulator-row.tabulator-group span,
+:root[theme] .tabulator-print-table .tabulator-print-table-group span,
+:root[theme] .tabulator-row .tabulator-cell .tabulator-data-tree-control,
+:root[theme] .tabulator-row .tabulator-cell .tabulator-responsive-collapse-toggle,
+:root[theme] .tabulator-print-table .tabulator-data-tree-control,
+:root[theme] .tabulator .tabulator-footer .tabulator-paginator,
+:root[theme] .tabulator .tabulator-footer .tabulator-page,
+:root[theme] .tabulator .tabulator-footer .tabulator-page-size {
     color: var(--warp-text);
 }
 
-:root[theme="dark"] .tabulator-row .tabulator-cell .tabulator-data-tree-control .tabulator-data-tree-control-collapse:after,
-:root[theme="dark"] .tabulator-row .tabulator-cell .tabulator-data-tree-control .tabulator-data-tree-control-expand,
-:root[theme="dark"] .tabulator-row .tabulator-cell .tabulator-data-tree-control .tabulator-data-tree-control-expand:after,
-:root[theme="dark"] .tabulator-print-table .tabulator-data-tree-control .tabulator-data-tree-control-collapse:after,
-:root[theme="dark"] .tabulator-print-table .tabulator-data-tree-control .tabulator-data-tree-control-expand,
-:root[theme="dark"] .tabulator-print-table .tabulator-data-tree-control .tabulator-data-tree-control-expand:after {
+:root[theme] .tabulator-row .tabulator-cell .tabulator-data-tree-control .tabulator-data-tree-control-collapse:after,
+:root[theme] .tabulator-row .tabulator-cell .tabulator-data-tree-control .tabulator-data-tree-control-expand,
+:root[theme] .tabulator-row .tabulator-cell .tabulator-data-tree-control .tabulator-data-tree-control-expand:after,
+:root[theme] .tabulator-print-table .tabulator-data-tree-control .tabulator-data-tree-control-collapse:after,
+:root[theme] .tabulator-print-table .tabulator-data-tree-control .tabulator-data-tree-control-expand,
+:root[theme] .tabulator-print-table .tabulator-data-tree-control .tabulator-data-tree-control-expand:after {
     background-color: var(--warp-grey-text);
 }
 
-:root[theme="dark"] .tabulator .tabulator-footer .tabulator-page {
+:root[theme] .tabulator .tabulator-footer .tabulator-page {
     background-color: color-mix(in srgb, var(--warp-grey-border), var(--warp-surface) 40%);
     border-color: var(--warp-grey-border);
 }
 
-:root[theme="dark"] .tabulator .tabulator-footer .tabulator-page.active {
+:root[theme] .tabulator .tabulator-footer .tabulator-page.active {
     background-color: var(--warp-secondary);
     color: var(--warp-on-brand);
 }
 
-:root[theme="dark"] .tabulator .tabulator-footer .tabulator-page:not(disabled):hover {
+:root[theme] .tabulator .tabulator-footer .tabulator-page:not(disabled):hover {
     background-color: var(--warp-grey-text);
     color: var(--warp-on-brand);
 }

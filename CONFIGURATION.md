@@ -60,6 +60,7 @@ environment:
 | `DATABASE_ARGS`              | `{}`         |    no    | Extra args for the psycopg3 driver             |
 | `SESSION_LIFETIME`           | `1`          |    no    | Session duration in days                       |
 | `LANGUAGE_FILE`              | `i18n/en.js` |    no    | UI translation file                            |
+| `THEME_FILE`                 | `theme.css`  |    no    | Colour theme stylesheet (`static/`-relative name, or absolute path/URL) |
 | `WEEKS_IN_ADVANCE`           | `1`          |    no    | Weeks after current week available for booking |
 | `BOOK_OPEN`                  | `0`          |    no    | Earliest bookable time (seconds from midnight) |
 | `BOOK_CLOSE`                 | `86400`      |    no    | Latest bookable time (seconds from midnight)   |
@@ -178,6 +179,40 @@ WARP_LANGUAGE_FILE=i18n/de.js
 
 The iCal feed and action pages use the same language file for event summaries and
 button labels.
+
+---
+
+## Theme / branding
+
+All WARP colours come from a single stylesheet of `--warp-*` custom properties
+(`warp/static/theme.css`) — it defines the brand palette, the derived tints, the
+semantic roles, and the light/dark variants. Nothing structural lives there, so it
+can be swapped with zero risk of breaking layout.
+
+| Setting      | Default     | Description                                          |
+| ------------ | ----------- | ---------------------------------------------------- |
+| `THEME_FILE` | `theme.css` | Theme stylesheet. A bare name is resolved relative to the `static/` folder (mount-prefix aware); an absolute path or full URL is used verbatim. |
+
+To re-skin WARP without rebuilding the frontend bundle, mount a replacement CSS
+file into the `static/` folder and point `WARP_THEME_FILE` at it:
+
+```
+WARP_THEME_FILE=mybrand.css
+```
+
+The value may also be an absolute path or full URL, emitted into the page as-is —
+useful behind a reverse proxy serving the theme from outside warp's `static/`
+directory (e.g. a mounted volume or CDN), with no route rewrite:
+
+```
+WARP_THEME_FILE=/branding/theme.css
+WARP_THEME_FILE=https://cdn.example.org/warp/theme.css
+```
+
+The file is loaded after the base bundle, so it only needs to redefine the
+`--warp-*` tokens it wants to change (e.g. `--warp-primary`, `--warp-secondary`,
+`--warp-nav-bg`). See the comments in `warp/static/theme.css` for the full token
+list and which roles drive what.
 
 ---
 

@@ -23,6 +23,14 @@
   --warp-primary:   #2C3E50;  /* charcoal slate — nav, buttons, focus, links, primary actions */
   --warp-secondary: #2980B9;  /* blue — FAB, tabs, selected rows, default btn, accents */
 
+  /* Top-bar fill — a single themeable slot: a solid colour, a gradient, or a
+     url() image. The bundle applies it via `background: var(--warp-nav-bg,
+     var(--warp-primary))`. Default is the flat brand primary; a deployment can
+     drop in a gradient or url() image here to re-skin the bar via theme.css
+     alone (e.g. `linear-gradient(90deg, #b2325d, #3B2550)`), no rebuild. */
+  --warp-nav-bg: var(--warp-primary);
+  --warp-nav-logo-bg: #ffffff;  /* WARP wordmark fill on the nav bar (logo.svg via <use>, tinted by `color`) — white reads on the brand bar in both themes */
+
   /* Brand tints, derived so a re-brand recolours them. Background tints mix
      against --warp-surface so they flip for free in dark mode; accent fills mix
      against white/black. Override any single one with a literal if needed. */
@@ -80,6 +88,10 @@
 :root[theme="dark"] {
   --warp-primary:      #5C7A99;  /* lightened charcoal so nav/buttons/focus read on dark */
   --warp-primary-dark: color-mix(in srgb, var(--warp-primary), white 22%);  /* links lighten on dark */
+
+  /* Top-bar fill on a dark page — page tier so the bar blends with the body
+     (WARP's original dark-nav look); override with a gradient/image to re-skin. */
+  --warp-nav-bg: var(--warp-grey-bg);
 
   --warp-surface:     #1e1e1e;  /* cards, modals, inputs, seat-label */
   --warp-text:        #e6e6e6;  /* body/heading text on dark */

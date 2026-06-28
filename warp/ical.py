@@ -55,7 +55,7 @@ def _render_action(title, details=None, status=200):
 
 def _render_confirm(title, details, confirm_url, cancel_url, status=200):
     return flask.render_template(
-        'ical_confirm.html',
+        'ical_action.html',
         title=title, details=details,
         confirm_url=confirm_url, cancel_url=cancel_url,
         confirm_label=_action_t('Confirm'),

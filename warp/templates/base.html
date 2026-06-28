@@ -47,7 +47,12 @@
          --warp-* tokens. The active theme (light/dark) is set on <html> from the
          warp_theme cookie above (auto corrected pre-paint by the inline
          head script), so the first paint already matches. -->
-    <link type="text/css" rel="stylesheet" href="{{ url_for('static', filename='theme.css') }}"  media="screen,projection"/>
+    {# THEME_FILE is static-relative by default (url_for is mount-prefix aware),
+       but an absolute path (/branding/theme.css, //host/…) or full URL
+       (https://…) is emitted verbatim so a reverse proxy can serve the theme
+       from anywhere without rewriting warp's own routes. #}
+    {% set _tf = config['THEME_FILE'] %}
+    <link type="text/css" rel="stylesheet" href="{{ _tf if _tf.startswith('/') or '://' in _tf else url_for('static', filename=_tf) }}"  media="screen,projection"/>
 
     {% block header %}{% endblock %}
     {% block header_final %}{% endblock %}

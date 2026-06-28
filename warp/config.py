@@ -10,6 +10,12 @@ class DefaultSettings(object):
 
     LANGUAGE_FILE="i18n/en.json"
 
+    # Stylesheet that defines the colour theme (the --warp-* tokens). Path is
+    # relative to the static folder, so the default is served at /static/theme.css.
+    # Override with WARP_THEME_FILE to re-skin WARP by pointing at a replacement
+    # file mounted into static/ — no rebuild needed (see warp/static/theme.css).
+    THEME_FILE="theme.css"
+
     # after how many days force user to re-login (note that it is not a session timeout)
     SESSION_LIFETIME = 1
 
@@ -232,6 +238,7 @@ _ENV_SETTINGS = {
     "SECRET_KEY":                 _fmt_str,
     "SECRET_KEY_FILE":            _fmt_file,
     "LANGUAGE_FILE":              _fmt_str,
+    "THEME_FILE":                 _fmt_str,
     "TIMEZONE":                   _fmt_str,
     "SESSION_LIFETIME":           _fmt_int,
     "WEEKS_IN_ADVANCE":           _fmt_int,
