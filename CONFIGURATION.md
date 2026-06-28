@@ -280,7 +280,7 @@ independent of this system-wide window.
 
 | Variable                | Default     | Description                                                                                                              |
 | ----------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `DEFAULT_PLAN_TIMEZONE` | auto-detect | IANA timezone name (e.g. `Europe/Berlin`) used as the default for new plans and to anchor iCal reminder events. When not set, WARP auto-detects from the `TZ` env var, `/etc/timezone`, or the `/etc/localtime` symlink. Each plan can override this individually in the Plans admin screen. |
+| `DEFAULT_PLAN_TIMEZONE` | auto-detect | IANA timezone name (e.g. `Europe/Warsaw`) used as the default for new plans and to anchor iCal reminder events. When not set, WARP auto-detects from the `TZ` env var, `/etc/timezone`, or the `/etc/localtime` symlink. Each plan can override this individually in the Plans admin screen. |
 | `TIMEZONE`              | —           | **Deprecated.** Alias for `DEFAULT_PLAN_TIMEZONE`. Use `DEFAULT_PLAN_TIMEZONE` in new deployments.                      |
 
 ---

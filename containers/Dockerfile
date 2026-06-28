@@ -30,7 +30,7 @@ FROM alpine:3.24
 ENV WARPAPP_UID=200
 ENV WARPAPP_GID=200
 ENV WARPAPP_RUN_DIR=/run/warp
-# Sane default; operators override via compose/quadlet environment: TZ=Europe/Berlin
+# Sane default; operators override via compose/quadlet environment: TZ=Europe/Warsaw
 ENV TZ=UTC
 
 RUN apk add python3 py3-pip uwsgi-python3 \

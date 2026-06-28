@@ -45,7 +45,7 @@ services:
       # Sets DEFAULT_PLAN_TIMEZONE; also recognised by Python zoneinfo and
       # localtime() inside the container (musl needs tzdata, already in image).
       # Per-plan timezones override this after plans are created.
-      # TZ: "Europe/Berlin"
+      # TZ: "Europe/Warsaw"
       # Seed sample zones/users on first start. Uncomment for a quick demo; leave
       # commented for production (the schema is created automatically and the
       # initial admin is set up on an empty database).

@@ -26,7 +26,7 @@ RUN pip wheel -w wheel --no-deps .
 
 FROM alpine:3.24
 
-# Sane default; override via -e TZ=Europe/Berlin at runtime
+# Sane default; override via -e TZ=Europe/Warsaw at runtime
 ENV TZ=UTC
 
 RUN apk add python3 py3-pip postgresql18 \

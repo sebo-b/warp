@@ -300,7 +300,7 @@ booking/assign/prefs/calendar write via `invalidate_calendar_cache(logins)`.
 - Both `Dockerfile` (prod) and `Dockerfile_debug` install `tzdata` (Alpine's
   musl needs it for Python `zoneinfo` and `localtime()` to resolve IANA names).
 - `ENV TZ=UTC` is set as a safe default in both images; operators override it
-  with `TZ=Europe/Berlin` in their compose/quadlet environment. The `TZ` env
+  with `TZ=Europe/Warsaw` in their compose/quadlet environment. The `TZ` env
   var is honoured by `_detect_system_tz()` and therefore sets
   `DEFAULT_PLAN_TIMEZONE` on startup (if not explicitly configured).
 - `compose.yaml` documents `TZ` with a commented example.

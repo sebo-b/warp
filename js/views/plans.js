@@ -136,23 +136,6 @@ document.addEventListener("DOMContentLoaded", function(e) {
         errorMsg.innerText = "";
         deleteBtn.style.display = (id === null) ? "none" : "inline-flex";
 
-        // Load timezone list (cached after first fetch) and populate the select.
-        loadTimezones().then(function(tzList) {
-            var current = timezone || window.warpGlobals.defaultPlanTimezone || '';
-            planTzEl.innerHTML = '';
-            for (var tz of tzList) {
-                var opt = document.createElement('option');
-                opt.value = tz.id;
-                opt.textContent = tz.label;
-                if (tz.id === current) opt.selected = true;
-                planTzEl.appendChild(opt);
-            }
-            M.FormSelect.init(planTzEl);
-            M.updateTextFields();
-        });
-
-        editModal.open();
-
         return new Promise((resolve, reject) => {
             let resolved = false;
 
@@ -193,14 +176,46 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 }
             }
 
-            saveBtn.addEventListener('click', onClick);
-            deleteBtn.addEventListener('click', onClick);
-
             editModal.options.onCloseStart = function() {
                 saveBtn.removeEventListener('click', onClick);
                 deleteBtn.removeEventListener('click', onClick);
                 if (!resolved) reject();
             };
+
+            // Load timezone list (cached after first fetch), populate the select,
+            // then open — so open() resets _dirty AFTER FormSelect fires its change
+            // event, and warpLiftSelect() runs when the .select-wrapper already exists.
+            loadTimezones().then(function(tzList) {
+                var current = timezone || window.warpGlobals.defaultPlanTimezone || '';
+                planTzEl.innerHTML = '';
+                var found = false;
+                for (var tz of tzList) {
+                    var opt = document.createElement('option');
+                    opt.value = tz.id;
+                    opt.textContent = tz.label;
+                    if (tz.id === current) { opt.selected = true; found = true; }
+                    planTzEl.appendChild(opt);
+                }
+                // If the plan's stored timezone isn't in the common list, add it so
+                // the dropdown shows its actual value instead of defaulting to the
+                // first entry (which would silently overwrite it on save).
+                if (!found && current) {
+                    var extra = document.createElement('option');
+                    extra.value = current;
+                    extra.textContent = current;
+                    extra.selected = true;
+                    planTzEl.insertBefore(extra, planTzEl.firstChild);
+                }
+                var inst = M.FormSelect.getInstance(planTzEl);
+                if (inst) inst.destroy();
+                M.FormSelect.init(planTzEl);
+                M.updateTextFields();
+
+                saveBtn.addEventListener('click', onClick);
+                deleteBtn.addEventListener('click', onClick);
+                // open() resets _dirty and lifts the now-existing select dropdown.
+                editModal.open();
+            });
         });
     };
 
