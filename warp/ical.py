@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 
 from warp import utils
 from warp.db import UserPrefs, Book, Seat, SeatAssign, Zone, Plan, CalendarCache
+from peewee import fn
 
 bp = flask.Blueprint('ical', __name__)
 
@@ -192,15 +193,9 @@ def _extract_blocks(ics, begin_tag):
     return blocks
 
 
-def _get_user_ref_tz(login):
-    """User's default-plan TZ, falling back to DEFAULT_PLAN_TIMEZONE config."""
-    row = UserPrefs.select(UserPrefs.default_plan).where(UserPrefs.login == login).first()
-    if row and row['default_plan']:
-        plan_row = Plan.select(Plan.timezone).where(Plan.id == row['default_plan']).first()
-        if plan_row and plan_row['timezone']:
-            return plan_row['timezone']
-    return flask.current_app.config.get('DEFAULT_PLAN_TIMEZONE') or None
-
+# (User's reference TZ for the feed moved to per-zone: see
+#  _generate_reminders_vevents — each reminder is gridded in its own zone's
+#  plan TZ. No single user-level reference TZ is needed.)
 
 # ---------------------------------------------------------------------------
 # HMAC token helpers
@@ -283,8 +278,13 @@ def _generate_bookings_vevents(login, ical_token, now_ts, phrases):
     return lines, tznames
 
 
-def _generate_reminders_vevents(login, ical_token, now_ts, today_ts, phrases, ref_tz=None):
-    """Return (list of VEVENT strings, set of tz names used) for calendar reminder events."""
+def _generate_reminders_vevents(login, ical_token, now_ts, today_ts, phrases):
+    """Return (list of VEVENT strings, set of tz names used) for calendar reminder events.
+
+    now_ts/today_ts are the UTC clock (cache key + bookings horizon/lookback).
+    Each reminder is gridded in its OWN zone's plan TZ — "day before in NY is
+    day before in NY": wall-clock day arithmetic in the zone's scale, stamped
+    with that zone's TZID. No real-instant TZ math (PLAN per_plan_timezone §6)."""
 
     row = UserPrefs.select(
         UserPrefs.reminder_weekdays,
@@ -308,13 +308,28 @@ def _generate_reminders_vevents(login, ical_token, now_ts, today_ts, phrases, re
     if not reminder_zones or (not missing_enabled and not release_enabled):
         return [], set()
 
+    # Each reminder zone's office TZ: a zone's seats sit on plans, so resolve
+    # zid -> plan.timezone. A zone may span plans in different TZs (edge case);
+    # pick MAX for a deterministic one rather than an arbitrary row.
+    zone_tzs = {}
+    if reminder_zones:
+        for r in (Zone.select(Zone.id, fn.MAX(Plan.timezone).alias('tz'))
+                      .join(Seat, on=(Seat.zid == Zone.id))
+                      .join(Plan, on=(Seat.pid == Plan.id))
+                      .where(Zone.id.in_(list(reminder_zones)))
+                      .group_by(Zone.id)
+                      .tuples()):
+            zone_tzs[r[0]] = r[1] or 'UTC'
+
     private_seats = []
     if release_enabled:
         sa_user = SeatAssign.alias('sa_user')
         sa_pub = SeatAssign.alias('sa_pub')
-        private_seats = list(sa_user.select(sa_user.sid, Seat.zid, sa_pub.days_in_advance, Seat.name)
+        # Carry the seat's plan TZ so release reminders grid + stamp in it.
+        private_seats = list(sa_user.select(sa_user.sid, Seat.zid, sa_pub.days_in_advance, Seat.name, Plan.timezone)
                                     .join(sa_pub, on=(sa_user.sid == sa_pub.sid))
                                     .join(Seat, on=(Seat.id == sa_user.sid))
+                                    .join(Plan, on=(Seat.pid == Plan.id))
                                     .where((sa_user.login == login) &
                                            sa_pub.login.is_null() &
                                            sa_pub.days_in_advance.is_null(False) &
@@ -325,11 +340,16 @@ def _generate_reminders_vevents(login, ical_token, now_ts, today_ts, phrases, re
         return [], set()
 
     horizon_days = 30
-    horizon_ts = today_ts + horizon_days * 24 * 3600
+    # Clock bounds for the bookings lookback/horizon (UTC, generous: any zone's
+    # "today" sits within ±14h of UTC now, well inside this 7d/32d window; the
+    # per-zone booked_zones_by_day day-keys (booking's own-plan wall-clock)
+    # only match a same-TZ grid day, so over-pulling is harmless).
+    lookback_ts = now_ts - 7 * 24 * 3600
+    horizon_ts = now_ts + 32 * 24 * 3600
 
     booking_rows = (Book.select(Book.fromts, Seat.zid)
                         .join(Seat, on=(Book.sid == Seat.id))
-                        .where((Book.login == login) & (Book.tots > today_ts) & (Book.fromts < horizon_ts))
+                        .where((Book.login == login) & (Book.tots > lookback_ts) & (Book.fromts < horizon_ts))
                         .tuples())
 
     booked_zones_by_day = {}
@@ -345,46 +365,61 @@ def _generate_reminders_vevents(login, ical_token, now_ts, today_ts, phrases, re
 
     dtstamp = _ts_to_ical_dt(now_ts)
 
+    # event tuple: (reminder_ts, uid, summary, kind, zid, action_day_str, event_tz)
     events = []
 
-    for i in range(horizon_days + 1):
-        D = today_ts + i * 24 * 3600
-        tm = gmtime(D)
-        if not (weekdays_mask & (1 << tm.tm_wday)):
-            continue
+    # Missing reminders: per zone, gridded in that zone's plan TZ.
+    if missing_enabled:
+        for zid in reminder_zones:
+            zone_tz = zone_tzs.get(zid, 'UTC')
+            today_z = utils.today(tz=zone_tz)
+            now_z = utils.now(tz=zone_tz)
+            for i in range(horizon_days + 1):
+                D = today_z + i * 24 * 3600
+                tm = gmtime(D)
+                if not (weekdays_mask & (1 << tm.tm_wday)):
+                    continue
+                day_str = strftime("%Y%m%d", tm)
+                action_day_str = strftime("%Y-%m-%d", tm)
+                booked_zids = booked_zones_by_day.get(D, set())
+                reminder_ts = D - ahead_days * 24 * 3600 + reminder_time
+                if reminder_ts >= now_z and zid not in booked_zids:
+                    uid = f"missing-{zid}-{day_str}@warp"
+                    summary = _escape_ical_text(
+                        phrases['missing'].format(zone=zone_names.get(zid, str(zid)))
+                    )
+                    events.append((reminder_ts, uid, summary, 'missing', zid, action_day_str, zone_tz))
 
-        day_str = strftime("%Y%m%d", tm)
-        action_day_str = strftime("%Y-%m-%d", tm)
-        booked_zids = booked_zones_by_day.get(D, set())
-
-        if missing_enabled:
-            reminder_ts = D - ahead_days * 24 * 3600 + reminder_time
-            if reminder_ts >= today_ts:
-                for zid in reminder_zones:
-                    if zid not in booked_zids:
-                        uid = f"missing-{zid}-{day_str}@warp"
-                        summary = _escape_ical_text(
-                            phrases['missing'].format(zone=zone_names.get(zid, str(zid)))
-                        )
-                        events.append((reminder_ts, uid, summary, 'missing', zid, action_day_str))
-
-        if release_enabled and private_seats:
-            for sid, zid, release_days, seat_name in private_seats:
+    # Release reminders: per private seat, gridded in that seat's plan TZ.
+    if release_enabled and private_seats:
+        for sid, zid, release_days, seat_name, seat_tz in private_seats:
+            seat_tz = seat_tz or 'UTC'
+            today_z = utils.today(tz=seat_tz)
+            now_z = utils.now(tz=seat_tz)
+            for i in range(horizon_days + 1):
+                D = today_z + i * 24 * 3600
+                tm = gmtime(D)
+                if not (weekdays_mask & (1 << tm.tm_wday)):
+                    continue
+                day_str = strftime("%Y%m%d", tm)
+                action_day_str = strftime("%Y-%m-%d", tm)
+                booked_zids = booked_zones_by_day.get(D, set())
                 reminder_ts = D - (release_days + release_ahead_days) * 24 * 3600 + reminder_time
-                if reminder_ts >= today_ts and zid not in booked_zids:
+                if reminder_ts >= now_z and zid not in booked_zids:
                     uid = f"release-{sid}-{day_str}@warp"
                     summary = _escape_ical_text(phrases['release'].format(name=seat_name))
-                    events.append((reminder_ts, uid, summary, 'release', zid, action_day_str))
+                    events.append((reminder_ts, uid, summary, 'release', zid, action_day_str, seat_tz))
 
     # When missing and release share the same (ts, zone), release wins
-    release_keys = {(ts, z) for ts, uid, summary, kind, z, _d in events if kind == 'release'}
+    release_keys = {(ts, z) for ts, uid, summary, kind, z, _d, _tz in events if kind == 'release'}
 
     lines = []
-    for reminder_ts, uid, summary, kind, zid, action_day_str in events:
+    tznames = set()
+    for reminder_ts, uid, summary, kind, zid, action_day_str, event_tz in events:
         if kind == 'missing' and (reminder_ts, zid) in release_keys:
             continue
-        dtstart = _ts_to_ical_dt(reminder_ts, ref_tz)
-        dtend = _ts_to_ical_dt(reminder_ts + 900, ref_tz)
+        dtstart = _ts_to_ical_dt(reminder_ts, event_tz)
+        dtend = _ts_to_ical_dt(reminder_ts + 900, event_tz)
 
         url = None
         description = None
@@ -400,9 +435,9 @@ def _generate_reminders_vevents(login, ical_token, now_ts, today_ts, phrases, re
             description = _escape_ical_text(phrases['missing_desc']).replace('{url}', url_escaped)
 
         lines.append(_format_vevent(uid, dtstamp, dtstart, dtend, summary,
-                                    url=url, description=description, tz=ref_tz))
+                                    url=url, description=description, tz=event_tz))
+        tznames.add(event_tz)
 
-    tznames = {ref_tz} if ref_tz else set()
     return lines, tznames
 
 
@@ -421,7 +456,7 @@ def _strip_calendar_wrapper(ics):
     return ics[start:end + len('END:VEVENT\r\n')]
 
 
-def _get_or_cache(login, ical_token, now_ts, today_ts, type_, ref_tz=None):
+def _get_or_cache(login, ical_token, now_ts, today_ts, type_):
     """Return a full ICS string for one type (bookings or reminders), using/updating cache."""
     row = (CalendarCache.select(CalendarCache.ics, CalendarCache.day)
                         .where((CalendarCache.login == login) &
@@ -437,7 +472,7 @@ def _get_or_cache(login, ical_token, now_ts, today_ts, type_, ref_tz=None):
         vevents, tznames = _generate_bookings_vevents(login, ical_token, now_ts, phrases)
     else:
         vevents, tznames = _generate_reminders_vevents(
-            login, ical_token, now_ts, today_ts, phrases, ref_tz=ref_tz)
+            login, ical_token, now_ts, today_ts, phrases)
 
     vtimezone_since = now_ts - 7 * 86400
     vtimezone_until = today_ts + 31 * 86400
@@ -468,19 +503,16 @@ def _get_or_cache(login, ical_token, now_ts, today_ts, type_, ref_tz=None):
     return ics
 
 
-def get_ical_content(login, ical_token, now_ts, today_ts, type_=ICAL_TYPE_ALL, ref_tz=None):
+def get_ical_content(login, ical_token, now_ts, today_ts, type_=ICAL_TYPE_ALL):
     """Return complete ICS text for the requested type."""
     if type_ not in ICAL_TYPES:
         type_ = ICAL_TYPE_ALL
 
-    if ref_tz is None:
-        ref_tz = _get_user_ref_tz(login)
-
     if type_ in (ICAL_TYPE_BOOKINGS, ICAL_TYPE_REMINDERS):
-        return _get_or_cache(login, ical_token, now_ts, today_ts, type_, ref_tz=ref_tz)
+        return _get_or_cache(login, ical_token, now_ts, today_ts, type_)
 
-    bookings_ics = _get_or_cache(login, ical_token, now_ts, today_ts, ICAL_TYPE_BOOKINGS, ref_tz=ref_tz)
-    reminders_ics = _get_or_cache(login, ical_token, now_ts, today_ts, ICAL_TYPE_REMINDERS, ref_tz=ref_tz)
+    bookings_ics = _get_or_cache(login, ical_token, now_ts, today_ts, ICAL_TYPE_BOOKINGS)
+    reminders_ics = _get_or_cache(login, ical_token, now_ts, today_ts, ICAL_TYPE_REMINDERS)
 
     # Merge VTIMEZONE blocks (dedup by TZID) then merge VEVENTs.
     seen_tzids = set()
@@ -528,11 +560,10 @@ def ical_feed(login):
     if row is None:
         flask.abort(404)
 
-    ref_tz = _get_user_ref_tz(login)
-    today_ts = utils.today(tz=ref_tz)
-    now_ts = utils.now(tz=ref_tz)
+    today_ts = utils.today(tz='UTC')
+    now_ts = utils.now(tz='UTC')
 
-    ics_content = get_ical_content(login, t, now_ts, today_ts, type_=requested_type, ref_tz=ref_tz)
+    ics_content = get_ical_content(login, t, now_ts, today_ts, type_=requested_type)
     return flask.Response(ics_content, mimetype="text/calendar")
 
 
@@ -580,7 +611,7 @@ def book_seat(login):
     pid = plan_row['id']
     # Resolve the plan TZ from the same row as pid (a zone may span plans; the
     # past-guard below and runAutoBook's window then agree on one plan's TZ).
-    plan_tz = plan_row['timezone'] or None
+    plan_tz = plan_row['timezone'] or "UTC"
 
     if day_ts < utils.today(tz=plan_tz):
         return _render_action(_action_t('Requested date is in the past'))
@@ -691,7 +722,7 @@ def delete_seat(login):
 
     # Past guard is plan-aware (PLAN per_plan_timezone §6): fromts is wall-clock
     # in this booking's plan TZ, so compare to today() in that same TZ.
-    if book['fromts'] < utils.today(tz=book['plan_tz'] or None):
+    if book['fromts'] < utils.today(tz=book['plan_tz'] or 'UTC'):
         return _render_action(_action_t('Reservation in the past'))
 
     seat_name = book['seat_name']

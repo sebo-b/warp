@@ -123,4 +123,35 @@ test.describe('per-plan timezone', () => {
     expect(ics).toMatch(/DTSTART;TZID=Europe\/Warsaw:\d{8}T140000/);
     expect(ics).not.toMatch(/DTSTART:\d{8}T\d{6}Z/);
   });
+
+  test('iCal reminders are gridded + stamped per-zone TZ (not a user default TZ)', async ({ page }) => {
+    // Plans 1 (Warsaw) and 2 (NY); user1 is reminded for both zones. A missing
+    // -booking reminder for zone 1 must be stamped Europe/Warsaw, for zone 2
+    // America/New_York — each gridded in its own office's wall-clock day.
+    await querySql("UPDATE plan SET timezone = 'Europe/Warsaw' WHERE id = 1");
+    await querySql("UPDATE plan SET timezone = 'America/New_York' WHERE id = 2");
+    await querySql("DELETE FROM book WHERE login = 'user1'");
+
+    await logIn(page, USER1);
+    // ahead_days=1 fires a reminder the day before each empty zone-day.
+    await page.request.post('/xhr/calendar', {
+      data: { ical_enabled: true, ensure_token: true, reminder_weekdays: 127,
+              reminder_ahead_days: 1, reminder_time: 22 * 3600,
+              reminder_release_ahead_days: 0, reminder_zones: [1, 2] },
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const prefs = await (await page.request.get('/xhr/calendar')).json();
+    const token: string = prefs.ical_token;
+
+    const resp = await page.request.get(`/calendar/user1/events.ics?t=${token}&type=reminders`);
+    expect(resp.status()).toBe(200);
+    const ics = await resp.text();
+
+    // Each zone's missing-booking reminder carries its OWN plan TZID.
+    expect(ics).toMatch(/UID:missing-1-\d+@warp.*?DTSTART;TZID=Europe\/Warsaw:/s);
+    expect(ics).toMatch(/UID:missing-2-\d+@warp.*?DTSTART;TZID=America\/New_York:/s);
+    // VTIMEZONE blocks for both zones.
+    expect(ics).toContain('TZID:Europe/Warsaw');
+    expect(ics).toContain('TZID:America/New_York');
+  });
 });

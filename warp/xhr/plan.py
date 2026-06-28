@@ -44,7 +44,7 @@ def getSeats(pid):
     plan = Plan.select(Plan.id, Plan.timezone).where(Plan.id == pid).first()
     if plan is None:
         return {"msg": "Forbidden", "code": 130}, 403
-    plan_tz = plan['timezone'] or None
+    plan_tz = plan['timezone'] or "UTC"
     open_tz = plan_tz or 'UTC'
 
     res = {"seats": {}, "plan_timezone": open_tz}
@@ -353,7 +353,7 @@ def apply():
             .where(Seat.id == apply_data['book']['sid']) \
             .tuples().first()
         if seat_plan_tz:
-            plan_tz = seat_plan_tz[0] or None
+            plan_tz = seat_plan_tz[0] or "UTC"
     ts = utils.getTimeRange(tz=plan_tz)
 
     seatsReqZoneAdmin = set()
@@ -615,7 +615,7 @@ def runAutoBook(login, pid, dates, allowedZids=None, releaseZids=None):
     plan = Plan.select(Plan.id, Plan.timezone).where(Plan.id == pid).first()
     if plan is None:
         return None, 130
-    plan_tz = plan['timezone'] or None
+    plan_tz = plan['timezone'] or "UTC"
 
     ts = utils.getTimeRange(tz=plan_tz)
     for b in dates:
