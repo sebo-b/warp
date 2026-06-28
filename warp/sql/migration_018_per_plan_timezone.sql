@@ -17,6 +17,7 @@ ALTER TABLE plan ADD COLUMN timezone text;
 UPDATE plan SET timezone = current_setting('TIMEZONE') WHERE timezone IS NULL;
 
 ALTER TABLE plan ALTER COLUMN timezone SET NOT NULL;
+ALTER TABLE plan ALTER COLUMN timezone SET DEFAULT 'UTC';
 
 CREATE VIEW book_utc AS
 SELECT b.id AS bid, b.login, b.sid, s.zid, z.zone_group, p.timezone,
