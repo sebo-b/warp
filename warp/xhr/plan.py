@@ -40,14 +40,14 @@ bp = flask.Blueprint('plan', __name__, url_prefix='plan')
 @bp.route("getSeats/<int:pid>")
 def getSeats(pid):
 
-    res = {"seats": {}, "plan_timezone": open_tz}
-
     # Verify plan exists and fetch timezone for TZ-aware window/grid seeds
     plan = Plan.select(Plan.id, Plan.timezone).where(Plan.id == pid).first()
     if plan is None:
         return {"msg": "Forbidden", "code": 130}, 403
     plan_tz = plan['timezone'] or None
     open_tz = plan_tz or 'UTC'
+
+    res = {"seats": {}, "plan_timezone": open_tz}
 
     # Zones that have seats on this plan
     zone_rows = list(Zone.select(Zone.id, Zone.zone_type)
