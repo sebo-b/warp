@@ -2,7 +2,7 @@ import flask
 import xlsxwriter
 import io
 from jsonschema import validate, ValidationError
-from peewee import SQL
+from peewee import SQL, Expression, fn
 
 from warp.db import *
 from warp import utils
@@ -10,10 +10,19 @@ from warp.utils_tabulator import *
 
 # Real-UTC instant for wall-clock timestamps: re-interprets the stored
 # wall-clock digits as local time in the booking's plan TZ.
-_FROM_UTC_SQL = SQL(
-    "EXTRACT(EPOCH FROM (to_timestamp(\"book\".\"fromts\")"
-    " AT TIME ZONE 'UTC' AT TIME ZONE \"plan\".\"timezone\"))::bigint"
-)
+#
+# Built from peewee column nodes, NOT a raw SQL string: when this query joins
+# several tables peewee aliases them (book AS t1, plan AS t3, …), so a raw
+# "book"."fromts" / "plan"."timezone" reference is unresolvable and the whole
+# /bookings/list and /bookings/report endpoints 500. Composing from Book.fromts
+# and Plan.timezone lets peewee emit the live aliases.
+_FROM_UTC_SQL = fn.date_part(
+    'epoch',
+    Expression(
+        Expression(fn.to_timestamp(Book.fromts), 'AT TIME ZONE', SQL("'UTC'")),
+        'AT TIME ZONE', Plan.timezone,
+    ),
+).cast('bigint')
 
 bp = flask.Blueprint('bookings', __name__, url_prefix='bookings')
 

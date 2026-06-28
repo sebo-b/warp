@@ -3,6 +3,8 @@
 #   - is_valid_iana guard
 #   - book_overlap_insert trigger cross-TZ spike
 #   - book_utc view correctness
+#   - _vtimezone_block observance correctness (RFC 5545)
+#   - bookings listW/report from_utc query (peewee-alias regression guard)
 
 import calendar
 import uuid
@@ -13,6 +15,7 @@ import psycopg
 import pytest
 
 from warp.utils import is_valid_iana, today, now
+from warp.ical import _vtimezone_block
 
 # ── Unit tests — no DB ────────────────────────────────────────────────────────
 
@@ -334,3 +337,99 @@ def test_book_utc_reflects_plan_tz_edit(db):
     # Restore
     db.execute("UPDATE plan SET timezone='Europe/Warsaw' WHERE name='Warsaw'")
     _del_all_books(db)
+
+
+# ── _vtimezone_block correctness (RFC 5545 §3.6.5) ──────────────────────────────
+# The per-plan iCal feed emits a VTIMEZONE block per distinct zone. Its job is
+# to make a TZID-stamped wall-clock DTSTART resolve to the right real instant
+# in any client. The block enumerates the zone's actual UTC transitions in the
+# window as dated STANDARD/DAYLIGHT observances with TZOFFSETFROM/TO. These
+# tests pin that the offsets are right on both sides of a DST transition.
+
+def _block(tz_name, since_dt, until_dt):
+    since = calendar.timegm(since_dt.timetuple())
+    until = calendar.timegm(until_dt.timetuple())
+    return _vtimezone_block(tz_name, since, until)
+
+def test_vtimezone_block_summer_is_dst():
+    # July 2024: Warsaw is CEST (UTC+2). The initial observance (scan_start is
+    # a week before the window, still summer) must be a DAYLIGHT block at +0200.
+    blk = _block('Europe/Warsaw', datetime.datetime(2024, 7, 1), datetime.datetime(2024, 7, 31))
+    assert "BEGIN:VTIMEZONE\r\n" in blk
+    assert "TZID:Europe/Warsaw\r\n" in blk
+    assert blk.endswith("END:VTIMEZONE\r\n")
+    assert "+0200" in blk   # CEST offset appears
+
+def test_vtimezone_block_winter_is_standard():
+    # December 2024: Warsaw is CET (UTC+1). Initial observance → STANDARD +0100.
+    blk = _block('Europe/Warsaw', datetime.datetime(2024, 12, 1), datetime.datetime(2024, 12, 31))
+    assert "+0100" in blk   # CET offset appears
+
+def test_vtimezone_block_spans_spring_forward_transition():
+    # Window covering the EU spring-forward (2024-03-31 02:00 UTC+1→UTC+2).
+    # Scan starts ~Mar 8 in CET (+01); the Mar 31 transition adds a +02
+    # observance. Both offsets must be present so DST and non-DST days in the
+    # feed both resolve correctly.
+    blk = _block('Europe/Warsaw', datetime.datetime(2024, 3, 15), datetime.datetime(2024, 4, 15))
+    assert "+0100" in blk   # pre-transition CET
+    assert "+0200" in blk   # post-transition CEST
+    # A transition observance carries both FROM and TO offsets on adjacent lines.
+    assert "TZOFFSETFROM:" in blk
+    assert "TZOFFSETTO:" in blk
+
+
+# ── bookings listW/report from_utc query (regression guard) ───────────────────
+# _FROM_UTC_SQL derives the real UTC instant from stored wall-clock + plan TZ.
+# It MUST be built from peewee column nodes (Book.fromts / Plan.timezone), not a
+# raw SQL string referencing "book"."fromts" / "plan"."timezone": peewee aliases
+# joined tables to t1, t3, … so a raw literal reference is unresolvable and
+# /bookings/list + /bookings/report 500. This runs the actual imported expression
+# through a joined peewee query against a throwaway schema to lock that in.
+
+def test_from_utc_query_survives_peewee_join_aliasing(db):
+    schema = db._tz_ids['schema']
+    # Seed a Warsaw booking: wall 14:00-16:00 on 2024-07-15 (UTC+2 → real 12:00-14:00).
+    sw = db._tz_ids['sw']
+    fts = _wc(2024, 7, 15, 14)
+    tts = _wc(2024, 7, 15, 16)
+    db.execute("INSERT INTO book(login,sid,fromts,tots) VALUES('u1',%s,%s,%s)", (sw, fts, tts))
+
+    import playhouse.postgres_ext as ppe
+    from peewee import JOIN
+    from warp.db import Book, Users, Plan, Seat, Zone
+
+    pdb = ppe.Psycopg3Database('postgres', host='127.0.0.1', port=5432,
+                               user='postgres', password='postgres_password',
+                               autoconnect=False)
+    pdb.connect()
+    pdb.execute_sql(f'SET search_path TO "{schema}"')
+    for m in (Users, Plan, Seat, Zone, Book):
+        m.bind(pdb)
+    try:
+        from warp.xhr.bookings import _FROM_UTC_SQL
+
+        base = (Book.select(Book.id, Book.fromts, Book.tots,
+                            Plan.timezone.alias('plan_tz'),
+                            Users.login,
+                            _FROM_UTC_SQL.alias('from_utc'))
+                    .join(Seat, on=(Book.sid == Seat.id))
+                    .join(Plan, on=(Seat.pid == Plan.id))
+                    .join(Zone, on=(Seat.zid == Zone.id))
+                    .join(Users, on=(Book.login == Users.login)))
+
+        # report-view payload: sort by from_utc desc, login asc (the 500 path).
+        report_q = (base.order_by_extend(_FROM_UTC_SQL.desc())
+                       .order_by_extend(Users.login.asc()))
+        rows = list(report_q.limit(100).iterator())
+        assert len(rows) == 1
+        r = rows[0]
+        assert r['plan_tz'] == 'Europe/Warsaw'
+        # 14:00 Warsaw wall (UTC+2) = 12:00 UTC
+        assert r['from_utc'] == calendar.timegm((2024, 7, 15, 12, 0, 0, 0, 0, 0))
+
+        # export path: order_by(_FROM_UTC_SQL.asc()) iterator (the 500 path).
+        export_q = base.offset().limit(5000).order_by(_FROM_UTC_SQL.asc())
+        assert len(list(export_q.iterator())) == 1
+    finally:
+        pdb.close()
+        db.execute("DELETE FROM book WHERE sid=%s AND fromts=%s", (sw, fts))

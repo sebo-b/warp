@@ -57,6 +57,7 @@ const COVERED_ENDPOINTS: ReadonlySet<string> = new Set([
   '/xhr/plans/getSeats/<int:pid>',
   '/xhr/plans/list',
   '/xhr/plans/modify',
+  '/xhr/plans/timezones',
   '/xhr/plans/zonesForPlan',
 
   // xhr — users

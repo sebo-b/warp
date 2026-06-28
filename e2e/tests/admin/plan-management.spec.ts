@@ -57,7 +57,8 @@ test.describe('plan management', () => {
 
   test('admin can create a new plan', async ({ page }) => {
     await logIn(page, ADMIN);
-    const resp = await adminPost(page, '/xhr/plans/addoredit', { name: 'Test Plan' });
+    // timezone is required since per-plan TZ (PLAN §5); zone is per-seat now.
+    const resp = await adminPost(page, '/xhr/plans/addoredit', { name: 'Test Plan', timezone: 'UTC' });
     expect(resp.status()).toBe(200);
 
     const result = await querySql("SELECT id FROM plan WHERE name = 'Test Plan'");
@@ -67,7 +68,7 @@ test.describe('plan management', () => {
   test('admin can edit a plan name', async ({ page }) => {
     await logIn(page, ADMIN);
     const resp = await adminPost(page, '/xhr/plans/addoredit', {
-      id: 1, name: 'Renamed Plan',
+      id: 1, name: 'Renamed Plan', timezone: 'UTC',
     });
     expect(resp.status()).toBe(200);
 
@@ -75,18 +76,28 @@ test.describe('plan management', () => {
     expect(result.rows[0].name).toBe('Renamed Plan');
   });
 
+  test('addOrEdit rejects an invalid IANA timezone with code 323', async ({ page }) => {
+    await logIn(page, ADMIN);
+    // 'Fake/Zone' is not resolvable by zoneinfo → is_valid_iana returns False.
+    const resp = await adminPost(page, '/xhr/plans/addoredit', {
+      name: 'Bad TZ Plan', timezone: 'Fake/Zone',
+    });
+    expect(resp.status()).toBe(400);
+    expect((await resp.json()).code).toBe(323);
+  });
+
   test('admin can set default_zid on a plan (no longer supported — zone is per-seat)', async ({ page }) => {
     await logIn(page, ADMIN);
     // default_zid column was removed; zone is now selected per-seat in the editor
     const resp = await adminPost(page, '/xhr/plans/addoredit', {
-      id: 1, name: 'Plan 1A',
+      id: 1, name: 'Plan 1A', timezone: 'UTC',
     });
     expect(resp.status()).toBe(200);
   });
 
   test('admin can delete a plan', async ({ page }) => {
     await logIn(page, ADMIN);
-    const createResp = await adminPost(page, '/xhr/plans/addoredit', { name: 'TempPlan' });
+    const createResp = await adminPost(page, '/xhr/plans/addoredit', { name: 'TempPlan', timezone: 'UTC' });
     expect(createResp.status()).toBe(200);
     const pid = (await querySql("SELECT id FROM plan WHERE name = 'TempPlan'")).rows[0].id;
 
@@ -101,6 +112,26 @@ test.describe('plan management', () => {
     await logIn(page, USER1);
     const resp = await adminPost(page, '/xhr/plans/list', TAB);
     expect(resp.status()).toBe(403);
+  });
+
+  test('admin can list plan timezones, non-admin is forbidden', async ({ page }) => {
+    await logIn(page, USER1);
+    const denied = await page.request.get('/xhr/plans/timezones');
+    expect(denied.status()).toBe(403);
+
+    await logIn(page, ADMIN);
+    const resp = await page.request.get('/xhr/plans/timezones');
+    expect(resp.status()).toBe(200);
+    const list = await resp.json();
+    expect(Array.isArray(list)).toBe(true);
+    expect(list.length).toBeGreaterThan(0);
+    // every entry carries an IANA id + a GMT label; UTC is always present.
+    for (const z of list) {
+      expect(typeof z.id).toBe('string');
+      expect(z.id.length).toBeGreaterThan(0);
+      expect(z.label).toContain('GMT');
+    }
+    expect(list.some((z: any) => z.id === 'UTC')).toBe(true);
   });
 
   test('admin can get seats for a plan', async ({ page }) => {

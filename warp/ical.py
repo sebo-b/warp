@@ -571,11 +571,16 @@ def book_seat(login):
     except (ValueError, OverflowError):
         return _render_action(_action_t('Error'), status=400)
 
-    plan_tz_row = (Plan.select(Plan.timezone)
-                       .join(Seat, on=(Seat.pid == Plan.id))
-                       .where(Seat.zid == zid)
-                       .first())
-    plan_tz = plan_tz_row['timezone'] if plan_tz_row else None
+    plan_row = (Plan.select(Plan.id, Plan.timezone)
+                    .join(Seat, on=(Seat.pid == Plan.id))
+                    .where(Seat.zid == zid)
+                    .first())
+    if plan_row is None:
+        return _render_action(_action_t('Not possible to book'))
+    pid = plan_row['id']
+    # Resolve the plan TZ from the same row as pid (a zone may span plans; the
+    # past-guard below and runAutoBook's window then agree on one plan's TZ).
+    plan_tz = plan_row['timezone'] or None
 
     if day_ts < utils.today(tz=plan_tz):
         return _render_action(_action_t('Requested date is in the past'))
@@ -622,14 +627,6 @@ def book_seat(login):
             timespan=utils.formatTimespan(existing['fromts'], existing['tots']),
         )
         return _render_action(_action_t('Seat Already Booked'), details=details)
-
-    plan_row = (Plan.select(Plan.id)
-                    .join(Seat, on=(Seat.pid == Plan.id))
-                    .where(Seat.zid == zid)
-                    .first())
-    if plan_row is None:
-        return _render_action(_action_t('Not possible to book'))
-    pid = plan_row['id']
 
     from warp.xhr.plan import runAutoBook
     result, err = runAutoBook(login, pid, [slot], allowedZids={zid})
@@ -683,14 +680,18 @@ def delete_seat(login):
     if not hmac.compare_digest(expected, t):
         return _render_action(_action_t('Forbidden'), status=403)
 
-    book = (Book.select(Book.id, Book.fromts, Seat.name.alias('seat_name'))
+    book = (Book.select(Book.id, Book.fromts, Seat.name.alias('seat_name'),
+                          Plan.timezone.alias('plan_tz'))
                 .join(Seat, on=(Book.sid == Seat.id))
+                .join(Plan, on=(Seat.pid == Plan.id))
                 .where((Book.id == rid) & (Book.login == login))
                 .first())
     if book is None:
         return _render_action(_action_t('Error'), status=404)
 
-    if book['fromts'] < utils.today():
+    # Past guard is plan-aware (PLAN per_plan_timezone §6): fromts is wall-clock
+    # in this booking's plan TZ, so compare to today() in that same TZ.
+    if book['fromts'] < utils.today(tz=book['plan_tz'] or None):
         return _render_action(_action_t('Reservation in the past'))
 
     seat_name = book['seat_name']
