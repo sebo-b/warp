@@ -50,6 +50,17 @@ document.addEventListener("DOMContentLoaded", function(e) {
     var showEditDialog;
     var table;
 
+    // Timezone list is fetched once and cached in memory.
+    var _timezonesCache = null;
+    function loadTimezones() {
+        if (_timezonesCache) return Promise.resolve(_timezonesCache);
+        return Utils.xhr.get(window.warpGlobals.URLs['plansTimezones'], {toastOnSuccess: false})
+            .then(function(result) {
+                _timezonesCache = result.response || [];
+                return _timezonesCache;
+            });
+    }
+
     var openPlanModify = function(e, cell) {
         let pid = cell.getRow().getData()['id'];
         let url = window.warpGlobals.URLs['planModify'].replace('__PID__', pid);
@@ -57,11 +68,11 @@ document.addEventListener("DOMContentLoaded", function(e) {
     };
 
     var addEditClicked = function(e, cell) {
-        let args = [null, ""];
+        let args = [null, "", ""];
 
         if (typeof(cell) === 'object') {
             let data = cell.getRow().getData();
-            args = [data['id'], data['name']];
+            args = [data['id'], data['name'], data['timezone'] || ""];
         }
 
         showEditDialog.apply(null, args)
@@ -107,12 +118,13 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     var editModalEl = document.getElementById('edit_modal');
     var planNameEl = document.getElementById("plan_name");
+    var planTzEl = document.getElementById("plan_timezone");
     var errorDiv = document.getElementById('error_div');
     var errorMsg = document.getElementById('error_message');
     var saveBtn = document.getElementById('edit_modal_save_btn');
     var deleteBtn = document.getElementById('edit_modal_delete_btn');
 
-    showEditDialog = function(id, name) {
+    showEditDialog = function(id, name, timezone) {
 
         var editModal = warpDialog.getInstance(editModalEl);
         if (typeof(editModal) === 'undefined') {
@@ -124,7 +136,21 @@ document.addEventListener("DOMContentLoaded", function(e) {
         errorMsg.innerText = "";
         deleteBtn.style.display = (id === null) ? "none" : "inline-flex";
 
-        M.updateTextFields();
+        // Load timezone list (cached after first fetch) and populate the select.
+        loadTimezones().then(function(tzList) {
+            var current = timezone || window.warpGlobals.defaultPlanTimezone || '';
+            planTzEl.innerHTML = '';
+            for (var tz of tzList) {
+                var opt = document.createElement('option');
+                opt.value = tz.id;
+                opt.textContent = tz.label;
+                if (tz.id === current) opt.selected = true;
+                planTzEl.appendChild(opt);
+            }
+            M.FormSelect.init(planTzEl);
+            M.updateTextFields();
+        });
+
         editModal.open();
 
         return new Promise((resolve, reject) => {
@@ -138,9 +164,14 @@ document.addEventListener("DOMContentLoaded", function(e) {
                             errorDiv.style.display = "block";
                             return;
                         }
+                        if (!planTzEl.value) {
+                            errorMsg.innerText = TR('Plan timezone must be selected.');
+                            errorDiv.style.display = "block";
+                            return;
+                        }
                         resolved = true;
                         editModal.close();
-                        resolve({action: 'save', id: id, name: planNameEl.value.trim()});
+                        resolve({action: 'save', id: id, name: planNameEl.value.trim(), timezone: planTzEl.value});
                         break;
                     }
                     case deleteBtn:

@@ -1,9 +1,11 @@
+import datetime
 import os
 
 import flask
 from peewee import JOIN, fn, EXCLUDED, Cast
 from jsonschema import validate, ValidationError
 import orjson
+from zoneinfo import ZoneInfo
 
 from warp.db import *
 from warp import utils
@@ -22,7 +24,7 @@ def listW():
         .group_by(Seat.pid)
 
     query = Plan.select(
-        Plan.id, Plan.name,
+        Plan.id, Plan.name, Plan.timezone,
         fn.COALESCE(seatCountQuery.c.seat_count, 0).alias('seat_count')
     ) \
         .join(seatCountQuery, join_type=JOIN.LEFT_OUTER, on=(Plan.id == seatCountQuery.c.pid))
@@ -107,8 +109,9 @@ addOrEditSchema = {
     "properties": {
         "id": {"type": "integer"},
         "name": {"type": "string", "minLength": 1},
+        "timezone": {"type": "string", "minLength": 1},
     },
-    "required": ["name"]
+    "required": ["name", "timezone"]
 }
 
 
@@ -120,10 +123,15 @@ def addOrEdit():
     class ApplyError(Exception):
         pass
 
+    tz = jsonData['timezone']
+    if not utils.is_valid_iana(tz):
+        return {"msg": "Invalid timezone", "code": 323}, 400
+
     try:
         with DB.atomic():
             updColumns = {
                 Plan.name: jsonData['name'],
+                Plan.timezone: tz,
             }
 
             if 'id' in jsonData:
@@ -139,6 +147,41 @@ def addOrEdit():
         return {"msg": "Error", "code": err.args[1]}, 400
 
     return {"msg": "ok"}, 200
+
+
+_COMMON_TIMEZONES = [
+    "Pacific/Honolulu", "America/Anchorage", "America/Los_Angeles",
+    "America/Denver", "America/Chicago", "America/New_York",
+    "America/Sao_Paulo", "America/Argentina/Buenos_Aires",
+    "Atlantic/Azores", "Europe/London", "Europe/Dublin",
+    "Europe/Lisbon", "Europe/Paris", "Europe/Berlin",
+    "Europe/Warsaw", "Europe/Helsinki", "Europe/Istanbul",
+    "Asia/Dubai", "Asia/Kolkata", "Asia/Dhaka",
+    "Asia/Bangkok", "Asia/Shanghai", "Asia/Hong_Kong",
+    "Asia/Tokyo", "Asia/Seoul", "Australia/Perth",
+    "Australia/Sydney", "Pacific/Auckland", "UTC",
+]
+
+
+@bp.route("timezones", methods=["GET"])
+def timezones():
+    if not flask.g.isAdmin:
+        return {"msg": "Forbidden"}, 403
+    now_utc = datetime.datetime.now(tz=datetime.timezone.utc)
+    result = []
+    for z in _COMMON_TIMEZONES:
+        try:
+            tz = ZoneInfo(z)
+            offset = now_utc.astimezone(tz).utcoffset()
+            total_min = int(offset.total_seconds() // 60)
+            sign = '+' if total_min >= 0 else '-'
+            h, m = divmod(abs(total_min), 60)
+            label = f"(GMT{sign}{h:02d}:{m:02d}) {z}"
+            result.append({"id": z, "label": label, "offset_min": total_min})
+        except Exception:
+            pass
+    result.sort(key=lambda x: x["offset_min"])
+    return flask.jsonify([{"id": r["id"], "label": r["label"]} for r in result])
 
 
 @bp.route("getSeats/<int:pid>")
