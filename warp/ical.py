@@ -1,3 +1,4 @@
+import datetime
 import flask
 import functools
 import hmac
@@ -7,6 +8,7 @@ import os
 import secrets
 from calendar import timegm
 from time import gmtime, strftime, strptime
+from zoneinfo import ZoneInfo
 
 from warp import utils
 from warp.db import UserPrefs, Book, Seat, SeatAssign, Zone, Plan, CalendarCache
@@ -94,6 +96,113 @@ def _format_vevent(uid, dtstamp, dtstart, dtend, summary, url=None, description=
 
 
 # ---------------------------------------------------------------------------
+# VTIMEZONE block generation
+# ---------------------------------------------------------------------------
+
+def _vtimezone_block(tz_name, since_ts, until_ts):
+    """RFC 5545 VTIMEZONE for tz_name with explicit dated observances covering the window."""
+    tz = ZoneInfo(tz_name)
+
+    def _utcoff_dst_name(utc_ts):
+        dt = datetime.datetime.fromtimestamp(utc_ts, tz=datetime.timezone.utc).astimezone(tz)
+        return dt.utcoffset(), dt.dst(), dt.tzname()
+
+    def _fmt_offset(td):
+        total = int(td.total_seconds())
+        sign = '+' if total >= 0 else '-'
+        h, rest = divmod(abs(total), 3600)
+        m = rest // 60
+        return f"{sign}{h:02d}{m:02d}"
+
+    # Start scanning a week before the window to capture the initial state.
+    scan_start = since_ts - 7 * 86400
+    scan_end = until_ts + 86400
+
+    init_utoff, init_dst, init_tzname = _utcoff_dst_name(scan_start)
+    prev_utoff = init_utoff
+
+    transitions = []
+    ts = scan_start + 3600
+    while ts <= scan_end:
+        utoff, dst, tzname = _utcoff_dst_name(ts)
+        if utoff != prev_utoff:
+            # Binary-search within this hour to get minute precision.
+            lo, hi = ts - 3600, ts
+            while hi - lo > 60:
+                mid = (lo + hi) // 2
+                mid_off, _, _ = _utcoff_dst_name(mid)
+                if mid_off == prev_utoff:
+                    lo = mid
+                else:
+                    hi = mid
+            transitions.append((hi, utoff, prev_utoff, dst, tzname))
+            prev_utoff = utoff
+        ts += 3600
+
+    parts = [f"BEGIN:VTIMEZONE\r\nTZID:{tz_name}\r\n"]
+
+    # Initial observance — anchors the offset before any transition in the window.
+    is_dst_init = init_dst is not None and init_dst.total_seconds() != 0
+    kind = "DAYLIGHT" if is_dst_init else "STANDARD"
+    parts += [
+        f"BEGIN:{kind}\r\n",
+        "DTSTART:19700101T000000\r\n",
+        f"TZOFFSETFROM:{_fmt_offset(init_utoff)}\r\n",
+        f"TZOFFSETTO:{_fmt_offset(init_utoff)}\r\n",
+    ]
+    if init_tzname:
+        parts.append(f"TZNAME:{_escape_ical_text(init_tzname)}\r\n")
+    parts.append(f"END:{kind}\r\n")
+
+    for trans_ts, new_utoff, old_utoff, new_dst, new_tzname in transitions:
+        # DTSTART = wall-clock time at the transition instant expressed in the OLD offset.
+        trans_utc = datetime.datetime.fromtimestamp(trans_ts, tz=datetime.timezone.utc)
+        local_wall = trans_utc + old_utoff
+        dtstart_str = local_wall.strftime("%Y%m%dT%H%M%S")
+        is_new_dst = new_dst is not None and new_dst.total_seconds() != 0
+        kind = "DAYLIGHT" if is_new_dst else "STANDARD"
+        parts += [
+            f"BEGIN:{kind}\r\n",
+            f"DTSTART:{dtstart_str}\r\n",
+            f"TZOFFSETFROM:{_fmt_offset(old_utoff)}\r\n",
+            f"TZOFFSETTO:{_fmt_offset(new_utoff)}\r\n",
+        ]
+        if new_tzname:
+            parts.append(f"TZNAME:{_escape_ical_text(new_tzname)}\r\n")
+        parts.append(f"END:{kind}\r\n")
+
+    parts.append("END:VTIMEZONE\r\n")
+    return "".join(parts)
+
+
+def _extract_blocks(ics, begin_tag):
+    """Return list of all BEGIN/END block strings matching begin_tag."""
+    end_tag = begin_tag.replace('BEGIN:', 'END:') + '\r\n'
+    blocks = []
+    start = 0
+    while True:
+        s = ics.find(begin_tag, start)
+        if s == -1:
+            break
+        e = ics.find(end_tag, s)
+        if e == -1:
+            break
+        blocks.append(ics[s:e + len(end_tag)])
+        start = e + len(end_tag)
+    return blocks
+
+
+def _get_user_ref_tz(login):
+    """User's default-plan TZ, falling back to DEFAULT_PLAN_TIMEZONE config."""
+    row = UserPrefs.select(UserPrefs.default_plan).where(UserPrefs.login == login).first()
+    if row and row['default_plan']:
+        plan_row = Plan.select(Plan.timezone).where(Plan.id == row['default_plan']).first()
+        if plan_row and plan_row['timezone']:
+            return plan_row['timezone']
+    return flask.current_app.config.get('DEFAULT_PLAN_TIMEZONE') or None
+
+
+# ---------------------------------------------------------------------------
 # HMAC token helpers
 # ---------------------------------------------------------------------------
 
@@ -134,20 +243,25 @@ def invalidate_calendar_cache(logins):
 # VEVENT generators
 # ---------------------------------------------------------------------------
 
-def _generate_bookings_vevents(login, ical_token, now_ts, phrases, tz=None):
-    """Return list of VEVENT strings for seat booking events."""
+def _generate_bookings_vevents(login, ical_token, now_ts, phrases):
+    """Return (list of VEVENT strings, set of tz names used) for seat booking events."""
     lookback = 7 * 24 * 3600
     min_ts = now_ts - lookback
     dtstamp = _ts_to_ical_dt(now_ts)
 
-    bookings = (Book.select(Book.id, Book.fromts, Book.tots, Seat.name)
+    bookings = (Book.select(Book.id, Book.fromts, Book.tots, Seat.name, Plan.timezone)
                     .join(Seat, on=(Book.sid == Seat.id))
+                    .join(Plan, on=(Seat.pid == Plan.id))
                     .where((Book.login == login) & (Book.tots > min_ts))
                     .order_by(Book.fromts.asc())
                     .tuples())
 
     lines = []
-    for book_id, fromts, tots, seat_name in bookings:
+    tznames = set()
+    for book_id, fromts, tots, seat_name, plan_tz in bookings:
+        tz = plan_tz or None
+        if tz:
+            tznames.add(tz)
         nonce = secrets.token_hex(8)
         tok = delete_token(ical_token, book_id, nonce)
         del_url = flask.url_for(
@@ -166,11 +280,11 @@ def _generate_bookings_vevents(login, ical_token, now_ts, phrases, tz=None):
             description=_escape_ical_text(phrases['booking_desc']).replace('{url}', url_escaped),
             tz=tz,
         ))
-    return lines
+    return lines, tznames
 
 
-def _generate_reminders_vevents(login, ical_token, now_ts, today_ts, phrases, tz=None):
-    """Return list of VEVENT strings for calendar reminder events."""
+def _generate_reminders_vevents(login, ical_token, now_ts, today_ts, phrases, ref_tz=None):
+    """Return (list of VEVENT strings, set of tz names used) for calendar reminder events."""
 
     row = UserPrefs.select(
         UserPrefs.reminder_weekdays,
@@ -181,7 +295,7 @@ def _generate_reminders_vevents(login, ical_token, now_ts, today_ts, phrases, tz
     ).where(UserPrefs.login == login).first()
 
     if row is None:
-        return []
+        return [], set()
 
     weekdays_mask = row['reminder_weekdays']
     ahead_days = row['reminder_ahead_days']
@@ -192,7 +306,7 @@ def _generate_reminders_vevents(login, ical_token, now_ts, today_ts, phrases, tz
     release_enabled = release_ahead_days > 0
 
     if not reminder_zones or (not missing_enabled and not release_enabled):
-        return []
+        return [], set()
 
     private_seats = []
     if release_enabled:
@@ -208,7 +322,7 @@ def _generate_reminders_vevents(login, ical_token, now_ts, today_ts, phrases, tz
                                     .tuples())
 
     if not missing_enabled and not private_seats:
-        return []
+        return [], set()
 
     horizon_days = 30
     horizon_ts = today_ts + horizon_days * 24 * 3600
@@ -269,8 +383,8 @@ def _generate_reminders_vevents(login, ical_token, now_ts, today_ts, phrases, tz
     for reminder_ts, uid, summary, kind, zid, action_day_str in events:
         if kind == 'missing' and (reminder_ts, zid) in release_keys:
             continue
-        dtstart = _ts_to_ical_dt(reminder_ts, tz)
-        dtend = _ts_to_ical_dt(reminder_ts + 900, tz)
+        dtstart = _ts_to_ical_dt(reminder_ts, ref_tz)
+        dtend = _ts_to_ical_dt(reminder_ts + 900, ref_tz)
 
         url = None
         description = None
@@ -286,9 +400,10 @@ def _generate_reminders_vevents(login, ical_token, now_ts, today_ts, phrases, tz
             description = _escape_ical_text(phrases['missing_desc']).replace('{url}', url_escaped)
 
         lines.append(_format_vevent(uid, dtstamp, dtstart, dtend, summary,
-                                    url=url, description=description, tz=tz))
+                                    url=url, description=description, tz=ref_tz))
 
-    return lines
+    tznames = {ref_tz} if ref_tz else set()
+    return lines, tznames
 
 
 # ---------------------------------------------------------------------------
@@ -306,7 +421,7 @@ def _strip_calendar_wrapper(ics):
     return ics[start:end + len('END:VEVENT\r\n')]
 
 
-def _get_or_cache(login, ical_token, now_ts, today_ts, type_):
+def _get_or_cache(login, ical_token, now_ts, today_ts, type_, ref_tz=None):
     """Return a full ICS string for one type (bookings or reminders), using/updating cache."""
     row = (CalendarCache.select(CalendarCache.ics, CalendarCache.day)
                         .where((CalendarCache.login == login) &
@@ -316,15 +431,24 @@ def _get_or_cache(login, ical_token, now_ts, today_ts, type_):
     if row is not None and row['day'] == today_ts:
         return row['ics']
 
-    tz = flask.current_app.config.get('TIMEZONE') or None
     phrases = _ical_phrases()
 
     if type_ == ICAL_TYPE_BOOKINGS:
-        vevents = _generate_bookings_vevents(login, ical_token, now_ts, phrases, tz)
+        vevents, tznames = _generate_bookings_vevents(login, ical_token, now_ts, phrases)
     else:
-        vevents = _generate_reminders_vevents(login, ical_token, now_ts, today_ts, phrases, tz)
+        vevents, tznames = _generate_reminders_vevents(
+            login, ical_token, now_ts, today_ts, phrases, ref_tz=ref_tz)
 
-    ics = ICAL_HEADER + ''.join(vevents) + ICAL_FOOTER
+    vtimezone_since = now_ts - 7 * 86400
+    vtimezone_until = today_ts + 31 * 86400
+    vtimezone_blocks = []
+    for tz_name in sorted(tznames):
+        try:
+            vtimezone_blocks.append(_vtimezone_block(tz_name, vtimezone_since, vtimezone_until))
+        except Exception:
+            pass
+
+    ics = ICAL_HEADER + ''.join(vtimezone_blocks) + ''.join(vevents) + ICAL_FOOTER
 
     CalendarCache.insert({
         CalendarCache.login: login,
@@ -344,17 +468,39 @@ def _get_or_cache(login, ical_token, now_ts, today_ts, type_):
     return ics
 
 
-def get_ical_content(login, ical_token, now_ts, today_ts, type_=ICAL_TYPE_ALL):
+def get_ical_content(login, ical_token, now_ts, today_ts, type_=ICAL_TYPE_ALL, ref_tz=None):
     """Return complete ICS text for the requested type."""
     if type_ not in ICAL_TYPES:
         type_ = ICAL_TYPE_ALL
 
-    if type_ in (ICAL_TYPE_BOOKINGS, ICAL_TYPE_REMINDERS):
-        return _get_or_cache(login, ical_token, now_ts, today_ts, type_)
+    if ref_tz is None:
+        ref_tz = _get_user_ref_tz(login)
 
-    bookings_ics = _get_or_cache(login, ical_token, now_ts, today_ts, ICAL_TYPE_BOOKINGS)
-    reminders_ics = _get_or_cache(login, ical_token, now_ts, today_ts, ICAL_TYPE_REMINDERS)
-    return ICAL_HEADER + _strip_calendar_wrapper(bookings_ics) + _strip_calendar_wrapper(reminders_ics) + ICAL_FOOTER
+    if type_ in (ICAL_TYPE_BOOKINGS, ICAL_TYPE_REMINDERS):
+        return _get_or_cache(login, ical_token, now_ts, today_ts, type_, ref_tz=ref_tz)
+
+    bookings_ics = _get_or_cache(login, ical_token, now_ts, today_ts, ICAL_TYPE_BOOKINGS, ref_tz=ref_tz)
+    reminders_ics = _get_or_cache(login, ical_token, now_ts, today_ts, ICAL_TYPE_REMINDERS, ref_tz=ref_tz)
+
+    # Merge VTIMEZONE blocks (dedup by TZID) then merge VEVENTs.
+    seen_tzids = set()
+    merged_vtimezones = []
+    for ics in (bookings_ics, reminders_ics):
+        for block in _extract_blocks(ics, 'BEGIN:VTIMEZONE'):
+            tzid_pos = block.find('TZID:')
+            if tzid_pos == -1:
+                continue
+            tzid = block[tzid_pos + 5:block.find('\r\n', tzid_pos)]
+            if tzid not in seen_tzids:
+                seen_tzids.add(tzid)
+                merged_vtimezones.append(block)
+
+    merged_vevents = (
+        _extract_blocks(bookings_ics, 'BEGIN:VEVENT') +
+        _extract_blocks(reminders_ics, 'BEGIN:VEVENT')
+    )
+
+    return ICAL_HEADER + ''.join(merged_vtimezones) + ''.join(merged_vevents) + ICAL_FOOTER
 
 
 # ---------------------------------------------------------------------------
@@ -371,9 +517,6 @@ def ical_feed(login):
     if requested_type not in ICAL_TYPES:
         requested_type = ICAL_TYPE_ALL
 
-    today_ts = utils.today()
-    now_ts = utils.now()
-
     row = (UserPrefs.select(UserPrefs.login)
                     .where(
                         (UserPrefs.login == login) &
@@ -385,7 +528,11 @@ def ical_feed(login):
     if row is None:
         flask.abort(404)
 
-    ics_content = get_ical_content(login, t, now_ts, today_ts, type_=requested_type)
+    ref_tz = _get_user_ref_tz(login)
+    today_ts = utils.today(tz=ref_tz)
+    now_ts = utils.now(tz=ref_tz)
+
+    ics_content = get_ical_content(login, t, now_ts, today_ts, type_=requested_type, ref_tz=ref_tz)
     return flask.Response(ics_content, mimetype="text/calendar")
 
 
@@ -424,7 +571,13 @@ def book_seat(login):
     except (ValueError, OverflowError):
         return _render_action(_action_t('Error'), status=400)
 
-    if day_ts < utils.today():
+    plan_tz_row = (Plan.select(Plan.timezone)
+                       .join(Seat, on=(Seat.pid == Plan.id))
+                       .where(Seat.zid == zid)
+                       .first())
+    plan_tz = plan_tz_row['timezone'] if plan_tz_row else None
+
+    if day_ts < utils.today(tz=plan_tz):
         return _render_action(_action_t('Requested date is in the past'))
 
     zone_row = (Zone.select(Zone.zone_type, Zone.zone_group, Zone.name)
