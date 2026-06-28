@@ -47,7 +47,6 @@ zones, plans, roles, and how they nest).
 ## What I'm not even planning to do
 
 - Approvals - the main goal of the system was to make it autonomous and management-free. So I don't intend to implement approval flows.
-- Timezone support - the selected time is always in the same timezone as a zone. It works well and is simple. But in case someone would like to have a couple of zones in different timezones and keep the `one person one seat at a given time` rule across these timezones, this will fail.
 
 ## What browsers are supported
 

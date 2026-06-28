@@ -72,7 +72,8 @@ environment:
 | `MAX_REPORT_ROWS`            | `5000`       |    no    | Maximum rows in Excel export                   |
 | `MAX_MAP_SIZE`               | `2 MB`       |    no    | Maximum plan image size                        |
 | `MAX_CONTENT_LENGTH`         | `5 MB`       |    no    | Maximum request body size                      |
-| `TIMEZONE`                   | auto-detect  |    no    | Timezone label in iCal `DTSTART`/`DTEND`       |
+| `DEFAULT_PLAN_TIMEZONE`      | auto-detect  |    no    | Default IANA timezone for new plans and iCal   |
+| `TIMEZONE`                   | —            |    no    | **Deprecated** alias for `DEFAULT_PLAN_TIMEZONE` |
 
 ¹ Required in production. A missing or default key is not safe.
 
@@ -277,9 +278,10 @@ independent of this system-wide window.
 
 ## Calendar / iCal
 
-| Variable   | Default     | Description                                                                                                                                           |
-| ---------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `TIMEZONE` | auto-detect | IANA timezone name (e.g. `Europe/Berlin`) inserted into iCal `DTSTART` and `DTEND` fields. When not set, WARP attempts to detect the server timezone. |
+| Variable                | Default     | Description                                                                                                              |
+| ----------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `DEFAULT_PLAN_TIMEZONE` | auto-detect | IANA timezone name (e.g. `Europe/Berlin`) used as the default for new plans and to anchor iCal reminder events. When not set, WARP auto-detects from the `TZ` env var, `/etc/timezone`, or the `/etc/localtime` symlink. Each plan can override this individually in the Plans admin screen. |
+| `TIMEZONE`              | —           | **Deprecated.** Alias for `DEFAULT_PLAN_TIMEZONE`. Use `DEFAULT_PLAN_TIMEZONE` in new deployments.                      |
 
 ---
 
