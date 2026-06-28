@@ -1,7 +1,9 @@
+import datetime
 import flask
 
 from calendar import timegm
 from time import localtime,strftime,gmtime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from jsonschema import validate, ValidationError
 import functools
 
@@ -10,24 +12,42 @@ import functools
 _debug_time_offset: int = 0
 
 
-def now():
-    """ Returns number of seconds since midnight 1970-1-1 in the current timezone until now"""
-    """ It is timezone unaware version of unix timestamp """
+def now(tz=None):
+    """Current wall-clock in the given IANA zone as a fake-UTC integer.
+
+    tz=None falls back to DEFAULT_PLAN_TIMEZONE; if that is also unset,
+    falls back to localtime() (existing behaviour).  The returned integer
+    uses the same fake-UTC scale as stored fromts/tots: the zone's wall-clock
+    digits treated as UTC seconds since epoch."""
+    if tz is None:
+        try:
+            tz = flask.current_app.config.get('DEFAULT_PLAN_TIMEZONE') or None
+        except RuntimeError:
+            tz = None
+    if tz:
+        dt = datetime.datetime.now(tz=ZoneInfo(tz))
+        return timegm(dt.timetuple()) + _debug_time_offset
     return timegm(localtime()) + _debug_time_offset
 
-def today():
-    """ Returns number of seconds since midnight 1970-1-1 in the current timezone until today's midnight"""
-    """ It is utils.now() with stipped hour """
-
-    n = now()
+def today(tz=None):
+    """Wall-clock midnight in the given IANA zone as a fake-UTC integer."""
+    n = now(tz)
     return n - n % (24*3600)
 
+def is_valid_iana(name):
+    """Return True iff name is a valid IANA timezone name resolvable by zoneinfo."""
+    try:
+        ZoneInfo(name)
+        return True
+    except (ZoneInfoNotFoundError, KeyError):
+        return False
+
 # format { "fromTS": 123, "toTS": 123 }
-def getTimeRange(extended = False):
+def getTimeRange(extended=False, tz=None):
     """ Returns a dict with fromTS and toTS """
     """ today's midnight, today's midnight + WEEKS_IN_ADVANCE """
 
-    fromTS = today()
+    fromTS = today(tz)
 
     weeksInAdvance = flask.current_app.config['WEEKS_IN_ADVANCE']
     if extended:

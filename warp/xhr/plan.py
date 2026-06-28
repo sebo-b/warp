@@ -42,10 +42,11 @@ def getSeats(pid):
 
     res = {"seats": {}}
 
-    # Verify plan exists
-    plan = Plan.select(Plan.id).where(Plan.id == pid).first()
+    # Verify plan exists and fetch timezone for TZ-aware window/grid seeds
+    plan = Plan.select(Plan.id, Plan.timezone).where(Plan.id == pid).first()
     if plan is None:
         return {"msg": "Forbidden", "code": 130}, 403
+    plan_tz = plan['timezone'] or None
 
     # Zones that have seats on this plan
     zone_rows = list(Zone.select(Zone.id, Zone.zone_type)
@@ -122,7 +123,7 @@ def getSeats(pid):
                 target_roles[row['zid']] = row['zone_role']
         bookable_roles = target_roles
 
-    tr = utils.getTimeRange()
+    tr = utils.getTimeRange(tz=plan_tz)
     usedZids = set()
     usedUsers = set()
 
@@ -317,7 +318,18 @@ applySchema = {
 def apply():
 
     apply_data = flask.request.get_json()
-    ts = utils.getTimeRange()
+    # Resolve the plan's TZ for TZ-aware booking-window checks. Only needed when
+    # a booking is being created; other operations (enable/disable/assign/remove)
+    # fall back to the default TZ, which is fine for those admin-side paths.
+    plan_tz = None
+    if 'book' in apply_data:
+        seat_plan_tz = Seat.select(Plan.timezone.alias('timezone')) \
+            .join(Plan, on=(Seat.pid == Plan.id)) \
+            .where(Seat.id == apply_data['book']['sid']) \
+            .tuples().first()
+        if seat_plan_tz:
+            plan_tz = seat_plan_tz[0] or None
+    ts = utils.getTimeRange(tz=plan_tz)
 
     seatsReqZoneAdmin = set()
     if 'enable' in apply_data: seatsReqZoneAdmin.update(apply_data['enable'])
@@ -402,7 +414,7 @@ def apply():
                     best_days = a['days_in_advance']
 
             if best_days is not None:
-                cutoffTS = utils.today() + (best_days + 1) * 24 * 3600
+                cutoffTS = utils.today(tz=plan_tz) + (best_days + 1) * 24 * 3600
                 for b in apply_data['book']['dates']:
                     if b['fromTS'] >= cutoffTS:
                         return {"msg": "Forbidden", "code": 110}, 403
@@ -505,7 +517,7 @@ def apply():
                 continue
             dia = l.get('days_in_advance')
             if dia is not None:
-                cutoff = utils.today() + (dia + 1) * 24 * 3600
+                cutoff = utils.today(tz=plan_tz) + (dia + 1) * 24 * 3600
                 window_conflicts = [
                     {"sid": row['sid'], "fromTS": row['fromts'], "toTS": row['tots'],
                      "login": row['login'], "username": row['name']}
@@ -521,7 +533,7 @@ def apply():
         if everyone_row is not None:
             dia = everyone_row.get('days_in_advance')
             if dia is not None:
-                cutoff = utils.today() + (dia + 1) * 24 * 3600
+                cutoff = utils.today(tz=plan_tz) + (dia + 1) * 24 * 3600
                 q = Book.select(Book.sid, Book.fromts, Book.tots, Users.login, Users.name) \
                         .join(Users, on=(Book.login == Users.login)) \
                         .where(Book.sid == sid) \
@@ -575,11 +587,12 @@ def runAutoBook(login, pid, dates, allowedZids=None, releaseZids=None):
     """
 
     # Verify plan exists and get accessible seats for this user
-    plan = Plan.select(Plan.id).where(Plan.id == pid).first()
+    plan = Plan.select(Plan.id, Plan.timezone).where(Plan.id == pid).first()
     if plan is None:
         return None, 130
+    plan_tz = plan['timezone'] or None
 
-    ts = utils.getTimeRange()
+    ts = utils.getTimeRange(tz=plan_tz)
     for b in dates:
         if b['fromTS'] < ts["fromTS"] or b['fromTS'] > ts["toTS"] \
                 or b['toTS'] < ts["fromTS"] or b['toTS'] > ts["toTS"]:
@@ -590,7 +603,7 @@ def runAutoBook(login, pid, dates, allowedZids=None, releaseZids=None):
         if sortedDates[i]['toTS'] > sortedDates[i + 1]['fromTS']:
             return None, 140
 
-    today = utils.today()
+    today = utils.today(tz=plan_tz)
     usageWindow = flask.current_app.config['AUTOBOOK_USAGE_WINDOW_DAYS']
     usageStart = today - usageWindow * 86400
     usageEnd = today + usageWindow * 86400
