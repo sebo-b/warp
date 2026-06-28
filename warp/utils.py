@@ -6,6 +6,7 @@ from time import localtime,strftime,gmtime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from jsonschema import validate, ValidationError
 import functools
+from peewee import Expression, fn, SQL
 
 # Debug-only time offset.  Set via POST /debug/set_time_offset (only in debug mode).
 # Never non-zero in production.
@@ -33,6 +34,36 @@ def today(tz=None):
     """Wall-clock midnight in the given IANA zone as a fake-UTC integer."""
     n = now(tz)
     return n - n % (24*3600)
+
+# --- peewee SQL helpers (TZ-aware, honor the debug offset) -------------------
+# Mirrors of now()/today() for use inside peewee WHERE/SELECT expressions,
+# where the comparison must run in the DB (per-row, against a TZ column) and
+# so can't use the Python-int versions above. Both honor _debug_time_offset
+# (e2e virtual time via /debug/set_time_offset) exactly like now()/today() do;
+# _debug_time_offset stays private to this module.
+
+def now_sql():
+    """SQL now() advanced by the debug time-offset, as a peewee node (timestamptz).
+
+    Encapsulates _debug_time_offset so callers never touch the private
+    attribute. In production _debug_time_offset == 0, so this is just now().
+    The bound parameter means the offset value never reaches SQL text."""
+    return SQL("(now() + make_interval(secs => %s))", (_debug_time_offset,))
+
+def today_in_tz_sql(tz_col, as_epoch=False):
+    """Wall-clock midnight today in each row's TZ, as a peewee expression.
+
+    tz_col is a peewee column holding an IANA name (e.g. Plan.timezone or
+    BookUTC.timezone). The shifted now() (see now_sql()) is interpreted in
+    the row's TZ, truncated to wall-clock midnight, and back to a real instant.
+    Returns timestamptz by default; as_epoch=True returns bigint seconds-since-
+    epoch (to compare against a ::bigint expression like _FROM_UTC_SQL)."""
+    midnight = Expression(
+        fn.date_trunc('day', Expression(now_sql(), 'AT TIME ZONE', tz_col)),
+        'AT TIME ZONE', tz_col)
+    if as_epoch:
+        return fn.date_part('epoch', midnight).cast('bigint')
+    return midnight
 
 def is_valid_iana(name):
     """Return True iff name is a valid IANA timezone name resolvable by zoneinfo."""
