@@ -7,14 +7,21 @@ import { logIn } from '../../helpers/auth';
 import { ADMIN, USER1 } from '../../helpers/users';
 import { querySql } from '../../helpers/db';
 import { TAB, adminPost } from '../../helpers/admin';
+import { getRuntimeInfo } from '../../helpers/runtime';
 
-/** Set the WARP light/dark theme cookie before any navigation. */
+/**
+ * Set the WARP light/dark theme cookie before any navigation.
+ *
+ * Bind the cookie to the actual runtime baseURL via `url:` (a host-only
+ * cookie) rather than a `domain:`. setThemeCookie runs before page.goto, so
+ * page.url() is empty and a domain default of 'localhost' would not be sent to
+ * the random-port `127.0.0.1:<port>` host the e2e server serves on.
+ */
 async function setThemeCookie(page: any, theme: 'light' | 'dark') {
   const context = page.context();
-  const url = page.url();
-  const domain = url ? new URL(url).hostname : 'localhost';
+  const baseURL = getRuntimeInfo().baseURL;
   await context.addCookies([
-    { name: 'warp_theme', value: theme, domain, path: '/', httpOnly: false, secure: false, sameSite: 'Lax' }
+    { name: 'warp_theme', value: theme, url: baseURL, httpOnly: false, secure: false, sameSite: 'Lax' }
   ]);
 }
 
