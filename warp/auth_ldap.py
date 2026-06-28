@@ -170,7 +170,7 @@ def ldapLogin(login, password):
     login = ldapApplyUserMetadata(login,userMetadata)
 
     flask.session['login'] = login
-    flask.session['login_time'] = utils.now()
+    flask.session['login_time'] = utils.now(tz="UTC")
 
     return True
 

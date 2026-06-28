@@ -275,7 +275,7 @@ def saml_acs():
         warnPrefix="SAML")
 
     flask.session['login'] = login
-    flask.session['login_time'] = utils.now()
+    flask.session['login_time'] = utils.now(tz="UTC")
 
     # Save SLO data for SP-initiated logout
     flask.session['saml_nameid'] = nameid

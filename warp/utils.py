@@ -2,7 +2,7 @@ import datetime
 import flask
 
 from calendar import timegm
-from time import localtime,strftime,gmtime
+from time import strftime,gmtime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from jsonschema import validate, ValidationError
 import functools
@@ -13,24 +13,19 @@ from peewee import Expression, fn, SQL
 _debug_time_offset: int = 0
 
 
-def now(tz=None):
+def now(tz):
     """Current wall-clock in the given IANA zone as a fake-UTC integer.
 
-    tz=None falls back to DEFAULT_PLAN_TIMEZONE; if that is also unset,
-    falls back to localtime() (existing behaviour).  The returned integer
-    uses the same fake-UTC scale as stored fromts/tots: the zone's wall-clock
-    digits treated as UTC seconds since epoch."""
-    if tz is None:
-        try:
-            tz = flask.current_app.config.get('DEFAULT_PLAN_TIMEZONE') or None
-        except RuntimeError:
-            tz = None
-    if tz:
-        dt = datetime.datetime.now(tz=ZoneInfo(tz))
-        return timegm(dt.timetuple()) + _debug_time_offset
-    return timegm(localtime()) + _debug_time_offset
+    The returned integer uses the same fake-UTC scale as stored fromts/tots:
+    the zone's wall-clock digits treated as UTC seconds since epoch.
 
-def today(tz=None):
+    tz is required (no default): a caller without a concrete zone almost
+    certainly has a bug. Pass 'UTC' explicitly for a self-consistent age/
+    subtraction where the absolute zone doesn't matter."""
+    dt = datetime.datetime.now(tz=ZoneInfo(tz))
+    return timegm(dt.timetuple()) + _debug_time_offset
+
+def today(tz):
     """Wall-clock midnight in the given IANA zone as a fake-UTC integer."""
     n = now(tz)
     return n - n % (24*3600)
@@ -74,7 +69,7 @@ def is_valid_iana(name):
         return False
 
 # format { "fromTS": 123, "toTS": 123 }
-def getTimeRange(extended=False, tz=None):
+def getTimeRange(tz, extended=False):
     """ Returns a dict with fromTS and toTS """
     """ today's midnight, today's midnight + WEEKS_IN_ADVANCE """
 
@@ -113,7 +108,7 @@ def getTimeRange(extended=False, tz=None):
 # frontend's existing i18n arrays. This makes the TZ trap structurally
 # impossible: the frontend never calls new Date(ts) to derive a day identity
 # (R1) — it just lays out the cells in wire order.
-def getCalendarGrid(today_ts=None, target_ts=None):
+def getCalendarGrid(today_ts, target_ts=None):
     """Returns a pure-data blob (no strings) describing a rectangular whole-month
     calendar grid from today's month through the month of the last selectable day.
     Drives the frontend plan-panel calendar; the frontend only renders the cells
@@ -123,9 +118,6 @@ def getCalendarGrid(today_ts=None, target_ts=None):
     weeks_in_advance = config['WEEKS_IN_ADVANCE']
     omitted_weekdays = config['OMITTED_WEEKDAYS']   # 0=Mon..6=Sun (== tm_wday)
     week_start_day = config['WEEK_START_DAY']       # 0=Mon..6=Sun (== tm_wday)
-
-    if today_ts is None:
-        today_ts = today()
 
     # Floor to midnight (today() already is; defensive for tests).
     today_midnight = today_ts - (today_ts % (24*3600))

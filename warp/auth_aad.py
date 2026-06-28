@@ -73,7 +73,7 @@ def signin_oidc():
 
 		userData = aadGetUserMetadata(result.get("id_token_claims"))
 		flask.session['login'] = aadApplyUserMetadata(userData)
-		flask.session['login_time'] = utils.now()
+		flask.session['login_time'] = utils.now(tz="UTC")
 
 	return flask.redirect(app_root_uri)
 
