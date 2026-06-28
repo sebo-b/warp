@@ -39,7 +39,7 @@ def is_valid_iana(name):
     try:
         ZoneInfo(name)
         return True
-    except (ZoneInfoNotFoundError, KeyError):
+    except (ZoneInfoNotFoundError, KeyError, ValueError):
         return False
 
 # format { "fromTS": 123, "toTS": 123 }
