@@ -265,22 +265,21 @@ WarpSeatFactory.prototype._fire = function(type, thisArg) {
 }
 
 WarpSeatFactory._formatDatePair = function(b) {
+    // Use pre-formatted strings when supplied (cross-plan bookings in a different
+    // TZ); otherwise derive from the fake-UTC integer via toISOString().
+    var fromStr = b.fromStr || new Date(b.fromTS*1000).toISOString();
+    var toStr   = b.toStr   || new Date(b.toTS*1000).toISOString();
 
-    var fromStr = new Date(b.fromTS*1000).toISOString();
-    var toStr = new Date(b.toTS*1000).toISOString();
-
+    var d = {};
     if (fromStr.substring(0,10) == toStr.substring(0,10)) {
-        return {
-            datetime1: fromStr.substring(0,10),
-            datetime2: fromStr.substring(11,16)+"-"+toStr.substring(11,16)
-        };
+        d.datetime1 = fromStr.substring(0,10);
+        d.datetime2 = fromStr.substring(11,16)+"-"+toStr.substring(11,16);
+    } else {
+        d.datetime1 = fromStr.substring(0,16).replace('T',' ');
+        d.datetime2 = toStr.substring(0,16).replace('T',' ');
     }
-    else {
-        return {
-            datetime1: fromStr.substring(0,16).replace('T',' '),
-            datetime2: toStr.substring(0,16).replace('T',' ')
-        };
-    }
+    if (b.tz) d.datetime2 += ' (' + b.tz + ')';
+    return d;
 }
 
 WarpSeat.prototype.getState = function() {

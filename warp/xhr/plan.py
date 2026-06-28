@@ -40,13 +40,14 @@ bp = flask.Blueprint('plan', __name__, url_prefix='plan')
 @bp.route("getSeats/<int:pid>")
 def getSeats(pid):
 
-    res = {"seats": {}}
+    res = {"seats": {}, "plan_timezone": open_tz}
 
     # Verify plan exists and fetch timezone for TZ-aware window/grid seeds
     plan = Plan.select(Plan.id, Plan.timezone).where(Plan.id == pid).first()
     if plan is None:
         return {"msg": "Forbidden", "code": 130}, 403
     plan_tz = plan['timezone'] or None
+    open_tz = plan_tz or 'UTC'
 
     # Zones that have seats on this plan
     zone_rows = list(Zone.select(Zone.id, Zone.zone_type)
@@ -212,32 +213,43 @@ def getSeats(pid):
 
     if conflict_zids:
         already_present_sids = [int(sid) for sid in res['seats']]
-        conflictBookQuery = Book.select(Book.sid, Seat.name, Seat.zid, Book.id, Book.login, Book.fromts, Book.tots) \
-            .join(Seat, on=(Book.sid == Seat.id)) \
-            .where(Seat.zid.in_(list(conflict_zids))) \
-            .where(Book.login == login) \
-            .where((Book.fromts < tr['toTS']) & (Book.tots > tr['fromTS'])) \
-            .where(Seat.id.not_in(already_present_sids)) \
-            .order_by(Book.fromts).tuples()
 
-        for b in conflictBookQuery.iterator():
+        # Use book_utc to get real instants and translate to the open plan's
+        # wall-clock scale so the frontend's integer overlap logic compares in
+        # one scale unchanged. A display payload (fromStr/toStr/tz) is added for
+        # bookings from a different TZ so the UI can show their own-office time.
+        exclude_clause = "AND bu.sid != ALL(%s)" if already_present_sids else ""
+        conflict_sql = f"""
+            SELECT bu.sid, s.name, bu.zid, bu.bid, bu.login, bu.fromts, bu.tots,
+                   EXTRACT(EPOCH FROM (bu.from_utc AT TIME ZONE %s AT TIME ZONE 'UTC'))::bigint,
+                   EXTRACT(EPOCH FROM (bu.to_utc   AT TIME ZONE %s AT TIME ZONE 'UTC'))::bigint,
+                   bu.timezone
+            FROM book_utc bu
+            JOIN seat s ON s.id = bu.sid
+            WHERE bu.zid = ANY(%s)
+              AND bu.login = %s
+              AND bu.fromts < %s AND bu.tots > %s
+              {exclude_clause}
+            ORDER BY bu.fromts
+        """
+        params = [open_tz, open_tz, list(conflict_zids), login, tr['toTS'], tr['fromTS']]
+        if already_present_sids:
+            params.append(already_present_sids)
+
+        for b in DB.execute_sql(conflict_sql, params):
             sid = str(b[0])
             if sid not in res['seats']:
-                res['seats'][sid] = {
-                    "name": b[1],
-                    "zid": b[2],
-                    "book": []
-                }
+                res['seats'][sid] = {"name": b[1], "zid": b[2], "book": []}
                 usedZids.add(b[2])
-            # login is sent explicitly (all rows are `login`'s own bookings) so the
-            # client never has to infer it from factory.login — keeping the booking
-            # shape identical to accessible seats.
-            res['seats'][sid]['book'].append({
-                "bid": b[3],
-                "login": b[4],
-                "fromTS": b[5],
-                "toTS": b[6]
-            })
+            book_entry = {"bid": b[3], "login": b[4], "fromTS": b[7], "toTS": b[8]}
+            # Display payload for bookings on a different-TZ plan: show time in
+            # the booking's own office TZ (fromts/tots are already that wall-clock).
+            booking_tz = b[9]
+            if booking_tz and booking_tz != open_tz:
+                book_entry["fromStr"] = utils.formatTimestamp(b[5])
+                book_entry["toStr"]   = utils.formatTimestamp(b[6])
+                book_entry["tz"]      = booking_tz
+            res['seats'][sid]['book'].append(book_entry)
             usedUsers.add(b[4])
 
     usedZonesQuery = Zone.select(Zone.id, Zone.name, Zone.zone_group).where(Zone.id.in_(usedZids)).tuples()
