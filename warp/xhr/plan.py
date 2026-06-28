@@ -228,6 +228,12 @@ def getSeats(pid):
             JOIN seat s ON s.id = bu.sid
             WHERE bu.zid = ANY(%s)
               AND bu.login = %s
+              -- ponytail: bu.fromts/tots are the booking's OWN-plan wall-clock,
+              -- while the window (%s, tr) is the OPEN plan's — a cross-TZ booking
+              -- straddling the window edge may be hinted slightly off. The
+              -- book_overlap_insert trigger is the authoritative exclusivity guard,
+              -- so this is display-only. Upgrade: compare the translated open-scale
+              -- instants (SELECT cols 7/8) in the WHERE too.
               AND bu.fromts < %s AND bu.tots > %s
               {exclude_clause}
             ORDER BY bu.fromts

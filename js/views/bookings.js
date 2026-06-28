@@ -291,9 +291,10 @@ document.addEventListener("DOMContentLoaded", function(e) {
             {column:"login", dir:"asc"}
         );
 
-        let todayTS = new Date();
-        todayTS = Math.round(todayTS / 1000) - todayTS.getTimezoneOffset()*60;
-        todayTS -= todayTS % (24*3600);
+        // Backend-sourced today in the viewer's reference TZ (PLAN
+        // per_plan_timezone §7) — not browser-local, so the default window
+        // doesn't shift with the admin's timezone.
+        let todayTS = window.warpGlobals.today;
         let twoWeeksAgo = todayTS - 14*24*3600;
 
         initialHeaderFilter.push(

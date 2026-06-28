@@ -98,6 +98,13 @@ on that one plan; it never looks at other plans.
 3. **No overlapping slots in the request** — slots are sorted by start; if any
    slot ends after the next one begins, the whole request is rejected (code 140).
 
+> **Timezone.** `runAutoBook` now operates in the **plan's own IANA timezone**
+> (PLAN_per_plan_timezone §7). The algorithm is unchanged; only the source of
+> `today`/`now` moved — `runAutoBook(pid)` resolves `today(plan_tz)` once and
+> seeds the window check above, the usage-range scan, and the `days_in_advance`
+> cutoff with it. Stored `fromts`/`tots` stay wall-clock and need no conversion;
+> all `%86400`/`+86400` day math remains in wall-clock space.
+
 ---
 
 ## 5. Per-seat classification (assignments)

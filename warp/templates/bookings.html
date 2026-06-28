@@ -8,6 +8,7 @@
     window.warpGlobals.URLs['bookingsReport'] = "{{ url_for('xhr.bookings.report') }}";
     window.warpGlobals['report'] = true;
     window.warpGlobals['maxReportRows'] = {{ maxReportRows }};
+    window.warpGlobals['today'] = {{ today | int }};
     {% else %}
     window.warpGlobals.URLs['bookingsReport'] = "{{ url_for('xhr.bookings.list') }}";
     window.warpGlobals.URLs['planApply'] = "{{ url_for('xhr.plan.apply') }}";

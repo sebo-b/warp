@@ -4,6 +4,7 @@ from warp.db import *
 from . import utils
 from . import blob_storage
 from warp.xhr.prefs import get_user_prefs
+from warp.ical import _get_user_ref_tz
 
 bp = flask.Blueprint('view', __name__)
 
@@ -92,9 +93,14 @@ def index():
 def bookings(report):
     if report == "report" and not flask.g.isAdmin:
         flask.abort(403)
+    # The report's default 2-week filter window is sourced from the backend
+    # (PLAN per_plan_timezone §7): today in the viewer's reference TZ, so it does
+    # not shift with the admin's browser timezone. Only the report view uses it.
+    ref_tz = _get_user_ref_tz(flask.g.login)
     return flask.render_template('bookings.html',
                                  report=(report == "report"),
-                                 maxReportRows=flask.current_app.config['MAX_REPORT_ROWS'])
+                                 maxReportRows=flask.current_app.config['MAX_REPORT_ROWS'],
+                                 today=int(utils.today(tz=ref_tz)))
 
 
 @bp.route("/plan/<pid>")
