@@ -1747,15 +1747,15 @@ INPUT[type="text"] ~ .show_password_btn::after {
     margin: 8px 0 16px;
 }
 
-/* Dark mode: Materialize colours the native range track with
-   --md-sys-color-surface-variant, which we map to --warp-grey-bg (the page bg),
-   so the track is invisible in dark. Use --warp-primary-tint — the same track
-   colour the noUiSlider theme uses — so the rail reads. The thumb already
-   uses --warp-primary and stays visible. */
-:root[theme="dark"] input[type=range]::-webkit-slider-runnable-track {
+/* Materialize colours the native range track with --md-sys-color-surface-variant,
+   which we map to --warp-grey-bg (the page bg) in both themes, so the track blends
+   into the page and is invisible. Use --warp-primary-tint — the same track colour
+   the noUiSlider theme uses — so the rail reads in light and dark alike. The thumb
+   already uses --warp-primary and stays visible. */
+input[type=range]::-webkit-slider-runnable-track {
     background-color: var(--warp-primary-tint) !important;
 }
-:root[theme="dark"] input[type=range]::-moz-range-track {
+input[type=range]::-moz-range-track {
     background-color: var(--warp-primary-tint) !important;
 }
 
