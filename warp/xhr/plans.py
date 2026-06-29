@@ -130,6 +130,7 @@ def addOrEdit():
     if not utils.is_valid_plan_timezone(tz):
         return {"msg": "Invalid timezone", "code": 323}, 400
 
+    tz_changed_pid = None
     try:
         with DB.atomic():
             updColumns = {
@@ -138,9 +139,13 @@ def addOrEdit():
             }
 
             if 'id' in jsonData:
-                rowCount = Plan.update(updColumns).where(Plan.id == jsonData['id']).execute()
+                pid = jsonData['id']
+                oldRow = Plan.select(Plan.timezone).where(Plan.id == pid).first()
+                rowCount = Plan.update(updColumns).where(Plan.id == pid).execute()
                 if rowCount != 1:
                     raise ApplyError("Wrong number of affected rows", 321)
+                if oldRow is not None and oldRow.timezone != tz:
+                    tz_changed_pid = pid
             else:
                 Plan.insert(updColumns).execute()
 
@@ -148,6 +153,19 @@ def addOrEdit():
         return {"msg": "Error", "code": 322}, 400
     except ApplyError as err:
         return {"msg": "Error", "code": err.args[1]}, 400
+
+    # Changing a plan's TZ re-interprets every booking's wall-clock instant, so any
+    # iCal feed cached for a user with bookings in this plan now carries the wrong
+    # VTIMEZONE/offset. Booking edits already invalidate the cache; a TZ edit must
+    # too (it doesn't touch book rows, so nothing else would).
+    if tz_changed_pid is not None:
+        from warp.ical import invalidate_calendar_cache
+        logins = [r['login'] for r in
+                  Book.select(Book.login)
+                      .join(Seat, on=(Seat.id == Book.sid))
+                      .where(Seat.pid == tz_changed_pid)
+                      .distinct().dicts()]
+        invalidate_calendar_cache(logins)
 
     return {"msg": "ok"}, 200
 

@@ -16,6 +16,21 @@ ALTER TABLE plan ADD COLUMN timezone text;
 
 UPDATE plan SET timezone = current_setting('TIMEZONE') WHERE timezone IS NULL;
 
+-- current_setting() writes the server TZ string raw, bypassing the app's
+-- python∩postgres validation. Canonicalize UTC aliases and clamp anything
+-- Postgres itself can't name-resolve to 'UTC', so no plan row can carry a value
+-- that later throws. (Python-side resolvability — a zone Postgres knows but a
+-- stripped zoneinfo doesn't — is re-checked and repaired at startup; see
+-- _loadValidTimezones.)
+UPDATE plan SET timezone = 'UTC'
+ WHERE timezone IN ('Etc/UTC', 'GMT', 'Etc/GMT', 'Universal', 'Zulu')
+    OR timezone NOT IN (SELECT name FROM pg_timezone_names);
+
+-- iCal feeds cached before this migration used the old global-TIMEZONE logic and
+-- carry no per-plan VTIMEZONE; the (login, type) cache would serve them until the
+-- day rolls over. The table is UNLOGGED and regenerates lazily on next fetch.
+DELETE FROM calendar_cache;
+
 ALTER TABLE plan ALTER COLUMN timezone SET NOT NULL;
 ALTER TABLE plan ALTER COLUMN timezone SET DEFAULT 'UTC';
 

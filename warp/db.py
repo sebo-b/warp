@@ -158,6 +158,20 @@ def _loadValidTimezones(app):
     app.config['VALID_TIMEZONES'] = valid
     print(f"Loaded {len(valid)} valid timezones (python ∩ postgres)")
 
+    # A plan TZ is only validated against `valid` on the edit path; the migration-018
+    # seed (current_setting('TIMEZONE')) and any externally-written row bypass it. A
+    # value Postgres resolves but this image's zoneinfo can't is a landmine: every
+    # Python time path (now/today/getTimeRange/VTIMEZONE) throws on first use. Repair
+    # such rows to 'UTC' — wall-clock ("fake-UTC") storage is preserved, so bookings
+    # keep their displayed times — so the app can never carry an unloadable plan TZ.
+    with DB:
+        bad = [r[0] for r in DB.execute_sql("SELECT DISTINCT timezone FROM plan").fetchall()
+               if r[0] not in valid]
+        if bad:
+            print(f"WARNING: repairing {len(bad)} plan timezone(s) not in the valid "
+                  f"set to 'UTC': {sorted(bad)}")
+            DB.execute_sql("UPDATE plan SET timezone = 'UTC' WHERE timezone = ANY(%s)", (bad,))
+
 def initDB():
 
     schema = DB_SCHEMA_FILE
