@@ -40,7 +40,10 @@
 
     {% if not isZoneViewer %}
     <dialog id="action_modal" class="modal bottom-sheet">
-        <div class="modal-content">
+        <!-- Neutral autofocus target: a native <dialog> otherwise focuses the first
+             action button on open (an unwanted focus ring on Edit/Book). Focus stays
+             inside the dialog (a11y) but on a non-interactive container. -->
+        <div class="modal-content" tabindex="-1" autofocus>
             <h4 id="action_modal_title" style="display: none;"></h4>
             <div class="action_modal_bar">
                 <div class="action_modal_messages">
@@ -50,9 +53,7 @@
 
                 <div class="action_modal_buttons">
                     {% if isZoneAdmin %}
-                    <a href="#!" class="modal-close waves-effect btn-flat plan_action_btn TR" data-action="assign-modal">btn.Assign</a>
-                    <a href="#!" class="modal-close waves-effect btn-flat plan_action_btn TR" data-action="enable">btn.Enable</a>
-                    <a href="#!" class="modal-close waves-effect btn-flat plan_action_btn TR" data-action="disable">btn.Disable</a>
+                    <a href="#!" class="modal-close waves-effect btn-flat plan_action_btn TR" data-action="seat-edit">btn.Edit</a>
                     {% endif %}
                     <a href="#!" class="modal-close waves-effect waves-light btn warp-btn-danger plan_action_btn TR" data-action="delete">btn.Remove</a>
                     <a href="#!" class="modal-close waves-effect waves-light btn warp-btn-primary plan_action_btn TR" data-action="update">btn.Update</a>
@@ -64,9 +65,18 @@
     {% endif %}
 
     {% if isZoneAdmin %}
-    <dialog id="assigned_seat_modal" class="modal warp-form-modal warp-fields">
+    <dialog id="seat_edit_modal" class="modal warp-form-modal warp-fields">
         <div class="modal-content">
-            <h4 class="TR">Seat assignment</h4>
+            <h4 class="TR">Edit seat</h4>
+            <div class="row">
+                <div class="col s12 seat_edit_enabled_row">
+                    <span class="TR" id="seat_edit_enabled_label">Seat enabled</span>
+                    <div class="switch"><label>
+                        <input type="checkbox" id="seat_edit_enabled" aria-labelledby="seat_edit_enabled_label">
+                        <span class="lever"></span>
+                    </label></div>
+                </div>
+            </div>
             <p class="TR">Select users to which the seat will be assigned:</p>
             <div class="input-field">
                 <input type="text" id="assigned_seat_add_input" class="autocomplete" autocomplete="off">
@@ -75,7 +85,7 @@
             <ul id="assigned_seat_list" class="collection assigned_seat_list"></ul>
         </div>
         <div class="modal-footer">
-            <a href="#!" class="modal-close waves-effect waves-light btn plan_action_btn TR" data-action="assign">btn.Set</a>
+            <a href="#!" class="modal-close waves-effect waves-light btn plan_action_btn TR" data-action="seat-edit-save">btn.Save</a>
             <a href="#!" class="modal-close waves-effect waves-light btn-flat TR">btn.Cancel</a>
         </div>
     </dialog>

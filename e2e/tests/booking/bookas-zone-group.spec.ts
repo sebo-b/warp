@@ -65,7 +65,7 @@ async function seatActions(page: any, seat: any): Promise<string[]> {
     return [];
   }
   const actions: string[] = [];
-  for (const a of ['book', 'update', 'delete', 'enable', 'disable']) {
+  for (const a of ['book', 'update', 'delete']) {
     if (await page.locator(`.plan_action_btn[data-action="${a}"]`).isVisible())
       actions.push(a);
   }

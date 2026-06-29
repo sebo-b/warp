@@ -213,12 +213,13 @@ export async function bookSeatUI(
 }
 
 /**
- * Click a zone action button (book/delete/update/enable/disable), wait for the
- * apply response and Flask teardown to commit the transaction.
+ * Click a zone action button (book/delete/update), wait for the apply response
+ * and Flask teardown to commit the transaction. The zone-admin seat Edit /
+ * Enable / Disable actions live in the #seat_edit_modal, not here.
  */
 export async function clickActionBtn(
   page: Page,
-  action: 'book' | 'delete' | 'update' | 'enable' | 'disable',
+  action: 'book' | 'delete' | 'update',
 ): Promise<void> {
   await Promise.all([
     page.waitForResponse(r => r.url().includes('/xhr/plan/apply') && r.status() === 200),

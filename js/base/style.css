@@ -1387,6 +1387,13 @@ nav .dropdown-content li > span {
     display: none;
 }
 
+/* The bottom-sheet takes initial focus on its .modal-content (tabindex=-1,
+   autofocus) so no action button gets an unwanted focus ring on open; the
+   container itself is not interactive, so suppress its ring. */
+#action_modal .modal-content:focus {
+    outline: none;
+}
+
 #action_modal .plan_action_btn.active {
     display: inline-flex;
 }
@@ -1554,6 +1561,25 @@ nav .dropdown-content li > span {
 .assigned_seat_delete_btn {
     padding: 0;
     margin-left: 4px;
+}
+
+/* Seat-edit modal: the "Seat enabled" row mirrors the preferences feature-row
+   (label on the left, Materialize switch on the right). */
+.seat_edit_enabled_row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--warp-space-3);
+    padding-bottom: var(--warp-space-2);
+}
+
+.seat_edit_enabled_row > span {
+    font-size: 1rem;
+    color: var(--warp-grey-text);
+}
+
+.seat_edit_enabled_row .switch label {
+    margin: 0;
 }
 
 SELECT.warp_select {

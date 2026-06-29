@@ -1,5 +1,5 @@
 /**
- * Zone admin UI: action modal visibility, disable/enable seats.
+ * Zone admin UI: action modal visibility, seat enable/disable via the edit modal.
  *
  * user1 = zone admin (role 10) in Zone 1
  * user2 = regular zone user (role 20) in Zone 1
@@ -14,15 +14,14 @@ import {
   selectOnlyDates,
   clickZoneSeat,
   waitForSeatsLoaded,
-  clickActionBtn,
 } from '../../helpers/booking';
-import { pickFirstDate } from '../../helpers/zone-admin';
+import { pickFirstDate, openSeatEditModal, setSeatEnabledAndSave } from '../../helpers/zone-admin';
 
 // ─── Zone Admin UI Actions ────────────────────────────────────────────────────
 
 test.describe('zone admin action modal', () => {
 
-  test('zone admin sees Assign and Disable buttons in the action modal', async ({ page }) => {
+  test('zone admin sees the flat Edit button in the action modal', async ({ page }) => {
     await logIn(page, USER1);
     await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
@@ -33,12 +32,15 @@ test.describe('zone admin action modal', () => {
     await clickZoneSeat(page, seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
 
-    await expect(page.locator('.plan_action_btn[data-action="assign-modal"]')).toBeVisible();
-    await expect(page.locator('.plan_action_btn[data-action="disable"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="seat-edit"]')).toBeVisible();
     await expect(page.locator('.plan_action_btn[data-action="book"]')).toBeVisible();
+    // The old separate Assign / Enable / Disable buttons are gone.
+    await expect(page.locator('.plan_action_btn[data-action="assign-modal"]')).toHaveCount(0);
+    await expect(page.locator('.plan_action_btn[data-action="enable"]')).toHaveCount(0);
+    await expect(page.locator('.plan_action_btn[data-action="disable"]')).toHaveCount(0);
   });
 
-  test('regular user does NOT see Assign or Disable buttons', async ({ page }) => {
+  test('regular user does NOT see the Edit button', async ({ page }) => {
     await logIn(page, USER2);
     await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
@@ -49,17 +51,16 @@ test.describe('zone admin action modal', () => {
     await clickZoneSeat(page, seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
 
-    await expect(page.locator('.plan_action_btn[data-action="assign-modal"]')).not.toBeVisible();
-    await expect(page.locator('.plan_action_btn[data-action="disable"]')).not.toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="seat-edit"]')).not.toBeVisible();
   });
 
 });
 
-// ─── Disable / Enable Seats ───────────────────────────────────────────────────
+// ─── Disable / Enable Seats (via the edit modal toggle) ───────────────────────
 
 test.describe('disable and enable seats', () => {
 
-  test('zone admin can disable a seat via the action modal', async ({ page }) => {
+  test('zone admin can disable a seat via the edit modal', async ({ page }) => {
     await logIn(page, USER1);
     await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
@@ -69,13 +70,17 @@ test.describe('disable and enable seats', () => {
     const [seat] = await getZoneSeats(1);
     await clickZoneSeat(page, seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
-    await clickActionBtn(page, 'disable');
+    await openSeatEditModal(page);
+
+    // The toggle reflects the live enabled state (seat is enabled by default).
+    await expect(page.locator('#seat_edit_enabled')).toBeChecked();
+    await setSeatEnabledAndSave(page, false);
 
     const result = await querySql('SELECT enabled FROM seat WHERE id = $1', [seat.id]);
     expect(result.rows[0].enabled).toBe(false);
   });
 
-  test('disabled seat shows Enable button when zone admin clicks it', async ({ page }) => {
+  test('disabled seat shows the toggle off in the edit modal', async ({ page }) => {
     const [seat] = await getZoneSeats(1);
     await querySql('UPDATE seat SET enabled = false WHERE id = $1', [seat.id]);
 
@@ -87,8 +92,8 @@ test.describe('disable and enable seats', () => {
 
     await clickZoneSeat(page, seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
-    await expect(page.locator('.plan_action_btn[data-action="enable"]')).toBeVisible();
-    await expect(page.locator('.plan_action_btn[data-action="disable"]')).not.toBeVisible();
+    await openSeatEditModal(page);
+    await expect(page.locator('#seat_edit_enabled')).not.toBeChecked();
   });
 
   test('zone admin can re-enable a disabled seat', async ({ page }) => {
@@ -103,7 +108,8 @@ test.describe('disable and enable seats', () => {
 
     await clickZoneSeat(page, seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
-    await clickActionBtn(page, 'enable');
+    await openSeatEditModal(page);
+    await setSeatEnabledAndSave(page, true);
 
     const result = await querySql('SELECT enabled FROM seat WHERE id = $1', [seat.id]);
     expect(result.rows[0].enabled).toBe(true);
@@ -148,7 +154,8 @@ test.describe('disable and enable seats', () => {
 
     await clickZoneSeat(page, seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
-    await clickActionBtn(page, 'disable');
+    await openSeatEditModal(page);
+    await setSeatEnabledAndSave(page, false);
 
     const seatResult = await querySql('SELECT enabled FROM seat WHERE id = $1', [seat.id]);
     expect(seatResult.rows[0].enabled).toBe(false);

@@ -280,6 +280,14 @@ Accessible via the user icon on the Zones management page.
 - A seat can have **both** specific user assignments and an "Everyone" assignment simultaneously. In that case, specific users always get access, and everyone else can book via the "Everyone" row.
 - At most one "Everyone" assignment per seat.
 
+### 6.1.1 The Seat Edit Modal (Zone Admin)
+- In the plan view a zone admin clicks a seat to open the action bottom-sheet, which shows a single flat **Edit** button (replacing the former separate Assign / Enable / Disable buttons).
+- **Edit** opens a form modal (`#seat_edit_modal`) with:
+  - A **Seat enabled** toggle (Materialize switch) reflecting the seat's current enabled state.
+  - The assignment section: an autocomplete **Select user** textbox and the list of assigned users (each with a days-in-advance selector and a remove button).
+- **Save** sends one `/xhr/plan/apply` request carrying only the parts that actually changed since the modal opened — `assign` when the assignment set changed, and `enable` or `disable` when the toggle was flipped — so an unchanged save fires no spurious conflict warnings.
+- The modal behaves like every other WARP form modal: clicking the backdrop or pressing Esc closes it only when nothing was edited; in-modal dropdowns are lifted to the top layer so they are not clipped by the modal.
+
 ### 6.2 Days-in-Advance Booking Window
 - Each assignment row (specific user or Everyone) can optionally set a **days_in_advance** limit.
 - This restricts how far into the future a user can book that seat.
@@ -326,7 +334,7 @@ Accessible via the user icon on the Zones management page.
 | Blue (rebook)                           | You booked this seat, but for a different time range — can update                      | Update                          |
 | Blue (conflict)                         | You booked this seat, but another user has a conflicting booking — cannot update, only remove | Remove                     |
 | Red (taken)                             | Booked by someone else or unavailable                                                  | —                               |
-| Gray (disabled)                         | Seat is disabled (visible only to zone admins)                                         | Enable/Disable                  |
+| Gray (disabled)                         | Seat is disabled (visible only to zone admins)                                         | Edit (toggle enabled)           |
 | Gray circle / gray person (view-only)   | Seat is in a view-only or disabled zone you cannot book in (free vs. taken)            | —                               |
 | No icon                                 | No date/time selected                                                                  | —                               |
 
@@ -784,7 +792,7 @@ menus) switches between them, showing a **moon** icon in light mode and a **sun*
 | Seat State            | No Dates | Green (Book)          | Green (Rebook)      | Blue (Update) | Blue (Conflict) | Blue (Exact) | Red (Taken) | Yellow (Assigned)           | Gray (Disabled)             |
 |-----------------------|----------|-----------------------|----------------------|---------------|-----------------|--------------|-------------|-----------------------------|-----------------------------|
 | **User actions**      | —        | Book                  | Book (replaces)      | Update        | Remove          | Remove       | —           | —                           | —                           |
-| **Zone Admin actions**| —        | + Book As, + Assign, + Enable/Disable | same | same          | same            | same         | + Assign    | + Assign, + Enable/Disable  | + Enable                    |
+| **Zone Admin actions**| —        | + Book As, + Edit | same | same          | same            | same         | + Edit    | + Edit  | + Edit                    |
 | **Viewer actions**    | —        | —                     | —                    | —             | —               | —            | —           | —                           | —                           |
 
 ---

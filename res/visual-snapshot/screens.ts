@@ -125,11 +125,11 @@ async function openSeatActionModal(page: Page): Promise<void> {
   await page.locator('#action_modal').waitFor({ state: 'visible' });
 }
 
-/** Open the assigned-seat modal from the seat action modal (admin only). */
-async function openAssignedSeatModal(page: Page): Promise<void> {
+/** Open the seat-edit modal from the seat action modal (admin only). */
+async function openSeatEditModal(page: Page): Promise<void> {
   await openSeatActionModal(page);
-  await page.locator('#action_modal .zone_action_btn[data-action="assign-modal"]').click();
-  await page.locator('#assigned_seat_modal').waitFor({ state: 'visible' });
+  await page.locator('#action_modal .plan_action_btn[data-action="seat-edit"]').click();
+  await page.locator('#seat_edit_modal').waitFor({ state: 'visible' });
 }
 
 /** Open the zone-map help modal on /plan/:pid. */
@@ -306,7 +306,7 @@ export const SCREENS: Screen[] = [
     prepare: openSeatActionModal, fullPage: false },
   { id: 'modal-assigned-seat', title: 'Modal: assigned seat', role: 'admin',
     path: (ctx) => firstPid(ctx).then((pid) => `/plan/${pid}`),
-    prepare: openAssignedSeatModal, fullPage: false },
+    prepare: openSeatEditModal, fullPage: false },
   { id: 'modal-zonemap-help', title: 'Modal: zone map help', role: 'admin',
     path: (ctx) => firstPid(ctx).then((pid) => `/plan/${pid}`),
     prepare: openZoneHelpModal, fullPage: false },

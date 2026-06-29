@@ -390,15 +390,36 @@ function initActionMenu(seatFactory) {
     var seat = null;    // used for passing seat to btn click events (closure)
     var assignedData = [];
 
-    function initAssignedSeatsModal(seatArg) {
+    // Snapshot of the seat's enabled flag and assignment list at modal-open
+    // time, so Save only sends the parts that actually changed (avoids
+    // spurious conflict warnings on an unchanged assign/disable payload).
+    var seatEditOriginalEnabled = null;
+    var seatEditOriginalSig = null;
 
-        var assignModalEl = document.getElementById("assigned_seat_modal");
+    function assignmentsSignature(data) {
+        return JSON.stringify(data.map(function (d) {
+            return { login: d.login, days_in_advance: d.days_in_advance };
+        }).sort(function (a, b) {
+            return String(a.login).localeCompare(String(b.login));
+        }));
+    }
+
+    function initSeatEditModal(seatArg) {
+
+        var assignModalEl = document.getElementById("seat_edit_modal");
         if (!assignModalEl || typeof(PlanUserData) === 'undefined')
             return null;
 
         var assignModal = warpDialog.getInstance(assignModalEl);
         if (!assignModal)
             assignModal = warpDialog(assignModalEl, {});
+
+        // Seat-enabled toggle: seed from the live seat state.
+        var enabledCheckbox = document.getElementById('seat_edit_enabled');
+        if (enabledCheckbox) {
+            enabledCheckbox.checked = !!seatArg.enabled;
+            seatEditOriginalEnabled = !!seatArg.enabled;
+        }
 
         var zoneUserData = PlanUserData.getInstance();
         var userData = zoneUserData.getData();
@@ -409,6 +430,7 @@ function initActionMenu(seatFactory) {
         var assignments = seatArg.getAssignments();
         for (let [key, a] of Object.entries(assignments))
             assignedData.push({ login: key === EVERYONE_KEY ? null : key, name: a.name, days_in_advance: a.days_in_advance });
+        seatEditOriginalSig = assignmentsSignature(assignedData);
 
         function buildDaysSelect(current) {
             var sel = document.createElement('select');
@@ -467,8 +489,10 @@ function initActionMenu(seatFactory) {
                 delBtn.innerHTML = '<i class="material-icons small warp-icon-danger">delete</i>';
                 delBtn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    assignedData = assignedData.filter(d => d.login !== item.login);
+                    var idx = assignedData.findIndex(d => d.login === item.login);
+                    if (idx !== -1) assignedData.splice(idx, 1);
                     renderList();
+                    assignModal.markDirty();
                 });
 
                 var right = document.createElement('span');
@@ -509,6 +533,7 @@ function initActionMenu(seatFactory) {
                     }
                     assignedData.push({ login: null, name: everyoneStr, days_in_advance: null });
                     renderList();
+                    assignModal.markDirty();
                     addInputEl.value = '';
                     addInputEl.focus();
                     return;
@@ -526,6 +551,7 @@ function initActionMenu(seatFactory) {
                 }
                 assignedData.push({ login: login, name: userData[login], days_in_advance: null });
                 renderList();
+                assignModal.markDirty();
                 addInputEl.value = '';
                 addInputEl.focus();
             }
@@ -573,12 +599,8 @@ function initActionMenu(seatFactory) {
         };
 
         if (window.warpGlobals.isZoneAdmin) {
-            actions.push('assign-modal');
-            actions.push('assign');
-            if (state == WarpSeat.SeatStates.DISABLED)
-                actions.push('enable');
-            else
-                actions.push('disable');
+            actions.push('seat-edit');
+            actions.push('seat-edit-save');
         }
 
         if (!actions.length)
@@ -638,29 +660,33 @@ function initActionMenu(seatFactory) {
 
     var actionBtnClicked = function(e) {
 
-        // this is not a real action, it should just show modal
-        // real action button is inside modal
-        if (this.dataset.action == 'assign-modal') {
-            var assignModal = initAssignedSeatsModal(seat);
-            document.getElementById('assigned_seat_add_input').focus();
-            assignModal.open();
+        // This is not a real action, it should just show the edit modal.
+        // The real apply button is inside the modal (seat-edit-save).
+        if (this.dataset.action == 'seat-edit') {
+            var editModal = initSeatEditModal(seat);
+            if (editModal)
+                editModal.open();
             return;
         }
 
         var applyData = {};
 
-        if (this.dataset.action == "assign" && typeof(PlanUserData) !== 'undefined') {
-            applyData['assign'] = {
-                sid: seat.getSid(),
-                logins: assignedData.map(d => ({
-                    login: d.login,
-                    days_in_advance: d.days_in_advance
-                }))
-            };
-        }
-
-        if (this.dataset.action == 'enable' || this.dataset.action == 'disable') {
-            applyData[this.dataset.action] = [ seat.getSid() ];
+        if (this.dataset.action == "seat-edit-save" && typeof(PlanUserData) !== 'undefined') {
+            // Only send the parts that actually changed since the modal opened,
+            // so an unchanged Save doesn't fire spurious conflict warnings.
+            if (assignmentsSignature(assignedData) !== seatEditOriginalSig) {
+                applyData['assign'] = {
+                    sid: seat.getSid(),
+                    logins: assignedData.map(d => ({
+                        login: d.login,
+                        days_in_advance: d.days_in_advance
+                    }))
+                };
+            }
+            var enabledCheckbox = document.getElementById('seat_edit_enabled');
+            if (enabledCheckbox && !!enabledCheckbox.checked !== seatEditOriginalEnabled) {
+                applyData[enabledCheckbox.checked ? 'enable' : 'disable'] = [ seat.getSid() ];
+            }
         }
 
         if (this.dataset.action == 'book' || this.dataset.action == 'update') {
@@ -679,6 +705,12 @@ function initActionMenu(seatFactory) {
         if (this.dataset.action == 'delete' || this.dataset.action == 'update') {
             applyData['remove'] = seatFactory.getMyConflictingBookings(seat, true);
         }
+
+        // seat-edit-save with no net changes (toggle flipped back, assignments
+        // unchanged) builds an empty payload the backend would reject (400).
+        // Nothing to apply — just close (modal-close already handled that).
+        if (Object.keys(applyData).length === 0)
+            return;
 
         Utils.xhr.post(
             window.warpGlobals.URLs['planApply'],

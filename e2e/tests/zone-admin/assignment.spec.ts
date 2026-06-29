@@ -156,11 +156,11 @@ test.describe('seat assignment via API', () => {
 
 });
 
-// ─── Assign Seat Modal UI ─────────────────────────────────────────────────────
+// ─── Edit Seat Modal UI ───────────────────────────────────────────────────────
 
-test.describe('assign seat modal UI', () => {
+test.describe('edit seat modal UI', () => {
 
-  test('zone admin can open the assign modal from the action modal', async ({ page }) => {
+  test('zone admin can open the edit modal from the action modal', async ({ page }) => {
     await logIn(page, USER1);
     await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
@@ -170,13 +170,14 @@ test.describe('assign seat modal UI', () => {
     const [seat] = await getZoneSeats(1);
     await clickZoneSeat(page, seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
-    await page.locator('.plan_action_btn[data-action="assign-modal"]').click();
+    await page.locator('.plan_action_btn[data-action="seat-edit"]').click();
 
-    await expect(page.locator('#assigned_seat_modal')).toHaveClass(/open/);
+    await expect(page.locator('#seat_edit_modal')).toHaveClass(/open/);
     await expect(page.locator('#assigned_seat_add_input')).toBeVisible();
+    await expect(page.locator('#seat_edit_modal .switch')).toBeVisible();
   });
 
-  test('zone admin can assign a user to a seat through the assign modal UI', async ({ page }) => {
+  test('zone admin can assign a user to a seat through the edit modal UI', async ({ page }) => {
     await logIn(page, USER1);
     await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
@@ -186,8 +187,8 @@ test.describe('assign seat modal UI', () => {
     const [seat] = await getZoneSeats(1);
     await clickZoneSeat(page, seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
-    await page.locator('.plan_action_btn[data-action="assign-modal"]').click();
-    await expect(page.locator('#assigned_seat_modal')).toHaveClass(/open/);
+    await page.locator('.plan_action_btn[data-action="seat-edit"]').click();
+    await expect(page.locator('#seat_edit_modal')).toHaveClass(/open/);
 
     const addInput = page.locator('#assigned_seat_add_input');
     await addInput.click();
@@ -205,7 +206,7 @@ test.describe('assign seat modal UI', () => {
 
     await Promise.all([
       page.waitForResponse(r => r.url().includes('/xhr/plan/apply') && r.status() === 200),
-      page.locator('#assigned_seat_modal .plan_action_btn[data-action="assign"]').click(),
+      page.locator('#seat_edit_modal .plan_action_btn[data-action="seat-edit-save"]').click(),
     ]);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(200);
