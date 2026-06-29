@@ -168,7 +168,7 @@ def oidc_callback():
         warnPrefix="OIDC")
 
     flask.session['login'] = login
-    flask.session['login_time'] = utils.now()
+    flask.session['login_time'] = utils.now(tz="UTC")
 
     return flask.redirect(app_root_uri)
 

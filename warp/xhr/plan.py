@@ -37,15 +37,89 @@ bp = flask.Blueprint('plan', __name__, url_prefix='plan')
 # Optional query args:
 #   login=string       – view/operate the plan as this login (book-as; requires
 #                        plan admin). Conflict bookings are scoped to this login.
+def resolve_conflict_bookings(conflict_zids, login, open_tz, tr, exclude_sids=()):
+    """Resolve a user's conflicting bookings for the plan being opened.
+
+    Flask-independent (no request/g/app context): depends only on the bound
+    peewee models, so it can be imported and exercised against a test DB. This is
+    the core the plan panel relies on to flag CAN_REBOOK vs CAN_BOOK.
+
+    conflict_zids : zids sharing an exclusivity scope with the open plan (a
+                    zone_group spans plans; an ungrouped zone is exclusive to
+                    itself) — mirrors book_overlap_insert.
+    open_tz       : the open plan's IANA zone; bookings are translated into its
+                    wall-clock scale so the frontend's integer overlap compares
+                    in ONE scale.
+    tr            : {'fromTS','toTS'} window in the OPEN plan's wall-clock scale.
+    exclude_sids  : seats already present in the response (skip duplicates).
+
+    Returns a list (ordered by booking start) of dicts:
+        {sid, name, zid, bid, login, fromTS, toTS[, fromStr, toStr, tz]}
+    fromTS/toTS are open-plan-scale fake-UTC ints (what the client overlaps); the
+    optional fromStr/toStr/tz display payload is set only for bookings whose own
+    plan TZ differs from open_tz, so the UI can show their own-office time.
+    """
+    # Real instant -> open-plan wall-clock -> fake-UTC int (the inverse of
+    # book_utc's derivation); open_tz is a parameterised literal (Value), not
+    # interpolated, so a plan.timezone value can never reach SQL text.
+    open_from = peewee.fn.date_part('epoch',
+        peewee.Expression(peewee.Expression(BookUTC.from_utc, 'AT TIME ZONE', peewee.Value(open_tz)),
+                          'AT TIME ZONE', peewee.SQL("'UTC'"))).cast('bigint')
+    open_to = peewee.fn.date_part('epoch',
+        peewee.Expression(peewee.Expression(BookUTC.to_utc, 'AT TIME ZONE', peewee.Value(open_tz)),
+                          'AT TIME ZONE', peewee.SQL("'UTC'"))).cast('bigint')
+
+    conflict_q = (BookUTC
+        .select(BookUTC.sid, Seat.name, BookUTC.zid, BookUTC.bid, BookUTC.login,
+                BookUTC.fromts, BookUTC.tots,
+                open_from.alias('from_open'), open_to.alias('to_open'),
+                BookUTC.timezone)
+        .join(Seat, on=(BookUTC.sid == Seat.id))
+        .where(BookUTC.zid.in_(list(conflict_zids)))
+        .where(BookUTC.login == login)
+        # Window on the TRANSLATED open-plan-scale instants (from_open/to_open),
+        # NOT the booking's own-plan wall-clock (fromts/tots). tr is the open
+        # plan's window, and the frontend computes overlap against from_open/
+        # to_open — so filtering in that same scale makes the loaded set match
+        # exactly what the client reasons about. Filtering on own-plan wall-clock
+        # would, for a cross-TZ booking near the window edge, load/omit it by up
+        # to the TZ offset and mark a seat (un)available out of step with the real
+        # overlap. The cost: this range no longer hits the fromts/tots index, but
+        # the rows are already narrowed to the user's bookings in conflict_zids,
+        # so the set is tiny.
+        .where(open_from < tr['toTS'])
+        .where(open_to > tr['fromTS'])
+        .order_by(BookUTC.fromts))
+    if exclude_sids:
+        conflict_q = conflict_q.where(BookUTC.sid.not_in(list(exclude_sids)))
+
+    out = []
+    for b in conflict_q.iterator():
+        entry = {"sid": b['sid'], "name": b['name'], "zid": b['zid'],
+                 "bid": b['bid'], "login": b['login'],
+                 "fromTS": b['from_open'], "toTS": b['to_open']}
+        booking_tz = b['timezone']
+        if booking_tz and booking_tz != open_tz:
+            entry["fromStr"] = utils.formatTimestamp(b['fromts'])
+            entry["toStr"]   = utils.formatTimestamp(b['tots'])
+            entry["tz"]      = booking_tz
+        out.append(entry)
+    return out
+
+
 @bp.route("getSeats/<int:pid>")
 def getSeats(pid):
 
-    res = {"seats": {}}
-
-    # Verify plan exists
-    plan = Plan.select(Plan.id).where(Plan.id == pid).first()
+    # Verify plan exists and fetch timezone for TZ-aware window/grid seeds
+    plan = Plan.select(Plan.id, Plan.timezone).where(Plan.id == pid).first()
     if plan is None:
         return {"msg": "Forbidden", "code": 130}, 403
+    # plan_tz is the "open" plan's zone; alias open_tz reads naturally in the
+    # cross-TZ conflict-translation block below.
+    plan_tz = plan['timezone'] or "UTC"
+    open_tz = plan_tz
+
+    res = {"seats": {}, "plan_timezone": open_tz}
 
     # Zones that have seats on this plan
     zone_rows = list(Zone.select(Zone.id, Zone.zone_type)
@@ -122,7 +196,7 @@ def getSeats(pid):
                 target_roles[row['zid']] = row['zone_role']
         bookable_roles = target_roles
 
-    tr = utils.getTimeRange()
+    tr = utils.getTimeRange(tz=plan_tz)
     usedZids = set()
     usedUsers = set()
 
@@ -211,33 +285,21 @@ def getSeats(pid):
 
     if conflict_zids:
         already_present_sids = [int(sid) for sid in res['seats']]
-        conflictBookQuery = Book.select(Book.sid, Seat.name, Seat.zid, Book.id, Book.login, Book.fromts, Book.tots) \
-            .join(Seat, on=(Book.sid == Seat.id)) \
-            .where(Seat.zid.in_(list(conflict_zids))) \
-            .where(Book.login == login) \
-            .where((Book.fromts < tr['toTS']) & (Book.tots > tr['fromTS'])) \
-            .where(Seat.id.not_in(already_present_sids)) \
-            .order_by(Book.fromts).tuples()
-
-        for b in conflictBookQuery.iterator():
-            sid = str(b[0])
+        for b in resolve_conflict_bookings(conflict_zids, login, open_tz, tr,
+                                           exclude_sids=already_present_sids):
+            sid = str(b['sid'])
             if sid not in res['seats']:
-                res['seats'][sid] = {
-                    "name": b[1],
-                    "zid": b[2],
-                    "book": []
-                }
-                usedZids.add(b[2])
-            # login is sent explicitly (all rows are `login`'s own bookings) so the
-            # client never has to infer it from factory.login — keeping the booking
-            # shape identical to accessible seats.
-            res['seats'][sid]['book'].append({
-                "bid": b[3],
-                "login": b[4],
-                "fromTS": b[5],
-                "toTS": b[6]
-            })
-            usedUsers.add(b[4])
+                res['seats'][sid] = {"name": b['name'], "zid": b['zid'], "book": []}
+                usedZids.add(b['zid'])
+            book_entry = {"bid": b['bid'], "login": b['login'],
+                          "fromTS": b['fromTS'], "toTS": b['toTS']}
+            # Carry the different-TZ display payload through unchanged.
+            if 'tz' in b:
+                book_entry["fromStr"] = b['fromStr']
+                book_entry["toStr"]   = b['toStr']
+                book_entry["tz"]      = b['tz']
+            res['seats'][sid]['book'].append(book_entry)
+            usedUsers.add(b['login'])
 
     usedZonesQuery = Zone.select(Zone.id, Zone.name, Zone.zone_group).where(Zone.id.in_(usedZids)).tuples()
     res['zones'] = {}
@@ -317,7 +379,20 @@ applySchema = {
 def apply():
 
     apply_data = flask.request.get_json()
-    ts = utils.getTimeRange()
+    # Resolve the plan's TZ for TZ-aware booking-window checks. Only known when
+    # a booking is being created (resolved from the seat's plan); for other
+    # operations (enable/disable/assign/remove) there's no single plan to read,
+    # so default to UTC — the scale-agnostic feed/cache clock. getTimeRange
+    # requires a concrete zone now (utils.now/today fail-fast without one).
+    plan_tz = 'UTC'
+    if 'book' in apply_data:
+        seat_plan_tz = Seat.select(Plan.timezone.alias('timezone')) \
+            .join(Plan, on=(Seat.pid == Plan.id)) \
+            .where(Seat.id == apply_data['book']['sid']) \
+            .tuples().first()
+        if seat_plan_tz:
+            plan_tz = seat_plan_tz[0] or "UTC"
+    ts = utils.getTimeRange(tz=plan_tz)
 
     seatsReqZoneAdmin = set()
     if 'enable' in apply_data: seatsReqZoneAdmin.update(apply_data['enable'])
@@ -402,7 +477,7 @@ def apply():
                     best_days = a['days_in_advance']
 
             if best_days is not None:
-                cutoffTS = utils.today() + (best_days + 1) * 24 * 3600
+                cutoffTS = utils.today(tz=plan_tz) + (best_days + 1) * 24 * 3600
                 for b in apply_data['book']['dates']:
                     if b['fromTS'] >= cutoffTS:
                         return {"msg": "Forbidden", "code": 110}, 403
@@ -505,7 +580,7 @@ def apply():
                 continue
             dia = l.get('days_in_advance')
             if dia is not None:
-                cutoff = utils.today() + (dia + 1) * 24 * 3600
+                cutoff = utils.today(tz=plan_tz) + (dia + 1) * 24 * 3600
                 window_conflicts = [
                     {"sid": row['sid'], "fromTS": row['fromts'], "toTS": row['tots'],
                      "login": row['login'], "username": row['name']}
@@ -521,7 +596,7 @@ def apply():
         if everyone_row is not None:
             dia = everyone_row.get('days_in_advance')
             if dia is not None:
-                cutoff = utils.today() + (dia + 1) * 24 * 3600
+                cutoff = utils.today(tz=plan_tz) + (dia + 1) * 24 * 3600
                 q = Book.select(Book.sid, Book.fromts, Book.tots, Users.login, Users.name) \
                         .join(Users, on=(Book.login == Users.login)) \
                         .where(Book.sid == sid) \
@@ -575,11 +650,12 @@ def runAutoBook(login, pid, dates, allowedZids=None, releaseZids=None):
     """
 
     # Verify plan exists and get accessible seats for this user
-    plan = Plan.select(Plan.id).where(Plan.id == pid).first()
+    plan = Plan.select(Plan.id, Plan.timezone).where(Plan.id == pid).first()
     if plan is None:
         return None, 130
+    plan_tz = plan['timezone'] or "UTC"
 
-    ts = utils.getTimeRange()
+    ts = utils.getTimeRange(tz=plan_tz)
     for b in dates:
         if b['fromTS'] < ts["fromTS"] or b['fromTS'] > ts["toTS"] \
                 or b['toTS'] < ts["fromTS"] or b['toTS'] > ts["toTS"]:
@@ -590,7 +666,7 @@ def runAutoBook(login, pid, dates, allowedZids=None, releaseZids=None):
         if sortedDates[i]['toTS'] > sortedDates[i + 1]['fromTS']:
             return None, 140
 
-    today = utils.today()
+    today = utils.today(tz=plan_tz)
     usageWindow = flask.current_app.config['AUTOBOOK_USAGE_WINDOW_DAYS']
     usageStart = today - usageWindow * 86400
     usageEnd = today + usageWindow * 86400

@@ -56,7 +56,7 @@ def login():
 
 
     flask.session['login'] = login
-    flask.session['login_time'] = utils.now()
+    flask.session['login_time'] = utils.now(tz="UTC")
 
     return flask.redirect(flask.url_for('view.index'))
 

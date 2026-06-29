@@ -10,9 +10,14 @@ bp = flask.Blueprint('debug', __name__)
 
 @bp.route('/debug/time', methods=['GET'])
 def get_time():
+    # Optional ?tz=<IANA> resolves now/today in that zone (PLAN per_plan_timezone
+    # §7); without it, returns the clock in UTC (the feed/cache clock).
+    tz = flask.request.args.get('tz') or 'UTC'
+    if not utils.is_valid_iana(tz):
+        return {"msg": "Invalid timezone"}, 400
     return {
-        'now': utils.now(),
-        'today': utils.today(),
+        'now': utils.now(tz=tz),
+        'today': utils.today(tz=tz),
         'offset_seconds': utils._debug_time_offset,
     }
 
@@ -26,8 +31,8 @@ def set_time_offset():
     return {
         'msg': 'ok',
         'offset_seconds': offset,
-        'now': utils.now(),
-        'today': utils.today(),
+        'now': utils.now(tz='UTC'),
+        'today': utils.today(tz='UTC'),
     }
 
 

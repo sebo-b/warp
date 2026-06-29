@@ -282,18 +282,19 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
         columns.push(
             {title:TR("From"), field: "fromTS", width: 150, formatter:tsFormatter, headerFilter:dateFilterEditor, headerFilterFunc:">="},
-            {title:TR("To"), field: "toTS", width: 150, formatter:tsFormatter, headerFilter:dateFilterEditor, headerFilterParams: { offset: 24*3600-1 }, headerFilterFunc:"<="}
+            {title:TR("To"), field: "toTS", width: 150, formatter:tsFormatter, headerFilter:dateFilterEditor, headerFilterParams: { offset: 24*3600-1 }, headerFilterFunc:"<="},
+            {title:TR("Timezone"), field: "plan_timezone", headerFilter:"input", headerFilterFunc:"starts"},
         );
 
         initialSort.push(
-            {column:"toTS", dir:"desc"},
-            {column:"fromTS", dir:"desc"},
+            {column:"from_utc", dir:"desc"},
             {column:"login", dir:"asc"}
         );
 
-        let todayTS = new Date();
-        todayTS = Math.round(todayTS / 1000) - todayTS.getTimezoneOffset()*60;
-        todayTS -= todayTS % (24*3600);
+        // Backend-sourced today in a fixed reference (UTC) (PLAN
+        // per_plan_timezone §7) — not browser-local, so the default window
+        // doesn't shift with the admin's timezone.
+        let todayTS = window.warpGlobals.today;
         let twoWeeksAgo = todayTS - 14*24*3600;
 
         initialHeaderFilter.push(

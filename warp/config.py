@@ -33,12 +33,6 @@ class DefaultSettings(object):
     # Same convention as OMITTED_WEEKDAYS (Python's tm_wday: 0=Mon..6=Sun).
     WEEK_START_DAY = 0
 
-    # warp uses server wall-clock (timegm(localtime())) everywhere and is
-    # otherwise TZ-blind. This setting only labels iCal DTSTART/DTEND so
-    # external calendar clients render the right time. Empty = auto-detect
-    # from the system at startup.
-    TIMEZONE = ""
-
     # opening and closing time in seconds from 00:00
     BOOK_OPEN = 0
     BOOK_CLOSE = 24 * 3600
@@ -239,7 +233,6 @@ _ENV_SETTINGS = {
     "SECRET_KEY_FILE":            _fmt_file,
     "LANGUAGE_FILE":              _fmt_str,
     "THEME_FILE":                 _fmt_str,
-    "TIMEZONE":                   _fmt_str,
     "SESSION_LIFETIME":           _fmt_int,
     "WEEKS_IN_ADVANCE":           _fmt_int,
     "AUTOBOOK_USAGE_WINDOW_DAYS": _fmt_int,
@@ -388,16 +381,3 @@ def initConfig(app):
             missing.append(f'WARP_{key}')
     if missing:
         raise Exception(f'Required environment variable(s) not set: {", ".join(missing)}')
-
-    if not app.config.get('TIMEZONE'):
-        try:
-            with open('/etc/timezone') as f:
-                app.config['TIMEZONE'] = f.read().strip()
-        except OSError:
-            try:
-                link = os.readlink('/etc/localtime')
-                idx = link.rfind('zoneinfo/')
-                if idx != -1:
-                    app.config['TIMEZONE'] = link[idx + len('zoneinfo/'):]
-            except OSError:
-                pass

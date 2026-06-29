@@ -50,6 +50,16 @@ A plan owns its seats and the map image. A single plan can contain seats from
 **several different zones** (e.g. an open area anyone can book plus a restricted
 corner), which is what makes the access rules interesting.
 
+#### Plan timezone
+
+An IANA timezone (e.g. `Europe/Warsaw`) attached to a plan. All seats on a plan
+share its timezone. Bookings are stored as **wall-clock** integers in the plan's
+TZ (the "airline ticket" guarantee: 06:00–18:00 stays 06:00–18:00 to anyone
+viewing that office, even across DST). Real UTC instants are **derived at the
+edges** for the work that genuinely needs them: cross-plan conflict comparison
+(see `book_utc`) and iCal `VTIMEZONE`. New plans default to UTC; an admin sets
+the office TZ at plan creation (the Plans modal pre-selects UTC).
+
 ### Zone
 
 A pure **access-control group of seats** — it has no map of its own. A zone
@@ -86,6 +96,13 @@ most **one** seat across _all_ zones in that group at the same time (handy for
 "one parking spot per person across all car parks"). A zone with no zone group
 is exclusive only with **itself** (one seat per zone at a time).
 
+A zone group may span **plans in different timezones**. Because stored booking
+timestamps are per-plan wall-clock, wall-clock-integer comparison is no longer
+sufficient across such a group, so the exclusivity rule (`book_overlap_insert`)
+compares **real UTC instants** via `book_utc` — the same wall-clock 14:00 in
+`Europe/Warsaw` and `America/New_York` is allowed, while two bookings that share
+a real instant (even with different wall-clks) conflict.
+
 ### Seat
 
 A bookable spot on a plan, drawn at an (x, y) position on the map. A seat
@@ -107,6 +124,16 @@ see it greyed out and can re-enable it. A disabled seat cannot be booked.
 A reservation of one seat for one user over a time range (from–to) on a given
 day. The same seat cannot be double-booked for overlapping times, and a user
 cannot hold two seats in the same zone (or zone group) at the same time.
+
+### book_utc
+
+A SQL **view** that derives real UTC instants from the wall-clock storage: for
+each booking it joins `book → seat → plan` and re-interprets the stored
+`fromts`/`tots` digits as local time in the booking's **plan timezone**, yielding
+`from_utc`/`to_utc` (`timestamptz`). Used by `book_overlap_insert` for cross-TZ
+conflict comparison and by report/export reads that need chronological, real-
+instant ordering. A plain view, so a `plan.timezone` edit is reflected with no
+stored-UTC to refresh.
 
 ### Assigned seat (assignment)
 

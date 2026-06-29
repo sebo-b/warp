@@ -147,11 +147,17 @@ def delete():
     force = action_data.get('force', False)
 
     if not force:
-        today = utils.today()
-
-        rowCount = Book.select(COUNT_STAR) \
-                       .where(Book.login == login) \
-                       .where(Book.fromts < today) \
+        # A booking is "past" if it started before today in its OWN plan TZ.
+        # fromts is wall-clock storage (PLAN per_plan_timezone §B); comparing it
+        # to today() in a single default TZ is wrong once a user has bookings on
+        # plans in different zones. BookUTC.from_utc is the real instant; today in
+        # the booking's plan TZ is its wall-clock midnight as a real instant.
+        # Same semantics as the old `fromts < today()` when all plans share a TZ.
+        # today_in_tz_sql encapsulates the e2e debug time-offset.
+        today_local = utils.today_in_tz_sql(BookUTC.timezone)
+        rowCount = BookUTC.select(COUNT_STAR) \
+                       .where(BookUTC.login == login) \
+                       .where(BookUTC.from_utc < today_local) \
                        .scalar()
 
         if rowCount:

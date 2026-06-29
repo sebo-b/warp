@@ -17,6 +17,7 @@
 
         window.warpGlobals['defaultSelectedDates'] = {{ defaultSelectedDates | tojson }};
         window.warpGlobals.today = {{ today | int }};
+        window.warpGlobals.planTimezone = {{ plan_timezone | tojson }};
         window.warpGlobals['planPreviewPrefs'] = {{ planPreviewPrefs | tojson }};
 
         window.warpGlobals.URLs['planAutoBook'] = "{{ url_for('xhr.plan.autoBook', pid=pid) }}";

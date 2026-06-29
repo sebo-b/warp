@@ -50,7 +50,7 @@ def login():
                 flask.flash("Your account is blocked.")
             else:
                 flask.session['login'] = c[0]['login']
-                flask.session['login_time'] = utils.now()
+                flask.session['login_time'] = utils.now(tz="UTC")
                 return flask.redirect(flask.url_for('view.index'))
 
         else:
@@ -203,7 +203,7 @@ def session():
         return flask.redirect(
             flask.url_for('auth.login'))
 
-    latestValidSessionTime = utils.now() - 24*3600*flask.current_app.config['SESSION_LIFETIME']
+    latestValidSessionTime = utils.now(tz="UTC") - 24*3600*flask.current_app.config['SESSION_LIFETIME']
     lastLoginTime = flask.session.get('login_time')
 
     if lastLoginTime is None or lastLoginTime < latestValidSessionTime:

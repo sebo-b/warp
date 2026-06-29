@@ -1,33 +1,91 @@
+import datetime
 import flask
 
 from calendar import timegm
-from time import localtime,strftime,gmtime
+from time import strftime,gmtime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from jsonschema import validate, ValidationError
 import functools
+from peewee import Expression, fn, SQL
 
 # Debug-only time offset.  Set via POST /debug/set_time_offset (only in debug mode).
 # Never non-zero in production.
 _debug_time_offset: int = 0
 
 
-def now():
-    """ Returns number of seconds since midnight 1970-1-1 in the current timezone until now"""
-    """ It is timezone unaware version of unix timestamp """
-    return timegm(localtime()) + _debug_time_offset
+def now(tz):
+    """Current wall-clock in the given IANA zone as a fake-UTC integer.
 
-def today():
-    """ Returns number of seconds since midnight 1970-1-1 in the current timezone until today's midnight"""
-    """ It is utils.now() with stipped hour """
+    The returned integer uses the same fake-UTC scale as stored fromts/tots:
+    the zone's wall-clock digits treated as UTC seconds since epoch.
 
-    n = now()
+    tz is required (no default): a caller without a concrete zone almost
+    certainly has a bug. Pass 'UTC' explicitly for a self-consistent age/
+    subtraction where the absolute zone doesn't matter."""
+    dt = datetime.datetime.now(tz=ZoneInfo(tz))
+    return timegm(dt.timetuple()) + _debug_time_offset
+
+def today(tz):
+    """Wall-clock midnight in the given IANA zone as a fake-UTC integer."""
+    n = now(tz)
     return n - n % (24*3600)
 
+# --- peewee SQL helpers (TZ-aware, honor the debug offset) -------------------
+# Mirrors of now()/today() for use inside peewee WHERE/SELECT expressions,
+# where the comparison must run in the DB (per-row, against a TZ column) and
+# so can't use the Python-int versions above. Both honor _debug_time_offset
+# (e2e virtual time via /debug/set_time_offset) exactly like now()/today() do;
+# _debug_time_offset stays private to this module.
+
+def now_sql():
+    """SQL now() advanced by the debug time-offset, as a peewee node (timestamptz).
+
+    Encapsulates _debug_time_offset so callers never touch the private
+    attribute. In production _debug_time_offset == 0, so this is just now().
+    The bound parameter means the offset value never reaches SQL text."""
+    return SQL("(now() + make_interval(secs => %s))", (_debug_time_offset,))
+
+def today_in_tz_sql(tz_col, as_epoch=False):
+    """Wall-clock midnight today in each row's TZ, as a peewee expression.
+
+    tz_col is a peewee column holding an IANA name (e.g. Plan.timezone or
+    BookUTC.timezone). The shifted now() (see now_sql()) is interpreted in
+    the row's TZ, truncated to wall-clock midnight, and back to a real instant.
+    Returns timestamptz by default; as_epoch=True returns bigint seconds-since-
+    epoch (to compare against a ::bigint expression like _FROM_UTC_SQL)."""
+    midnight = Expression(
+        fn.date_trunc('day', Expression(now_sql(), 'AT TIME ZONE', tz_col)),
+        'AT TIME ZONE', tz_col)
+    if as_epoch:
+        return fn.date_part('epoch', midnight).cast('bigint')
+    return midnight
+
+def is_valid_iana(name):
+    """Return True iff name is a valid IANA timezone name resolvable by zoneinfo."""
+    try:
+        ZoneInfo(name)
+        return True
+    except (ZoneInfoNotFoundError, KeyError, ValueError):
+        return False
+
+def is_valid_plan_timezone(name):
+    """Return True iff name is storable as a plan timezone: present in the
+    startup-computed python ∩ postgres set (config VALID_TIMEZONES), so both the
+    app and every `AT TIME ZONE plan.timezone` query in Postgres can resolve it.
+
+    Falls back to a plain zoneinfo check when the set isn't loaded (e.g. unit
+    tests with no DB / app context)."""
+    valid = flask.current_app.config.get('VALID_TIMEZONES') if flask.current_app else None
+    if not valid:
+        return is_valid_iana(name)
+    return name in valid
+
 # format { "fromTS": 123, "toTS": 123 }
-def getTimeRange(extended = False):
+def getTimeRange(tz, extended=False):
     """ Returns a dict with fromTS and toTS """
     """ today's midnight, today's midnight + WEEKS_IN_ADVANCE """
 
-    fromTS = today()
+    fromTS = today(tz)
 
     weeksInAdvance = flask.current_app.config['WEEKS_IN_ADVANCE']
     if extended:
@@ -62,7 +120,7 @@ def getTimeRange(extended = False):
 # frontend's existing i18n arrays. This makes the TZ trap structurally
 # impossible: the frontend never calls new Date(ts) to derive a day identity
 # (R1) — it just lays out the cells in wire order.
-def getCalendarGrid(today_ts=None, target_ts=None):
+def getCalendarGrid(today_ts, target_ts=None):
     """Returns a pure-data blob (no strings) describing a rectangular whole-month
     calendar grid from today's month through the month of the last selectable day.
     Drives the frontend plan-panel calendar; the frontend only renders the cells
@@ -72,9 +130,6 @@ def getCalendarGrid(today_ts=None, target_ts=None):
     weeks_in_advance = config['WEEKS_IN_ADVANCE']
     omitted_weekdays = config['OMITTED_WEEKDAYS']   # 0=Mon..6=Sun (== tm_wday)
     week_start_day = config['WEEK_START_DAY']       # 0=Mon..6=Sun (== tm_wday)
-
-    if today_ts is None:
-        today_ts = today()
 
     # Floor to midnight (today() already is; defensive for tests).
     today_midnight = today_ts - (today_ts % (24*3600))

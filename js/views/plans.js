@@ -50,6 +50,17 @@ document.addEventListener("DOMContentLoaded", function(e) {
     var showEditDialog;
     var table;
 
+    // Timezone list is fetched once and cached in memory.
+    var _timezonesCache = null;
+    function loadTimezones() {
+        if (_timezonesCache) return Promise.resolve(_timezonesCache);
+        return Utils.xhr.get(window.warpGlobals.URLs['plansTimezones'], {toastOnSuccess: false})
+            .then(function(result) {
+                _timezonesCache = result.response || [];
+                return _timezonesCache;
+            });
+    }
+
     var openPlanModify = function(e, cell) {
         let pid = cell.getRow().getData()['id'];
         let url = window.warpGlobals.URLs['planModify'].replace('__PID__', pid);
@@ -57,11 +68,11 @@ document.addEventListener("DOMContentLoaded", function(e) {
     };
 
     var addEditClicked = function(e, cell) {
-        let args = [null, ""];
+        let args = [null, "", ""];
 
         if (typeof(cell) === 'object') {
             let data = cell.getRow().getData();
-            args = [data['id'], data['name']];
+            args = [data['id'], data['name'], data['timezone'] || ""];
         }
 
         showEditDialog.apply(null, args)
@@ -99,6 +110,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
             {formatter: iconFormater, formatterParams: {icon: "edit", colorClass: "warp-icon-edit"}, width: 40, hozAlign: "center", cellClick: addEditClicked, headerSort: false, tooltip: TR('Edit plan')},
             {formatter: iconFormater, formatterParams: {icon: "map", colorClass: "warp-icon-edit", iconClass: "material-icons"}, width: 40, hozAlign: "center", cellClick: openPlanModify, headerSort: false, tooltip: TR('Edit map & seats')},
             {title: TR("Plan name"), field: "name", headerFilter: "input", headerFilterFunc: "starts"},
+            {title: TR("Timezone"), field: "timezone", headerFilter: "input", headerFilterFunc: "starts", tooltip: TR('Stored IANA timezone for this plan')},
             {title: TR("Seats"), field: "seat_count"},
             {title: TR("Zones"), field: "zone_names", formatter: chipFormatter, headerSort: false, headerFilter: zoneHeaderFilter, headerFilterFunc: "="},
         ],
@@ -107,12 +119,13 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     var editModalEl = document.getElementById('edit_modal');
     var planNameEl = document.getElementById("plan_name");
+    var planTzEl = document.getElementById("plan_timezone");
     var errorDiv = document.getElementById('error_div');
     var errorMsg = document.getElementById('error_message');
     var saveBtn = document.getElementById('edit_modal_save_btn');
     var deleteBtn = document.getElementById('edit_modal_delete_btn');
 
-    showEditDialog = function(id, name) {
+    showEditDialog = function(id, name, timezone) {
 
         var editModal = warpDialog.getInstance(editModalEl);
         if (typeof(editModal) === 'undefined') {
@@ -123,9 +136,6 @@ document.addEventListener("DOMContentLoaded", function(e) {
         errorDiv.style.display = "none";
         errorMsg.innerText = "";
         deleteBtn.style.display = (id === null) ? "none" : "inline-flex";
-
-        M.updateTextFields();
-        editModal.open();
 
         return new Promise((resolve, reject) => {
             let resolved = false;
@@ -138,9 +148,14 @@ document.addEventListener("DOMContentLoaded", function(e) {
                             errorDiv.style.display = "block";
                             return;
                         }
+                        if (!planTzEl.value) {
+                            errorMsg.innerText = TR('Plan timezone must be selected.');
+                            errorDiv.style.display = "block";
+                            return;
+                        }
                         resolved = true;
                         editModal.close();
-                        resolve({action: 'save', id: id, name: planNameEl.value.trim()});
+                        resolve({action: 'save', id: id, name: planNameEl.value.trim(), timezone: planTzEl.value});
                         break;
                     }
                     case deleteBtn:
@@ -162,14 +177,46 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 }
             }
 
-            saveBtn.addEventListener('click', onClick);
-            deleteBtn.addEventListener('click', onClick);
-
             editModal.options.onCloseStart = function() {
                 saveBtn.removeEventListener('click', onClick);
                 deleteBtn.removeEventListener('click', onClick);
                 if (!resolved) reject();
             };
+
+            // Load timezone list (cached after first fetch), populate the select,
+            // then open — so open() resets _dirty AFTER FormSelect fires its change
+            // event, and warpLiftSelect() runs when the .select-wrapper already exists.
+            loadTimezones().then(function(tzList) {
+                var current = timezone || 'UTC';
+                planTzEl.innerHTML = '';
+                var found = false;
+                for (var tz of tzList) {
+                    var opt = document.createElement('option');
+                    opt.value = tz.id;
+                    opt.textContent = tz.label;
+                    if (tz.id === current) { opt.selected = true; found = true; }
+                    planTzEl.appendChild(opt);
+                }
+                // If the plan's stored timezone isn't in the common list, add it so
+                // the dropdown shows its actual value instead of defaulting to the
+                // first entry (which would silently overwrite it on save).
+                if (!found && current) {
+                    var extra = document.createElement('option');
+                    extra.value = current;
+                    extra.textContent = current;
+                    extra.selected = true;
+                    planTzEl.insertBefore(extra, planTzEl.firstChild);
+                }
+                var inst = M.FormSelect.getInstance(planTzEl);
+                if (inst) inst.destroy();
+                M.FormSelect.init(planTzEl);
+                M.updateTextFields();
+
+                saveBtn.addEventListener('click', onClick);
+                deleteBtn.addEventListener('click', onClick);
+                // open() resets _dirty and lifts the now-existing select dropdown.
+                editModal.open();
+            });
         });
     };
 

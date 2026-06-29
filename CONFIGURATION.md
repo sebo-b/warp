@@ -72,7 +72,6 @@ environment:
 | `MAX_REPORT_ROWS`            | `5000`       |    no    | Maximum rows in Excel export                   |
 | `MAX_MAP_SIZE`               | `2 MB`       |    no    | Maximum plan image size                        |
 | `MAX_CONTENT_LENGTH`         | `5 MB`       |    no    | Maximum request body size                      |
-| `TIMEZONE`                   | auto-detect  |    no    | Timezone label in iCal `DTSTART`/`DTEND`       |
 
 ¹ Required in production. A missing or default key is not safe.
 
@@ -277,9 +276,8 @@ independent of this system-wide window.
 
 ## Calendar / iCal
 
-| Variable   | Default     | Description                                                                                                                                           |
-| ---------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `TIMEZONE` | auto-detect | IANA timezone name (e.g. `Europe/Berlin`) inserted into iCal `DTSTART` and `DTEND` fields. When not set, WARP attempts to detect the server timezone. |
+| Variable                | Default     | Description                                                                                                              |
+| ----------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------ |
 
 ---
 

@@ -92,9 +92,15 @@ def index():
 def bookings(report):
     if report == "report" and not flask.g.isAdmin:
         flask.abort(403)
+    # The report's default 2-week filter window is sourced from the backend
+    # (PLAN per_plan_timezone §7): today in a FIXED reference (UTC), so the
+    # window doesn't shift with the admin's browser timezone. The report spans
+    # plans in many TZs, so there's no single "viewer" zone — UTC is the neutral
+    # anchor, and this is only the default filter (cosmetic). Report view only.
     return flask.render_template('bookings.html',
                                  report=(report == "report"),
-                                 maxReportRows=flask.current_app.config['MAX_REPORT_ROWS'])
+                                 maxReportRows=flask.current_app.config['MAX_REPORT_ROWS'],
+                                 today=int(utils.today(tz='UTC')))
 
 
 @bp.route("/plan/<pid>")
@@ -107,11 +113,13 @@ def plan(pid):
                      .group_by(Zone.id)
                      .iterator())
 
-    # Fetch the plan's dark-mode map filter once; since the column is NOT NULL, a
-    # None result also doubles as the plan-existence check (no extra query needed).
-    dark_filter = Plan.select(Plan.dark_filter).where(Plan.id == pid).scalar()
-    if dark_filter is None:
+    # Fetch the plan's dark-mode map filter and timezone at once; a None result
+    # doubles as the plan-existence check (no extra query needed).
+    plan_row = Plan.select(Plan.dark_filter, Plan.timezone).where(Plan.id == pid).first()
+    if plan_row is None:
         flask.abort(403)
+    dark_filter = plan_row['dark_filter']
+    plan_tz = plan_row['timezone'] or "UTC"
 
     if not zone_rows and not flask.g.isAdmin:
         # Plan exists but has no seats — only an admin may open it.
@@ -143,8 +151,8 @@ def plan(pid):
 
     defaultSelectedDates = {"slider": default_time}
 
-    now_ts = utils.now()
-    today_ts = utils.today()
+    now_ts = utils.now(tz=plan_tz)
+    today_ts = utils.today(tz=plan_tz)
     seconds_into_day = now_ts - today_ts
 
     if default_day == 'boundary':
@@ -157,7 +165,7 @@ def plan(pid):
     # The booking calendar grid (replaces the old getNextWeek date checkbox
     # list). Cell range + selectable flags + default-day pick are backend-driven
     # (TZ-safe by construction — R1, R9); the frontend only renders + selects.
-    calendarGrid = utils.getCalendarGrid(target_ts=target_ts)
+    calendarGrid = utils.getCalendarGrid(target_ts=target_ts, today_ts=today_ts)
     if calendarGrid['defaultTs'] is not None:
         defaultSelectedDates['cb'] = [calendarGrid['defaultTs']]
 
@@ -176,7 +184,8 @@ def plan(pid):
                                  pid=pid,
                                  dark_filter=dark_filter,
                                  calendarGrid=calendarGrid,
-                                 today=utils.today(),
+                                 today=today_ts,
+                                 plan_timezone=plan_tz or '',
                                  defaultSelectedDates=defaultSelectedDates,
                                  planPreviewPrefs=planPreviewPrefs)
 

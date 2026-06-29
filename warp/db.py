@@ -10,7 +10,7 @@ DB = None
 Blobs = Table('blobs',('id','mimetype','data','etag'),primary_key='id')
 Users = Table('users',('login','password','name','account_type'))
 Groups = Table('groups',('group','login'))
-Plan = Table('plan',('id','name','iid','dark_filter'))
+Plan = Table('plan',('id','name','iid','dark_filter','timezone'))
 Seat = Table('seat',('id','pid','zid','name','x','y','enabled'))
 Zone = Table('zone',('id','name','zone_type','zone_group'))
 ZoneAssign = Table('zone_assign',('zid','login','zone_role'))
@@ -20,6 +20,11 @@ SeatAssign = Table('seat_assign',('sid','login','days_in_advance'))
 UserPrefs = Table('user_prefs',('login','default_plan','default_day','default_time_from','default_time_to','ical_enabled','ical_token','reminder_weekdays','reminder_ahead_days','reminder_time','reminder_release_ahead_days','reminder_zones','zone_show_seat_names','zone_show_booking_preview','zone_show_assigned_names'), primary_key='login')
 
 UserToZoneRoles = Table('user_to_zone_roles',('login','zid','zone_role'))
+
+# Read-only peewee mapping over the book_utc VIEW (PLAN per_plan_timezone §2):
+# derives real UTC instants from wall-clock storage + per-plan TZ. Same pattern
+# as UserToZoneRoles (a Table over a view) — for SELECT only; never written.
+BookUTC = Table('book_utc',('bid','login','sid','zid','zone_group','timezone','fromts','tots','from_utc','to_utc'))
 
 CalendarCache = Table('calendar_cache', ('login', 'type', 'ics', 'day', 'generated_at'))
 
@@ -54,7 +59,7 @@ EVERYONE_KEY = '__everyone__:550e8400-e29b-41d4-a716-446655440000'
 # (window.warpGlobals.ungroupedFilterKey); never duplicated as a JS literal.
 UNGROUPED_FILTER_KEY = '__ungrouped__:088891f7-4de2-4b08-a8a7-fa2d0d035fa3'
 
-__all__ = ["DB", "Blobs", "Users", "Groups", "Plan", "Seat", "Zone", "ZoneAssign", "Book", "SeatAssign", "UserPrefs", "UserToZoneRoles", "CalendarCache",
+__all__ = ["DB", "Blobs", "Users", "Groups", "Plan", "Seat", "Zone", "ZoneAssign", "Book", "SeatAssign", "UserPrefs", "UserToZoneRoles", "BookUTC", "CalendarCache",
            "EVERYONE_KEY", "UNGROUPED_FILTER_KEY",
            "IntegrityError", "COUNT_STAR", "SQL_ONE",
            'ACCOUNT_TYPE_ADMIN','ACCOUNT_TYPE_USER','ACCOUNT_TYPE_BLOCKED','ACCOUNT_TYPE_GROUP',
@@ -80,6 +85,7 @@ DB_MIGRATIONS = [
     (15, "sql/migration_015_expand_user_to_zone_roles.sql"),
     (16, "sql/migration_016_group_account_type.sql"),
     (17, "sql/migration_017_plan_dark_filter.sql"),
+    (18, "sql/migration_018_per_plan_timezone.sql"),
 ]
 
 DB_ADVISORY_LOCK_KEY = 7484381
@@ -122,6 +128,7 @@ def init(app):
     SeatAssign.bind(DB)
     UserPrefs.bind(DB)
     UserToZoneRoles.bind(DB)
+    BookUTC.bind(DB)
     CalendarCache.bind(DB)
 
     app.before_request(_connect)
@@ -129,6 +136,27 @@ def init(app):
 
     with app.app_context():
         initDB()
+        _loadValidTimezones(app)
+
+def _loadValidTimezones(app):
+    """Compute app.config['VALID_TIMEZONES'] once at startup: the intersection of
+    Python's zoneinfo names and Postgres' pg_timezone_names.
+
+    A plan timezone is consumed by BOTH runtimes — the app labels/validates it via
+    zoneinfo, but every book_utc / overlap query does `AT TIME ZONE plan.timezone`
+    in Postgres, whose tz database can differ (newly-added zones, trimmed container
+    tzdata). Persisting only names both sides accept makes that mismatch class
+    impossible: a zone valid in Python but absent in PG can never reach a plan row
+    and break its bookings/overlap/report queries."""
+    from zoneinfo import available_timezones
+    py_names = available_timezones()
+    with DB:
+        pg_names = {r[0] for r in DB.execute_sql("SELECT name FROM pg_timezone_names").fetchall()}
+    # UTC is the schema default and always resolvable on both sides; keep it
+    # defensively so a stripped image can never end up with an empty offering.
+    valid = frozenset(py_names & pg_names) | {'UTC'}
+    app.config['VALID_TIMEZONES'] = valid
+    print(f"Loaded {len(valid)} valid timezones (python ∩ postgres)")
 
 def initDB():
 
