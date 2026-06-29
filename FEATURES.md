@@ -448,6 +448,10 @@ The old "Already booked in another zone" section is gone; an existing booking on
 - Assigned-name labels are date-independent (they reflect the static seat assignment, not the selected date), and are only suppressed by overlapping bookings when booking preview is also on.
 - Cross-reference: §14.4.
 
+### 10.5 Long-Name Wrapping in Labels
+- When a label shows exactly **one** name (a single booked user, or a single assigned user depending on the enabled preference) and that name does not fit the label box (it would otherwise be cut with "…"), it is wrapped onto **two rows**: the first row holds everything up to the last word, the second row holds the last word. Each row is independently truncated with "…" if it alone still does not fit.
+- A single name with no whitespace, or a name that already fits, is shown on one row as before. Labels with more than one name keep the existing one-div-per-name behaviour (each row independently ellipsised).
+
 ---
 
 ## 11. Bookings List & Report

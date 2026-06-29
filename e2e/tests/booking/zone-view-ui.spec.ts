@@ -17,6 +17,7 @@ import {
   waitForSeatsLoaded,
 } from '../../helpers/booking';
 import { assignSeat } from '../../helpers/zone-setup';
+import { querySql } from '../../helpers/db';
 
 test.describe('zone map help legend', () => {
 
@@ -285,5 +286,27 @@ test.describe('assigned-names labels', () => {
 
     await expect(page.locator(`#sprite-${seat.id} .seat_label_name`, { hasText: USER2.name })).toBeVisible();
     await expect(page.locator(`#sprite-${seat.id} .seat_label_name`, { hasText: USER3.name })).toBeVisible();
+  });
+
+  // FEATURES.md §10.5: a single name that overflows the 72px label box is
+  // wrapped onto two rows at the last whitespace (row1 = everything before the
+  // last word, row2 = the last word). The pristine DB is reset before every
+  // test, so renaming user2 here is isolated to this test.
+  test('single long assigned name wraps onto two rows at the last word', async ({ page }) => {
+    const longName = 'Friedrich Wilhelm';   // ~17 chars at 10px → overflows the 72px box
+    const [seat] = await getZoneSeats(1);
+    await querySql('UPDATE users SET name = $1 WHERE login = $2', [longName, USER2.login]);
+    await assignSeat(seat.id, USER2.login, null);
+
+    await logIn(page, USER1);
+    await apiSetPrefs(page, { zone_show_assigned_names: true });
+
+    await page.goto('/plan/1');
+    await waitForSeatsLoaded(page);
+
+    const names = page.locator(`#sprite-${seat.id} .seat_label_name`);
+    await expect(names).toHaveCount(2);
+    await expect(names.nth(0)).toHaveText('Friedrich');
+    await expect(names.nth(1)).toHaveText('Wilhelm');
   });
 });

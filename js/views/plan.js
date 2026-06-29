@@ -178,8 +178,10 @@ function labelContent(seat, prefs) {
     };
 }
 
-// Flat label body: one div per name (each wraps to up to 2 rows so a first +
-// surname is less likely to be cut). Returned as a fragment.
+// Flat label body: one div per name. A single name that overflows the 72px label
+// box is later split into two rows at the last whitespace (see
+// wrapLongSingleNameLabels); each row keeps nowrap+ellipsis, so either row is
+// still cut with "…" if it alone doesn't fit.
 function buildLabelBody(names) {
     var f = document.createDocumentFragment();
     for (var n of names) {
@@ -189,6 +191,44 @@ function buildLabelBody(names) {
         f.appendChild(d);
     }
     return f;
+}
+
+// After OfficeMap paints, a single-name label whose name overflows the label box
+// (would show "…") is split into two rows at the last whitespace: row1 =
+// everything before the last word, row2 = the last word. Both rows keep the
+// nowrap+ellipsis `.seat_label_name` style, so each is cut with "…" if it alone
+// still doesn't fit. Multi-name labels (one div per name) are left as-is.
+// Runs in a rAF scheduled after OfficeMap's paint rAF, so the body is in the DOM
+// and measurable. Re-runs on every create/update: a content-signature change
+// rebuilds the body to a single div, which this re-splits; unchanged sigs leave
+// the already-split two-div body intact (skipped via the child-count guard).
+// Two passes (measure all, then mutate all) so the scrollWidth reads don't
+// interleave with replaceChildren writes — avoids layout thrash on large maps.
+function wrapLongSingleNameLabels() {
+    var bodies = document.querySelectorAll('#planmap .OMLabelBody');
+    var pending = [];                                     // pass 1: measure only (no writes)
+    for (var body of bodies) {
+        if (body.children.length !== 1) continue;        // multi-name or already split
+        var nameEl = body.children[0];
+        if (!nameEl.classList.contains('seat_label_name')) continue;
+        if (nameEl.scrollWidth <= nameEl.clientWidth) continue;   // fits, no split
+        var text = nameEl.textContent;
+        var m = /\s\S*$/.exec(text);                       // last whitespace + trailing word
+        if (!m) continue;                                  // no whitespace -> can't split
+        pending.push({ body: body, text: text, m: m });
+    }
+    for (var p of pending) {                              // pass 2: mutate (no reads)
+        var row1 = p.text.slice(0, p.m.index);             // everything before the last word
+        var row2 = p.m[0].slice(p.m[0].search(/\S/));      // last word (drop the whitespace)
+        p.body.replaceChildren();
+        for (var t of [row1, row2]) {
+            if (t === '') continue;
+            var d = document.createElement('div');
+            d.className = 'seat_label_name';
+            d.textContent = t;
+            p.body.appendChild(d);
+        }
+    }
 }
 
 // Hover/long-press hint body (lazy — built only when shown): the detailed
@@ -302,6 +342,7 @@ function initOfficeMap(seatFactory) {
     seatFactory.on('setSeatsData', function() {           // this === factory
         labelSigs = {};
         om.createSeats(buildAllSeatData(this, prefs));
+        requestAnimationFrame(wrapLongSingleNameLabels);
     });
 
     seatFactory.on('updateAllStates', function() {        // this === factory
@@ -318,6 +359,7 @@ function initOfficeMap(seatFactory) {
             }
             om.updateSeat(sid, partial);
         }
+        requestAnimationFrame(wrapLongSingleNameLabels);
     });
 
     om.addEventListener('click', function(e) {

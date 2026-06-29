@@ -2068,8 +2068,9 @@ INPUT[type="text"] ~ .show_password_btn::after {
 }
 
 /* Label: a small framed box centred below the seat. Title = seat name (1 line);
-   body = one div per name, each wrapping up to 2 rows so a first+surname is
-   less likely to be cut. */
+   body = one div per name. A single name that overflows the box is split into
+   two rows at the last whitespace (see wrapLongSingleNameLabels in plan.js);
+   multi-name labels keep one div per name. */
 #planmap .OMLabel {
     position: absolute;
     left: 50%;
