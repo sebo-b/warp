@@ -144,7 +144,7 @@ def addOrEdit():
                 rowCount = Plan.update(updColumns).where(Plan.id == pid).execute()
                 if rowCount != 1:
                     raise ApplyError("Wrong number of affected rows", 321)
-                if oldRow is not None and oldRow.timezone != tz:
+                if oldRow is not None and oldRow['timezone'] != tz:
                     tz_changed_pid = pid
             else:
                 Plan.insert(updColumns).execute()
