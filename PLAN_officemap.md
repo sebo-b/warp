@@ -562,9 +562,11 @@ the values `plan.js` selects, plus a few UX refinements):
   keeps seats at 48 px, zooming out shrinks them with the map. The **flat** (S2)
   mode and the per-user toggle in §6 were **not** shipped — `clamp` gave the
   wanted feel without a toggle.
-- **Double-tap / double-click resets the zoom** (about the viewport centre, so
-  the pan stays put) instead of zooming in (§8). Taps on the zoom controls are
-  excluded from this.
+- **Double-tap / double-click toggles fit ↔ 1:1** — it zooms about the
+  clicked/tapped point (that point stays put on screen). When the current scale
+  is within ±10% of the default "fit" scale it zooms IN to 1:1 (pixel-perfect);
+  otherwise it zooms OUT to fit. (Previously it always reset to fit.) Taps on
+  the zoom controls are excluded from this.
 - **Long-press hint persists** — on touch the hint stays visible after the
   finger lifts (readable, not under the finger) and is dismissed by the next
   interaction (tap/pan/zoom). §8's "released … hides it" was changed to

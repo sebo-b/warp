@@ -165,6 +165,55 @@ test.describe('OfficeMap — zoom & pan', () => {
     const s = await page.evaluate(() => window.__scale());
     expect(s).toBeGreaterThanOrEqual(fit - 1e-6);
   });
+
+  test('double-click toggles fit ↔ 1:1, zooming about the clicked point', async ({ page }) => {
+    await ready(page);
+    // The default harness map (1132x629) is smaller than the viewport → fit > 1,
+    // so 1:1 would clamp to fit and the toggle would be degenerate. Shrink #map
+    // and recreate so the new OfficeMap inits with fit < 1 (1:1 reachable).
+    await page.evaluate(() => {
+      const m = document.getElementById('map');
+      m.style.width = '500px';
+      m.style.height = '350px';
+    });
+    await page.click('#preset-default');                 // destroy + recreate on the small root
+    await page.waitForFunction(() => window.__om && window.__om._pz, null, { timeout: 8000 });
+    await settle(page);
+
+    const fit = await page.evaluate(() => window.__scale());
+    expect(fit).toBeLessThan(1);                          // precondition: 1:1 is reachable
+
+    const box = await page.locator('#map').boundingBox();
+    const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+
+    // Image-space fraction under the click point, before the zoom-in.
+    const fracBefore = await page.evaluate(([x, y]) => {
+      const r = window.__bgRect();
+      return { fx: (x - r.left) / r.width, fy: (y - r.top) / r.height };
+    }, [cx, cy]);
+
+    // Double-click the centre → zoom IN to 1:1 about that point.
+    await page.dblclick('#map');
+    await page.waitForFunction(() => Math.abs(window.__scale() - 1) < 0.02, null, { timeout: 3000 });
+    await page.waitForTimeout(320);                       // let the 200ms transition + clamp settle
+    const s1 = await page.evaluate(() => window.__scale());
+    expect(Math.abs(s1 - 1)).toBeLessThan(0.02);
+
+    // The clicked point stays fixed on screen: the same image fraction is under it.
+    const fracAfter = await page.evaluate(([x, y]) => {
+      const r = window.__bgRect();
+      return { fx: (x - r.left) / r.width, fy: (y - r.top) / r.height };
+    }, [cx, cy]);
+    expect(Math.abs(fracAfter.fx - fracBefore.fx)).toBeLessThan(0.01);
+    expect(Math.abs(fracAfter.fy - fracBefore.fy)).toBeLessThan(0.01);
+
+    // Double-click again → zoom OUT to fit.
+    await page.dblclick('#map');
+    await page.waitForFunction((f) => Math.abs(window.__scale() - f) < 0.02, fit, { timeout: 3000 });
+    await page.waitForTimeout(320);
+    const s2 = await page.evaluate(() => window.__scale());
+    expect(Math.abs(s2 - fit)).toBeLessThan(0.02);
+  });
 });
 
 test.describe('OfficeMap — counter-scale (S1 follow vs S2 flat)', () => {

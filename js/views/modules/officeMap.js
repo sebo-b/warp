@@ -48,7 +48,7 @@ const TAP_FINE = 8;     // px; mouse/pen — precise pointers
 const TAP_COARSE = 18;  // px; touch — a finger tap drifts ~10-30px as it presses/lifts;
                        //       below this a down→up is a tap, not a drag
 const LONG_PRESS_MS = 500;          // hold this long on touch → show hint
-const DOUBLE_TAP_MS = 300;          // two taps within this → double-tap (reset zoom)
+const DOUBLE_TAP_MS = 300;          // two taps within this → double-tap (toggle zoom)
 const DOUBLE_TAP_DIST = 40;         // px; the two taps must land within this to count as a double-tap
 
 // Desired on-screen sprite scale at world zoom k, per the active mode (§6).
@@ -647,6 +647,7 @@ export class OfficeMap extends EventTarget {
     if (!pz) return;   // image not loaded yet; keep the page from scrolling but don't zoom
     // Interrupt any in-flight button-zoom animation → instant from here.
     if (this._animatingZoom) { this._animatingZoom = false; this._enableSeatTransition(false); clearTimeout(this._zoomAnimTimer); }
+    this._cancelFocalZoom();
     let dy = e.deltaY;
     if (e.deltaMode === 1) dy *= 100;          // lines → ~one mouse-notch each (≈Chrome px, ~±26%)
     else if (e.deltaMode === 2) dy *= this.root.clientHeight;  // pages
@@ -682,6 +683,7 @@ export class OfficeMap extends EventTarget {
     // reset the zoom.
     this._down = { id: s ? s.el.dataset.seatId : null, x: e.clientX, y: e.clientY, t: Date.now(), moved: false, longFired: false, timer: 0, slop: (e.pointerType === 'touch') ? TAP_COARSE : TAP_FINE };
     if (this._animatingZoom) { this._animatingZoom = false; this._enableSeatTransition(false); clearTimeout(this._zoomAnimTimer); }
+    this._cancelFocalZoom();
     if (!s) return;          // empty map: keep _down for the double-tap, but no long-press hint
     // Long-press → show hint (touch only; fine pointers use hover, and a held
     // mouse button shouldn't suppress the click). Suppress the click on release.
@@ -720,12 +722,13 @@ export class OfficeMap extends EventTarget {
     // readable, not under the finger) — it's dismissed by the NEXT interaction
     // (the _hideHint at the top of _onPointerDown). No click.
     if (down.longFired) return;
-    // Double-tap (touch) anywhere → revert the zoom to the default (centred 1:1).
+    // Double-tap (touch) anywhere → toggle zoom between fit and 1:1, zooming
+    // about the tapped point so it stays put on screen.
     const now = Date.now();
     if (COARSE && now - this._lastTap.t < DOUBLE_TAP_MS &&
         Math.hypot(down.x - this._lastTap.x, down.y - this._lastTap.y) < DOUBLE_TAP_DIST) {
       this._lastTap = { x: 0, y: 0, t: 0 };
-      this._resetZoom();
+      this._toggleZoom(down.x, down.y);
       return;
     }
     this._lastTap = { x: down.x, y: down.y, t: now };
@@ -761,8 +764,9 @@ export class OfficeMap extends EventTarget {
     // the 'click' event — dblclick is separate and still reached this capture
     // listener, so rapid zoom-in clicks intermittently snapped back to startScale.
     if (e.target.closest('.OMZoom')) return;
-    // Desktop parity with the touch double-tap: revert the zoom to the default.
-    if (this._pz) { e.stopPropagation(); this._resetZoom(); }
+    // Desktop parity with the touch double-tap: toggle between fit and 1:1,
+    // zooming about the clicked point so it stays put on screen.
+    if (this._pz) { e.stopPropagation(); this._toggleZoom(e.clientX, e.clientY); }
   }
 
   // Zoom to `target` about the VIEWPORT CENTRE, animated. panzoom's zoomIn/
@@ -796,16 +800,57 @@ export class OfficeMap extends EventTarget {
     this._zoomToCenter(this._pz.getScale() * Math.exp(dir * opts.step));
   }
 
-  // Revert the zoom to the default scale WITHOUT moving the map — zoom about the
-  // viewport centre so the same point stays put (only the scale resets). The full
-  // reset() would also snap the pan back to the start position; we don't want that.
-  _resetZoom() {
-    if (!this._pz) return;
-    this._zoomToCenter(this._pz.getOptions().startScale);
+  // Double-tap/double-click toggle: zoom about the given screen point (so the
+  // clicked/tapped point stays put) between the "fit" scale and 1:1
+  // (pixel-perfect). We jump to whichever of {fit, 1:1} is FARTHER from the
+  // current scale — so at fit it zooms IN to 1:1, at/near 1:1 it zooms OUT to
+  // fit, and the toggle never sticks even when fit sits within a hair of 1:1.
+  _toggleZoom(clientX, clientY) {
+    const pz = this._pz;
+    if (!pz || !this._imgW) return;
+    const opts = pz.getOptions();
+    const fit = this._fitScale();
+    const k = pz.getScale();
+    const target = Math.abs(k - fit) <= Math.abs(k - 1) ? 1 : fit;
+    const clamped = Math.min(Math.max(target, opts.minScale), opts.maxScale);
+    if (clamped === k) return;                       // no-op (e.g. fit == 1:1 already)
+    this._animateFocalZoom(clamped, clientX, clientY);
+  }
+
+  // Animate the scale to `target` about a fixed screen point, re-pinning that
+  // point EVERY frame (like the wheel zoom) rather than a single CSS transition
+  // to the final transform. panzoom animates `scale(k) translate(x,y)` by
+  // interpolating k and x linearly, but the focal point's screen position is
+  // their product (~k·x) → quadratic, so with an off-centre focal it bows away
+  // from the cursor mid-flight and swings back (the visible "bounce"; panzoom
+  // itself dodges this by forcing animate:false in zoomToPoint). Stepping the
+  // scale per frame and calling zoomToPoint each step keeps the cursor point
+  // fixed throughout. Instant per frame (no transition) → seats counter-scale
+  // per frame via panzoomchange, so no seat transition here.
+  _animateFocalZoom(target, clientX, clientY) {
+    const pz = this._pz;
+    if (!pz) return;
+    this._cancelFocalZoom();
+    this._enableSeatTransition(false);
+    const k0 = pz.getScale();
+    const t0 = performance.now();
+    const DUR = 200;
+    const step = (now) => {
+      const u = Math.min(1, (now - t0) / DUR);
+      const e = u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2;   // easeInOutQuad
+      pz.zoomToPoint(k0 + (target - k0) * e, { clientX, clientY }, { animate: false });
+      this._focalRAF = u < 1 ? requestAnimationFrame(step) : 0;
+    };
+    this._focalRAF = requestAnimationFrame(step);
+  }
+
+  _cancelFocalZoom() {
+    if (this._focalRAF) { cancelAnimationFrame(this._focalRAF); this._focalRAF = 0; }
   }
 
   destroy() {
     if (this._raf) cancelAnimationFrame(this._raf);
+    this._cancelFocalZoom();
     clearTimeout(this._zoomAnimTimer);
     if (this._down && this._down.timer) clearTimeout(this._down.timer);
     clearTimeout(this._swallowClickTimer);
