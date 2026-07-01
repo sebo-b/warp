@@ -25,9 +25,11 @@ WantedBy=multi-user.target default.target
 PublishPort=0.0.0.0:80:80
 PublishPort=0.0.0.0:443:443
 #
-# B) Reverse proxy on an EXTERNAL host. Drop warp-revproxy and instead publish
-#    one of the app's own endpoints (see Dockerfile EXPOSE). Use 8080 for a
-#    plain-HTTP proxy, or 8000 for a proxy that speaks the uWSGI protocol:
+# B) Reverse proxy on an EXTERNAL host. Drop warp-revproxy and have the app
+#    listen on TCP instead: in warp-app.container set
+#    WARPAPP_UWSGI_HTTP_SOCKET=0.0.0.0:8080 for a plain-HTTP proxy, or
+#    WARPAPP_UWSGI_SOCKET=0.0.0.0:8000 for one that speaks the uWSGI protocol.
+#    Then publish the matching port:
 #PublishPort=8080:8080
 #PublishPort=8000:8000
 

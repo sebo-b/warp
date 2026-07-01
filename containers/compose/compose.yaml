@@ -41,6 +41,14 @@ services:
       WARP_DATABASE_PASSWORD_FILE: /run/secrets/warp_db_password
       WARP_SECRET_KEY_FILE: /run/secrets/warp_secret_key
       WARP_LANGUAGE_FILE: "i18n/en.json"
+      # uWSGI endpoints, mirroring the Quadlet setup: disable the binary uWSGI
+      # socket (empty value) so only the HTTP unix socket that Caddy proxies to
+      # over the shared /run/warp volume remains. The HTTP socket already defaults
+      # to /run/warp/uwsgi-http.sock in the app, so it is left commented below. To
+      # run without the bundled Caddy, bind a TCP port instead, e.g.
+      # WARPAPP_UWSGI_HTTP_SOCKET=0.0.0.0:8080.
+      # WARPAPP_UWSGI_HTTP_SOCKET: /run/warp/uwsgi-http.sock
+      WARPAPP_UWSGI_SOCKET: ""
       # Timezone used as the default for new plans and for reminders.
       # Sets DEFAULT_PLAN_TIMEZONE; also recognised by Python zoneinfo and
       # localtime() inside the container (musl needs tzdata, already in image).

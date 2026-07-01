@@ -28,20 +28,34 @@ containers/
 
 ## `Dockerfile`
 
-**Production image.** Runs WARP via uWSGI on port 8000. Contains **no database** —
+**Production image.** Runs WARP via uWSGI. Contains **no database** —
 run PostgreSQL separately and configure the connection via `WARP_DATABASE_ADDRESS`,
 `WARP_DATABASE_NAME`, `WARP_DATABASE_USER`, and `WARP_DATABASE_PASSWORD`.
 
+By default the app listens on two **unix sockets** in `/run/warp`, intended for an
+in-pod reverse proxy that shares the volume (see the Quadlet/compose setups). Two
+environment variables control the endpoints; set either to a `host:port` to listen
+on TCP instead, or to an empty string to disable that endpoint:
+
+| Variable                    | Default                     | uWSGI flag                         |
+| --------------------------- | --------------------------- | ---------------------------------- |
+| `WARPAPP_UWSGI_SOCKET`      | `/run/warp/uwsgi.sock`      | `--socket` (uWSGI binary protocol) |
+| `WARPAPP_UWSGI_HTTP_SOCKET` | `/run/warp/uwsgi-http.sock` | `--http-socket` (plain HTTP)       |
+
 Build from the repository root:
+
 ```sh
 docker build -f containers/Dockerfile -t warp:latest .
 ```
 
-Run (replace values as needed):
+Run (replace values as needed). Bind the HTTP endpoint to a TCP port so it is
+reachable without an in-pod proxy:
+
 ```sh
 docker run -d \
   --name warp \
-  -p 8000:8000 \
+  -p 8080:8080 \
+  -e WARPAPP_UWSGI_HTTP_SOCKET=0.0.0.0:8080 \
   -e WARP_DATABASE_ADDRESS="db-host:5432" \
   -e WARP_DATABASE_NAME=warp \
   -e WARP_DATABASE_USER=user \
@@ -50,9 +64,8 @@ docker run -d \
   warp:latest
 ```
 
-uWSGI listens on port 8000 (uWSGI protocol) and 8080 (HTTP). Place a reverse
-proxy in front of it — see [`res/Caddyfile`](#rescaddyfile) for the Caddy config
-used by the compose and Quadlet deployments.
+Place a reverse proxy in front of it — see [`res/Caddyfile`](#rescaddyfile) for
+the Caddy config used by the compose and Quadlet deployments.
 
 ---
 
@@ -84,7 +97,7 @@ docker run --rm -p 5000:5000 warp-debug
 Then open http://127.0.0.1:5000 and log in as `admin` / `noneshallpass`.
 
 **Reaching PostgreSQL from the host.** By default the database is bound to the
-container's loopback interface, so `-p 5432:5432` alone will *not* expose it
+container's loopback interface, so `-p 5432:5432` alone will _not_ expose it
 (the proxy connects to the container IP, which Postgres is not listening on). To
 inspect the database from the host, set `EXPOSE_POSTGRES=1` so Postgres binds all
 interfaces, and publish the port:
@@ -114,13 +127,14 @@ Quadlet architecture (app behind Caddy, sharing a tmpfs `/run/warp` volume for
 the unix socket and static files) and brings up three services from published
 images:
 
-| Service | Image | Role |
-|---|---|---|
-| `warp-db` | `postgres` (official) | PostgreSQL database |
-| `warp-app` | `ghcr.io/sebo-b/warp` | WARP application (uWSGI) |
-| `warp-revproxy` | `caddy` (official) | Reverse proxy, published on port 8080 |
+| Service         | Image                 | Role                                  |
+| --------------- | --------------------- | ------------------------------------- |
+| `warp-db`       | `postgres` (official) | PostgreSQL database                   |
+| `warp-app`      | `ghcr.io/sebo-b/warp` | WARP application (uWSGI)              |
+| `warp-revproxy` | `caddy` (official)    | Reverse proxy, published on port 8080 |
 
 **Quick start** (from the `compose/` directory):
+
 ```sh
 cd containers/compose
 docker compose up
@@ -139,12 +153,12 @@ LDAP, …) or any other feature, add the relevant `WARP_*` variables under
 
 **Before deploying for real**, change at minimum:
 
-| Variable | Current value | What to set |
-|---|---|---|
-| `warp_secret_key` secret | `mysecretkey` | A random secret — see [CONFIGURATION.md](../CONFIGURATION.md#secret-key) |
-| `warp_db_password` secret | `postgres_password` | A strong database password (used by both the DB and the app) |
-| `warp-app` image tag | `:latest` | A pinned version, e.g. `:v1.2.3` |
-| `WARP_LANGUAGE_FILE` | `i18n/en.json` | Your preferred language (`de`/`fr`/`es`/`pl`) |
+| Variable                  | Current value       | What to set                                                              |
+| ------------------------- | ------------------- | ------------------------------------------------------------------------ |
+| `warp_secret_key` secret  | `mysecretkey`       | A random secret — see [CONFIGURATION.md](../CONFIGURATION.md#secret-key) |
+| `warp_db_password` secret | `postgres_password` | A strong database password (used by both the DB and the app)             |
+| `warp-app` image tag      | `:latest`           | A pinned version, e.g. `:v1.2.3`                                         |
+| `WARP_LANGUAGE_FILE`      | `i18n/en.json`      | Your preferred language (`de`/`fr`/`es`/`pl`)                            |
 
 ---
 
@@ -152,8 +166,10 @@ LDAP, …) or any other feature, add the relevant `WARP_*` variables under
 
 [Quadlet](https://docs.podman.io/en/latest/markdown/podman-systemd.unit.5.html)
 lets Podman generate systemd services from declarative unit files. The files in
-`quadlet/` define a production deployment as a systemd-managed pod. This is the
-recommended production setup.
+`quadlet/` define a production deployment as a systemd-managed pod. **This is the
+deployment WARP uses in practice and the most thoroughly tested path** — prefer it
+for production; the [compose setup](#composecomposeyaml) mirrors the same
+architecture but is exercised less.
 
 ### Architecture
 
@@ -162,8 +178,7 @@ recommended production setup.
      │
      └─ warp-pod.service   (pod — shared network ns + shared /run/warp volume)
            ├─ warp-db.service        ← PostgreSQL on localhost:5432 (in-pod)
-           ├─ warp-app.service       ← uWSGI: unix sockets in /run/warp,
-           │                            plus TCP 8000 (uWSGI) / 8080 (HTTP)
+           ├─ warp-app.service       ← uWSGI: HTTP unix socket in /run/warp
            └─ warp-revproxy.service  ← Caddy on :80 (+ :443), published to host
 ```
 
@@ -174,11 +189,12 @@ mounted at `/run/warp`: the app exposes its HTTP socket
 Caddy reads both from the same volume. Only Caddy's ports (80/443) are published
 to the host.
 
-**Reverse proxy is optional.** If you run a reverse proxy on a *separate* host,
-you can drop the Caddy container entirely and publish one of the app's own TCP
-endpoints instead — `8080` for a plain-HTTP upstream or `8000` for one that
-speaks the uWSGI protocol. See the commented `PublishPort` lines in `warp.pod`;
-remove `warp-revproxy.container` (and its `warp-shared.volume`) in that case.
+**Reverse proxy is optional.** If you run a reverse proxy on a _separate_ host,
+you can drop the Caddy container entirely and have the app listen on a TCP port
+instead: in `warp-app.container` set `WARPAPP_UWSGI_HTTP_SOCKET=0.0.0.0:8080`
+(plain HTTP upstream) or `WARPAPP_UWSGI_SOCKET=0.0.0.0:8000` (uWSGI protocol), and
+publish the matching port via the commented `PublishPort` lines in `warp.pod`.
+Remove `warp-revproxy.container` (and its `warp-shared.volume`) in that case.
 
 If you prefer an **external PostgreSQL**, remove `warp-db.container` and update
 `WARP_DATABASE_ADDRESS` (and `WARP_DATABASE_NAME`/`WARP_DATABASE_USER`/password)
@@ -186,14 +202,14 @@ in `warp-app.container` with the external host.
 
 ### Quadlet files
 
-| File | Type | Role |
-|---|---|---|
-| `warp.pod` | `.pod` | Pod definition — networking, port publishing, UserNS, restart policy |
-| `warp-shared.volume` | `.volume` | Shared tmpfs at `/run/warp` (unix sockets + static files) |
-| `warp-db.container` | `.container` | PostgreSQL database container |
-| `warp-app.container` | `.container` | WARP application container (uWSGI) |
-| `warp-revproxy.container` | `.container` | Caddy reverse proxy container |
-| `nftables_init.sh` | shell script | Optional: pod-level firewall via nftables |
+| File                      | Type         | Role                                                                 |
+| ------------------------- | ------------ | -------------------------------------------------------------------- |
+| `warp.pod`                | `.pod`       | Pod definition — networking, port publishing, UserNS, restart policy |
+| `warp-shared.volume`      | `.volume`    | Shared tmpfs at `/run/warp` (unix sockets + static files)            |
+| `warp-db.container`       | `.container` | PostgreSQL database container                                        |
+| `warp-app.container`      | `.container` | WARP application container (uWSGI)                                   |
+| `warp-revproxy.container` | `.container` | Caddy reverse proxy container                                        |
+| `nftables_init.sh`        | shell script | Optional: pod-level firewall via nftables                            |
 
 ### Setup
 
@@ -209,6 +225,7 @@ install the unit files under `~/.config/containers/systemd/` instead.
    and set `Image=warp:latest`.)
 
 2. **Create the podman secrets**:
+
    ```sh
    # Database password (used by both the DB and the app containers)
    printf '%s' 'a-strong-db-password' | sudo podman secret create warp-db-password -
@@ -218,6 +235,7 @@ install the unit files under `~/.config/containers/systemd/` instead.
 
 3. **Create the host directories.** With the default `UserNS=auto` mapping in
    `warp.pod` (base `100000`), container UIDs are shifted by `100000` on the host.
+
    ```sh
    # PostgreSQL data — owned by the in-container postgres user (999 → host 100999)
    sudo install -d -o 100999 -g 100999 /srv/warp/postgresql
@@ -227,6 +245,7 @@ install the unit files under `~/.config/containers/systemd/` instead.
    sudo install -d -o 100000 -g 100000 /srv/caddy /srv/caddy_data
    sudo install -m644 containers/res/Caddyfile /srv/caddy/Caddyfile
    ```
+
    > Without `UserNS`, use the unshifted IDs instead (`999` and `0`).
    > The `/data` mount is important: Caddy stores issued TLS certificates there,
    > and a non-persistent path would re-request them on every start and quickly
@@ -238,6 +257,7 @@ install the unit files under `~/.config/containers/systemd/` instead.
    `WARP_LANGUAGE_FILE` (`i18n/en.json`, also `de`/`fr`/`es`/`pl`).
 
 5. **Install the unit files** into the Quadlet drop-in directory and reload:
+
    ```sh
    sudo cp containers/quadlet/*.pod \
             containers/quadlet/*.volume \
@@ -245,9 +265,11 @@ install the unit files under `~/.config/containers/systemd/` instead.
             /etc/containers/systemd/
    sudo systemctl daemon-reload
    ```
+
    (You can also symlink them from a checkout so updates track the repository.)
 
 6. **Start the pod** and enable it on boot:
+
    ```sh
    sudo systemctl start warp-pod.service
    sudo systemctl enable warp-pod.service

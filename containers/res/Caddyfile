@@ -9,17 +9,16 @@
 # ":80" with your domain name, e.g.:
 #   warp.example.org {
 :80 {
-
 	# Static assets are served straight from the shared volume that the app
 	# container populates on start (see entrypoint.sh). The /static prefix is
 	# stripped before looking up the file on disk.
 	handle_path /static/* {
-		root * /run/warp/static
+		root * {$WARPAPP_RUN_DIR:/run/warp}/static
 		file_server
 	}
 
 	# Everything else goes to the app over the shared unix HTTP socket.
 	handle {
-		reverse_proxy unix//run/warp/uwsgi-http.sock
+		reverse_proxy unix/{$WARPAPP_RUN_DIR:/run/warp}/uwsgi-http.sock
 	}
 }

@@ -36,5 +36,14 @@ Environment=WARP_SECRET_KEY_FILE=/run/secrets/warp-secret-key
 # UI language. Available: en, de, fr, es, pl.
 Environment=WARP_LANGUAGE_FILE=i18n/en.json
 
+# uWSGI endpoints. The in-pod Caddy proxies over the HTTP unix socket on the
+# shared /run/warp volume, so the binary uWSGI socket is disabled (empty value).
+# The HTTP socket already defaults to /run/warp/uwsgi-http.sock in the app, so it
+# is left commented below. For an external reverse proxy, set one of these to a
+# host:port instead, e.g. WARPAPP_UWSGI_HTTP_SOCKET=0.0.0.0:8080 (see warp.pod
+# option B).
+#Environment="WARPAPP_UWSGI_HTTP_SOCKET=/run/warp/uwsgi-http.sock"
+Environment="WARPAPP_UWSGI_SOCKET="
+
 [Install]
 WantedBy=multi-user.target default.target

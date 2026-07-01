@@ -49,7 +49,4 @@ RUN --mount=type=bind,from=builder,source=/warp/wheel,target=./wheel \
 
 COPY --chmod=755 containers/res/entrypoint.sh /entrypoint.sh
 
-# 8000 = uWSGI binary protocol, 8080 = plain HTTP. The entrypoint also creates
-# matching unix sockets in /run/warp for an in-pod reverse proxy (e.g. Caddy).
-EXPOSE 8000/tcp 8080/tcp
 ENTRYPOINT ["/entrypoint.sh"]
