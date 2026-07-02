@@ -93,8 +93,8 @@ const COVERED_ENDPOINTS: ReadonlySet<string> = new Set([
   // xhr — SPA per-view context (bookings/report default filter window)
   '/xhr/bookings/context',
 
-  // xhr — SPA per-view context, added as each view is converted
-  // (PLAN_SPA_REFACTOR.md work package 7): '/xhr/plan/getContext/<int:pid>'.
+  // xhr — SPA per-view context (plan calendar grid, dark filter, role flags)
+  '/xhr/plan/getContext/<int:pid>',
 ]);
 
 test('all registered endpoints are covered by e2e tests', async ({ request }) => {

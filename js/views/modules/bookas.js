@@ -151,6 +151,30 @@ BookAs.prototype._init =  function(zoneUserData) {
     }
 }
 
+// Clears this singleton's per-mount state (the plan view's unmount() calls
+// this) so _init() can run again on the next admin plan mount instead of
+// throwing "can be initialized only once". Its book-as_input DOM elements are
+// gone already (router.js replaces #view-root wholesale) but their Materialize
+// Autocomplete dropdown panels are appended to document.body — outside
+// #view-root — so they'd leak across navigations without an explicit destroy.
+// Also clears 'change'/'init' listeners: each plan mount's initBookAs()
+// registers its own; left stale, a second mount would fire the FIRST mount's
+// listener too, calling seatFactory.setLogin() on an abandoned factory.
+BookAs.prototype.reset = function() {
+    if (this.autocompleteInstances) {
+        for (let inst of this.autocompleteInstances) {
+            if (inst && typeof inst.destroy === 'function') inst.destroy();
+        }
+    }
+    delete this.selectedLogin;
+    delete this.zoneUserData;
+    delete this.bookAsData;
+    delete this.autocompleteInstances;
+    this.changed = false;
+    this.listeners['init'].clear();
+    this.listeners['change'].clear();
+}
+
 PlanUserData.getInstance().on('load',function(zoneUserData) {
     BookAs.getInstance()._init(zoneUserData);
     });

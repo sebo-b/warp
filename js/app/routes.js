@@ -16,6 +16,7 @@ export const routes = [
   // meta.report tells mount() which mode to render — see PLAN_SPA_REFACTOR.md §2.4.
   { name: 'bookings', pattern: '/bookings', meta: {report: false}, load: () => import(/* webpackChunkName: "view-bookings" */ '../views/bookings.js') },
   { name: 'bookingsReport', pattern: '/bookings/report', meta: {report: true}, load: () => import(/* webpackChunkName: "view-bookings" */ '../views/bookings.js') },
+  { name: 'plan', pattern: '/plan/:pid', load: () => import(/* webpackChunkName: "view-plan" */ '../views/plan.js') },
 ];
 
 function segs(path) {
