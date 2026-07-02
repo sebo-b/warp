@@ -61,10 +61,13 @@ tabulatorSchema = {
                 ]
             },
         },
-    },
-    "dependentRequired": {
-        "page": ["size"]
     }
+    # NOTE: no dependentRequired page→[size]. Tabulator omits `size` from the
+    # request body whenever its auto-calculated paginationSize resolves to 0
+    # (e.g. the assign tables' flex container has 0 clientHeight at first
+    # paint), while still sending `page`. Requiring size alongside page made
+    # those tables 400 on every load. applyTabulatorToQuery already handles a
+    # missing `size` (it just skips pagination), so the gate was over-strict.
 }
 
 # it merges jsonSchema with default tabulator schema

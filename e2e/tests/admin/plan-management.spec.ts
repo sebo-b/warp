@@ -8,6 +8,7 @@ import { ADMIN, USER1 } from '../../helpers/users';
 import { querySql } from '../../helpers/db';
 import { TAB, adminPost } from '../../helpers/admin';
 import { getRuntimeInfo } from '../../helpers/runtime';
+import { waitForViewReady } from '../../helpers/spa';
 
 /**
  * Set the WARP light/dark theme cookie before any navigation.
@@ -282,6 +283,114 @@ test.describe('plan management', () => {
     const mapImg = page.locator('#planmap .OMBackground');
     const filter = await mapImg.evaluate((el: HTMLElement) => (el as HTMLImageElement).style.filter);
     expect(filter).toContain('invert');
+  });
+
+});
+
+/**
+ * Dirty-state leave guard for the plan editor. beforeunload covers real tab
+ * unloads; the router's leave guard (setLeaveGuard) covers in-SPA route changes
+ * (nav links, back/forward) that never fire beforeunload. The guard and the
+ * Cancel button share one confirmLeave() check, so these exercise both entry
+ * points: Cancel, a top-nav link, and the back button.
+ */
+test.describe('plan editor dirty-state leave guard', () => {
+
+  // Dirty the editor the same way the "persists a dark filter change" test does:
+  // switch to the Map edit tab and move the invert slider. This flips isDirty().
+  async function dirtyTheEditor(page: import('@playwright/test').Page) {
+    await page.locator('#plan_modify_tabs a', { hasText: 'Map edit' }).click();
+    const invert = page.locator('#filter_invert');
+    await expect(invert).toBeVisible();
+    await invert.fill('50');
+    // Save enables when dirty — use it as the dirty signal.
+    await expect(page.locator('#saveBtn')).not.toHaveClass(/disabled/);
+  }
+
+  test('Cancel on a dirty editor asks for confirmation; No keeps you, Yes leaves', async ({ page }) => {
+    await logIn(page, ADMIN);
+    await page.goto('/plans/modify/1');
+    await page.waitForLoadState('networkidle');
+    await dirtyTheEditor(page);
+
+    await page.locator('#cancelBtn').click();
+    const confirm = page.locator('dialog.modal[open]').filter({ hasText: 'unsaved changes' });
+    await expect(confirm).toBeVisible();
+
+    // "No" -> stay on the editor, edits preserved (Save still enabled).
+    await confirm.locator('a', { hasText: 'No' }).click();
+    await expect(page).toHaveURL(/\/plans\/modify\/1$/);
+    await expect(page.locator('#saveBtn')).not.toHaveClass(/disabled/);
+
+    // "Yes" -> leave to /plans.
+    await page.locator('#cancelBtn').click();
+    const confirm2 = page.locator('dialog.modal[open]').filter({ hasText: 'unsaved changes' });
+    await expect(confirm2).toBeVisible();
+    await confirm2.locator('a', { hasText: 'Yes' }).click();
+    await page.waitForURL('/plans');
+  });
+
+  test('clicking a top-nav link on a dirty editor asks for confirmation; dismissing keeps you', async ({ page }) => {
+    await logIn(page, ADMIN);
+    await page.goto('/plans/modify/1');
+    await page.waitForLoadState('networkidle');
+    await dirtyTheEditor(page);
+
+    // A registered SPA route link in the top bar -> in-SPA navigate -> guard.
+    await page.locator('.nav-wrapper a[href="/bookings/report"]').click();
+    const confirm = page.locator('dialog.modal[open]').filter({ hasText: 'unsaved changes' });
+    await expect(confirm).toBeVisible();
+
+    // Dismiss (No) -> the route change is aborted, URL unchanged, edits kept.
+    await confirm.locator('a', { hasText: 'No' }).click();
+    await expect(page).toHaveURL(/\/plans\/modify\/1$/);
+    await expect(page.locator('#saveBtn')).not.toHaveClass(/disabled/);
+  });
+
+  test('back button on a dirty editor asks for confirmation; No keeps you', async ({ page }) => {
+    await logIn(page, ADMIN);
+    // Start on /plans, then SPA-navigate (pushState) into the editor so a real
+    // same-session popstate (page.goBack) exercises the guard — a full-page-load
+    // back across page.goto boundaries reloads the app and bypasses the guard.
+    await page.goto('/plans');
+    await waitForViewReady(page, 'plans');
+    await page.locator('.tabulator-row', { hasText: 'Plan 1A' })
+      .locator('i.material-icons', { hasText: 'map' }).click();
+    await page.waitForURL(/\/plans\/modify\/1$/);
+    await page.waitForLoadState('networkidle');
+    await dirtyTheEditor(page);
+
+    await page.goBack();
+    const confirm = page.locator('dialog.modal[open]').filter({ hasText: 'unsaved changes' });
+    await expect(confirm).toBeVisible();
+    await confirm.locator('a', { hasText: 'No' }).click();
+    // The popstate was undone — we stay on the editor.
+    await expect(page).toHaveURL(/\/plans\/modify\/1$/);
+    await expect(page.locator('#saveBtn')).not.toHaveClass(/disabled/);
+  });
+
+  test('saving clears the dirty flag — leaving afterwards does not re-prompt', async ({ page }) => {
+    await logIn(page, ADMIN);
+    await page.goto('/plans/modify/1');
+    await page.waitForLoadState('networkidle');
+    await dirtyTheEditor(page);
+
+    // Save + confirm the change-summary dialog.
+    const saveBtn = page.locator('#saveBtn');
+    await expect(saveBtn).not.toHaveClass(/disabled/);
+    await saveBtn.click();
+    const summary = page.locator('.modal.open', { hasText: /update the plan/ });
+    await expect(summary).toBeVisible();
+    const modifyResp = page.waitForResponse(
+      (r) => r.url().includes('/xhr/plans/modify') && r.request().method() === 'POST');
+    await summary.locator('a', { hasText: /Yes/i }).click();
+    await modifyResp;
+
+    // The save navigates back to /plans. The dirty flag must be cleared on
+    // save, so NO second "unsaved changes will be lost" confirm appears and the
+    // navigation completes (otherwise toHaveURL would time out behind the modal).
+    await expect(page).toHaveURL(/\/plans$/);
+    await expect(page.locator('dialog.modal[open]').filter({ hasText: 'unsaved changes' })).toHaveCount(0);
   });
 
 });

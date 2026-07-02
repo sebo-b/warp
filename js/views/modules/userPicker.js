@@ -26,23 +26,20 @@ export function createUserPicker(opts) {
   function build() {
     return Utils.xhr.post(window.warpGlobals.URLs['usersList'], {}, { toastOnSuccess: false })
       .then(function (value) {
-        modal = warpDialog(opts.modalEl);
+        modal = warpDialog(opts.modalEl, {
+          // Ephemeral edit: clear any leftover typed-but-not-selected text when
+          // the picker closes so a reopen starts clean (otherwise the partial
+          // query survives the open/close sequence).
+          onCloseEnd: function () { opts.autocompleteEl.value = ''; }
+        });
         if (opts.headerEl) opts.headerEl.textContent = opts.titleText;
 
         opts.addBtnEl.addEventListener('click', function () {
+          if (!pickerTable) return; // table is created one rAF after open
           var rows = pickerTable.getData();
           if (!rows.length) return;
           opts.onAdd(rows);
         }, { signal: opts.signal });
-
-        pickerTable = createTable(opts.tableEl, {
-          remote: false,
-          height: opts.tableHeight || '200px',
-          index: 'login',
-          headerVisible: false,
-          columns: opts.columns,
-          initialSort: [{ column: 'name', dir: 'asc' }]
-        });
 
         var autocompleteData = [];
         for (var i of value.response['data']) {
@@ -65,13 +62,40 @@ export function createUserPicker(opts) {
             opts.autocompleteEl.focus();
           }
         });
+
+        // Open the dialog BEFORE creating the staging table: a <dialog> is
+        // display:none until opened, so the table element has 0 dimensions and
+        // Tabulator's renderer initializes to null, leaving every later
+        // adjustTableSize() to throw on a null renderer.verticalFillMode and the
+        // staging table non-functional. showModal() makes the dialog visible
+        // synchronously, but the browser does not flush layout until the next
+        // frame, so defer createTable one rAF and only resolve build() once the
+        // table exists (open() clears it right after).
+        modal.open();
+
+        return new Promise(function (resolve) {
+          requestAnimationFrame(function () {
+            pickerTable = createTable(opts.tableEl, {
+              remote: false,
+              height: opts.tableHeight || '200px',
+              index: 'login',
+              headerVisible: false,
+              columns: opts.columns,
+              initialSort: [{ column: 'name', dir: 'asc' }]
+            });
+            resolve();
+          });
+        });
       });
   }
 
   return {
     open: function () {
       if (modal === undefined) {
-        build().then(function () { pickerTable.clearData(); modal.open(); });
+        // build() opens the modal and creates an empty staging table; no
+        // clearData needed on first open (it is already empty, and calling it
+        // on a just-created table trips a Tabulator null-renderer path).
+        build();
       } else {
         pickerTable.clearData();
         modal.open();

@@ -135,6 +135,27 @@
     background-color: color-mix(in srgb, var(--warp-grey-bg), var(--warp-text) 5%);
 }
 
+/* A Tabulator table inside a modal (.warp-form-modal) is page content raised onto
+   the modal surface tier, not the page tier the main admin tables sit on. The
+   base rules above put it on --warp-grey-bg, which reads as a different-colored
+   block inside the dialog (the assign-seat collection it mirrors is transparent
+   over the same --warp-surface). Override to the surface tier so the staging
+   table blends with the modal like the reference list. Specificity beats the
+   base rule above via the extra .warp-form-modal class; main tables (no modal
+   ancestor) are unaffected. */
+:root[theme] .warp-form-modal .tabulator,
+:root[theme] .warp-form-modal .tabulator .tabulator-tableholder .tabulator-table,
+:root[theme] .warp-form-modal .tabulator-row,
+:root[theme] .warp-form-modal .tabulator-row.tabulator-row-even,
+:root[theme] .warp-form-modal .tabulator .tabulator-footer {
+    background-color: var(--warp-surface);
+    color: var(--warp-text);
+}
+
+:root[theme] .warp-form-modal .tabulator-row.tabulator-selectable:hover {
+    background-color: color-mix(in srgb, var(--warp-surface), var(--warp-text) 6%);
+}
+
 /* Table rows/cols/footer-page hover: lighten onto the raised surface tier
    (page-tier base → surface highlight). */
 :root[theme] .tabulator-row.tabulator-selectable:hover,

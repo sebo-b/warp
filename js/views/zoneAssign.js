@@ -6,6 +6,7 @@ import { userTypeFormatter, userGroupLinkFormatter, iconFormatter, labelFormatte
 import { createTable } from '../lib/tablePage.js';
 import { confirmDelete } from '../lib/confirmDelete.js';
 import { safeReturn } from '../app/routes.js';
+import { createUserPicker } from './modules/userPicker.js';
 
 export { html };
 

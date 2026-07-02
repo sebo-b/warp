@@ -471,7 +471,14 @@ export async function mount(ctx) {
 
             var assignModal = warpDialog.getInstance(assignModalEl);
             if (!assignModal)
-                assignModal = warpDialog(assignModalEl, {});
+                assignModal = warpDialog(assignModalEl, {
+                    // Ephemeral edit: clear any leftover typed-but-not-selected
+                    // text when the modal closes so a reopen starts clean.
+                    onCloseEnd: function () {
+                        var addInput = root.querySelector('#assigned_seat_add_input');
+                        if (addInput) addInput.value = '';
+                    }
+                });
 
             // Seat-enabled toggle: seed from the live seat state.
             var enabledCheckbox = root.querySelector('#seat_edit_enabled');

@@ -26,6 +26,17 @@ Materialize.Autocomplete.init = function (els, options) {
       return { id: k, text: k, image: map[k] || undefined };
     });
   }
+  // M2's Dropdown.close() hides the panel via an animated _animateOut that
+  // schedules display='' (CSS -> display:none) on setTimeout(..., outDuration).
+  // After a selection the user often types the next name inside that window:
+  // open() sets display=block, the pending timeout then clobbers it to none,
+  // and every later open() only calls recalculateDimensions() (it sees
+  // isOpen=true), so the dropdown never reappears until a blur+refocus resets
+  // it. A 0 outDuration makes the reset land before the next keystroke. Applied
+  // here (not per call site) so every autocomplete in the app is covered.
+  if (options) {
+    options.dropdownOptions = Object.assign({ outDuration: 0 }, options.dropdownOptions || {});
+  }
   if (options && options.onAutocomplete) {
     var orig = options.onAutocomplete;
     // 2.x calls onAutocomplete with AutocompleteData[] (and fires it on input-clear

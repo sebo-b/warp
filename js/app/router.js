@@ -14,6 +14,23 @@ let currentUnmount = null;
 let currentController = null;
 let transitionSeq = 0;
 
+// In-SPA leave guard: a view with unsaved state (currently the plan editor)
+// registers a function returning Promise<boolean>. navigate()/popstate await
+// it before changing the view; false = the user chose to stay, so the route
+// change is aborted. beforeunload already covers real tab unloads; this covers
+// client-side route changes (nav links, back/forward) that never fire it.
+// Single slot — the mounted view owns it and clears it on unmount.
+let leaveGuard = null;
+let currentPath = window.location.pathname + window.location.search;
+
+export function setLeaveGuard(fn) { leaveGuard = fn; }
+export function clearLeaveGuard() { leaveGuard = null; }
+
+function mayLeave() {
+  if (!leaveGuard) return Promise.resolve(true);
+  return Promise.resolve(leaveGuard()).then(function (ok) { return !!ok; });
+}
+
 function renderErrorView(root, kind) {
   var title, action = '';
   if (kind === 'network') {
@@ -179,7 +196,7 @@ export async function transition(pathname, search) {
   }
 }
 
-export function navigate(path, opts) {
+export async function navigate(path, opts) {
   opts = opts || {};
   var url = new URL(path, window.location.origin);
   // Views call navigate() with route-relative paths ('/plan/1'), while link
@@ -192,11 +209,16 @@ export function navigate(path, opts) {
   } else if (basePath && url.pathname !== basePath) {
     url.pathname = basePath + url.pathname;
   }
+  // Guard BEFORE touching history: if the current view is dirty and the user
+  // declines to leave, abort with no URL/view change. A no-op for routes that
+  // never register a guard.
+  if (!await mayLeave()) return false;
   if (opts.replace) {
     window.history.replaceState(null, '', url);
   } else {
     window.history.pushState(null, '', url);
   }
+  currentPath = url.pathname + url.search;
   return transition(url.pathname, url.search);
 }
 
@@ -230,10 +252,20 @@ function initLinkInterception() {
 
 export function start() {
   initLinkInterception();
-  window.addEventListener('popstate', function () {
+  currentPath = window.location.pathname + window.location.search;
+  window.addEventListener('popstate', async function () {
+    var toPath = window.location.pathname + window.location.search;
+    if (!await mayLeave()) {
+      // The browser already moved the URL; the user chose to stay, so undo
+      // by pushing the previous path back. Adds one history entry (the usual
+      // SPA-guard imperfection) but keeps the user on the dirty view.
+      window.history.pushState(null, '', currentPath);
+      return;
+    }
+    currentPath = toPath;
     transition(window.location.pathname, window.location.search);
   });
   return transition(window.location.pathname, window.location.search);
 }
 
-export default { start, navigate, transition };
+export default { start, navigate, transition, setLeaveGuard, clearLeaveGuard };

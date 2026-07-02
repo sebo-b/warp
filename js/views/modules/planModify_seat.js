@@ -365,6 +365,18 @@ SeatFactory.prototype.isChanged = function() {
     return false;
 }
 
+// Drop every pending seat change so isChanged() reports clean. Used after a
+// successful save: the changes are persisted, so the in-memory overlay (a delta
+// over the originally-loaded state) is no longer "unsaved". Empties each
+// per-seat change dict in place (Seat instances hold references to them) rather
+// than reassigning this.overlay, so Seat getters fall back to their loaded data.
+SeatFactory.prototype.clearChanges = function() {
+    for (let sid in this.overlay) {
+        var dict = this.overlay[sid];
+        if (dict) Object.keys(dict).forEach(function (k) { delete dict[k]; });
+    }
+};
+
 SeatFactory.prototype.getChanges = function() {
 
     let res = {

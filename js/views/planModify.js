@@ -9,6 +9,7 @@ import { TransformController } from './modules/zoneModify_transform.js';
 import { M } from '../app/materialize.js';
 import { initFormSelect } from '../lib/formSelect.js';
 import { confirmDelete } from '../lib/confirmDelete.js';
+import { setLeaveGuard, clearLeaveGuard } from '../app/router.js';
 
 export { html };
 
@@ -377,6 +378,13 @@ export async function mount(ctx) {
                 data,
                 {toastOnSuccess: false})
             .then(() => {
+                // The changes are now persisted: reset every source isDirty() reads
+                // (seat overlay, uploaded map, filter baseline) so the navigate-away
+                // below and any later tab close don't re-prompt. The editor is
+                // per-mount (fresh SeatFactory each open), so no stale state carries
+                // forward.
+                seatFactory.clearChanges();
+                mapUploadInput.value = '';
                 storedFilter = currentFilterState();
                 window.sessionStorage.setItem('pendingToast', TR('Action successfull.'));
                 ctx.navigate(returnURL);
@@ -561,10 +569,8 @@ export async function mount(ctx) {
     window.addEventListener('mouseup', containerMouseup, {signal: ctx.signal});
 
     // Covers real page unloads (tab close, hard refresh, typing a new URL,
-    // navigating to a non-SPA route like /logout). In-SPA navigation doesn't
-    // fire beforeunload at all — there's no equivalent guard on client-side
-    // route changes yet; Cancel/Save are the supported ways to leave with
-    // unsaved changes acknowledged.
+    // navigating to a non-SPA route like /logout). In-SPA route changes are
+    // covered by the leave guard registered below (setLeaveGuard).
     let onBeforeUnload = function(e) {
         if (isDirty()) {
             e.preventDefault();
@@ -574,24 +580,29 @@ export async function mount(ctx) {
 
     window.addEventListener('beforeunload', onBeforeUnload, {signal: ctx.signal});
 
+    // Single source of truth for "ok to leave the dirty editor?": dirty ->
+    // ask the Yes/No confirm; clean -> resolve true. The beforeunload guard
+    // above covers real tab unloads; the router leave guard and the Cancel
+    // button both route through here so the check lives in one place.
+    function confirmLeave() {
+        if (!isDirty()) return Promise.resolve(true);
+        return confirmDelete(
+            TR("Are you sure?"),
+            TR("All unsaved changes will be lost."),
+            { yesText: TR("btn.Yes"), noText: TR("btn.No") }
+        );
+    }
+
+    // In-SPA route changes (nav links, back/forward) never fire beforeunload, so
+    // register a leave guard the router awaits before navigating away. The
+    // Cancel button below also routes through this guard (it just calls
+    // ctx.navigate), so confirmLeave is the single point of check for every way
+    // out of a dirty editor.
+    setLeaveGuard(confirmLeave);
+
     let cancelBtn = root.querySelector('#cancelBtn');
     cancelBtn.addEventListener('click', function(e) {
-        let pageRet = function() {
-            ctx.navigate(returnURL);
-        };
-
-        let dirty = isDirty();
-        if (dirty) {
-            // Use the shared confirmDelete (Yes/No + Esc/outside-click->false)
-            // instead of a third boolean-id button idiom.
-            confirmDelete(
-                TR("Are you sure?"),
-                TR("All unsaved changes will be lost."),
-                { yesText: TR("btn.Yes"), noText: TR("btn.No") }
-            ).then((confirmed) => { if (confirmed) pageRet(); });
-        } else {
-            pageRet();
-        }
+        ctx.navigate(returnURL);
     }, {signal: ctx.signal});
 
     var changeFactory = function(prop) {
@@ -810,6 +821,7 @@ export async function mount(ctx) {
 
     return function unmount() {
         if (themeObserver) themeObserver.disconnect();
+        clearLeaveGuard();
     };
 }
 
