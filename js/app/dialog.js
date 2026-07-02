@@ -73,6 +73,24 @@ class WarpDialog {
     this.el.querySelectorAll('.select-wrapper input.select-dropdown').forEach(warpLiftSelect);
     this.el.classList.add('open');
     this.el.showModal();
+    // No action button may hold initial focus (a stray Enter would accept the
+    // dialog), but edit fields SHOULD: opening a form modal should put the
+    // cursor in the first field. showModal() can't tell the two apart, so do it
+    // explicitly — focus the first input/textarea/select in the body; if there
+    // is none (the generic WarpModal Ok/Cancel and confirm dialogs), fall back
+    // to the non-interactive dialog (tabindex=-1) so no button gets focus. Tab
+    // still lands on the first control. (dialog.modal:focus suppresses the ring
+    // some browsers draw around the modal in the fallback case.)
+    var field = this.el.querySelector(
+      '.modal-content input:not([type="hidden"]):not([disabled]), ' +
+      '.modal-content textarea:not([disabled]), ' +
+      '.modal-content select:not([disabled])');
+    if (field) {
+      field.focus();
+    } else {
+      this.el.setAttribute('tabindex', '-1');
+      this.el.focus();
+    }
     var self = this;
     requestAnimationFrame(function () {
       if (self.options.onOpenEnd) self.options.onOpenEnd.call(self.el);

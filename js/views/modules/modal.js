@@ -9,7 +9,9 @@ export default function WarpModal() {
     rootContent.className = "modal-content";
 
     this.headerElement = rootContent.appendChild( document.createElement("h4") );
-    this.messageElement = rootContent.appendChild( document.createElement("p") );
+    // A <div>, not a <p>: callers inject arbitrary HTML (e.g. the auto-book
+    // result tables), and block content inside a <p> is invalid HTML.
+    this.messageElement = rootContent.appendChild( document.createElement("div") );
 
     this.footerElement = modalElement.appendChild( document.createElement("div") );
     this.footerElement.className = "modal-footer";

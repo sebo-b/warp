@@ -1009,6 +1009,7 @@ export async function mount(ctx) {
         var notExtended = resp.not_extended || [];
 
         var container = document.createElement('div');
+        container.className = 'autobook-result';
 
         function appendSection(headerText, rowBuilder, items) {
             if (!items.length)
@@ -1060,7 +1061,10 @@ export async function mount(ctx) {
             container.appendChild(document.createTextNode(TR("No seat could be booked.")));
         }
 
-        WarpModal.getInstance().open(TR("Auto book"), container.innerHTML);
+        // outerHTML (not innerHTML) so the .autobook-result wrapper class —
+        // which scopes the compact result-table padding in style.css — survives
+        // into the modal's message element.
+        WarpModal.getInstance().open(TR("Auto book"), container.outerHTML);
     }
 
     // ---- mount body (was DOMContentLoaded) ----

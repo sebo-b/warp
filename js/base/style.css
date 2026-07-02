@@ -305,6 +305,17 @@ nav .sidenav-trigger {
     }
 }
 
+/* Desktop nav "tab" indicator for the text-window links (Bookings, plans, and
+   the admin Report link): a Materialize-tabs-style 3px underline under the
+   active link. app/nav.js setActive() toggles .active on the <li> per route.
+   The dropdown-trigger items (user/admin menus) are not .nav-plan-link, so
+   they stay plain. --warp-secondary is the brand accent (also used for tabs,
+   selected rows, FAB) and contrasts with the --warp-primary nav bar. box-shadow
+   (not border) so the bar doesn't shift the link's height. */
+nav li.active > a.nav-plan-link {
+    box-shadow: inset 0 -3px 0 var(--warp-secondary);
+}
+
 /* Materialize 2.x gives .dropdown-content the `popover` attribute and an inline
    pixel height, so short menus render "whole screen tall" with the items at the
    top and empty space below. Note `height: auto` does NOT fix this: the
@@ -1181,7 +1192,11 @@ nav .dropdown-content li > span {
         max-height: calc(100vh - 56px - var(--warp-space-3));   /* cap so the calendar scrolls when tall; leave a strip of map below */
         background-color: var(--warp-surface);
         box-shadow: 0 2px 2px 0 rgba(var(--warp-shadow-rgb), 0.14), 0 3px 1px -2px rgba(var(--warp-shadow-rgb), 0.12), 0 1px 5px 0 rgba(var(--warp-shadow-rgb), 0.2);
-        z-index: 999;   /* materializecss overlay has 997 */
+        z-index: 996;   /* below the sidenav (999) and its overlay (997) so the
+                            hamburger menu opens OVER this panel, not behind it
+                            (the panel is DOM-later than #mobile-nav, so an equal
+                            z-index would stack the panel on top). Still above the
+                            nav (5) and map content (0). */
         overscroll-behavior: contain;   /* a drag inside can't scroll-chain to the map behind */
         transform: translateX(-105%);    /* closed default (JS sets data-state=closed on mobile) */
         transition: transform .2s ease;
@@ -1434,6 +1449,14 @@ nav .dropdown-content li > span {
     display: none;
 }
 
+/* WarpDialog.open() moves initial focus to the dialog itself when the native
+   auto-focus target would be an action button (see dialog.js). The dialog is
+   not interactive, so suppress the focus ring some browsers (Safari/Firefox)
+   would draw around the whole modal. */
+dialog.modal:focus {
+    outline: none;
+}
+
 /* The bottom-sheet takes initial focus on its .modal-content (tabindex=-1,
    autofocus) so no action button gets an unwanted focus ring on open; the
    container itself is not interactive, so suppress its ring. */
@@ -1669,6 +1692,17 @@ SELECT.warp_select {
 
 #action_modal .modal-content TD {
     padding: 0 15px 0 0;
+}
+
+/* Auto-book result (WarpModal): the result tables inherit Materialize's default
+   td padding (15px 5px), which makes the rows huge and out of step with the
+   rest of the app. Use a modest vertical padding (~6px) so a row is roughly
+   1.5× a normal text line-height, and right-pad cells for column separation. */
+.autobook-result table {
+    width: auto;
+}
+.autobook-result td {
+    padding: 6px 15px 6px 0;
 }
 
 
