@@ -8,7 +8,7 @@ export { html };
 
 export async function mount(ctx) {
   var use = ctx.root.querySelector('#index-logo-use');
-  if (use) use.setAttribute('href', window.warpGlobals.URLs.logoSvg);
+  if (use) use.setAttribute('href', window.warpGlobals.URLs.logoSvg + '#wordmark');
 
   // Mirrors the old server-side "/" redirect (view.index): if the user has an
   // accessible default plan, go straight to it. Guarded by matchRoute so this

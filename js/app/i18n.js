@@ -43,13 +43,6 @@ export function loadI18n() {
         }
       };
 
-      window.TR.inline = function () {
-        document.write(
-          window.warpGlobals.i18n.polyglot.t.apply(
-            window.warpGlobals.i18n.polyglot,
-            arguments));
-      };
-
       return window.TR;
     });
 }

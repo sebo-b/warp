@@ -31,13 +31,13 @@ def getContext(pid):
     # doubles as the plan-existence check (no extra query needed).
     plan_row = Plan.select(Plan.dark_filter, Plan.timezone).where(Plan.id == pid).first()
     if plan_row is None:
-        return {"msg": "Forbidden", "code": 140}, 403
+        flask.abort(403)
     dark_filter = plan_row['dark_filter']
     plan_tz = plan_row['timezone'] or "UTC"
 
     if not zone_rows and not flask.g.isAdmin:
         # Plan exists but has no seats — only an admin may open it.
-        return {"msg": "Forbidden", "code": 140}, 403
+        flask.abort(403)
 
     plan_zids = [z['id'] for z in zone_rows]
 
@@ -51,7 +51,7 @@ def getContext(pid):
             effective_roles[row['zid']] = row['zone_role']
 
     if not effective_roles and not flask.g.isAdmin:
-        return {"msg": "Forbidden", "code": 140}, 403
+        flask.abort(403)
 
     prefs = get_user_prefs(flask.g.login)
     default_time = prefs.get('default_time', [9 * 3600, 17 * 3600])

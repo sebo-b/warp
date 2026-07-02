@@ -43,7 +43,15 @@ export function render() {
       }
     }
 
-    if (window.TR) window.TR.updateDOM(document.getElementById('mobile-nav') || document);
+    if (window.TR) {
+      // The dynamic links (.TR -> visibility:hidden until translated) were
+      // injected AFTER the boot TR.updateDOM() pass, so translate both the
+      // desktop nav and the mobile sidenav now — otherwise the desktop
+      // "Bookings" link renders invisible.
+      if (desktop) window.TR.updateDOM(desktop);
+      var mobileNavEl = document.getElementById('mobile-nav');
+      if (mobileNavEl) window.TR.updateDOM(mobileNavEl);
+    }
     setActive();
   });
 }

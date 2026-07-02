@@ -8,17 +8,14 @@ import warpDialog from '../app/dialog.js';
 import { createTable } from '../lib/tablePage.js';
 import { clearFieldError, showFieldError } from '../lib/formDialog.js';
 import { confirmDelete } from '../lib/confirmDelete.js';
+import { iconFormatter } from '../lib/formatters.js';
 
 export { html };
 
 export async function mount(ctx) {
     const root = ctx.root;
 
-    var iconFormater = function(cell, formatterParams, onRendered) {
-        var icon = formatterParams.icon || "warning";
-        var colorClass = formatterParams.colorClass || "";
-        return '<i class="material-icons-outlined '+colorClass+'">'+icon+'</i>';
-    }
+    var iconFormater = iconFormatter();   // material-icons-outlined, the old inline default
 
     var showEditDialog;
 

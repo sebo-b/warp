@@ -11,6 +11,7 @@ import { initFormSelect } from '../lib/formSelect.js';
 import { clearFieldError, showFieldError } from '../lib/formDialog.js';
 import { confirmDelete } from '../lib/confirmDelete.js';
 import { lazyCache } from '../lib/lazyCache.js';
+import { labelFormatter, iconFormatter } from '../lib/formatters.js';
 
 export { html };
 
@@ -38,18 +39,12 @@ export async function mount(ctx) {
         }));
     });
 
-    var accountTypeFormatter = function(cell, formatterParams) {
-        let value = cell.getValue();
-        for (let i of accountTypes) {
-            if (i['value'] == value)
-                return i['label'];
-        }
-        return accountTypes[0]['label'];
-    }
+    // labelFormatter walks accountTypes [{label},{value,label}…] and returns
+    // labels[0].label (the "---") for an unknown value — identical to the old
+    // hand-rolled loop.
+    var accountTypeFormatter = labelFormatter(accountTypes);
 
-    var editFormater = function(cell) {
-        return '<i class="material-icons-outlined warp-icon-edit-alt">edit</i>';
-    }
+    var editFormater = iconFormatter({icon: 'edit', colorClass: 'warp-icon-edit-alt'});
 
     var editClicked = function(e,cell) {
         let data = cell.getRow().getData();

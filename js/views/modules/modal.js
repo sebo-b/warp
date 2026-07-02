@@ -35,7 +35,7 @@ export default function WarpModal() {
                 if (clickedBtnId !== null && typeof(btnHook) === 'function')
                     btnHook(clickedBtnId);
                 else if (typeof(cancelHook) === 'function')
-                    closeHook();
+                    cancelHook();
 
             }.bind(this)
         });

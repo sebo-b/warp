@@ -9,18 +9,15 @@ import { createTable } from '../lib/tablePage.js';
 import { initFormSelect } from '../lib/formSelect.js';
 import { clearFieldError, showFieldError } from '../lib/formDialog.js';
 import { confirmDelete } from '../lib/confirmDelete.js';
+import { iconFormatter, labelFormatter } from '../lib/formatters.js';
+import { lazyCache } from '../lib/lazyCache.js';
 
 export { html };
 
 export async function mount(ctx) {
     const root = ctx.root;
 
-    var iconFormater = function(cell, formatterParams, onRendered) {
-        var icon = formatterParams.icon || "warning";
-        var colorClass = formatterParams.colorClass || "";
-        var iconClass = formatterParams.iconClass || "material-icons-outlined";
-        return '<i class="'+iconClass+' '+colorClass+'">'+icon+'</i>';
-    }
+    var iconFormater = iconFormatter();
 
     var zoneTypeLabels = [
         { label: "---" },
@@ -30,15 +27,22 @@ export async function mount(ctx) {
         { value: 40, label: TR("zoneType.PublicBook") },
     ];
 
-    var zoneTypeFormatter = function(cell) {
-        var v = cell.getValue();
-        for (var t of zoneTypeLabels)
-            if (t.value == v) return t.label;
-        return "";
-    };
+    // labelFormatter returns labels[0].label (the "---") for an unknown value;
+    // zone_type is always one of 10/20/30/40, so the fallback never fires — the
+    // behaviour is identical to the old hand-rolled loop.
+    var zoneTypeFormatter = labelFormatter(zoneTypeLabels);
 
     var showEditDialog;
     var table;
+
+    // Fetch-once cache of the zone-group name list, shared by the header-filter
+    // dropdown and the edit dialog's group autocomplete. invalidate() is called
+    // from refreshGroupFilter() after a save/delete so the next read sees the
+    // new set — the SPA no longer reloads the page to clear these.
+    var zonesGroupsCache = lazyCache(function() {
+        return Utils.xhr.get(window.warpGlobals.URLs['zonesGroups'], {toastOnSuccess: false})
+            .then(function(result) { return result.response || []; });
+    });
 
     // Sentinel for the "(none)" header-filter option (ungrouped zones).
     // Single source of truth is warp.db UNGROUPED_FILTER_KEY, handed to the
@@ -70,8 +74,7 @@ export async function mount(ctx) {
             }
         };
 
-        Utils.xhr.get(window.warpGlobals.URLs['zonesGroups'], {toastOnSuccess: false})
-            .then(function(result) { appendGroups(result.response || []); });
+        zonesGroupsCache.get().then(appendGroups);
 
         select.addEventListener("change", function() { success(select.value); });
 
@@ -80,9 +83,9 @@ export async function mount(ctx) {
             var prevValue = select.value;
             while (select.options.length > 2)
                 select.remove(2);
-            return Utils.xhr.get(window.warpGlobals.URLs['zonesGroups'], {toastOnSuccess: false})
-                .then(function(result) {
-                    appendGroups(result.response || []);
+            return zonesGroupsCache.get()
+                .then(function(groups) {
+                    appendGroups(groups);
                     var values = Array.from(select.options).map(o => o.value);
                     if (values.includes(prevValue)) {
                         select.value = prevValue;
@@ -97,6 +100,9 @@ export async function mount(ctx) {
     };
 
     function refreshGroupFilter() {
+        // A save/delete may have changed the group set — drop the cached list so
+        // the rebuild (and the next edit-dialog autocomplete open) re-fetches.
+        zonesGroupsCache.invalidate();
         var col = table.getColumn("zone_group");
         if (!col) return;
         var filterEl = col.getElement().querySelector(".warp_select");
@@ -347,9 +353,8 @@ export async function mount(ctx) {
 
     // Materialize autocomplete fed by the existing group names.
     function setupGroupAutocomplete() {
-        return Utils.xhr.get(window.warpGlobals.URLs['zonesGroups'], {toastOnSuccess: false})
-            .then(function(result) {
-                var groups = result.response || [];
+        return zonesGroupsCache.get()
+            .then(function(groups) {
                 var acData = {};
                 for (let g of groups)
                     if (g) acData[g] = null;

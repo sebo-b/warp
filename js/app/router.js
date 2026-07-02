@@ -6,6 +6,7 @@
 // module must honor: default-export { html, async mount(ctx) -> unmount }.
 
 import spinner from './spinner.js';
+import { M } from './materialize.js';
 import { matchRoute } from './routes.js';
 import * as nav from './nav.js';
 
@@ -57,6 +58,16 @@ export async function transition(pathname, search) {
 
       root.innerHTML = view.html || '';
       if (window.TR) window.TR.updateDOM(root);
+      // Apply the same .outlined text-field variant + placeholder=" " seeding
+      // the shell got at boot (main.js) — but the boot scan ran before this
+      // view fragment was in the DOM, so without re-applying it here every
+      // view-mounted input/select would render in Materialize's default
+      // (filled) style with broken label-float. Idempotent: already-outlined /
+      // already-placeholdered elements are skipped.
+      root.querySelectorAll('.warp-fields .input-field:not(.chips)').forEach(function (el) {
+        el.classList.add('outlined');
+      });
+      M.updateTextFields();
 
       var controller = new AbortController();
       currentController = controller;

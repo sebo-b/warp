@@ -16,7 +16,11 @@ export function confirmDelete(title, message, opts) {
         { id: 1, text: opts.yesText || TR('btn.Yes') },
         { id: 0, text: opts.noText || TR('btn.No') }
       ],
-      onButtonHook: function (buttonId) { resolve(buttonId === 1); }
+      onButtonHook: function (buttonId) { resolve(buttonId === 1); },
+      // Esc / outside-click dismisses with no button clicked — resolve false
+      // (treat as "no") so the caller's .then() runs and its closures (table,
+      // editModal, …) are released instead of lingering on an unresolved promise.
+      onCancelHook: function () { resolve(false); }
     });
   });
 }

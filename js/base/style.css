@@ -382,6 +382,34 @@ nav .dropdown-content li > span {
     height: 100%;
 }
 
+/* SPA view mount point fills the whole height below the (static) top bar and
+   owns its own scrolling, so the window itself never scrolls — the app is
+   always exactly 100% of the viewport. Each view's root wrapper (.container,
+   .zone_modify_container, .plan_container, .index_container) becomes a flex
+   item that fills #view-root; Tabulator's max-height:100% then caps the table to
+   that definite height (a flex item gets a resolved pixel height) instead of
+   falling through to its 3000px nominal height and blowing out the page. */
+#view-root {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+#view-root > .container,
+#view-root > .zone_modify_container {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+/* Assign views are flex columns (title + table): the table fills the space the
+   title leaves, instead of sitting at its 2000px nominal height and scrolling
+   the page. */
+#groupMembersTable,
+#zone_assignees_table {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
 .container {
     min-height: 0px;
     padding-bottom: var(--warp-space-4);
@@ -1305,7 +1333,7 @@ nav .dropdown-content li > span {
 
 .plan_map,
 .zone_modify_map {
-    flex: 0 1 auto;
+    flex: 1 1 auto;
     min-width: 0px;
     min-height: 0px;
     overflow: auto;
@@ -1650,6 +1678,11 @@ INPUT[type="text"] ~ .show_password_btn::after {
     font-size: 2.28rem;
     line-height: 110%;
     padding: 10px 0px;
+    /* These live above a flex:1 table inside a column flex container; without
+       flex:0 0 auto the flex algorithm would shrink the title to fit the table's
+       nominal 2000px height, clipping it. Pin it to its natural size so only the
+       table absorbs the remaining height. */
+    flex: 0 0 auto;
 }
 
 @media only screen and (min-width : 993px) {
@@ -1939,9 +1972,14 @@ input[type=range]::-moz-range-track {
     z-index: 12;
 }
 
+/* Scoped to the content area (below the top bar): the top bar is static SPA
+   chrome and must NOT be greyed-out / repainted on every route transition. The
+   spinner overlay therefore starts at the navbar's bottom edge, so the bar
+   stays untouched while only the view region shows the loading overlay.
+   navbar-height-mobile/navbar-height are the same vars <nav> uses (56/64px). */
 #spinner {
     position: fixed;
-    top: 0;
+    top: var(--navbar-height-mobile, 56px);
     left: 0;
     right: 0;
     bottom: 0;
@@ -1962,6 +2000,10 @@ input[type=range]::-moz-range-track {
     align-items: center;
     background-color: var(--warp-surface);
     opacity: 0.8;
+}
+
+@media only screen and (min-width: 601px) {
+    #spinner { top: var(--navbar-height, 64px); }
 }
 
 #spinner.active {

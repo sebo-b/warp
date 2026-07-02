@@ -14,6 +14,20 @@ import warpDialog from '../app/dialog.js';
 import noUiSlider from 'nouislider';
 import "./css/plan/nouislider.css";
 
+// Pristine pid-scoped URL templates (still carrying __PID__) captured ONCE at
+// module load. plan.js used to mutate window.warpGlobals.URLs[...] in place on
+// every mount — but String.replace only substitutes the placeholder the FIRST
+// time, so navigating /plan/1 -> /plan/2 left planGetSeat/planImage/… pinned to
+// plan 1 and the second plan view rendered plan 1's seats + map (and planModify,
+// which reads URLs['planImage'], inherited the wrong image too). Substituting
+// from these pristine copies every mount makes every plan navigation correct.
+const PRISTINE_URLS = {
+    planGetSeat:  window.warpGlobals.URLs['planGetSeat'],
+    planImage:    window.warpGlobals.URLs['planImage'],
+    planAutoBook: window.warpGlobals.URLs['planAutoBook'],
+    planGetUsers: window.warpGlobals.URLs['planGetUsers'],
+};
+
 export { html };
 
 function escapeHtml(s) {
@@ -54,12 +68,15 @@ export async function mount(ctx) {
     // daysInAdvance (used by the seat-edit "days in advance" select, admin-only)
     // is already shell-global — set once in WP1's spaGlobals, not per-plan.
 
-    // pid-scoped XHR URLs: spaURLs is rendered once at shell boot with
-    // __PID__ placeholders, substituted here for the plan actually mounted.
-    window.warpGlobals.URLs['planGetSeat'] = window.warpGlobals.URLs['planGetSeat'].replace('__PID__', pid);
-    window.warpGlobals.URLs['planImage'] = window.warpGlobals.URLs['planImage'].replace('__PID__', pid);
-    window.warpGlobals.URLs['planAutoBook'] = window.warpGlobals.URLs['planAutoBook'].replace('__PID__', pid);
-    window.warpGlobals.URLs['planGetUsers'] = window.warpGlobals.URLs['planGetUsers'].replace('__PID__', pid);
+    // pid-scoped XHR URLs: spaURLs renders once at shell boot with __PID__
+    // placeholders. Substitute from the pristine captures above into per-mount
+    // locals (and, for planGetUsers, back into the global planuserdata.js reads)
+    // — never into the global URL table itself, so the placeholder survives for
+    // the next plan mount and for planModify's own read of URLs['planImage'].
+    const planGetSeatURL  = PRISTINE_URLS.planGetSeat.replace('__PID__', pid);
+    const planImageURL    = PRISTINE_URLS.planImage.replace('__PID__', pid);
+    const planAutoBookURL = PRISTINE_URLS.planAutoBook.replace('__PID__', pid);
+    window.warpGlobals.URLs['planGetUsers'] = PRISTINE_URLS.planGetUsers.replace('__PID__', pid);
 
     // Jinja conditionals ({% if isZoneAdmin %} / {% if not isZoneViewer %})
     // become conditional DOM removal from context data.
@@ -76,7 +93,7 @@ export async function mount(ctx) {
 
     function downloadSeatData(seatFactory) {
 
-        var url = window.warpGlobals.URLs['planGetSeat'];
+        var url = planGetSeatURL;
 
         var login = seatFactory.getLogin();
         if (login !== window.warpGlobals.login)
@@ -370,7 +387,7 @@ export async function mount(ctx) {
         var coarse = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
 
         var m = new OfficeMap(root.querySelector('#planmap'), {
-            mapImage: window.warpGlobals.URLs['planImage'],
+            mapImage: planImageURL,
             sprite: { url: window.warpGlobals.URLs['seatSprite'], cellWidth: WarpSeat.Sprites.spriteSize, cellHeight: WarpSeat.Sprites.spriteSize },
             zoom: { initial: 'fit', min: null, max: 4 },
             spriteZoom: coarse ? { min: 0, max: 1 } : undefined,
@@ -964,7 +981,7 @@ export async function mount(ctx) {
             }
 
             Utils.xhr.post(
-                window.warpGlobals.URLs['planAutoBook'],
+                planAutoBookURL,
                 payload,
                 { toastOnSuccess: false, toastOnError: true })
             .then(function(v) {
@@ -1131,6 +1148,11 @@ export async function mount(ctx) {
     return function unmount() {
         if (om) om.destroy();
         if (themeObserver) themeObserver.disconnect();
+        // noUiSlider attaches its drag listeners to the slider element (inside
+        // #view-root, so they die with the DOM) but keeps a strong ref to the
+        // instance from the element — destroy() clears that so a re-mount gets a
+        // clean instance instead of a 'already has noUiSlider' error.
+        if (slider && slider.noUiSlider) slider.noUiSlider.destroy();
         // Both are app-wide module singletons (getInstance()) that guard
         // against double-init — a re-mount (this plan again, or a different
         // one) must clear their state or PlanUserData.init()/initBookAs()

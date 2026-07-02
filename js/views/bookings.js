@@ -5,6 +5,7 @@ import Utils from './modules/utils.js';
 import WarpModal from './modules/modal.js';
 import { createTable } from '../lib/tablePage.js';
 import { M } from '../app/materialize.js';
+import { timestampFormatter } from '../lib/formatters.js';
 
 export { html };
 
@@ -74,12 +75,7 @@ export async function mount(ctx) {
         return container;
     }
 
-    var tsFormatter = function(cell) {
-        var data = cell.getValue();
-        var ts = new Date(parseInt(data)*1000);
-
-        return ts.toISOString().substring(0,16).replace('T',' ');
-    }
+    var tsFormatter = timestampFormatter;
 
     var mergedDateFilterEditor = function(cell, onRendered, success, cancel, editorParams){
 

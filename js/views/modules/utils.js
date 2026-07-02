@@ -1,6 +1,12 @@
 'use strict';
 
 import WarpModal from './modal.js';
+// Shared ref-counted spinner (app/spinner.js) — the SAME counter the router
+// uses for view transitions. Keeping one counter across XHRs and transitions
+// means a transition that fires XHRs doesn't let the XHR's loadend drop the
+// spinner to 0 (and flicker it off) while the transition is still building the
+// view. Replaces the per-XHR _counter this module used to keep.
+import { acquire as spinnerAcquire, release as spinnerRelease } from '../../app/spinner.js';
 
 export default function Utils() {
 }
@@ -18,6 +24,22 @@ Utils.makeUserStrRev = function (str) {
         return [login[2],login[1]];
 
     throw Error("Unknown login");
+};
+
+// One-shot debounce for the 401 -> login redirect: the first expired-session
+// XHR flips the flag and does the full-page navigate; every parallel 401 that
+// lands while that navigate is pending sees the flag and is dropped, so the
+// user gets a single redirect instead of N error modals / N navigations.
+Utils._sessionExpiredRedirecting = false;
+Utils._maybeRedirectOnSessionExpired = function(response) {
+    if (Utils._sessionExpiredRedirecting) return true;
+    if (response && typeof response === 'object' && response.code === 'SESSION_EXPIRED') {
+        Utils._sessionExpiredRedirecting = true;
+        var loginUrl = window.warpGlobals && window.warpGlobals.URLs && window.warpGlobals.URLs.login;
+        if (loginUrl) window.location.assign(loginUrl);
+        return true;
+    }
+    return false;
 };
 
 Utils.formatError = function(status, response) {
@@ -43,7 +65,6 @@ Utils.formatError = function(status, response) {
 }
 
 Utils.xhr = {
-    _counter: 0,
     _defaultOptions: {
         toastOnSuccess: true,
         errorOnFailure: true,
@@ -74,19 +95,9 @@ Utils.xhr = {
         return new Promise( (resolve, reject) => {
 
             let xhr = new XMLHttpRequest();
-            let spinnerEl = document.getElementById('spinner');
 
-            xhr.addEventListener("loadstart", () => {
-                if (this._counter++ == 0) {
-                    spinnerEl.classList.add('active');
-                }
-            });
-
-            xhr.addEventListener("loadend", () => {
-                if (--this._counter == 0) {
-                    spinnerEl.classList.remove('active');
-                }
-            });
+            xhr.addEventListener("loadstart", () => spinnerAcquire());
+            xhr.addEventListener("loadend",   () => spinnerRelease());
 
             xhr.addEventListener("load", function(e) {
 
@@ -116,6 +127,16 @@ Utils.xhr = {
                         M.toast({text: TR('Action successfull.')});
                 }
                 else {
+                    // Session expired: the SPA can't follow a login redirect
+                    // from inside an XHR (it would land the raw login HTML in
+                    // the fetch response), so warp/auth.py returns 401 JSON
+                    // {code:'SESSION_EXPIRED'} for /xhr/* — do ONE full-page
+                    // navigate to the login route, debounced so a burst of
+                    // parallel failing XHRs triggers a single redirect.
+                    if (this.status == 401 && Utils._maybeRedirectOnSessionExpired(content)) {
+                        reject({status:this.status, response: content, requestObject: this, errorMsg: ''});
+                        return;
+                    }
                     let errorMsg = Utils.formatError(this.status,content);
                     reject({status:this.status, response: content, requestObject: this, errorMsg: errorMsg});
                     if (opt.errorOnFailure) {

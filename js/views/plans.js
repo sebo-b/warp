@@ -9,24 +9,15 @@ import { initFormSelect } from '../lib/formSelect.js';
 import { clearFieldError, showFieldError } from '../lib/formDialog.js';
 import { confirmDelete } from '../lib/confirmDelete.js';
 import { lazyCache } from '../lib/lazyCache.js';
+import { iconFormatter, chipListFormatter } from '../lib/formatters.js';
 
 export { html };
 
 export async function mount(ctx) {
     const root = ctx.root;
 
-    var chipFormatter = function(cell) {
-        let zones = cell.getValue();
-        if (!zones || !zones.length) return '<span class="grey-text">—</span>';
-        return zones.map(z => '<div class="chip" style="margin:1px 2px">' + z + '</div>').join('');
-    };
-
-    var iconFormater = function(cell, formatterParams, onRendered) {
-        var icon = formatterParams.icon || "warning";
-        var colorClass = formatterParams.colorClass || "";
-        var iconClass = formatterParams.iconClass || "material-icons-outlined";
-        return '<i class="'+iconClass+' '+colorClass+'">'+icon+'</i>';
-    };
+    var chipFormatter = chipListFormatter;
+    var iconFormater = iconFormatter();
 
     // Custom header filter: a <select> of zone names fetched from the server.
     var zoneHeaderFilter = function(cell, onRendered, success, cancel, editorParams) {

@@ -8,7 +8,7 @@
     {{ super() }}
 
     <script>
-        window.warpGlobals.login = "{{ g.login }}";
+        window.warpGlobals.login = {{ g.login|tojson }};
         window.warpGlobals.userName = {{ g.name|tojson }};
         window.warpGlobals.isAdmin = {{ g.isAdmin|tojson }};
         window.warpGlobals.minPasswordLength = {{ minPasswordLength }};
