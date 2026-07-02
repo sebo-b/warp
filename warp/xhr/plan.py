@@ -8,8 +8,95 @@ import peewee
 from warp import auth
 from warp import utils
 from warp.db import *
+from warp.xhr.prefs import get_user_prefs
 
 bp = flask.Blueprint('plan', __name__, url_prefix='plan')
+
+
+@bp.route("getContext/<int:pid>")
+def getContext(pid):
+    """Everything view.plan used to compute server-side for plan.html: the
+    calendar grid, default selection, dark-mode filter and role flags. Moved
+    verbatim (no date math migrates to JS) so timezone correctness is
+    preserved; refetched by the client on every mount."""
+
+    # Collect zones on this plan and check user access
+    zone_rows = list(Zone.select(Zone.id)
+                     .join(Seat, on=(Seat.zid == Zone.id))
+                     .where(Seat.pid == pid)
+                     .group_by(Zone.id)
+                     .iterator())
+
+    # Fetch the plan's dark-mode map filter and timezone at once; a None result
+    # doubles as the plan-existence check (no extra query needed).
+    plan_row = Plan.select(Plan.dark_filter, Plan.timezone).where(Plan.id == pid).first()
+    if plan_row is None:
+        return {"msg": "Forbidden", "code": 140}, 403
+    dark_filter = plan_row['dark_filter']
+    plan_tz = plan_row['timezone'] or "UTC"
+
+    if not zone_rows and not flask.g.isAdmin:
+        # Plan exists but has no seats — only an admin may open it.
+        return {"msg": "Forbidden", "code": 140}, 403
+
+    plan_zids = [z['id'] for z in zone_rows]
+
+    # Effective roles from the view (single source of truth — already resolves
+    # public-zone "everyone" roles and DISABLED ADMIN-only filtering).
+    effective_roles = {}
+    if plan_zids:
+        for row in UserToZoneRoles.select(UserToZoneRoles.zid, UserToZoneRoles.zone_role) \
+                .where(UserToZoneRoles.login == flask.g.login) \
+                .where(UserToZoneRoles.zid.in_(plan_zids)).dicts():
+            effective_roles[row['zid']] = row['zone_role']
+
+    if not effective_roles and not flask.g.isAdmin:
+        return {"msg": "Forbidden", "code": 140}, 403
+
+    prefs = get_user_prefs(flask.g.login)
+    default_time = prefs.get('default_time', [9 * 3600, 17 * 3600])
+    default_day = prefs.get('default_day', 'same')
+
+    planPreviewPrefs = {
+        'show_seat_names': prefs.get('zone_show_seat_names', False),
+        'show_booking_preview': prefs.get('zone_show_booking_preview', False),
+        'show_assigned_names': prefs.get('zone_show_assigned_names', False),
+    }
+
+    defaultSelectedDates = {"slider": default_time}
+
+    now_ts = utils.now(tz=plan_tz)
+    today_ts = utils.today(tz=plan_tz)
+    seconds_into_day = now_ts - today_ts
+
+    if default_day == 'boundary':
+        target_ts = today_ts + (24 * 3600 if seconds_into_day >= default_time[0] else 0)
+    elif default_day == 'tomorrow':
+        target_ts = today_ts + (24 * 3600)
+    else:
+        target_ts = today_ts
+
+    # The booking calendar grid (replaces the old getNextWeek date checkbox
+    # list). Cell range + selectable flags + default-day pick are backend-driven
+    # (TZ-safe by construction — R1, R9); the frontend only renders + selects.
+    calendarGrid = utils.getCalendarGrid(target_ts=target_ts, today_ts=today_ts)
+    if calendarGrid['defaultTs'] is not None:
+        defaultSelectedDates['cb'] = [calendarGrid['defaultTs']]
+
+    is_plan_admin = any(r <= ZONE_ROLE_ADMIN for r in effective_roles.values()) or flask.g.isAdmin
+    is_plan_viewer = effective_roles and all(r >= ZONE_ROLE_VIEWER for r in effective_roles.values()) and \
+                     not any(r <= ZONE_ROLE_USER for r in effective_roles.values())
+
+    return {
+        "darkFilter": dark_filter,
+        "calendarGrid": calendarGrid,
+        "today": today_ts,
+        "planTimezone": plan_tz,
+        "defaultSelectedDates": defaultSelectedDates,
+        "planPreviewPrefs": planPreviewPrefs,
+        "isZoneAdmin": bool(is_plan_admin),
+        "isZoneViewer": bool(is_plan_viewer and not is_plan_admin),
+    }
 
 # Response format for getSeats:
 #   zones: { zidN: "Zone name" }

@@ -42,6 +42,22 @@ def members():
 
     return flask.jsonify(res)
 
+
+@bp.route("info/<login>", endpoint='info', methods=["GET"])
+def info(login):
+    """{login, name} for a single group — the SPA's replacement for the
+    server-side group-name lookup view.groupAssign used to do before
+    rendering group_assign.html."""
+    if not flask.g.isAdmin:
+        flask.abort(403)
+    name = Users.select(Users.name) \
+        .where((Users.login == login) & (Users.account_type >= ACCOUNT_TYPE_GROUP)) \
+        .scalar()
+    if name is None:
+        flask.abort(404)
+    return {"login": login, "name": name}
+
+
 assignSchema = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",

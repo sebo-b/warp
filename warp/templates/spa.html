@@ -6,17 +6,23 @@
     <script>
         window.warpGlobals.login = "{{ g.login }}";
         window.warpGlobals.userName = {{ g.name|tojson }};
+        window.warpGlobals.isAdmin = {{ g.isAdmin|tojson }};
         window.warpGlobals.minPasswordLength = {{ minPasswordLength }};
-{% if hasChangePassword %}
-        window.warpGlobals.URLs['changePassword'] = "{{ url_for('auth.change_password') }}";
-{% endif %}
+        window.warpGlobals.hasLogout = {{ hasLogout|tojson }};
+        window.warpGlobals.hasChangePassword = {{ hasChangePassword|tojson }};
+        window.warpGlobals.ungroupedFilterKey = {{ ungroupedFilterKey|tojson }};
+        window.warpGlobals.maxReportRows = {{ maxReportRows }};
+        window.warpGlobals.daysInAdvance = {{ daysInAdvance }};
+        window.warpGlobals.bookOpen = {{ bookOpen }};
+        window.warpGlobals.bookClose = {{ bookClose }};
+        window.warpGlobals.URLs = Object.assign(window.warpGlobals.URLs, {{ spaURLs|tojson }});
     </script>
 
 {% endblock %}
 
 {% block header_final %}
     {{ super() }}
-    {% include 'headers/' ~ (request.endpoint|replace('view.','',1)) ~ '.html' ignore missing %}
+    {% include 'headers/app.html' ignore missing %}
 {% endblock %}
 
 {% block overlays %}
@@ -25,10 +31,9 @@
     <div id="spinner"></div>
 
     <ul class="sidenav" id="mobile-nav">
-        {# Bookings + accessible plans (zones the user can book) #}
-        {% for i in headerDataL %}
-        <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}" class="TR">{{i['text']}}</a></li>
-        {% endfor %}
+        {# Bookings + accessible plans: filled client-side by app/nav.js from
+           /xhr/bootstrap (the plan-list query moved off the request path). #}
+        <li id="mobile-nav-dynamic"></li>
 
         {% if g.isAdmin %}
         <li class="divider"></li>
@@ -81,9 +86,7 @@
                 <div class="input-field col s12">
                     <select id="pref_default_plan">
                         <option value="">--</option>
-                        {% for p in accessiblePlans %}
-                        <option value="{{ p['id'] }}">{{ p['name'] }}</option>
-                        {% endfor %}
+                        {# options populated client-side from /xhr/bootstrap on open #}
                     </select>
                     <label class="TR">Default plan</label>
                 </div>
@@ -103,7 +106,7 @@
                     <label class="TR">Default time</label>
                     <div class="pref_timeslider_container">
                         <div id="pref_timeslider-min" class="timeslider-hint">12:00</div>
-                        <div id="pref_timeslider" class="timeslider" data-min="{{ config['BOOK_OPEN'] }}" data-max="{{ config['BOOK_CLOSE'] }}"></div>
+                        <div id="pref_timeslider" class="timeslider" data-min="{{ bookOpen }}" data-max="{{ bookClose }}"></div>
                         <div id="pref_timeslider-max" class="timeslider-hint">12:00</div>
                     </div>
                 </div>
@@ -199,9 +202,7 @@
                     <div class="row">
                         <div class="input-field col s12">
                             <select id="cal_zones" multiple>
-                                {% for z in accessibleZones %}
-                                <option value="{{ z['id'] }}">{{ z['name'] }}</option>
-                                {% endfor %}
+                                {# options populated client-side from /xhr/bootstrap on open #}
                             </select>
                             <label class="TR">Zones to monitor</label>
                         </div>
@@ -255,14 +256,6 @@
     </dialog>
     {% endif %}
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            var e = document.getElementById('mobile-nav');
-            M.Sidenav.init(e);
-            M.Collapsible.init(e.querySelectorAll('.collapsible'), { accordion: false });
-        });
-    </script>
-
 {% endblock  %}
 
 {% block nav %}
@@ -271,7 +264,7 @@
 
         <div class="nav-wrapper">
             <div class='right'>
-                <a href="{{ url_for('view.index')}}" class="right"><svg class="logo" viewBox="0 0 390 85" role="img" aria-label="WARP"><use href="{{ url_for('static', filename='images/logo.svg') }}#wordmark"/></svg></a>
+                <a href="{{ url_for('view.index')}}" class="right spa-link"><svg class="logo" viewBox="0 0 390 85" role="img" aria-label="WARP"><use href="{{ url_for('static', filename='images/logo.svg') }}#wordmark"/></svg></a>
             </div>
             <ul class="right">
                 <li>{% include 'icons/theme_toggle.html' %}</li>
@@ -287,10 +280,8 @@
             {% endif %}
 
             <a href="#" data-target="mobile-nav" class="sidenav-trigger"><i class="material-icons">menu</i></a>
-            <ul class="left hide-on-med-and-down">
-                {% for i in headerDataL %}
-                <li {{ 'class="active"'|safe if i['active'] }}><a href="{{i['url']}}" class="TR">{{i['text']}}</a></li>
-                {% endfor %}
+            <ul class="left hide-on-med-and-down" id="nav-left-dynamic">
+                {# filled client-side by app/nav.js from /xhr/bootstrap #}
             </ul>
         </div>
     </nav>
@@ -317,11 +308,7 @@
 
 {% endblock %}
 
-
-{#
-{% if self.container() | trim %}
-<div class="container">
-    {% block container %}{% endblock %}
-</div>
-{% endif %}
-#}
+{% block content %}
+    {{ super() }}
+    <div id="view-root"></div>
+{% endblock %}
