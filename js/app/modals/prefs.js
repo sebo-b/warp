@@ -5,6 +5,7 @@ import warpDialog from '../dialog.js';
 import noUiSlider from 'nouislider';
 import * as bootstrap from '../bootstrap.js';
 import { initFormSelect } from '../../lib/formSelect.js';
+import Utils from '../../views/modules/utils.js';
 
 function formatHHMM(seconds) {
   if (seconds >= 24 * 3600) return "23:59";
@@ -106,13 +107,15 @@ export function initPrefs() {
     }
   });
 
-  fetch('/xhr/prefs')
-    .then(function (r) {
-      if (!r.ok) throw new Error('Failed to load preferences');
-      return r.json();
-    })
-    .then(function (prefs) {
-      loadedPrefs = prefs;
+  // Via Utils.xhr (not raw fetch) so a session expiring on the prefs load
+  // triggers the shared 401->login redirect and the ref-counted spinner, and so
+  // the URL carries any reverse-proxy mount prefix (warpGlobals.URLs.prefs is
+  // url_for-based). errorOnFailure:false: a benign load failure is swallowed
+  // (the modal still opens with defaults) — the 401 redirect fires regardless,
+  // before this catch.
+  Utils.xhr.get(window.warpGlobals.URLs['prefs'], { toastOnSuccess: false, errorOnFailure: false })
+    .then(function (result) {
+      loadedPrefs = result.response;
       applyPrefsToUI();
     })
     .catch(function () {});
@@ -129,16 +132,13 @@ export function initPrefs() {
     };
     if (extraPayload) Object.assign(payload, extraPayload);
 
-    fetch('/xhr/prefs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    })
-      .then(function (r) {
-        if (!r.ok) return r.json().then(function (e) { throw e; });
-        return r.json();
-      })
-      .then(function (prefs) {
+    // Utils.xhr (not raw fetch): shares the 401 redirect + spinner and stays
+    // mount-prefix-correct. The caller's `callback(err)` still drives the
+    // success/error toast, so errorOnFailure:false suppresses the duplicate
+    // generic Utils error modal.
+    Utils.xhr.post(window.warpGlobals.URLs['prefs'], payload, { toastOnSuccess: false, errorOnFailure: false })
+      .then(function (result) {
+        var prefs = result.response;
         loadedPrefs = prefs;
         applyPrefsToUI();
         window.warpGlobals = window.warpGlobals || {};

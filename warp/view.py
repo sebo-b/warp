@@ -114,6 +114,14 @@ def spaURLs():
         'bookingsReport': flask.url_for('xhr.bookings.report'),
         'bookingsContext': flask.url_for('xhr.bookings.context'),
         'excelIcon': flask.url_for('static', filename='images/excel_icon.png'),
+
+        # Shell modals (prefs / calendar). GET and POST share each path, so one
+        # url_for entry (the GET endpoint) suffices. Routed through Utils.xhr in
+        # JS — via these entries, not a hardcoded '/xhr/...' — so they share the
+        # 401 session-expiry redirect + ref-counted spinner and stay correct
+        # under a reverse-proxy mount prefix.
+        'prefs': flask.url_for('xhr.prefs.prefs_get'),
+        'calendar': flask.url_for('xhr.calendar.calendar_get'),
     }
 
     if 'auth.change_password' in flask.current_app.view_functions:

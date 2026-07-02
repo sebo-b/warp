@@ -3,6 +3,7 @@
 import { M, warpLiftSelect } from '../materialize.js';
 import warpDialog from '../dialog.js';
 import * as bootstrap from '../bootstrap.js';
+import Utils from '../../views/modules/utils.js';
 
 function formatHHMM(seconds) {
   if (seconds >= 24 * 3600) return "23:59";
@@ -318,31 +319,26 @@ export function initCalendar() {
         M.updateTextFields();
       }
       bootstrap.get().then(function (data) { populateZoneOptions(data); });
-      fetch('/xhr/calendar')
-        .then(function (r) {
-          if (!r.ok) throw new Error('Failed to load calendar settings');
-          return r.json();
-        })
-        .then(function (data) { applyToUI(data); })
+      // Via Utils.xhr (not raw fetch): shares the 401->login redirect + spinner
+      // and stays mount-prefix-correct (warpGlobals.URLs.calendar is url_for-
+      // based). errorOnFailure:false — a benign load failure just leaves the
+      // modal at defaults; the 401 redirect fires regardless, before this catch.
+      Utils.xhr.get(window.warpGlobals.URLs['calendar'], { toastOnSuccess: false, errorOnFailure: false })
+        .then(function (result) { applyToUI(result.response); })
         .catch(function () { updateCalEnabledUI(); });
     },
     onOpenEnd: initCalTabs,
     onCloseEnd: resetUrlVisibility
   });
 
+  // Utils.xhr for both POST helpers below: shares the 401 redirect + spinner and
+  // stays mount-prefix-correct. Each caller's callback drives its own toast, so
+  // errorOnFailure:false suppresses the duplicate generic Utils error modal.
   function saveCalendar(payload, callback) {
-    fetch('/xhr/calendar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    })
-      .then(function (r) {
-        if (!r.ok) return r.json().then(function (e) { throw e; });
-        return r.json();
-      })
-      .then(function (data) {
-        applyToUI(data);
-        if (callback) callback(null, data);
+    Utils.xhr.post(window.warpGlobals.URLs['calendar'], payload, { toastOnSuccess: false, errorOnFailure: false })
+      .then(function (result) {
+        applyToUI(result.response);
+        if (callback) callback(null, result.response);
       })
       .catch(function (err) {
         if (callback) callback(err);
@@ -353,19 +349,11 @@ export function initCalendar() {
   // user's toggle position. ical_enabled in the DB only flips on Save, so Cancel
   // after a first-time toggle leaves the integration disabled (the token may stay).
   function postTokenRequest(payload, callback) {
-    fetch('/xhr/calendar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    })
-      .then(function (r) {
-        if (!r.ok) return r.json().then(function (e) { throw e; });
-        return r.json();
-      })
-      .then(function (data) {
-        calToken = data.ical_token || null;
+    Utils.xhr.post(window.warpGlobals.URLs['calendar'], payload, { toastOnSuccess: false, errorOnFailure: false })
+      .then(function (result) {
+        calToken = result.response.ical_token || null;
         updateCalEnabledUI();
-        if (callback) callback(null, data);
+        if (callback) callback(null, result.response);
       })
       .catch(function (err) {
         if (callback) callback(err);
