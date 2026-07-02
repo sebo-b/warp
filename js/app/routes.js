@@ -6,6 +6,10 @@
 // matches no entry renders the client #view-error "not found" state (router.js).
 export const routes = [
   { name: 'index', pattern: '/', load: () => import(/* webpackChunkName: "view-index" */ '../views/index.js') },
+  { name: 'users', pattern: '/users', load: () => import(/* webpackChunkName: "view-users" */ '../views/users.js') },
+  { name: 'groups', pattern: '/groups', load: () => import(/* webpackChunkName: "view-groups" */ '../views/groups.js') },
+  { name: 'zones', pattern: '/zones', load: () => import(/* webpackChunkName: "view-zones" */ '../views/zones.js') },
+  { name: 'plans', pattern: '/plans', load: () => import(/* webpackChunkName: "view-plans" */ '../views/plans.js') },
 ];
 
 function segs(path) {

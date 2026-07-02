@@ -1,12 +1,19 @@
 "use strict";
 
+import html from './html/zones.html';
 import Utils from './modules/utils.js';
 import WarpModal from './modules/modal.js';
+import { M } from '../app/materialize.js';
+import warpDialog from '../app/dialog.js';
+import { createTable } from '../lib/tablePage.js';
+import { initFormSelect } from '../lib/formSelect.js';
+import { clearFieldError, showFieldError } from '../lib/formDialog.js';
+import { confirmDelete } from '../lib/confirmDelete.js';
 
-import {TabulatorFull as Tabulator} from 'tabulator-tables';
-import "./css/tabulator/tabulator.css";
+export { html };
 
-document.addEventListener("DOMContentLoaded", function(e) {
+export async function mount(ctx) {
+    const root = ctx.root;
 
     var iconFormater = function(cell, formatterParams, onRendered) {
         var icon = formatterParams.icon || "warning";
@@ -140,6 +147,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     // Show modal when deleting a zone that has seats.
     // The reassignment modal is only shown when there are actually seats.
+    // Appended to ctx.root (not document.body) so a view unmount mid-flow
+    // (router.js's root.replaceChildren()) can't leak it.
     function showReassignModal(zid, responseData) {
         return new Promise(function(resolveModal) {
             let otherZones = responseData.other_zones || [];
@@ -217,15 +226,15 @@ document.addEventListener("DOMContentLoaded", function(e) {
             footer.appendChild(cancelBtn);
 
             modalDiv.appendChild(footer);
-            document.body.appendChild(modalDiv);
+            root.appendChild(modalDiv);
 
             let modalInstance = warpDialog(modalDiv);
             modalInstance.open();
 
             // Initialize Materialize select (must be after attached to DOM)
-            let reassignSelect = document.getElementById('reassign_zone_select');
+            let reassignSelect = modalDiv.querySelector('#reassign_zone_select');
             if (reassignSelect) {
-                M.FormSelect.init(reassignSelect, {
+                initFormSelect(reassignSelect, {
                     dropdownOptions: {
                         container: modalDiv,
                         constrainWidth: false
@@ -233,8 +242,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 });
             }
 
-            let moveBtnEl = document.getElementById('reassign_move_btn');
-            let deleteSeatsBtn = document.getElementById('reassign_delete_seats');
+            let moveBtnEl = modalDiv.querySelector('#reassign_move_btn');
+            let deleteSeatsBtn = modalDiv.querySelector('#reassign_delete_seats');
 
             function cleanup() {
                 modalInstance.close();
@@ -247,24 +256,21 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 deleteSeatsBtn.addEventListener('click', function() {
                     // Extra confirmation for the destructive "delete seats" path
                     cleanup();
-                    WarpModal.getInstance().open(
+                    confirmDelete(
                         TR('Delete %{smart_count} seat(s) permanently?', {smart_count: seatCount}),
                         TR('This will remove the seats and all their past booking history. This cannot be undone.'),
-                        {
-                            buttons: [{id: 1, text: TR('btn.Yes, delete')}, {id: 0, text: TR('btn.Cancel')}],
-                            onButtonHook: (btnId) => {
-                                if (btnId == 1) {
-                                    Utils.xhr.post(window.warpGlobals.URLs['zonesDelete'], {
-                                        id: zid,
-                                        delete_seats: true
-                                    }).then(function() { resolveModal(); });
-                                } else {
-                                    // user cancelled the inner confirm — we are done with this flow
-                                    resolveModal();
-                                }
-                            }
+                        {yesText: TR('btn.Yes, delete'), noText: TR('btn.Cancel')}
+                    ).then((confirmed) => {
+                        if (confirmed) {
+                            Utils.xhr.post(window.warpGlobals.URLs['zonesDelete'], {
+                                id: zid,
+                                delete_seats: true
+                            }).then(function() { resolveModal(); });
+                        } else {
+                            // user cancelled the inner confirm — we are done with this flow
+                            resolveModal();
                         }
-                    );
+                    });
                 });
             }
 
@@ -285,27 +291,15 @@ document.addEventListener("DOMContentLoaded", function(e) {
         return function(e, cell) {
             let zid = cell.getRow().getData()['id'];
             let url = window.warpGlobals.URLs[targetURL].replace('__ZID__', zid);
-            window.location.href = url;
+            ctx.navigate(url);
         }
     }
 
-    var addZoneBtn = document.getElementById('add_zone_btn');
-    addZoneBtn.addEventListener('click', addEditClicked);
+    root.querySelector('#add_zone_btn').addEventListener('click', addEditClicked, {signal: ctx.signal});
 
-    table = new Tabulator("#zonesTable", {
-        height: "3000px",
-        maxHeight: "100%",
-        langs: warpGlobals.i18n.tabulatorLangs,
+    table = createTable(root.querySelector('#zonesTable'), {
         ajaxURL: window.warpGlobals.URLs['zonesList'],
         index: "id",
-        layout: "fitDataFill",
-        columnDefaults: {resizable: true},
-        pagination: true,
-        paginationMode: "remote",
-        sortMode: "remote",
-        filterMode: "remote",
-        ajaxConfig: "POST",
-        ajaxContentType: "json",
         columns: [
             {formatter: iconFormater, formatterParams: {icon: "manage_accounts", colorClass: "warp-icon-edit"}, width: 40, hozAlign: "center", cellClick: clickFuncFactory('zoneAssign'), headerSort: false, tooltip: TR('Manage users')},
             {formatter: iconFormater, formatterParams: {icon: "edit", colorClass: "warp-icon-edit"}, width: 40, hozAlign: "center", cellClick: addEditClicked, headerSort: false, tooltip: TR('Edit zone')},
@@ -323,15 +317,15 @@ document.addEventListener("DOMContentLoaded", function(e) {
         ],
     });
 
-    var editModalEl = document.getElementById('edit_modal');
-    var zoneNameEl = document.getElementById("zone_name");
-    var zoneTypeEl = document.getElementById("zone_type");
-    var zoneGroupEl = document.getElementById("zone_group");
-    var zoneGroupHelperEl = document.getElementById("zone_group_helper");
-    var errorDiv = document.getElementById('error_div');
-    var errorMsg = document.getElementById('error_message');
-    var saveBtn = document.getElementById('edit_modal_save_btn');
-    var deleteBtn = document.getElementById('edit_modal_delete_btn');
+    var editModalEl = root.querySelector('#edit_modal');
+    var zoneNameEl = root.querySelector("#zone_name");
+    var zoneTypeEl = root.querySelector("#zone_type");
+    var zoneGroupEl = root.querySelector("#zone_group");
+    var zoneGroupHelperEl = root.querySelector("#zone_group_helper");
+    var errorDiv = root.querySelector('#error_div');
+    var errorMsg = root.querySelector('#error_message');
+    var saveBtn = root.querySelector('#edit_modal_save_btn');
+    var deleteBtn = root.querySelector('#edit_modal_delete_btn');
 
     // Show a hint when the typed group name is new (will be created on save).
     function updateGroupHelper() {
@@ -345,7 +339,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
             zoneGroupHelperEl.textContent = "";
         }
     }
-    zoneGroupEl.addEventListener('input', updateGroupHelper);
+    zoneGroupEl.addEventListener('input', updateGroupHelper, {signal: ctx.signal});
 
     // Materialize autocomplete fed by the existing group names.
     function setupGroupAutocomplete() {
@@ -360,7 +354,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 M.Autocomplete.init(zoneGroupEl, {
                     data: acData,
                     minLength: 0,
-                    dropdownOptions: { constrainWidth: false, container: zoneGroupEl.closest('dialog') || document.body },
+                    dropdownOptions: { constrainWidth: false, container: zoneGroupEl.closest('dialog') || root },
                     onAutocomplete: updateGroupHelper
                 });
                 zoneGroupEl._warpGroups = groups;
@@ -382,15 +376,12 @@ document.addEventListener("DOMContentLoaded", function(e) {
         zoneGroupEl._warpGroups = [];
         zoneGroupHelperEl.style.display = "none";
         setupGroupAutocomplete();
-        errorDiv.style.display = "none";
-        errorMsg.innerText = "";
+        clearFieldError(errorDiv, errorMsg);
         deleteBtn.style.display = (id === null) ? "none" : "inline-flex";
 
-        // (Re)initialize Materialize selects for zone type (we use the styled version now, not browser-default).
+        // (Re)initialize Materialize select for zone type (styled version, not browser-default).
         // Render the dropdown into the dialog so it isn't clipped by the modal-content overflow.
-        let typeInst = M.FormSelect.getInstance(zoneTypeEl);
-        if (typeInst) typeInst.destroy();
-        M.FormSelect.init(zoneTypeEl, { dropdownOptions: { container: editModalEl } });
+        initFormSelect(zoneTypeEl, { dropdownOptions: { container: editModalEl } });
 
         M.updateTextFields();
         editModal.open();
@@ -403,8 +394,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 switch (e.target) {
                     case saveBtn: {
                         if (zoneNameEl.value === "") {
-                            errorMsg.innerText = TR('Zone name cannot be empty.');
-                            errorDiv.style.display = "block";
+                            showFieldError(errorDiv, errorMsg, TR('Zone name cannot be empty.'));
                             return;
                         }
                         resolved = true;
@@ -423,35 +413,34 @@ document.addEventListener("DOMContentLoaded", function(e) {
                             resolve({action: 'delete', id: id});
                         } else {
                             // Zone has no seats: simple confirmation dialog
-                            WarpModal.getInstance().open(
+                            confirmDelete(
                                 TR("Are you sure to delete zone: %{zone_name}", {zone_name: zoneName}),
-                                TR("This action cannot be undone."),
-                                {
-                                    buttons: [{id: 1, text: TR("btn.Yes")}, {id: 0, text: TR("btn.No")}],
-                                    onButtonHook: (btnId) => {
-                                        if (btnId == 1) {
-                                            resolved = true;
-                                            editModal.close();
-                                            resolve({action: 'delete', id: id});
-                                        }
-                                    }
+                                TR("This action cannot be undone.")
+                            ).then((confirmed) => {
+                                if (confirmed) {
+                                    resolved = true;
+                                    editModal.close();
+                                    resolve({action: 'delete', id: id});
                                 }
-                            );
+                            });
                         }
                         break;
                 }
             }
 
-            saveBtn.addEventListener('click', onClick);
-            deleteBtn.addEventListener('click', onClick);
+            saveBtn.addEventListener('click', onClick, {signal: ctx.signal});
+            deleteBtn.addEventListener('click', onClick, {signal: ctx.signal});
 
             editModal.options.onCloseStart = function() {
-                saveBtn.removeEventListener('click', onClick);
-                deleteBtn.removeEventListener('click', onClick);
                 if (!resolved)
                     reject();
             };
         });
     }
 
-});
+    return function unmount() {
+        table.destroy();
+    };
+}
+
+export default { html, mount };

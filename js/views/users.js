@@ -1,13 +1,21 @@
 "use strict";
 
+import html from './html/users.html';
 import Utils from './modules/utils.js';
 import WarpModal from './modules/modal.js';
 import GroupChips from './modules/groupChips.js';
+import { M } from '../app/materialize.js';
+import warpDialog from '../app/dialog.js';
+import { createTable } from '../lib/tablePage.js';
+import { initFormSelect } from '../lib/formSelect.js';
+import { clearFieldError, showFieldError } from '../lib/formDialog.js';
+import { confirmDelete } from '../lib/confirmDelete.js';
+import { lazyCache } from '../lib/lazyCache.js';
 
-import {TabulatorFull as Tabulator} from 'tabulator-tables';
-import "./css/tabulator/tabulator.css";
+export { html };
 
-document.addEventListener("DOMContentLoaded", function(e) {
+export async function mount(ctx) {
+    const root = ctx.root;
 
     let accountTypes = [
         {label: "---" },
@@ -19,7 +27,16 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     var showEditDialog;
     var groupChips;            // GroupChips widget, built on first open
-    var groupSourcePromise;    // cached list of all selectable groups
+    var groupSource = lazyCache(function() {
+        return Utils.xhr.post(
+            window.warpGlobals.URLs['usersList'],
+            {filter: [{field:"account_type", type:">=", value:100}]},
+            {toastOnSuccess:false, errorOnFailure: false})
+        .then( (v) => v.response.data.map( (row) => {
+            let label = Utils.makeUserStr(row['login'], row['name']);
+            return { id: label, text: label };
+        }));
+    });
 
     var accountTypeFormatter = function(cell, formatterParams) {
         let value = cell.getValue();
@@ -39,22 +56,9 @@ document.addEventListener("DOMContentLoaded", function(e) {
         showEditDialog(data.login, data.account_type, data.name);
     }
 
-    var table = new Tabulator("#usersTable", {
-        height: "3000px",   //this will be limited by maxHeight, we need to provide height
-        maxHeight:"100%",   //to make paginationSize work correctly
+    var table = createTable(root.querySelector('#usersTable'), {
         ajaxURL: window.warpGlobals.URLs['usersList'],
-        langs: warpGlobals.i18n.tabulatorLangs,
         index:"login",
-        layout:"fitDataFill",
-        columnDefaults:{
-            resizable:true,
-        },
-        pagination:true,
-        paginationMode:"remote",
-        sortMode:"remote",
-        filterMode:"remote",
-        ajaxConfig: "POST",
-        ajaxContentType: "json",
         columns: [
             {formatter:editFormater, width:40, hozAlign:"center", cellClick:editClicked, headerSort:false},
             {title:TR("Login"), field: "login", headerFilter:"input", headerFilterFunc:"starts"},
@@ -72,22 +76,22 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     showEditDialog = function(login,account_type,name) {
 
-        var editModalEl = document.getElementById('edit_modal');
+        var editModalEl = root.querySelector('#edit_modal');
         var editModal = warpDialog.getInstance(editModalEl);
 
-        var loginEl = document.getElementById("login");
-        var nameEl = document.getElementById("name");
-        var accountTypeSelectEl = document.getElementById('account_type_select');
-        var password1El = document.getElementById('password');
-        var password2El = document.getElementById('password2');
+        var loginEl = root.querySelector("#login");
+        var nameEl = root.querySelector("#name");
+        var accountTypeSelectEl = root.querySelector('#account_type_select');
+        var password1El = root.querySelector('#password');
+        var password2El = root.querySelector('#password2');
 
-        var saveBtn = document.getElementById('edit_modal_save_btn');
-        var deleteBtn = document.getElementById('edit_modal_delete_btn');
+        var saveBtn = root.querySelector('#edit_modal_save_btn');
+        var deleteBtn = root.querySelector('#edit_modal_delete_btn');
 
-        var errorDiv = document.getElementById("error_div");
-        var errorMsg = document.getElementById("error_message");
+        var errorDiv = root.querySelector("#error_div");
+        var errorMsg = root.querySelector("#error_message");
 
-        let addToGroupEl = document.getElementById('add_to_group');
+        let addToGroupEl = root.querySelector('#add_to_group');
 
         if (typeof(editModal) === 'undefined') {
 
@@ -103,15 +107,15 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 }
             });
 
-            var showPassBtns = document.getElementsByClassName('show_password_btn');
+            var showPassBtns = root.querySelectorAll('.show_password_btn');
             for (let b of showPassBtns) {
                 let input = b.parentNode.getElementsByTagName('INPUT')[0];
                 b.addEventListener('click', function(e){
                     input.type = input.type == "text"? "password": "text";
-                })
+                }, {signal: ctx.signal})
             }
 
-            document.getElementById('generate_password_btn').addEventListener('click', function(e) {
+            root.querySelector('#generate_password_btn').addEventListener('click', function(e) {
                 let array = new Uint8Array(10);
                 window.crypto.getRandomValues(array);
 
@@ -128,7 +132,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 password2El.type = "text";
 
                 M.updateTextFields();
-            });
+            }, {signal: ctx.signal});
 
             var saveBtnClicked = function(e) {
 
@@ -146,12 +150,11 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 }
 
                 if (err) {
-                    errorMsg.innerText = err;
-                    errorDiv.style.display = "block";
+                    showFieldError(errorDiv, errorMsg, err);
                     return;
                 }
 
-                errorDiv.style.display = "none";
+                clearFieldError(errorDiv, errorMsg);
 
                 let accountTypeSelect = M.FormSelect.getInstance(accountTypeSelectEl);
                 let action = loginEl.disabled? "update": "add";
@@ -178,22 +181,15 @@ document.addEventListener("DOMContentLoaded", function(e) {
                     table.replaceData();
                     editModal.close();
                 }).catch( (value) => {
-                    errorMsg.innerText = value.errorMsg;
-                    errorDiv.style.display = "block";
+                    showFieldError(errorDiv, errorMsg, value.errorMsg);
                 });
             }
 
             var deleteBtnClicked = function(e) {
 
-                let modalBtnClicked = function(buttonId) {
-
-                    if (buttonId != 1 && buttonId != 3)
-                        return;
-
+                let doDelete = function(force) {
                     let actionData = { login: loginEl.value };
-
-                    if (buttonId == 3)
-                        actionData['force'] = true;
+                    if (force) actionData['force'] = true;
 
                     Utils.xhr.post(
                         window.warpGlobals.URLs['usersDelete'],
@@ -204,16 +200,13 @@ document.addEventListener("DOMContentLoaded", function(e) {
                         editModal.close();
                     }).catch( (value) => {
                         if (value.status == 406) { // past bookings
-                            var modalOptions = {
-                                buttons: [ {id: 3, text: TR("btn.YES, I'M SURE")}, {id: 2, text: TR("btn.No")} ],
-                                onButtonHook: modalBtnClicked
-                            }
-
                             let bookCount = value.response['bookCount'] || 0;
                             let msg = TR("User has XXX bookin(s) ... ",{smart_count:bookCount});
-                            WarpModal.getInstance().open(
+                            confirmDelete(
                                 TR("ARE YOU SURE TO DELETE USER: %{user}?",{user:loginEl.value}),
-                                msg,modalOptions);
+                                msg,
+                                {yesText: TR("btn.YES, I'M SURE")}
+                            ).then((confirmed) => { if (confirmed) doDelete(true); });
                         }
                         else {
                             WarpModal.getInstance().open(TR("Error"),value.errorMsg);
@@ -221,18 +214,14 @@ document.addEventListener("DOMContentLoaded", function(e) {
                     });
                 }
 
-                var modalOptions = {
-                    buttons: [ {id: 1, text: TR("btn.Yes")}, {id: 0, text: TR("btn.No")} ],
-                    onButtonHook: modalBtnClicked
-                }
-
-                var msg = TR("You will delete the log of user's past bookings. It is usually a better idea to BLOCK the user.");
-                WarpModal.getInstance().open(TR("Are you sure to delete user: %{user}",{user:loginEl.value}),msg,modalOptions);
-
+                confirmDelete(
+                    TR("Are you sure to delete user: %{user}",{user:loginEl.value}),
+                    TR("You will delete the log of user's past bookings. It is usually a better idea to BLOCK the user.")
+                ).then((confirmed) => { if (confirmed) doDelete(false); });
             };
 
-            saveBtn.addEventListener('click', saveBtnClicked);
-            deleteBtn.addEventListener('click', deleteBtnClicked);
+            saveBtn.addEventListener('click', saveBtnClicked, {signal: ctx.signal});
+            deleteBtn.addEventListener('click', deleteBtnClicked, {signal: ctx.signal});
 
         }
 
@@ -261,15 +250,14 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 accountTypeSelectEl.appendChild(optEl);
         }
 
-        M.FormSelect.init(accountTypeSelectEl);
+        initFormSelect(accountTypeSelectEl);
 
         password1El.value = "";
         password1El.type = "password";
         password2El.value = "";
         password2El.type = "password";
 
-        errorDiv.style.display = "none";
-        errorMsg.innerText = "";
+        clearFieldError(errorDiv, errorMsg);
 
         M.updateTextFields();
 
@@ -282,18 +270,6 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 dropdownContainer: editModalEl
             });
 
-        // The full list of selectable groups is stable for the session — fetch once.
-        if (!groupSourcePromise) {
-            groupSourcePromise = Utils.xhr.post(
-                window.warpGlobals.URLs['usersList'],
-                {filter: [{field:"account_type", type:">=", value:100}]},
-                {toastOnSuccess:false, errorOnFailure: false})
-            .then( (v) => v.response.data.map( (row) => {
-                let label = Utils.makeUserStr(row['login'], row['name']);
-                return { id: label, text: label };
-            }));
-        }
-
         // The user's currently-assigned groups are fetched per open (new user: none).
         let chipsDataPromise = login
             ? Utils.xhr.get(
@@ -305,7 +281,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
               }))
             : Promise.resolve([]);
 
-        Promise.all([groupSourcePromise, chipsDataPromise])
+        Promise.all([groupSource.get(), chipsDataPromise])
         .then( ([source, selected]) => {
             groupChips.setData(source, selected);
             editModal.open();
@@ -317,10 +293,13 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     }
 
-    var addUserBtn = document.getElementById('add_user_btn');
-    addUserBtn.addEventListener('click', function(e) {
+    root.querySelector('#add_user_btn').addEventListener('click', function(e) {
         showEditDialog();
-    });
+    }, {signal: ctx.signal});
 
-});
+    return function unmount() {
+        table.destroy();
+    };
+}
 
+export default { html, mount };

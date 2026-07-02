@@ -1,20 +1,3 @@
-{% extends 'base_logged.html' %}
-
-{% block header %}
-    {{ super() }}
-
-<script>
-    window.warpGlobals.URLs['usersList'] = "{{ url_for('xhr.users.list') }}";
-    window.warpGlobals.URLs['usersEdit'] = "{{ url_for('xhr.users.edit') }}";
-    window.warpGlobals.URLs['usersDelete'] = "{{ url_for('xhr.users.delete') }}";
-    window.warpGlobals.URLs['userGroups'] = "{{ url_for('xhr.users.groups', login='__LOGIN__') }}";
-</script>
-
-{% endblock %}
-
-{% block overlays %}
-    {{ super() }}
-
 <dialog id="edit_modal" class="modal warp-form-modal warp-fields">
     <div class="modal-content">
         <div class="row">
@@ -45,12 +28,8 @@
 
             <div class="input-field col s12" id="add_to_group_container">
                 <label for="add_to_group" class="add_to_group_label TR">Groups</label>
-                {# NB: no `chips` class here on purpose. Materialize 2.x's Chips.Init()
-                   auto-scans `.chips` on DOMContentLoaded and wires a broken close
-                   handler that does `chip.remove()` directly — bypassing deleteChip,
-                   so chipsData (read on save) keeps the removed group and a re-add is
-                   refused as a duplicate. M.Chips.init() adds the `chips` class itself,
-                   after that scan has run, so our instance owns the only close handler. #}
+                <!-- NB: no `chips` class here on purpose — GroupChips adds it itself at
+                     runtime so Materialize's own `.chips` auto-scan never touches it. -->
                 <div class="chips-autocomplete" id="add_to_group"></div>
             </div>
 
@@ -74,14 +53,6 @@
     </a>
 </div>
 
-
-{% endblock %}
-
-{% block content %}
-    {{ super() }}
-
-    <div class="container">
-        <div id="usersTable"></div>
-    </div>
-
-{% endblock %}
+<div class="container">
+    <div id="usersTable"></div>
+</div>

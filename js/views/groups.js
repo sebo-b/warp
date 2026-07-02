@@ -1,12 +1,18 @@
 "use strict";
 
+import html from './html/groups.html';
 import Utils from './modules/utils.js';
 import WarpModal from './modules/modal.js';
+import { M } from '../app/materialize.js';
+import warpDialog from '../app/dialog.js';
+import { createTable } from '../lib/tablePage.js';
+import { clearFieldError, showFieldError } from '../lib/formDialog.js';
+import { confirmDelete } from '../lib/confirmDelete.js';
 
-import {TabulatorFull as Tabulator} from 'tabulator-tables';
-import "./css/tabulator/tabulator.css";
+export { html };
 
-document.addEventListener("DOMContentLoaded", function(e) {
+export async function mount(ctx) {
+    const root = ctx.root;
 
     var iconFormater = function(cell, formatterParams, onRendered) {
         var icon = formatterParams.icon || "warning";
@@ -21,35 +27,24 @@ document.addEventListener("DOMContentLoaded", function(e) {
         showEditDialog(data.login, data.name);
     }
 
-    var addUserBtn = document.getElementById('add_user_btn');
-    addUserBtn.addEventListener('click', function(e) {
+    root.querySelector('#add_user_btn').addEventListener('click', function(e) {
         showEditDialog();
-    });
+    }, {signal: ctx.signal});
 
-    var assignClicked = function(e,cell) {
+    // The "assign" cell is a plain link — same-origin, registered-route clicks
+    // are intercepted by the router (app/router.js), so this is a normal SPA
+    // navigation, not a full page load.
+    var assignFormatter = function(cell) {
         let login = cell.getRow().getData()['login'];
-        let url = window.warpGlobals.URLs['groupAssign'].replace('__LOGIN__',login);
-        window.location.href = url;
-    }
+        let url = window.warpGlobals.URLs['groupAssign'].replace('__LOGIN__', login);
+        return '<a href="' + url + '" class="warp-icon-link"><i class="material-icons-outlined warp-icon-edit">manage_accounts</i></a>';
+    };
 
-    var table = new Tabulator("#groupsTable", {
-        height: "3000px",   //this will be limited by maxHeight, we need to provide height
-        maxHeight:"100%",   //to make paginationSize work correctly
-        langs: warpGlobals.i18n.tabulatorLangs,
+    var table = createTable(root.querySelector('#groupsTable'), {
         ajaxURL: window.warpGlobals.URLs['usersList'],
         index:"login",
-        layout:"fitDataFill",
-        columnDefaults:{
-            resizable:true,
-        },
-        pagination:true,
-        paginationMode:"remote",
-        sortMode:"remote",
-        filterMode:"remote",
-        ajaxConfig: "POST",
-        ajaxContentType: "json",
         columns: [
-            {formatter:iconFormater, formatterParams:{icon:"manage_accounts",colorClass:"warp-icon-edit"}, width:40, hozAlign:"center", cellClick:assignClicked, headerSort:false},
+            {formatter:assignFormatter, width:40, hozAlign:"center", headerSort:false},
             {formatter:iconFormater, formatterParams:{icon:"edit",colorClass:"warp-icon-edit"}, width:40, hozAlign:"center", cellClick:editClicked, headerSort:false},
             {title:TR("Group id"), field: "login", headerFilter:"input", headerFilterFunc:"starts"},
             {title:TR("Group name"), field: "name", headerFilter:"input", headerFilterFunc:"starts"},
@@ -65,17 +60,17 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     showEditDialog = function(login,name) {
 
-        var editModalEl = document.getElementById('edit_modal');
+        var editModalEl = root.querySelector('#edit_modal');
         var editModal = warpDialog.getInstance(editModalEl);
 
-        var loginEl = document.getElementById("login");
-        var nameEl = document.getElementById("name");
+        var loginEl = root.querySelector("#login");
+        var nameEl = root.querySelector("#name");
 
-        var saveBtn = document.getElementById('edit_modal_save_btn');
-        var deleteBtn = document.getElementById('edit_modal_delete_btn');
+        var saveBtn = root.querySelector('#edit_modal_save_btn');
+        var deleteBtn = root.querySelector('#edit_modal_delete_btn');
 
-        var errorDiv = document.getElementById("error_div");
-        var errorMsg = document.getElementById("error_message");
+        var errorDiv = root.querySelector("#error_div");
+        var errorMsg = root.querySelector("#error_message");
 
         if (typeof(editModal) === 'undefined') {
 
@@ -89,12 +84,11 @@ document.addEventListener("DOMContentLoaded", function(e) {
                     err = TR("Group name cannot be empty.");
 
                 if (err) {
-                    errorMsg.innerText = err;
-                    errorDiv.style.display = "block";
+                    showFieldError(errorDiv, errorMsg, err);
                     return;
                 }
 
-                errorDiv.style.display = "none";
+                clearFieldError(errorDiv, errorMsg);
 
                 let action = loginEl.disabled? "update": "add";
 
@@ -113,18 +107,16 @@ document.addEventListener("DOMContentLoaded", function(e) {
                     table.replaceData();
                     editModal.close();
                 }).catch( (value) => {
-                    errorMsg.innerText = value.errorMsg;
-                    errorDiv.style.display = "block";
+                    showFieldError(errorDiv, errorMsg, value.errorMsg);
                 });
             }
 
             var deleteBtnClicked = function(e) {
-
-                let modalBtnClicked = function(buttonId) {
-
-                    if (buttonId != 1)
-                        return;
-
+                confirmDelete(
+                    TR("Are you sure to delete group: %{group}", {group:loginEl.value}),
+                    ""
+                ).then((confirmed) => {
+                    if (!confirmed) return;
                     Utils.xhr.post(
                         window.warpGlobals.URLs['usersDelete'],
                         { login: loginEl.value })
@@ -132,20 +124,11 @@ document.addEventListener("DOMContentLoaded", function(e) {
                         table.replaceData();
                         editModal.close();
                     });
-                }
-
-                var modalOptions = {
-                    buttons: [ {id: 1, text: TR("btn.Yes")}, {id: 0, text: TR("btn.No")} ],
-                    onButtonHook: modalBtnClicked
-                }
-
-                var msg = "";
-                WarpModal.getInstance().open(TR("Are you sure to delete group: %{group}", {group:loginEl.value}),msg,modalOptions);
-
+                });
             };
 
-            saveBtn.addEventListener('click', saveBtnClicked);
-            deleteBtn.addEventListener('click', deleteBtnClicked);
+            saveBtn.addEventListener('click', saveBtnClicked, {signal: ctx.signal});
+            deleteBtn.addEventListener('click', deleteBtnClicked, {signal: ctx.signal});
         }
 
         login = login || "";
@@ -159,12 +142,15 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
         nameEl.value = name;
 
-        errorDiv.style.display = "none";
-        errorMsg.innerText = "";
+        clearFieldError(errorDiv, errorMsg);
 
         M.updateTextFields();
         editModal.open();
     }
 
-});
+    return function unmount() {
+        table.destroy();
+    };
+}
 
+export default { html, mount };
