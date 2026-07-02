@@ -14,10 +14,26 @@ let currentUnmount = null;
 let currentController = null;
 let transitionSeq = 0;
 
-function renderErrorView(root, status) {
+function renderErrorView(root, kind) {
+  var title, action = '';
+  if (kind === 'network') {
+    // Server unreachable mid-session (a context/bootstrap XHR failed at the
+    // network layer, not an HTTP error). Don't call it "not found" — offer a
+    // retry that re-runs this transition once the server is back.
+    title = "Can't reach the server.";
+    action = '<a href="' + window.location.pathname + window.location.search +
+             '" class="btn warp-btn-primary TR">Retry</a>';
+  } else if (kind === 'forbidden') {
+    title = 'You do not have access to this page.';
+  } else if (kind === 'server') {
+    title = 'Something went wrong.';
+  } else { // 'notfound'
+    title = 'Page not found.';
+  }
   root.innerHTML =
     '<div id="view-error" class="view-error">' +
-    '<h5 class="TR">' + (status === 403 ? 'You do not have access to this page.' : 'Page not found.') + '</h5>' +
+    '<h5 class="TR">' + title + '</h5>' +
+    (action ? '<div class="view-error-actions" style="margin-top:16px">' + action + '</div>' : '') +
     '</div>';
   if (window.TR) window.TR.updateDOM(root);
 }
@@ -49,7 +65,7 @@ export async function transition(pathname, search) {
     var match = matchRoute(pathname);
 
     if (!match) {
-      renderErrorView(root, 404);
+      renderErrorView(root, 'notfound');
       document.body.dataset.view = 'error';
     } else {
       // 3. Dynamic-import the view chunk, mount its markup, translate, mount().
@@ -91,11 +107,19 @@ export async function transition(pathname, search) {
         currentUnmount = typeof unmount === 'function' ? unmount : null;
         document.body.dataset.view = match.route.name;
       } catch (err) {
-        // 5. mount() rejected (e.g. a 403/404 context XHR) -> client error view,
-        // the SPA's replacement for the old server-side 403/404 on deep links.
+        // 5. mount() rejected — map the rejection to the right client error
+        // view (the SPA's replacement for the old server-side 403/404 on deep
+        // links). A network failure (server down mid-session) is its own case,
+        // distinct from a 403/404 HTTP response.
         if (seq !== transitionSeq) return;
         root.replaceChildren();
-        renderErrorView(root, err && err.status === 403 ? 403 : 404);
+        var kind;
+        if (err && err.network) kind = 'network';
+        else if (err && err.status === 403) kind = 'forbidden';
+        else if (err && err.status === 404) kind = 'notfound';
+        else if (err && err.status === 500) kind = 'server';
+        else kind = 'notfound';
+        renderErrorView(root, kind);
         document.body.dataset.view = 'error';
       }
     }

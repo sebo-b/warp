@@ -41,22 +41,30 @@
     color: var(--warp-error);
 }
 
-/* WARP loading spinner (replaces the stock "Loading..." text). Reuses the
-   spinnerRotate keyframes defined in base/style.css. */
-.tabulator .tabulator-loader {
+/* WARP loading spinner (replaces the stock "Loading…" bordered-text box).
+   Tabulator 6 renders the data-load overlay as .tabulator-alert /
+   .tabulator-alert-msg (5.x used .tabulator-loader / .tabulator-loader-msg —
+   these selectors were never updated, so the spinner CSS below was dead and
+   the stock Materialize loader showed instead). Reuses the spinnerRotate
+   keyframes from base/style.css. Scoped under :root[theme] (always present)
+   for specificity over the stock theme's .tabulator-alert-msg rules. */
+:root[theme] .tabulator .tabulator-alert {
     background: rgba(var(--warp-surface-rgb), 0.4);
 }
-.tabulator .tabulator-loader .tabulator-loader-msg.tabulator-loading {
-    display: block;
-    width: 100px;
-    height: 100px;
+/* Loading state -> the spinner; hide the stock "Loading" text (color:transparent). */
+:root[theme] .tabulator .tabulator-alert .tabulator-alert-msg.tabulator-alert-state-msg {
+    background: transparent;
     color: transparent;
-    border-radius: 50%;
     border: 6px solid var(--warp-secondary-pale);
     border-left-color: var(--warp-secondary);
+    border-radius: 50%;
+    width: 100px;
+    height: 100px;
+    padding: 0;
     animation: spinnerRotate 1s infinite linear;
 }
-.tabulator .tabulator-loader .tabulator-loader-msg.tabulator-error {
+/* Error state -> themed error box. */
+:root[theme] .tabulator .tabulator-alert .tabulator-alert-msg.tabulator-alert-state-error {
     background: var(--warp-surface);
     color: var(--warp-text);
     padding: 20px 40px;
@@ -87,8 +95,7 @@
 
 /* Floating popups/menus stay on the raised surface tier. */
 :root[theme] .tabulator-edit-select-list,
-:root[theme] .tabulator-popup-container,
-:root[theme] .tabulator .tabulator-alert .tabulator-alert-msg {
+:root[theme] .tabulator-popup-container {
     background-color: var(--warp-surface);
     color: var(--warp-text);
 }

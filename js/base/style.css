@@ -431,6 +431,24 @@ nav .dropdown-content li > span {
     height: auto;
 }
 
+/* Client-side error view (app/router.js renderErrorView): a plan/assign deep
+   link whose context XHR returned 403/404, a server-down network failure, or
+   an unmatched SPA route. Centred like the index splash so it reads as a
+   full-viewport state, not a stray line of text. */
+.view-error {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: var(--warp-space-3);
+    color: var(--warp-text);
+}
+.view-error h5 {
+    margin: 0;
+}
+
 .nav-wrapper .input-field label {
     color: var(--warp-surface) !important;
 }

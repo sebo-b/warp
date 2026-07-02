@@ -146,7 +146,10 @@ Utils.xhr = {
             });
 
             xhr.addEventListener("error", function(e) {
-                reject({status: 418, response: {}, requestObject: this, errorMsg: Utils.formatError(418,null)});
+                // A network failure (server down / unreachable / DNS) — NOT an HTTP
+                // error response. Flagged so the router can render a "server down"
+                // view instead of misreading the placeholder 418 status as a 404.
+                reject({status: 418, network: true, response: {}, requestObject: this, errorMsg: Utils.formatError(418,null)});
             });
 
             xhr.open(opt.type, opt.url);
