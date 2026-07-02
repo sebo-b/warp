@@ -47,7 +47,13 @@
    these selectors were never updated, so the spinner CSS below was dead and
    the stock Materialize loader showed instead). Reuses the spinnerRotate
    keyframes from base/style.css. Scoped under :root[theme] (always present)
-   for specificity over the stock theme's .tabulator-alert-msg rules. */
+   for specificity over the stock theme's .tabulator-alert-msg rules.
+
+   NOTE: Tabulator's dataLoader alert only fires for NON-silent loads, and
+   remote sort/filter go through the silent path — so for those the alert
+   never appears. The reliable spinner is the .warp-loading overlay below,
+   toggled from tablePage.js's ajaxRequesting/ajaxResponse. The rules here
+   still cover the cases where the stock alert does fire (and the error box). */
 :root[theme] .tabulator .tabulator-alert {
     background: rgba(var(--warp-surface-rgb), 0.4);
 }
@@ -70,6 +76,31 @@
     padding: 20px 40px;
     border: 4px solid var(--warp-error);
     border-radius: 10px;
+}
+
+/* In-table loading overlay, toggled by tablePage.js around Tabulator's own ajax
+   (initial/pagination/sort/filter). Scoped to .tabulator (the table root, which
+   Tabulator makes position:relative), so only the table dims+spins — not the
+   whole page. ::before is the translucent backdrop, ::after the spinner (reuses
+   spinnerRotate from base/style.css). */
+.tabulator.warp-loading::before {
+    content: "";
+    position: absolute;
+    top: 0; right: 0; bottom: 0; left: 0;
+    background: rgba(var(--warp-surface-rgb), 0.4);
+    z-index: 100;
+}
+.tabulator.warp-loading::after {
+    content: "";
+    position: absolute;
+    top: 50%; left: 50%;
+    margin: -30px 0 0 -30px;
+    width: 60px; height: 60px;
+    z-index: 101;
+    border: 6px solid var(--warp-secondary-pale);
+    border-left-color: var(--warp-secondary);
+    border-radius: 50%;
+    animation: spinnerRotate 1s infinite linear;
 }
 
 /* Theme overrides for the stock Tabulator Materialize theme, which hard-codes its

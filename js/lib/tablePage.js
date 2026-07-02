@@ -28,6 +28,25 @@ const REMOTE_DEFAULTS = {
   ajaxContentType: 'json',
 };
 
+// Toggle a .warp-loading class on the table root around its ajax so an
+// in-table spinner overlay shows during pagination/sort/filter. Tabulator 6's
+// built-in dataLoader alert only fires for NON-silent loads, and remote
+// sort/filter go through the silent path, so the stock loader never appears
+// for them — drive it ourselves from the ajax lifecycle instead.
+//
+// ajaxRequesting/ajaxResponse are OPTIONS (not events) because the initial
+// load starts inside the Tabulator constructor, before any table.on() listener
+// could be attached — setting them as options guarantees the first request is
+// covered too. dataLoadError (a post-construction event) clears on failure, and
+// tableDestroyed clears a stuck class if the view unmounts mid-request.
+function withLoadingOverlay(merged) {
+  merged.ajaxRequesting = function () { this.element.classList.add('warp-loading'); };
+  merged.ajaxResponse = function (url, params, data) {
+    this.element.classList.remove('warp-loading');
+    return data;   // ajaxResponse is also a response transform — pass through
+  };
+}
+
 export function createTable(selector, options) {
   var opts = Object.assign({}, options);
   var remote = opts.remote !== false;
@@ -41,7 +60,20 @@ export function createTable(selector, options) {
     opts
   );
 
-  return new Tabulator(selector, merged);
+  if (remote) withLoadingOverlay(merged);
+
+  var table = new Tabulator(selector, merged);
+
+  if (remote) {
+    // ajaxResponse doesn't fire on failure (the request promise rejects), so
+    // clear on dataLoadError. tableDestroyed guards a request still in flight
+    // when the view unmounts and calls table.destroy().
+    var clear = function () { table.element.classList.remove('warp-loading'); };
+    table.on('dataLoadError', clear);
+    table.on('tableDestroyed', clear);
+  }
+
+  return table;
 }
 
 export default createTable;
