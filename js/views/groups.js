@@ -55,7 +55,7 @@ export async function mount(ctx) {
             {column:"name", dir:"asc"}
         ],
         initialFilter: [
-            {field:"account_type", type:">=", value:100}     // show groups only
+            {field:"account_type", type:">=", value: window.warpGlobals.accountTypeGroup}     // show groups only
         ]
     });
 
@@ -96,7 +96,7 @@ export async function mount(ctx) {
                 let actionData = {
                     login: loginEl.value,
                     name: nameEl.value,
-                    account_type: 100,  // group
+                    account_type: window.warpGlobals.accountTypeGroup,  // group
                     action: action
                 };
 

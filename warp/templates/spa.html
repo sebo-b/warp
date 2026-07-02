@@ -19,6 +19,11 @@
         window.warpGlobals.daysInAdvance = {{ daysInAdvance }};
         window.warpGlobals.bookOpen = {{ bookOpen }};
         window.warpGlobals.bookClose = {{ bookClose }};
+        // Backend sentinels (single source of truth — see spaGlobals in
+        // view.py); JS reads these instead of re-hardcoding role/type literals.
+        window.warpGlobals.accountTypeGroup = {{ accountTypeGroup }};
+        window.warpGlobals.zoneRoles = {{ zoneRoles|tojson }};
+        window.warpGlobals.zoneTypes = {{ zoneTypes|tojson }};
         window.warpGlobals.URLs = Object.assign(window.warpGlobals.URLs, {{ spaURLs|tojson }});
     </script>
 

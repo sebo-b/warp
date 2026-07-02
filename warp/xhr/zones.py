@@ -77,7 +77,8 @@ def zoneNames():
 @bp.route("info/<int:zid>", endpoint='info', methods=["GET"])
 def info(zid):
     """{id, name} for a single zone — the SPA's replacement for the server-side
-    zone-name lookup view.zoneAssign used to do before rendering zone_assign.html."""
+    zone-name lookup view.zoneAssign used to do before the refactor (the client
+    renders the assign view and calls this for the title)."""
     if not flask.g.isAdmin:
         flask.abort(403)
     zone = Zone.select(Zone.id, Zone.name).where(Zone.id == zid).first()

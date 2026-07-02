@@ -2,6 +2,7 @@
 
 import { TabulatorFull as Tabulator } from 'tabulator-tables';
 import '../views/css/tabulator/tabulator.css';
+import Utils from '../views/modules/utils.js';
 
 // WARP's standard Tabulator options — height/layout/resizable defaults, i18n
 // langs, and (unless remote:false) the remote pagination/sort/filter/ajax
@@ -24,8 +25,17 @@ const REMOTE_DEFAULTS = {
   paginationMode: 'remote',
   sortMode: 'remote',
   filterMode: 'remote',
-  ajaxConfig: 'POST',
-  ajaxContentType: 'json',
+  // Route every table request through Utils.xhr instead of Tabulator's
+  // built-in fetcher: that way table load/pagination/sort/filter get the SAME
+  // 401 session-expiry redirect, network-down handling, and ref-counted
+  // spinner as every other XHR (the built-in fetcher bypassed all three, so a
+  // session expiring on a table view left a silently dead table). The func
+  // receives Tabulator's compiled params (page/size/sorters/filters/ajaxParams)
+  // and returns the parsed JSON body ({data, last_page}) Tabulator expects.
+  ajaxRequestFunc: function (url, config, params) {
+    return Utils.xhr.post(url, params, { toastOnSuccess: false, errorOnFailure: false })
+      .then(function (result) { return result.response; });
+  }
 };
 
 // Toggle a .warp-loading class on the table root around its ajax so an

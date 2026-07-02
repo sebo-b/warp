@@ -10,6 +10,8 @@ import { clearFieldError, showFieldError } from '../lib/formDialog.js';
 import { confirmDelete } from '../lib/confirmDelete.js';
 import { lazyCache } from '../lib/lazyCache.js';
 import { iconFormatter, chipListFormatter } from '../lib/formatters.js';
+import * as bootstrap from '../app/bootstrap.js';
+import * as nav from '../app/nav.js';
 
 export { html };
 
@@ -78,7 +80,14 @@ export async function mount(ctx) {
                     return Utils.xhr.post(window.warpGlobals.URLs['plansDelete'], {id: actionData.id});
                 }
             })
-            .then(() => table.replaceData())
+            .then(function() {
+                // A plan add/rename/delete changes the nav link set and the
+                // prefs/calendar "Default plan" option list — refresh
+                // /xhr/bootstrap and re-render the nav instead of leaving a
+                // stale top nav for the rest of the session (PLAN_SPA_REFACTOR.md §1.2.1).
+                bootstrap.refresh().then(function() { return nav.render(); });
+                table.replaceData();
+            })
             .catch(() => {});
     };
 
@@ -106,21 +115,30 @@ export async function mount(ctx) {
     var saveBtn = root.querySelector('#edit_modal_save_btn');
     var deleteBtn = root.querySelector('#edit_modal_delete_btn');
 
+    // Per-open dialog state. The Save/Delete listeners are wired ONCE per mount
+    // (not per open): wiring them per-open with {signal: ctx.signal} (unmount)
+    // meant a second edit within one mount stacked a stale handler from the
+    // first open, which ran first on Save, closed the modal, fired the second
+    // open's onCloseStart while its `resolved` was still false -> reject(), and
+    // the second handler's resolve() was a no-op on the settled promise -> the
+    // POST was never sent and the edit was silently lost. Handlers read the
+    // current open's args/state from this object instead of a per-open closure.
+    var currentEdit = null;
+
     showEditDialog = function(id, name, timezone) {
 
         var editModal = warpDialog.getInstance(editModalEl);
         if (typeof(editModal) === 'undefined') {
-            editModal = warpDialog(editModalEl);
-        }
-
-        planNameEl.value = name || "";
-        clearFieldError(errorDiv, errorMsg);
-        deleteBtn.style.display = (id === null) ? "none" : "inline-flex";
-
-        return new Promise((resolve, reject) => {
-            let resolved = false;
+            editModal = warpDialog(editModalEl, {
+                onCloseStart: function() {
+                    // Runs for every close (Save, Delete, or dismiss). Only reject
+                    // for a clean dismiss (no button resolved the promise yet).
+                    if (currentEdit && !currentEdit.resolved) currentEdit.reject();
+                }
+            });
 
             function onClick(e) {
+                if (!currentEdit) return;
                 switch (e.target) {
                     case saveBtn: {
                         if (!planNameEl.value.trim()) {
@@ -131,29 +149,36 @@ export async function mount(ctx) {
                             showFieldError(errorDiv, errorMsg, TR('Plan timezone must be selected.'));
                             return;
                         }
-                        resolved = true;
+                        currentEdit.resolved = true;
                         editModal.close();
-                        resolve({action: 'save', id: id, name: planNameEl.value.trim(), timezone: planTzEl.value});
+                        currentEdit.resolve({action: 'save', id: currentEdit.id, name: planNameEl.value.trim(), timezone: planTzEl.value});
                         break;
                     }
                     case deleteBtn:
                         confirmDelete(
-                            TR("Are you sure to delete plan: %{plan_name}", {plan_name: name}),
+                            TR("Are you sure to delete plan: %{plan_name}", {plan_name: currentEdit.name}),
                             TR("You will delete all seats and the log of all past bookings on this plan.")
                         ).then((confirmed) => {
-                            if (confirmed) {
-                                resolved = true;
+                            if (confirmed && currentEdit) {
+                                currentEdit.resolved = true;
                                 editModal.close();
-                                resolve({action: 'delete', id: id});
+                                currentEdit.resolve({action: 'delete', id: currentEdit.id});
                             }
                         });
                         break;
                 }
             }
 
-            editModal.options.onCloseStart = function() {
-                if (!resolved) reject();
-            };
+            saveBtn.addEventListener('click', onClick, {signal: ctx.signal});
+            deleteBtn.addEventListener('click', onClick, {signal: ctx.signal});
+        }
+
+        planNameEl.value = name || "";
+        clearFieldError(errorDiv, errorMsg);
+        deleteBtn.style.display = (id === null) ? "none" : "inline-flex";
+
+        return new Promise((resolve, reject) => {
+            currentEdit = { id: id, name: name || "", resolve: resolve, reject: reject, resolved: false, editModal: editModal };
 
             // Load timezone list (cached after first fetch), populate the select,
             // then open — so open() resets _dirty AFTER FormSelect fires its change
@@ -181,9 +206,6 @@ export async function mount(ctx) {
                 }
                 initFormSelect(planTzEl);
                 M.updateTextFields();
-
-                saveBtn.addEventListener('click', onClick, {signal: ctx.signal});
-                deleteBtn.addEventListener('click', onClick, {signal: ctx.signal});
                 // open() resets _dirty and lifts the now-existing select dropdown.
                 editModal.open();
             });

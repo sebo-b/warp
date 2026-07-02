@@ -46,8 +46,9 @@ def members():
 @bp.route("info/<login>", endpoint='info', methods=["GET"])
 def info(login):
     """{login, name} for a single group — the SPA's replacement for the
-    server-side group-name lookup view.groupAssign used to do before
-    rendering group_assign.html."""
+    server-side group-name lookup view.groupAssign used to do before the
+    refactor (the client renders the assign view and calls this for the
+    title)."""
     if not flask.g.isAdmin:
         flask.abort(403)
     name = Users.select(Users.name) \

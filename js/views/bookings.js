@@ -4,6 +4,7 @@ import html from './html/bookings.html';
 import Utils from './modules/utils.js';
 import WarpModal from './modules/modal.js';
 import { createTable } from '../lib/tablePage.js';
+import { confirmDelete } from '../lib/confirmDelete.js';
 import { M } from '../app/materialize.js';
 import { timestampFormatter } from '../lib/formatters.js';
 
@@ -166,34 +167,27 @@ export async function mount(ctx) {
         if (!data.rw)
             return;
 
-        let modalBtnClicked = function(buttonId) {
-
-            if (buttonId != 1)
-                return;
-
-            Utils.xhr.post(
-                window.warpGlobals.URLs['planApply'],
-                { remove: [ bid ]}
-            ).then( () => {
-                cell.getTable().replaceData();
-            })
-
-        };
-
-        var modalOptions = {
-            buttons: [
-                {id: 1, text: TR("btn.Yes")},
-                {id: 0, text: TR("btn.No")}
-            ],
-            onButtonHook: modalBtnClicked
-        }
-
         var msg = TR('User name')+": "+data['user_name']+"<br>"+
               TR("Plan")+": "+data['plan_name']+"<br>"+
               TR("Seat")+": "+data['seat_name']+"<br>"+
               TR("Time")+": "+mergedTsFormatter(cell);
 
-        WarpModal.getInstance().open(TR("Are you sure to delete this booking?"),msg,modalOptions);
+        // Route through the shared confirmDelete helper (same Yes/No WarpModal +
+        // Esc/outside-click->false handling every other delete uses) instead of
+        // re-implementing the buttons/onButtonHook boilerplate here.
+        confirmDelete(
+            TR("Are you sure to delete this booking?"),
+            msg,
+            { yesText: TR("btn.Yes"), noText: TR("btn.No") }
+        ).then((confirmed) => {
+            if (!confirmed) return;
+            Utils.xhr.post(
+                window.warpGlobals.URLs['planApply'],
+                { remove: [ bid ]}
+            ).then( () => {
+                cell.getTable().replaceData();
+            });
+        });
     }
 
     // Custom header filter for "User name" (non-report view only):

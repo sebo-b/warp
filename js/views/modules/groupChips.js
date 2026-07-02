@@ -27,7 +27,8 @@ export default class GroupChips {
         // <dialog> opened with showModal() the .modal-content scroll box
         // (overflow:auto) both clips and paints over an absolutely-positioned
         // child, so a dropdown nested there is invisible. Appending it directly
-        // to the dialog (as base.js does for every FormSelect here) escapes that;
+        // to the dialog (as app/materialize.js does for every FormSelect here)
+        // escapes that;
         // we then position it under the input by hand. Falls back to the chips
         // box when no container is given.
         this.dropdownContainer = options.dropdownContainer || chipsEl;

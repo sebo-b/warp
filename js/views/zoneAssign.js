@@ -5,8 +5,7 @@ import Utils from './modules/utils.js';
 import { userTypeFormatter, userGroupLinkFormatter, iconFormatter, labelFormatter } from '../lib/formatters.js';
 import { createTable } from '../lib/tablePage.js';
 import { confirmDelete } from '../lib/confirmDelete.js';
-import warpDialog from '../app/dialog.js';
-import { M } from '../app/materialize.js';
+import { safeReturn } from '../app/routes.js';
 
 export { html };
 
@@ -24,16 +23,17 @@ export async function mount(ctx) {
 
     root.querySelector('#zone_assign_title_text').textContent = TR('Users assigned to: %{zone_name}', {zone_name: zoneName});
 
-    const returnURL = ctx.query.return || '/zones';
+    const returnURL = safeReturn(ctx.query.return, window.warpGlobals.URLs['zones']);
     root.querySelector('#zone_assign_return_link').setAttribute('href', returnURL);
 
+    const ZR = window.warpGlobals.zoneRoles;
     let zoneRoles = [
         {label: "---" },
-        {label: TR("zoneRoles.ZoneAdmin"), value: 10 },
-        {label: TR("zoneRoles.User"), value: 20 },
-        {label: TR("zoneRoles.Viewer"), value: 30 }
+        {label: TR("zoneRoles.ZoneAdmin"), value: ZR.admin },
+        {label: TR("zoneRoles.User"), value: ZR.user },
+        {label: TR("zoneRoles.Viewer"), value: ZR.viewer }
     ];
-    let defaultZoneRole = 20;
+    let defaultZoneRole = ZR.user;
     const zoneRoleFormatter = labelFormatter(zoneRoles);
 
     function deleteClicked(e, cell) {
@@ -85,102 +85,36 @@ export async function mount(ctx) {
     table.on('cellEdited', zoneRoleChanged);
 
     var assignToZoneBtn = root.querySelector('#assign_to_zone_btn');
-    var assignToZoneModalEl = root.querySelector('#assign_to_zone_modal');
-    var assignToZoneModalHeader = root.querySelector('#assign_to_zone_modal_header');
-    var assignToZoneModaAutocompleteEl = root.querySelector('#assign_to_zone_autocomplete');
 
-    let assignToZoneTable;
-    let assignToZoneModal;
-
-    assignToZoneBtn.addEventListener('click', function(e) {
-
-        let showModal = function() {
-            assignToZoneTable.clearData();
-            assignToZoneModal.open();
+    let userPicker = createUserPicker({
+        btnEl: assignToZoneBtn,
+        modalEl: root.querySelector('#assign_to_zone_modal'),
+        headerEl: root.querySelector('#assign_to_zone_modal_header'),
+        autocompleteEl: root.querySelector('#assign_to_zone_autocomplete'),
+        tableEl: root.querySelector('#assign_to_zone_table'),
+        addBtnEl: root.querySelector('#assign_to_zone_modal_addbtn'),
+        dropdownContainer: root,
+        titleText: TR("Assign to zone: %{zone_name}", {zone_name: zoneName}),
+        signal: ctx.signal,
+        columns: [
+            {formatter: iconFormatter({icon: "disabled_by_default", colorClass: "warp-icon-danger", iconClass: "material-icons"}), width: 40, hozAlign: "center", cellClick: function (e, cell) { cell.getRow().delete(); }},
+            {field: "name"},
+            {field: "zone_role", editor: Utils.makeSelect(zoneRoles), formatter: zoneRoleFormatter},
+        ],
+        rowFromLogin: function (login, name) { return { login: login, name: name, zone_role: defaultZoneRole }; },
+        onAdd: function (rows) {
+            Utils.xhr.post(window.warpGlobals.URLs['zoneAssignXHR'], {
+                zid: zid,
+                change: rows.map(function (a) { return { login: a['login'], role: a['zone_role'] }; })
+            }).then(function () { table.replaceData(); });
         }
+    });
 
-        let initModal = function(usersData) {
-
-            assignToZoneModal = warpDialog(assignToZoneModalEl);
-            if (assignToZoneModalHeader) {
-                assignToZoneModalHeader.textContent = TR("Assign to zone: %{zone_name}", {zone_name: zoneName});
-            }
-
-            let assignToZoneTableRemoveClicked = function(e, cell) {
-                cell.getRow().delete();
-            }
-
-            root.querySelector('#assign_to_zone_modal_addbtn').addEventListener('click', function(e) {
-
-                let payload = {
-                    zid: zid,
-                    change: assignToZoneTable.getData().map(
-                        (a) => ({'login': a['login'], 'role': a['zone_role']}))
-                }
-
-                Utils.xhr.post(window.warpGlobals.URLs['zoneAssignXHR'], payload)
-                    .then(() => { table.replaceData(); });
-            }, {signal: ctx.signal});
-
-            assignToZoneTable = createTable(root.querySelector('#assign_to_zone_table'), {
-                remote: false,
-                height: "200px",
-                index: "login",
-                headerVisible: false,
-                columns: [
-                    {formatter: iconFormatter({icon: "disabled_by_default", colorClass: "warp-icon-danger", iconClass: "material-icons"}), width: 40, hozAlign: "center", cellClick: assignToZoneTableRemoveClicked},
-                    {field: "name"},
-                    {field: "zone_role", editor: Utils.makeSelect(zoneRoles), formatter: zoneRoleFormatter},
-                ],
-                initialSort: [
-                    {column: "name", dir: "asc"}
-                ]
-            });
-
-            let autocompleteData = [];
-            for (let i of usersData) {
-                let label = Utils.makeUserStr(i['login'], i['name']);
-                autocompleteData.push({ id: label, text: label });
-            }
-
-            let onAutocomplete = function(selectedLabel) {
-                var u = Utils.makeUserStrRev(selectedLabel);
-                assignToZoneTable.updateOrAddData([{"login": u[0], "name": u[1], "zone_role": defaultZoneRole}]);
-                assignToZoneModaAutocompleteEl.value = "";
-                assignToZoneModaAutocompleteEl.focus();
-            }
-
-            M.Autocomplete.init(assignToZoneModaAutocompleteEl, {
-                data: autocompleteData,
-                dropdownOptions: {
-                    constrainWidth: true,
-                    container: assignToZoneModaAutocompleteEl.closest('dialog') || root
-                },
-                minLength: 2,
-                limit: 10,
-                onAutocomplete: onAutocomplete
-            });
-        }
-
-        if (typeof(assignToZoneModal) == 'undefined') {
-
-            Utils.xhr.post(
-                window.warpGlobals.URLs['usersList'],
-                {},
-                {toastOnSuccess: false})
-            .then(function(value) {
-                initModal(value.response['data']);
-                showModal();
-            });
-        }
-        else {
-            showModal();
-        }
-    }, {signal: ctx.signal});
+    assignToZoneBtn.addEventListener('click', function () { userPicker.open(); }, {signal: ctx.signal});
 
     return function unmount() {
         table.destroy();
-        if (assignToZoneTable) assignToZoneTable.destroy();
+        userPicker.destroy();
     };
 }
 

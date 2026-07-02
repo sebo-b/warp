@@ -31,7 +31,7 @@ export async function mount(ctx) {
     var groupSource = lazyCache(function() {
         return Utils.xhr.post(
             window.warpGlobals.URLs['usersList'],
-            {filter: [{field:"account_type", type:">=", value:100}]},
+            {filter: [{field:"account_type", type:">=", value: window.warpGlobals.accountTypeGroup}]},
             {toastOnSuccess:false, errorOnFailure: false})
         .then( (v) => v.response.data.map( (row) => {
             let label = Utils.makeUserStr(row['login'], row['name']);
@@ -65,7 +65,7 @@ export async function mount(ctx) {
             {column:"name", dir:"asc"}
         ],
         initialFilter: [
-            {field:"account_type", type:"<", value:100}     // don't show groups
+            {field:"account_type", type:"<", value: window.warpGlobals.accountTypeGroup}     // don't show groups
         ]
     });
 

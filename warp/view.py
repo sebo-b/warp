@@ -12,8 +12,8 @@ def spaGlobals():
     # Cheap (no DB) flags/constants spa.html needs at first paint, before
     # /xhr/bootstrap resolves — e.g. to decide whether to render the
     # change-password dialog, or to seed the timeslider ranges that used to be
-    # Jinja data-min/max attrs (plan.html:172, base_logged.html:106) but now
-    # live in view fragments Jinja never touches.
+    # Jinja data-min/max attrs on the per-page templates (now inlined into view
+    # fragments Jinja never touches).
     config = flask.current_app.config
     return {
         'hasLogout': 'auth.logout' in flask.current_app.view_functions,
@@ -25,6 +25,18 @@ def spaGlobals():
         'bookOpen': config['BOOK_OPEN'],
         'bookClose': config['BOOK_CLOSE'],
         'spaURLs': spaURLs(),
+        # Backend sentinels consumed by JS (project rule: shared backend-JS
+        # constants flow through window.warpGlobals, defined once — never
+        # duplicated as JS literals). Renumbering a role/type in db.py must not
+        # silently break the client-side filters/editors.
+        'accountTypeGroup': ACCOUNT_TYPE_GROUP,
+        'zoneRoles': {'admin': ZONE_ROLE_ADMIN, 'user': ZONE_ROLE_USER, 'viewer': ZONE_ROLE_VIEWER},
+        'zoneTypes': {
+            'disabled': ZONE_TYPE_DISABLED,
+            'enabled': ZONE_TYPE_ENABLED,
+            'publicView': ZONE_TYPE_PUBLIC_VIEW,
+            'publicBook': ZONE_TYPE_PUBLIC_BOOK,
+        },
     }
 
 
@@ -55,6 +67,7 @@ def spaURLs():
         'logoSvg': flask.url_for('static', filename='images/logo.svg'),
 
         'planImage': flask.url_for('view.planImage', pid='__PID__'),
+        'plan': flask.url_for('view.plan', pid='__PID__'),
         'planApply': flask.url_for('xhr.plan.apply'),
         'planGetSeat': _intUrlFor('xhr.plan.getSeats', 'pid', '__PID__'),
         'planAutoBook': _intUrlFor('xhr.plan.autoBook', 'pid', '__PID__'),
@@ -109,6 +122,15 @@ def spaURLs():
     return urls
 
 
+def _admin_spa():
+    """SPA shell for an admin-only route: cheap 403 guard + render spa.html.
+    Shared by the seven admin views (users/groups/zones/plans + the two assigns
+    + planModify) that used to each repeat the same two lines."""
+    if not flask.g.isAdmin:
+        flask.abort(403)
+    return flask.render_template('spa.html')
+
+
 @bp.route("/")
 def index():
     return flask.render_template('spa.html')
@@ -147,48 +169,34 @@ def planImage(pid):
 
 @bp.route("/users")
 def users():
-    if not flask.g.isAdmin:
-        flask.abort(403)
-    return flask.render_template('spa.html')
+    return _admin_spa()
 
 
 @bp.route("/groups")
 def groups():
-    if not flask.g.isAdmin:
-        flask.abort(403)
-    return flask.render_template('spa.html')
+    return _admin_spa()
 
 
 @bp.route("/zones")
 def zones():
-    if not flask.g.isAdmin:
-        flask.abort(403)
-    return flask.render_template('spa.html')
+    return _admin_spa()
 
 
 @bp.route("/plans")
 def plans():
-    if not flask.g.isAdmin:
-        flask.abort(403)
-    return flask.render_template('spa.html')
+    return _admin_spa()
 
 
 @bp.route("/groups/assign/<group_login>")
 def groupAssign(group_login):
-    if not flask.g.isAdmin:
-        flask.abort(403)
-    return flask.render_template('spa.html')
+    return _admin_spa()
 
 
 @bp.route("/zones/assign/<zid>")
 def zoneAssign(zid):
-    if not flask.g.isAdmin:
-        flask.abort(403)
-    return flask.render_template('spa.html')
+    return _admin_spa()
 
 
 @bp.route("/plans/modify/<pid>")
 def planModify(pid):
-    if not flask.g.isAdmin:
-        flask.abort(403)
-    return flask.render_template('spa.html')
+    return _admin_spa()

@@ -4,6 +4,26 @@
 // segment syntax (no wildcards — the 10 SPA routes below are all the app has).
 // Grows one entry per work package as each view is converted; a path that
 // matches no entry renders the client #view-error "not found" state (router.js).
+
+// Mount-prefix support: spaURLs() is url_for-based (prefix-aware), so XHR
+// URLs already work under a reverse-proxy mount (e.g. /warp). But the router
+// matches location.pathname and views navigate() with route-relative paths
+// ('/plan/1'), which both need the base path stripped/prepended to resolve
+// under a mount. Derive it once from warpGlobals.URLs.users (url_for('view.users')
+// -> '/warp/users' under a mount, '/users' at root) by removing the known
+// '/users' suffix — the single source of truth stays spaURLs(), not a JS copy.
+function deriveBasePath() {
+  var u = (window.warpGlobals && window.warpGlobals.URLs && window.warpGlobals.URLs.users) || '/users';
+  try {
+    var p = new URL(u, window.location.origin).pathname;
+  } catch (e) {
+    return '';
+  }
+  var suffix = '/users';
+  return p.endsWith(suffix) ? p.slice(0, p.length - suffix.length) : '';
+}
+export const basePath = deriveBasePath();
+
 export const routes = [
   { name: 'index', pattern: '/', load: () => import(/* webpackChunkName: "view-index" */ '../views/index.js') },
   { name: 'users', pattern: '/users', load: () => import(/* webpackChunkName: "view-users" */ '../views/users.js') },
@@ -25,6 +45,10 @@ function segs(path) {
 }
 
 export function matchRoute(pathname) {
+  // Strip the mount prefix so route patterns (which are prefix-relative) match
+  // under a reverse-proxy mount. Bare '/' stays '/' (not '').
+  if (basePath && pathname.indexOf(basePath) === 0) pathname = pathname.slice(basePath.length);
+  if (pathname === '') pathname = '/';
   var pathSegs = segs(pathname);
   for (var i = 0; i < routes.length; i++) {
     var route = routes[i];
@@ -46,4 +70,24 @@ export function matchRoute(pathname) {
   return null;
 }
 
-export default { routes, matchRoute };
+export default { routes, matchRoute, basePath, safeReturn };
+
+// Sanitize a caller-supplied `?return=` value before writing it into a link
+// href: a crafted `?return=javascript:alert(document.cookie)` would execute on
+// click (the router's link interception only intercepts registered routes, so
+// a javascript:/foreign-origin href falls through to the browser), and a
+// foreign https URL is an open redirect. Accept only same-origin http(s)
+// paths that resolve to a registered SPA route; otherwise fall back to a
+// trusted (spaURLs-derived) URL.
+export function safeReturn(raw, fallbackUrl) {
+  if (!raw) return fallbackUrl;
+  try {
+    var u = new URL(raw, window.location.origin);
+  } catch (e) {
+    return fallbackUrl;
+  }
+  if (u.origin !== window.location.origin) return fallbackUrl;
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return fallbackUrl;
+  if (!matchRoute(u.pathname)) return fallbackUrl;
+  return raw;
+}

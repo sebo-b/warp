@@ -18,9 +18,14 @@ function escapeHtml(s) {
 
 function itemsHTML(data) {
   if (!data.plans || !data.plans.length) return '';
-  var html = '<li><a href="/bookings" class="nav-plan-link TR">Bookings</a></li>';
+  // hrefs come from warpGlobals.URLs (spaURLs, url_for-based) so they carry the
+  // mount prefix under a reverse-proxy deployment — not hardcoded '/bookings'
+  // or '/plan/'+id, which would escape the prefix and break navigation.
+  var bookingsURL = window.warpGlobals.URLs['bookings'];
+  var planURLTpl = window.warpGlobals.URLs['plan'];
+  var html = '<li><a href="' + bookingsURL + '" class="nav-plan-link TR">Bookings</a></li>';
   data.plans.forEach(function (p) {
-    html += '<li><a href="/plan/' + p.id + '" class="nav-plan-link">' + escapeHtml(p.name) + '</a></li>';
+    html += '<li><a href="' + planURLTpl.replace('__PID__', p.id) + '" class="nav-plan-link">' + escapeHtml(p.name) + '</a></li>';
   });
   return html;
 }

@@ -5,8 +5,7 @@ import Utils from './modules/utils.js';
 import { userTypeFormatter, userGroupLinkFormatter, iconFormatter } from '../lib/formatters.js';
 import { createTable } from '../lib/tablePage.js';
 import { confirmDelete } from '../lib/confirmDelete.js';
-import warpDialog from '../app/dialog.js';
-import { M } from '../app/materialize.js';
+import { createUserPicker } from './modules/userPicker.js';
 
 export { html };
 
@@ -24,7 +23,7 @@ export async function mount(ctx) {
 
     root.querySelector('#group_assign_title_text').textContent = TR('Members of: %{group}', {group: groupName});
 
-    const returnURL = ctx.query.return || '/groups';
+    const returnURL = safeReturn(ctx.query.return, window.warpGlobals.URLs['groups']);
     root.querySelector('#group_assign_return_link').setAttribute('href', returnURL);
 
     var table = createTable(root.querySelector('#groupMembersTable'), {
@@ -59,100 +58,35 @@ export async function mount(ctx) {
     }
 
     var addToGroupBtn = root.querySelector('#add_to_group_btn');
-    var addToGroupModalEl = root.querySelector('#add_to_group_modal');
-    var addToGroupModalHeader = root.querySelector('#add_to_group_modal_header');
-    var addToGroupModaAutocompleteEl = root.querySelector('#add_to_group_autocomplete');
 
-    let addToGroupTable;
-    let addToGroupModal;
-
-    addToGroupBtn.addEventListener('click', function(e) {
-
-        let showModal = function() {
-            addToGroupModalHeader.innerHTML = TR("Add to group %{group}", {group: groupName});
-            addToGroupTable.clearData();
-            addToGroupModal.open();
-        }
-
-        let initModal = function(usersData) {
-
-            addToGroupModal = warpDialog(addToGroupModalEl);
-
-            let addToGroupTableRemoveClicked = function(e, cell) {
-                cell.getRow().delete();
-            }
-
-            root.querySelector('#add_to_group_modal_addbtn').addEventListener('click', function(e) {
-
-                let addData = addToGroupTable.getData().map(a => a['login']);
-                if (addData.length == 0)
-                    return;
-
-                Utils.xhr.post(
-                    window.warpGlobals.URLs['groupsAssignXHR'],
-                    { groupLogin: groupLogin, add: addData }
-                ).then(() => { table.replaceData(); });
-            }, {signal: ctx.signal});
-
-            addToGroupTable = createTable(root.querySelector('#addToGroupTable'), {
-                remote: false,
-                height: "200px",
-                index: "login",
-                headerVisible: false,
-                columns: [
-                    {formatter: iconFormatter({icon: "disabled_by_default", colorClass: "warp-icon-danger", iconClass: "material-icons"}), width: 40, hozAlign: "center", cellClick: addToGroupTableRemoveClicked},
-                    {field: "name"},
-                ],
-                initialSort: [
-                    {column: "name", dir: "asc"}
-                ]
-            });
-
-            let autocompleteData = [];
-            for (let i of usersData) {
-                let label = Utils.makeUserStr(i['login'], i['name']);
-                autocompleteData.push({ id: label, text: label });
-            }
-
-            let onAutocomplete = function(selectedLabel) {
-                var u = Utils.makeUserStrRev(selectedLabel);
-                addToGroupTable.updateOrAddData([{"login": u[0], "name": u[1]}]);
-                addToGroupModaAutocompleteEl.value = "";
-                addToGroupModaAutocompleteEl.focus();
-            }
-
-            M.Autocomplete.init(addToGroupModaAutocompleteEl, {
-                data: autocompleteData,
-                dropdownOptions: {
-                    constrainWidth: true,
-                    container: addToGroupModaAutocompleteEl.closest('dialog') || root
-                },
-                minLength: 2,
-                limit: 10,
-                onAutocomplete: onAutocomplete
-            });
-        }
-
-        if (typeof(addToGroupModal) == 'undefined') {
-
+    let userPicker = createUserPicker({
+        btnEl: addToGroupBtn,
+        modalEl: root.querySelector('#add_to_group_modal'),
+        headerEl: root.querySelector('#add_to_group_modal_header'),
+        autocompleteEl: root.querySelector('#add_to_group_autocomplete'),
+        tableEl: root.querySelector('#addToGroupTable'),
+        addBtnEl: root.querySelector('#add_to_group_modal_addbtn'),
+        dropdownContainer: root,
+        titleText: TR("Add to group %{group}", {group: groupName}),
+        signal: ctx.signal,
+        columns: [
+            {formatter: iconFormatter({icon: "disabled_by_default", colorClass: "warp-icon-danger", iconClass: "material-icons"}), width: 40, hozAlign: "center", cellClick: function (e, cell) { cell.getRow().delete(); }},
+            {field: "name"},
+        ],
+        rowFromLogin: function (login, name) { return { login: login, name: name }; },
+        onAdd: function (rows) {
             Utils.xhr.post(
-                window.warpGlobals.URLs['usersList'],
-                {},
-                {toastOnSuccess: false})
-            .then(function(value) {
-                initModal(value.response['data']);
-                showModal();
-            });
+                window.warpGlobals.URLs['groupsAssignXHR'],
+                { groupLogin: groupLogin, add: rows.map(function (a) { return a['login']; }) }
+            ).then(function () { table.replaceData(); });
+        }
+    });
 
-        }
-        else {
-            showModal();
-        }
-    }, {signal: ctx.signal});
+    addToGroupBtn.addEventListener('click', function () { userPicker.open(); }, {signal: ctx.signal});
 
     return function unmount() {
         table.destroy();
-        if (addToGroupTable) addToGroupTable.destroy();
+        userPicker.destroy();
     };
 }
 

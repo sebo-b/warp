@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { logIn } from '../../helpers/auth';
 import { USER1, USER2, USER3 } from '../../helpers/users';
+import { waitForViewReady } from '../../helpers/spa';
 
 test.describe('zone access', () => {
 
@@ -43,6 +44,19 @@ test.describe('zone access', () => {
     await logIn(page, USER2);
     const resp = await page.request.get('/xhr/plan/getContext/2');
     expect(resp.status()).toBe(403);
+  });
+
+  // The SPA serves the shell for every /plan/<pid> deep link and renders the
+  // client #view-error state when the mount-time /xhr/plan/getContext/<pid> call
+  // returns 403/404 (router.js maps the rejection to body[data-view="error"]).
+  // This guards the router's mount-error mapping: a regression that swallowed
+  // the 403 and half-mounted the plan view with undefined context would leave
+  // the suite green while a forbidden deep link saw a broken page.
+  test('user3 deep-linking a forbidden plan sees the client error view', async ({ page }) => {
+    await logIn(page, USER3);
+    await page.goto('/plan/1');
+    await waitForViewReady(page, 'error');
+    await expect(page.locator('#view-error')).toBeVisible();
   });
 
 });

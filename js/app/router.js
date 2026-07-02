@@ -7,7 +7,7 @@
 
 import spinner from './spinner.js';
 import { M } from './materialize.js';
-import { matchRoute } from './routes.js';
+import { matchRoute, basePath } from './routes.js';
 import * as nav from './nav.js';
 
 let currentUnmount = null;
@@ -53,23 +53,49 @@ export async function transition(pathname, search) {
 
   try {
     // 2. Await the previous view's unmount, then clear the mount point.
-    if (typeof currentUnmount === 'function') {
-      try { await currentUnmount(); } catch (e) { /* a broken unmount must not wedge navigation */ }
+    // Null the handle BEFORE awaiting it: two rapid navigations could both
+    // observe a non-null currentUnmount and double-invoke the same unmount
+    // (double table.destroy()/om.destroy()/BookAs.reset()), where the second
+    // throw is swallowed by the catch below and any teardown after it is
+    // silently skipped (leaked observers/sliders across the navigation).
+    var prevUnmount = currentUnmount;
+    currentUnmount = null;
+    if (typeof prevUnmount === 'function') {
+      try { await prevUnmount(); } catch (e) { /* a broken unmount must not wedge navigation */ }
     }
     if (currentController) currentController.abort();
-    currentUnmount = null;
     currentController = null;
     if (seq !== transitionSeq) return; // superseded by a newer navigation
     root.replaceChildren();
 
-    var match = matchRoute(pathname);
+    var match;
+    try {
+      match = matchRoute(pathname);
+    } catch (e) {
+      // decodeURIComponent throws URIError on a malformed %-encoded path —
+      // treat it as not-found rather than crashing the transition.
+      match = null;
+    }
 
     if (!match) {
       renderErrorView(root, 'notfound');
       document.body.dataset.view = 'error';
     } else {
       // 3. Dynamic-import the view chunk, mount its markup, translate, mount().
-      var view = await match.route.load();
+      // The chunk load and the mount share one catch: a rejected import()
+      // (redeploy swapped content-hashed chunks mid-session, or a transient
+      // network failure) is a "can't reach the server" condition, not a
+      // 404 — and it must not leave a blank #view-root after replaceChildren()
+      // already cleared the previous view.
+      var view;
+      try {
+        view = await match.route.load();
+      } catch (loadErr) {
+        if (seq !== transitionSeq) return;
+        renderErrorView(root, 'network');
+        document.body.dataset.view = 'error';
+        return;
+      }
       if (seq !== transitionSeq) return;
 
       root.innerHTML = view.html || '';
@@ -103,7 +129,20 @@ export async function transition(pathname, search) {
 
       try {
         var unmount = await view.mount(ctx);
-        if (seq !== transitionSeq) return;
+        if (seq !== transitionSeq) {
+          // Superseded while mount() was in flight (e.g. plan A -> B -> C with
+          // a slow getContext): the just-returned unmount is NOT assigned to
+          // currentUnmount (the seq check below would skip it), so without
+          // invoking it here B's OfficeMap listeners/theme observer leak
+          // permanently and its PlanUserData/BookAs singletons stay init'd,
+          // then C's mount throws "already initialized" -> "Page not found".
+          // Tear B down now so C mounts clean.
+          currentController = null;
+          if (typeof unmount === 'function') {
+            try { await unmount(); } catch (e) { /* best-effort teardown */ }
+          }
+          return;
+        }
         currentUnmount = typeof unmount === 'function' ? unmount : null;
         document.body.dataset.view = match.route.name;
       } catch (err) {
@@ -143,6 +182,16 @@ export async function transition(pathname, search) {
 export function navigate(path, opts) {
   opts = opts || {};
   var url = new URL(path, window.location.origin);
+  // Views call navigate() with route-relative paths ('/plan/1'), while link
+  // interception passes already-prefixed pathnames (a.pathname under a mount
+  // includes the prefix). Prepend the base path only when the path isn't
+  // already under it, so both forms resolve correctly under a reverse-proxy
+  // mount and are a no-op at root (basePath === '').
+  if (basePath && url.pathname.indexOf(basePath + '/') === 0) {
+    // already prefixed (link interception) — leave as-is
+  } else if (basePath && url.pathname !== basePath) {
+    url.pathname = basePath + url.pathname;
+  }
   if (opts.replace) {
     window.history.replaceState(null, '', url);
   } else {

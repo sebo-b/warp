@@ -4,10 +4,10 @@ import WarpModal from '../views/modules/modal.js';
 
 // Wraps the shared Yes/No WarpModal confirmation used by every delete flow
 // (6 near-identical call sites across users/groups/zones/plans/assigns) in a
-// Promise: resolves true if the user confirmed, false if they clicked No.
-// Dismissing without a button (Esc / outside-click) never resolves — same
-// as today's behaviour, where an unhandled dismiss just leaves the confirm
-// closed with nothing done.
+// Promise: resolves true if the user confirmed, false if they clicked No OR
+// dismissed without a button (Esc / outside-click, treated as no so the
+// caller's .then() runs and its closures are released instead of lingering on
+// an unresolved promise).
 export function confirmDelete(title, message, opts) {
   opts = opts || {};
   return new Promise(function (resolve) {

@@ -8,6 +8,7 @@ import { MarqueeController } from './modules/zoneModify_marquee.js';
 import { TransformController } from './modules/zoneModify_transform.js';
 import { M } from '../app/materialize.js';
 import { initFormSelect } from '../lib/formSelect.js';
+import { confirmDelete } from '../lib/confirmDelete.js';
 
 export { html };
 
@@ -365,25 +366,22 @@ export async function mount(ctx) {
         for (let line of lines)
             msg += "<br>- " + line;
 
-        WarpModal.getInstance().open(
+        confirmDelete(
             TR("Are you sure to update the plan?"),
             msg,
-            {
-                buttons: [{id: 1, text: TR("btn.Yes")}, {id: 0, text: TR("btn.No")}],
-                onButtonHook: function(btnId) {
-                    if (btnId != 1) return;
-
-                    Utils.xhr.post(
-                        window.warpGlobals.URLs['plansModifyXHR'],
-                        data,
-                        {toastOnSuccess: false})
-                    .then(() => {
-                        storedFilter = currentFilterState();
-                        window.sessionStorage.setItem('pendingToast', TR('Action successfull.'));
-                        ctx.navigate(returnURL);
-                    });
-                },
+            { yesText: TR("btn.Yes"), noText: TR("btn.No") }
+        ).then((confirmed) => {
+            if (!confirmed) return;
+            Utils.xhr.post(
+                window.warpGlobals.URLs['plansModifyXHR'],
+                data,
+                {toastOnSuccess: false})
+            .then(() => {
+                storedFilter = currentFilterState();
+                window.sessionStorage.setItem('pendingToast', TR('Action successfull.'));
+                ctx.navigate(returnURL);
             });
+        });
     }, {signal: ctx.signal});
 
     seatFactory.on('select', (seat) => {
@@ -584,16 +582,13 @@ export async function mount(ctx) {
 
         let dirty = isDirty();
         if (dirty) {
-            WarpModal.getInstance().open(
+            // Use the shared confirmDelete (Yes/No + Esc/outside-click->false)
+            // instead of a third boolean-id button idiom.
+            confirmDelete(
                 TR("Are you sure?"),
                 TR("All unsaved changes will be lost."),
-                {
-                    buttons: [{id: true, text: TR("btn.Yes")}, {id: false, text: TR("btn.No")}],
-                    onButtonHook: function(btnId) {
-                        if (btnId) pageRet();
-                    }
-                }
-            );
+                { yesText: TR("btn.Yes"), noText: TR("btn.No") }
+            ).then((confirmed) => { if (confirmed) pageRet(); });
         } else {
             pageRet();
         }

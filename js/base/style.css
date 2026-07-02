@@ -727,8 +727,9 @@ nav .dropdown-content li > span {
 /* ---- Outlined fields (.warp-fields) -------------------------------------
    WARP forms use Materialize 2.x's built-in `.outlined` text-field variant
    (bordered rounded box, label notched into the top border). The `.outlined`
-   class is added to every `.warp-fields .input-field` at runtime (base.js, and
-   the reassign builder in zones.js). Only two tweaks over the framework default:
+   class is added to every `.warp-fields .input-field` at runtime (app/main.js
+   at boot and app/router.js on every view mount, plus the reassign builder in
+   zones.js). Only two tweaks over the framework default:
      1. full-column width;
      2. floating the FormSelect label — M2 never floats it (the label sits after
         .select-wrapper, not adjacent to the inner input), so pin it to the

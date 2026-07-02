@@ -4,6 +4,7 @@ import { M } from '../materialize.js';
 import warpDialog from '../dialog.js';
 import noUiSlider from 'nouislider';
 import * as bootstrap from '../bootstrap.js';
+import { initFormSelect } from '../../lib/formSelect.js';
 
 function formatHHMM(seconds) {
   if (seconds >= 24 * 3600) return "23:59";
@@ -51,8 +52,12 @@ export function initPrefs() {
     var time = (loadedPrefs && loadedPrefs.default_time) ? loadedPrefs.default_time : DEFAULT_TIME;
     planSelectEl.value = (loadedPrefs && loadedPrefs.default_plan) ? String(loadedPrefs.default_plan) : "";
     daySelectEl.value = (loadedPrefs && loadedPrefs.default_day) ? loadedPrefs.default_day : "same";
-    M.FormSelect.init(planSelectEl, SELECT_OPTS);
-    M.FormSelect.init(daySelectEl, SELECT_OPTS);
+    // Route through initFormSelect (destroy-then-init) instead of raw
+    // M.FormSelect.init: applyPrefsToUI runs on every prefs load AND every
+    // Save, so re-init without destroy stacked another .select-wrapper on each
+    // call (duplicated "Default plan" / "Default day" dropdown triggers).
+    initFormSelect(planSelectEl, SELECT_OPTS);
+    initFormSelect(daySelectEl, SELECT_OPTS);
     if (slider) slider.set(time);
     if (showSeatNamesEl) showSeatNamesEl.checked = loadedPrefs ? loadedPrefs.zone_show_seat_names : false;
     if (showBookingPreviewEl) showBookingPreviewEl.checked = loadedPrefs ? loadedPrefs.zone_show_booking_preview : false;
@@ -88,15 +93,15 @@ export function initPrefs() {
     applyPrefsToUI();
   }
 
-  M.FormSelect.init(planSelectEl, SELECT_OPTS);
-  M.FormSelect.init(daySelectEl, SELECT_OPTS);
+  initFormSelect(planSelectEl, SELECT_OPTS);
+  initFormSelect(daySelectEl, SELECT_OPTS);
 
   warpDialog(prefModalEl, {
     onOpenStart: function () {
       ensureSlider();
       bootstrap.get().then(function (data) {
         populatePlanOptions(data);
-        M.FormSelect.init(planSelectEl, SELECT_OPTS);
+        initFormSelect(planSelectEl, SELECT_OPTS);
       });
     }
   });

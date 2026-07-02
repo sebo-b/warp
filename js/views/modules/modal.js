@@ -56,6 +56,15 @@ export default function WarpModal() {
 
         this.options = Object.assign({}, WarpModal.default_options, options)
 
+        // Default Ok button is computed here (at open time), not at module
+        // load: modal.js is now pulled into the boot import graph (via
+        // bootstrap.js -> utils.js -> modal.js), and TR isn't defined until
+        // loadI18n() resolves — evaluating it at module-eval time would throw
+        // "TR is not defined" before the app finishes booting.
+        if (!this.options.buttons || !this.options.buttons.length) {
+            this.options.buttons = [{ id: true, text: TR("btn.Ok") }];
+        }
+
         this.options.buttons.forEach(function(b, i) {
             var bElem = this.footerElement.appendChild( document.createElement("a") );
             // First button is the affirmative action (Yes/Ok/Confirm) -> primary
@@ -76,9 +85,9 @@ export default function WarpModal() {
 };
 
 WarpModal.default_options = {
-    buttons: [
-        { id: true, text: TR("btn.Ok") }
-    ]
+    // buttons/text resolved lazily in open() so TR() isn't called at module
+    // load time (see open()).
+    buttons: []
 };
 
 WarpModal.Instance = null;

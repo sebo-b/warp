@@ -29,14 +29,41 @@ function initDropdowns() {
 async function boot() {
   let pendingToast = window.sessionStorage.getItem('pendingToast');
 
-  // In parallel: i18n and the nav/prefs/plan bootstrap payload. Both are
-  // awaited below — the calendar modal reads window.warpGlobals.i18n
-  // synchronously at init, so TR must be ready before initCalendar().
-  await Promise.all([loadI18n(), bootstrap.get()]);
-
+  // DOM-only inits first (dropdowns, theme, triggers): they touch only shell
+  // markup that's already in the DOM, so wiring them before the network awaits
+  // closes the race where a shell .dropdown-trigger painted at first paint
+  // was only wired after boot() resolved two fetches (e2e waited around it).
   initDropdowns();
   initThemeToggle();
   initTriggerClasses();
+
+  // In parallel: i18n and the nav/prefs/plan bootstrap payload. Both are
+  // awaited below — the calendar modal reads window.warpGlobals.i18n
+  // synchronously at init, so TR must be ready before initCalendar().
+  try {
+    await Promise.all([loadI18n(), bootstrap.get()]);
+  } catch (err) {
+    // A transient 500 / DB hiccup / network failure on /xhr/bootstrap or the
+    // i18n JSON at page load would otherwise reject boot() unhandled:
+    // router.start() never runs, #view-root stays empty forever, no spinner,
+    // no retry. Render the same "can't reach the server" view the router uses
+    // for mid-session network failures, with a retry link. (A 401
+    // SESSION_EXPIRED never reaches here — Utils.xhr redirects to login first.)
+    // i18n may not be loaded yet, so use plain text instead of TR().
+    var root = document.getElementById('view-root');
+    if (root) {
+      root.innerHTML =
+        '<div id="view-error" class="view-error">' +
+        "<h5>Can't reach the server.</h5>" +
+        '<div class="view-error-actions" style="margin-top:16px">' +
+        '<a href="' + window.location.pathname + window.location.search + '" class="btn warp-btn-primary">Retry</a>' +
+        '</div></div>';
+    }
+    document.body.dataset.view = 'error';
+    document.body.dataset.viewReady = '';
+    return;
+  }
+
   initPrefs();
   initCalendar();
   initChangePassword();

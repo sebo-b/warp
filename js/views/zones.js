@@ -11,6 +11,8 @@ import { clearFieldError, showFieldError } from '../lib/formDialog.js';
 import { confirmDelete } from '../lib/confirmDelete.js';
 import { iconFormatter, labelFormatter } from '../lib/formatters.js';
 import { lazyCache } from '../lib/lazyCache.js';
+import * as bootstrap from '../app/bootstrap.js';
+import * as nav from '../app/nav.js';
 
 export { html };
 
@@ -19,13 +21,15 @@ export async function mount(ctx) {
 
     var iconFormater = iconFormatter();
 
+    const ZT = window.warpGlobals.zoneTypes;
     var zoneTypeLabels = [
         { label: "---" },
-        { value: 10, label: TR("zoneType.Disabled") },
-        { value: 20, label: TR("zoneType.Enabled") },
-        { value: 30, label: TR("zoneType.PublicView") },
-        { value: 40, label: TR("zoneType.PublicBook") },
+        { value: ZT.disabled, label: TR("zoneType.Disabled") },
+        { value: ZT.enabled, label: TR("zoneType.Enabled") },
+        { value: ZT.publicView, label: TR("zoneType.PublicView") },
+        { value: ZT.publicBook, label: TR("zoneType.PublicBook") },
     ];
+    var ZONE_TYPE_DEFAULT = ZT.disabled;
 
     // labelFormatter returns labels[0].label (the "---") for an unknown value;
     // zone_type is always one of 10/20/30/40, so the fallback never fires — the
@@ -111,7 +115,7 @@ export async function mount(ctx) {
     }
 
     var addEditClicked = function(e, cell) {
-        let args = [null, "", "10", null, 0];
+        let args = [null, "", ZONE_TYPE_DEFAULT, null, 0];
 
         if (typeof(cell) === 'object') {
             let data = cell.getRow().getData();
@@ -145,7 +149,14 @@ export async function mount(ctx) {
                         });
                 }
             })
-            .then(() => table.replaceData())
+            .then(function() {
+                // A zone add/rename/delete changes the nav link set and the
+                // prefs/calendar "Zones to monitor" option list — refresh
+                // /xhr/bootstrap and re-render the nav instead of leaving them
+                // stale for the rest of the session (PLAN_SPA_REFACTOR.md §1.2.1).
+                bootstrap.refresh().then(function() { return nav.render(); });
+                table.replaceData();
+            })
             // Dismissing the dialog (Esc / outside-click on a clean form) rejects
             // the promise — that's a plain cancel, so swallow it.
             .catch(() => {});
@@ -234,7 +245,13 @@ export async function mount(ctx) {
             modalDiv.appendChild(footer);
             root.appendChild(modalDiv);
 
-            let modalInstance = warpDialog(modalDiv);
+            // Remove the modal element from the DOM once its close animation
+            // finishes — via the dialog controller's onCloseEnd hook instead
+            // of a hardcoded 300ms setTimeout (which raced router.js's
+            // replaceChildren if the view unmounted within the window).
+            let modalInstance = warpDialog(modalDiv, {
+                onCloseEnd: function () { modalDiv.remove(); }
+            });
             modalInstance.open();
 
             // Initialize Materialize select (must be after attached to DOM)
@@ -253,9 +270,6 @@ export async function mount(ctx) {
 
             function cleanup() {
                 modalInstance.close();
-                setTimeout(function() {
-                    modalDiv.remove();
-                }, 300);
             }
 
             if (deleteSeatsBtn) {
@@ -337,6 +351,13 @@ export async function mount(ctx) {
     var saveBtn = root.querySelector('#edit_modal_save_btn');
     var deleteBtn = root.querySelector('#edit_modal_delete_btn');
 
+    // Per-open dialog state. Save/Delete listeners are wired ONCE per mount (not
+    // per open) — see plans.js for the bug per-open wiring caused (a second edit
+    // silently lost the save because a stale handler from the first open
+    // resolved/rejected the wrong promise). Handlers read the current open's
+    // args/state from this object instead of a per-open closure.
+    var currentEdit = null;
+
     // Show a hint when the typed group name is new (will be created on save).
     function updateGroupHelper() {
         var v = zoneGroupEl.value.trim();
@@ -375,12 +396,58 @@ export async function mount(ctx) {
 
         var editModal = warpDialog.getInstance(editModalEl);
         if (typeof(editModal) === 'undefined') {
-            editModal = warpDialog(editModalEl);
+            editModal = warpDialog(editModalEl, {
+                onCloseStart: function() {
+                    if (currentEdit && !currentEdit.resolved) currentEdit.reject();
+                }
+            });
+
+            function onClick(e) {
+                if (!currentEdit) return;
+                switch (e.target) {
+                    case saveBtn: {
+                        if (zoneNameEl.value === "") {
+                            showFieldError(errorDiv, errorMsg, TR('Zone name cannot be empty.'));
+                            return;
+                        }
+                        currentEdit.resolved = true;
+                        editModal.close();
+                        currentEdit.resolve({action: 'save', id: currentEdit.id, name: zoneNameEl.value,
+                                 zone_type: parseInt(zoneTypeEl.value),
+                                 zone_group: zoneGroupEl.value || null});
+                        break;
+                    }
+                    case deleteBtn:
+                        if (currentEdit.seatCount > 0) {
+                            // Zone has seats: skip simple confirmation, directly attempt delete
+                            // which will return 409 and trigger the reassignment modal.
+                            currentEdit.resolved = true;
+                            editModal.close();
+                            currentEdit.resolve({action: 'delete', id: currentEdit.id});
+                        } else {
+                            // Zone has no seats: simple confirmation dialog
+                            confirmDelete(
+                                TR("Are you sure to delete zone: %{zone_name}", {zone_name: currentEdit.zoneName}),
+                                TR("This action cannot be undone.")
+                            ).then((confirmed) => {
+                                if (confirmed && currentEdit) {
+                                    currentEdit.resolved = true;
+                                    editModal.close();
+                                    currentEdit.resolve({action: 'delete', id: currentEdit.id});
+                                }
+                            });
+                        }
+                        break;
+                }
+            }
+
+            saveBtn.addEventListener('click', onClick, {signal: ctx.signal});
+            deleteBtn.addEventListener('click', onClick, {signal: ctx.signal});
         }
 
         var zoneName = name || "";
         zoneNameEl.value = zoneName;
-        zoneTypeEl.value = zoneType != null ? String(zoneType) : "10";
+        zoneTypeEl.value = zoneType != null ? String(zoneType) : String(ZONE_TYPE_DEFAULT);
         zoneGroupEl.value = zoneGroup || "";
         zoneGroupEl._warpGroups = [];
         zoneGroupHelperEl.style.display = "none";
@@ -396,54 +463,8 @@ export async function mount(ctx) {
         editModal.open();
 
         return new Promise((resolve, reject) => {
-
-            let resolved = false;
-
-            function onClick(e) {
-                switch (e.target) {
-                    case saveBtn: {
-                        if (zoneNameEl.value === "") {
-                            showFieldError(errorDiv, errorMsg, TR('Zone name cannot be empty.'));
-                            return;
-                        }
-                        resolved = true;
-                        editModal.close();
-                        resolve({action: 'save', id: id, name: zoneNameEl.value,
-                                 zone_type: parseInt(zoneTypeEl.value),
-                                 zone_group: zoneGroupEl.value || null});
-                        break;
-                    }
-                    case deleteBtn:
-                        if (seatCount > 0) {
-                            // Zone has seats: skip simple confirmation, directly attempt delete
-                            // which will return 409 and trigger the reassignment modal.
-                            resolved = true;
-                            editModal.close();
-                            resolve({action: 'delete', id: id});
-                        } else {
-                            // Zone has no seats: simple confirmation dialog
-                            confirmDelete(
-                                TR("Are you sure to delete zone: %{zone_name}", {zone_name: zoneName}),
-                                TR("This action cannot be undone.")
-                            ).then((confirmed) => {
-                                if (confirmed) {
-                                    resolved = true;
-                                    editModal.close();
-                                    resolve({action: 'delete', id: id});
-                                }
-                            });
-                        }
-                        break;
-                }
-            }
-
-            saveBtn.addEventListener('click', onClick, {signal: ctx.signal});
-            deleteBtn.addEventListener('click', onClick, {signal: ctx.signal});
-
-            editModal.options.onCloseStart = function() {
-                if (!resolved)
-                    reject();
-            };
+            currentEdit = { id: id, zoneName: zoneName, seatCount: seatCount || 0,
+                            resolve: resolve, reject: reject, resolved: false, editModal: editModal };
         });
     }
 
