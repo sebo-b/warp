@@ -15,7 +15,7 @@ export async function logIn(page: Page, user: TestUser): Promise<void> {
 /** Assert the browser ended up on a logged-in page (not /login). */
 export async function expectLoggedIn(page: Page): Promise<void> {
   await page.waitForURL((url) => !url.pathname.endsWith('/login'));
-  // #mobile-nav (the side navigation) only exists in base_logged.html.
+  // #mobile-nav (the side navigation) only exists in the logged-in SPA shell (spa.html).
   await expect(page.locator('#mobile-nav')).toBeAttached();
 }
 

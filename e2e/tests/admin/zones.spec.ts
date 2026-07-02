@@ -34,7 +34,7 @@ test.describe('zone assignment', () => {
     await querySql('INSERT INTO zone_assign (zid, login, zone_role) VALUES (1, $1, 20)', ['user3']);
 
     await logIn(page, USER3);
-    const resp = await page.request.get('/plan/1');
+    const resp = await page.request.get('/xhr/plan/getContext/1');
     expect(resp.status()).toBe(200);
   });
 
@@ -130,7 +130,10 @@ test.describe('zone modes (zone_type)', () => {
 
     await logOut(page);
     await logIn(page, USER2);
-    const zoneResp = await page.request.get('/plan/1');
+    // /plan/1 itself always 200s now (it just serves the SPA shell); access
+    // control lives in /xhr/plan/getContext/<pid>, which the client calls on
+    // mount and renders as the #view-error state on failure.
+    const zoneResp = await page.request.get('/xhr/plan/getContext/1');
     expect(zoneResp.status()).toBe(403);
   });
 
@@ -138,7 +141,7 @@ test.describe('zone modes (zone_type)', () => {
     await querySql('UPDATE zone SET zone_type = 10 WHERE id = 1');
 
     await logIn(page, USER1);
-    const resp = await page.request.get('/plan/1');
+    const resp = await page.request.get('/xhr/plan/getContext/1');
     expect(resp.status()).toBe(200);
   });
 
@@ -175,7 +178,7 @@ test.describe('zone modes (zone_type)', () => {
 
     await logOut(page);
     await logIn(page, USER3);
-    const zoneResp = await page.request.get('/plan/3');
+    const zoneResp = await page.request.get('/xhr/plan/getContext/3');
     expect(zoneResp.status()).toBe(200);
   });
 
@@ -223,7 +226,7 @@ test.describe('zone modes (zone_type)', () => {
     await querySql('UPDATE zone SET zone_type = 40 WHERE id = 3');
 
     await logIn(page, USER3);
-    const resp = await page.request.get('/plan/3');
+    const resp = await page.request.get('/xhr/plan/getContext/3');
     expect(resp.status()).toBe(200);
   });
 
@@ -235,7 +238,7 @@ test.describe('zone modes (zone_type)', () => {
     await logOut(page);
 
     await logIn(page, USER2);
-    const resp = await page.request.get('/plan/1');
+    const resp = await page.request.get('/xhr/plan/getContext/1');
     expect(resp.status()).toBe(200);
   });
 
