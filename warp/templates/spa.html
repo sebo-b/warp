@@ -1,5 +1,9 @@
 {% extends 'base.html' %}
 
+{% block bundle %}
+    {% include 'headers/app.html' ignore missing %}
+{% endblock %}
+
 {% block header %}
     {{ super() }}
 
@@ -20,11 +24,6 @@
 
 {% endblock %}
 
-{% block header_final %}
-    {{ super() }}
-    {% include 'headers/app.html' ignore missing %}
-{% endblock %}
-
 {% block overlays %}
     {{ super() }}
 
@@ -32,8 +31,11 @@
 
     <ul class="sidenav" id="mobile-nav">
         {# Bookings + accessible plans: filled client-side by app/nav.js from
-           /xhr/bootstrap (the plan-list query moved off the request path). #}
-        <li id="mobile-nav-dynamic"></li>
+           /xhr/bootstrap (the plan-list query moved off the request path).
+           <template> is a valid script-supporting child of <ul> (unlike a
+           wrapper <li>, which can't safely hold injected <li> siblings) —
+           nav.js inserts the dynamic <li>s right after this marker. #}
+        <template id="mobile-nav-dynamic"></template>
 
         {% if g.isAdmin %}
         <li class="divider"></li>

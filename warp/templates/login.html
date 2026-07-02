@@ -1,5 +1,9 @@
 {% extends 'base.html' %}
 
+{% block bundle %}
+    {% include 'headers/public.html' ignore missing %}
+{% endblock %}
+
 {% block header %}
     {{ super() }}
 

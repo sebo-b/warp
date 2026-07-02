@@ -52,6 +52,7 @@ def spaURLs():
         'login': flask.url_for('auth.login'),
         'distBase': flask.url_for('static', filename='dist/'),
         'bootstrap': flask.url_for('xhr.bootstrap.bootstrap'),
+        'logoSvg': flask.url_for('static', filename='images/logo.svg'),
 
         'planImage': flask.url_for('view.planImage', pid='__PID__'),
         'planApply': flask.url_for('xhr.plan.apply'),
