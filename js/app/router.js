@@ -66,7 +66,12 @@ export async function transition(pathname, search) {
         params: match.params,
         query: parseQuery(search),
         navigate: navigate,
-        signal: controller.signal
+        signal: controller.signal,
+        // route.name/meta let two patterns share one view module (e.g.
+        // /bookings and /bookings/report both load views/bookings.js, which
+        // reads ctx.meta.report to pick its mode).
+        route: match.route.name,
+        meta: match.route.meta || {}
       };
 
       try {

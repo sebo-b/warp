@@ -100,6 +100,7 @@ def spaURLs():
         'bookingsList': flask.url_for('xhr.bookings.list'),
         'bookingsReport': flask.url_for('xhr.bookings.report'),
         'bookingsContext': flask.url_for('xhr.bookings.context'),
+        'excelIcon': flask.url_for('static', filename='images/excel_icon.png'),
     }
 
     if 'auth.change_password' in flask.current_app.view_functions:

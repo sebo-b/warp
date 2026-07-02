@@ -12,6 +12,10 @@ export const routes = [
   { name: 'plans', pattern: '/plans', load: () => import(/* webpackChunkName: "view-plans" */ '../views/plans.js') },
   { name: 'groupAssign', pattern: '/groups/assign/:group_login', load: () => import(/* webpackChunkName: "view-groupAssign" */ '../views/groupAssign.js') },
   { name: 'zoneAssign', pattern: '/zones/assign/:zid', load: () => import(/* webpackChunkName: "view-zoneAssign" */ '../views/zoneAssign.js') },
+  // /bookings and /bookings/report share one module (views/bookings.js);
+  // meta.report tells mount() which mode to render — see PLAN_SPA_REFACTOR.md §2.4.
+  { name: 'bookings', pattern: '/bookings', meta: {report: false}, load: () => import(/* webpackChunkName: "view-bookings" */ '../views/bookings.js') },
+  { name: 'bookingsReport', pattern: '/bookings/report', meta: {report: true}, load: () => import(/* webpackChunkName: "view-bookings" */ '../views/bookings.js') },
 ];
 
 function segs(path) {

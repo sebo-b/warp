@@ -1,10 +1,16 @@
+"use strict";
 
+import html from './html/bookings.html';
 import Utils from './modules/utils.js';
 import WarpModal from './modules/modal.js';
-import {TabulatorFull as Tabulator} from 'tabulator-tables';
-import "./css/tabulator/tabulator.css";
+import { createTable } from '../lib/tablePage.js';
+import { M } from '../app/materialize.js';
 
-document.addEventListener("DOMContentLoaded", function(e) {
+export { html };
+
+export async function mount(ctx) {
+    const root = ctx.root;
+    const report = !!ctx.meta.report;
 
     var dateFilterEditor = function(cell, onRendered, success, cancel, editorParams){
 
@@ -96,18 +102,11 @@ document.addEventListener("DOMContentLoaded", function(e) {
         var fromTS = null, toTS = null;
         var pickerOptions = {
             container: document.body,
-            // Materialize 2.x defaults the calendar to an inline "docked" widget
-            // placed before the input — unusable inside a tiny Tabulator header
-            // cell. 'modal' restores the 1.x full-overlay calendar (opens on
-            // input focus/click; inst.open() is deprecated in 2.x).
             displayPlugin: 'modal',
             autoClose: true,
             showClearBtn: true,
             format: "yyyy-mm-dd",
             onSelect: function(selectedDate) {
-                // 2.x's setSingleDate never writes the input's .value on selection,
-                // so track the chosen timestamp here (per-picker via this.el) and
-                // send the combined {fromTS,toTS} filter.
                 if (this.el === fromDatePicker) {
                     fromTS = selectedDate ? Math.round(selectedDate.getTime()/1000) : null;
                 } else if (this.el === toDatePicker) {
@@ -122,16 +121,10 @@ document.addEventListener("DOMContentLoaded", function(e) {
             pickerOptions.i18n = warpGlobals.i18n.datePicker.i18n_object;
         }
 
-        // See dateFilterEditor: 2.x's Datepicker needs the input attached to the
-        // DOM before init (parentNode access), so defer to Tabulator's onRendered.
         onRendered(function() {
             M.Datepicker.init(fromDatePicker, pickerOptions);
             M.Datepicker.init(toDatePicker, pickerOptions);
 
-            // 2.x's clear button calls setInputValues (which fires a `change` event on
-            // the input) but NOT onSelect, so onSelect alone wouldn't reset the
-            // closure vars. Re-derive each picker's timestamp from its datepicker
-            // instance's `.date` (null when cleared) on input change.
             fromDatePicker.addEventListener('change', function() {
                 var inst = M.Datepicker.getInstance(fromDatePicker);
                 fromTS = (inst && inst.date) ? Math.round(inst.date.getTime()/1000) : null;
@@ -207,7 +200,6 @@ document.addEventListener("DOMContentLoaded", function(e) {
         WarpModal.getInstance().open(TR("Are you sure to delete this booking?"),msg,modalOptions);
     }
 
-
     // Custom header filter for "User name" (non-report view only):
     //   - defaults to the logged-in user's own bookings via an EXACT login
     //     match (immune to name-prefix collisions like "User 1" vs "User 10"),
@@ -216,41 +208,24 @@ document.addEventListener("DOMContentLoaded", function(e) {
     //     already filtered (no unfiltered flash / double load);
     //   - ANY edit the user makes (including clearing) flips it to the regular
     //     starts-with name filter; an empty box then shows everyone.
-    // headerFilterLiveFilter:false disables Tabulator's own keyup/search handler
-    // (which would otherwise submit the raw input string); we drive success()
-    // ourselves and return a wrapper span (Tabulator binds its handlers to the
-    // returned element). The login is read straight from window.warpGlobals, so
-    // the whole feature is local to this editor (no server-side seed needed).
     var userNameFilterEditor = function(cell, onRendered, success, cancel, editorParams) {
         var myLogin = window.warpGlobals['login'] || "";
         var myName = window.warpGlobals['userName'] || "";
 
         var container = document.createElement("span");
         var input = container.appendChild(document.createElement("input"));
-        // type="search" gives the native clear (x) button the other filter
-        // inputs have; headerFilterLiveFilter:false (on the column) keeps
-        // Tabulator's own keyup/search handler off the wrapper span, so we
-        // drive success() from the input's input/search events ourselves.
         input.type = "search";
         input.style.width = "100%";
         input.style.boxSizing = "border-box";
 
-        // If a name filter is already stored (re-render), keep showing it;
-        // otherwise default to showing the login (login-exact mode).
         var v = cell.getValue();
         var inNameMode = (v && typeof v === "object" && typeof v.name === "string");
         input.value = inNameMode ? v.name : (myName || myLogin);
 
         onRendered(function() {
-            // Apply the exact-login default once, at column init (before the
-            // first data load) so the first request is already filtered.
             if (myLogin && !inNameMode) {
                 success({ login: myLogin });
             }
-            // Any edit (incl. clearing via the (x) button) flips to the regular
-            // starts-with name filter; empty value = no filter (show all).
-            // `search` covers the native clear (x) button (and Enter), which
-            // fires `search` rather than `input`.
             var submit = function() { success({ name: input.value }); };
             input.addEventListener("input", submit);
             input.addEventListener("search", submit);
@@ -259,7 +234,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         return container;
     };
 
-    var userNameColumn = window.warpGlobals['report']
+    var userNameColumn = report
         ? {title:TR("User name"), field:"user_name", headerFilter:"input", headerFilterFunc:"starts"}
         : {title:TR("User name"), field:"user_name",
            headerFilter:userNameFilterEditor, headerFilterFunc:function(){},
@@ -274,7 +249,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
     var initialSort = [];
     var initialHeaderFilter = [];
 
-    if (window.warpGlobals['report']) {
+    if (report) {
 
         columns.splice(1,0,
             {title:TR("Login"), field: "login", headerFilter:"input", headerFilterFunc:"starts"}
@@ -293,8 +268,10 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
         // Backend-sourced today in a fixed reference (UTC) (PLAN
         // per_plan_timezone §7) — not browser-local, so the default window
-        // doesn't shift with the admin's timezone.
-        let todayTS = window.warpGlobals.today;
+        // doesn't shift with the admin's timezone. Fetched fresh on every
+        // report mount (a long-lived SPA session can cross midnight).
+        let ctxData = await Utils.xhr.get(window.warpGlobals.URLs['bookingsContext'], {toastOnSuccess: false});
+        let todayTS = ctxData.response.today;
         let twoWeeksAgo = todayTS - 14*24*3600;
 
         initialHeaderFilter.push(
@@ -321,36 +298,20 @@ document.addEventListener("DOMContentLoaded", function(e) {
         );
     }
 
-    var table = new Tabulator("#reportTable", {
-        height: "3000px",   //this will be limited by maxHeight, we need to provide height
-        maxHeight:"100%",   //to make paginationSize work correctly
-        ajaxURL: window.warpGlobals.URLs['bookingsReport'],
+    var table = createTable(root.querySelector('#reportTable'), {
+        ajaxURL: report ? window.warpGlobals.URLs['bookingsReport'] : window.warpGlobals.URLs['bookingsList'],
         index:"id",
-        layout:"fitDataFill",
-        langs: warpGlobals.i18n.tabulatorLangs,
-        columnDefaults:{
-            resizable:true,
-        },
-        pagination:true,
-        paginationMode:"remote",
-        sortMode:"remote",
-        filterMode:"remote",
-        ajaxConfig: "POST",
-        ajaxContentType: "json",
         columns: columns,
         initialSort: initialSort,
         initialHeaderFilter: initialHeaderFilter
-/*        persistence: {
-            sort: true,
-        },
-        persistenceWriterFunc:persistenceWriterFunc,
-        persistenceReaderFunc:persistenceReaderFunc
-*/
     });
 
-    if (window.warpGlobals['report']) {
+    if (report) {
 
-        document.getElementById('export_btn').addEventListener('click', function(e) {
+        root.querySelector('#export_btn_container').style.display = "";
+        root.querySelector('#export_btn_icon').src = window.warpGlobals.URLs['excelIcon'];
+
+        root.querySelector('#export_btn').addEventListener('click', function(e) {
 
             let doExport = function() {
 
@@ -393,7 +354,12 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 doExport();
             }
 
-        });
+        }, {signal: ctx.signal});
     }
 
-});
+    return function unmount() {
+        table.destroy();
+    };
+}
+
+export default { html, mount };
