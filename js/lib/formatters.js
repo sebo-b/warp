@@ -40,6 +40,11 @@ export function userGroupLinkFormatter(urlKey) {
     var data = cell.getData();
     if (!data.isGroup) return cell.getValue();
     var url = window.warpGlobals.URLs[urlKey].replace('__LOGIN__', data.login);
+    // spaURLs is rendered once at shell boot (not per-route), so the "back to
+    // here" query param can't be baked into the URL server-side anymore —
+    // append it from the current location (safe: formatters re-run on every
+    // render, and the view doesn't navigate away without unmounting first).
+    url += '?return=' + encodeURIComponent(window.location.pathname + window.location.search);
     return '<a href="' + url + '" class="userGroupCell">' + cell.getValue() + '</a>';
   };
 }

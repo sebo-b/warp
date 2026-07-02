@@ -37,6 +37,10 @@ export async function mount(ctx) {
     var assignFormatter = function(cell) {
         let login = cell.getRow().getData()['login'];
         let url = window.warpGlobals.URLs['groupAssign'].replace('__LOGIN__', login);
+        // spaURLs is rendered once at shell boot (not per-route), so the
+        // "back to here" query param can't be baked into the URL server-side
+        // anymore — append it from the current location.
+        url += '?return=' + encodeURIComponent(window.location.pathname + window.location.search);
         return '<a href="' + url + '" class="warp-icon-link"><i class="material-icons-outlined warp-icon-edit">manage_accounts</i></a>';
     };
 

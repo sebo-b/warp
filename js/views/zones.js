@@ -291,6 +291,10 @@ export async function mount(ctx) {
         return function(e, cell) {
             let zid = cell.getRow().getData()['id'];
             let url = window.warpGlobals.URLs[targetURL].replace('__ZID__', zid);
+            // spaURLs is rendered once at shell boot (not per-route), so the
+            // "back to here" query param can't be baked into the URL
+            // server-side anymore — append it from the current location.
+            url += '?return=' + encodeURIComponent(window.location.pathname + window.location.search);
             ctx.navigate(url);
         }
     }
