@@ -1,0 +1,114 @@
+<div class="zone_modify_container">
+
+    <div class="zone_modify_map" id="zone_map_container">
+        <img id="zone_map" src="" draggable="false">
+    </div>
+
+    <div class="zone_modify_sidepanel warp-fields">
+        <input type="file" accept="image/jpeg,image/png" id="mapUploadInput" style="display:none">
+
+        <div class="zone_modify_tabs_row">
+            <ul class="tabs" id="plan_modify_tabs">
+                <li class="tab col s4"><a class="active TR" href="#pm-tab-transform">seatEdit.Transform</a></li>
+                <li class="tab col s4"><a class="TR" href="#pm-tab-add">seatEdit.Add mode</a></li>
+                <li class="tab col s4"><a class="TR" href="#pm-tab-map">seatEdit.Map edit</a></li>
+            </ul>
+        </div>
+
+        <div class="zone_modify_scroll">
+            <div id="pm-tab-transform" class="pm-tab-content">
+                <p class="pm-tab-info TR">seatEdit.Transform hint</p>
+            </div>
+
+            <div id="pm-tab-add" class="pm-tab-content">
+                <p class="pm-tab-info TR">seatEdit.Add mode hint</p>
+
+                <div id="add_seat_zone_selector">
+                    <div class="input-field">
+                        <select id="add_seat_zone">
+                        </select>
+                        <label class="TR">seatEdit.Zone for new seats</label>
+                    </div>
+                </div>
+
+                <div id="add_seat_zone_error" style="display: none; color: red; margin-top: 8px; font-size: 0.9em;">
+                    <span class="TR">You must create a zone before adding seats.</span>
+                </div>
+            </div>
+
+            <div id="pm-tab-map" class="pm-tab-content">
+                <p class="pm-tab-info TR">seatEdit.Map edit hint</p>
+
+                <div class="zone_modify_sidepanel_top">
+                    <a class="waves-effect waves-light btn warp-btn-primary TR" id="chooseImgBtn">btn.Upload map</a>
+                </div>
+
+                <div class="input-field">
+                    <select id="map_filter_preset">
+                    </select>
+                    <label class="TR">seatEdit.Map option</label>
+                </div>
+
+                <p class="pm-tab-info pm-light-only warp-text-danger TR">seatEdit.Map filter hint</p>
+
+                <div class="range-field">
+                    <label for="filter_invert" class="TR">seatEdit.Filter invert</label>
+                    <input type="range" id="filter_invert" min="0" max="100" value="0">
+                </div>
+                <div class="range-field">
+                    <label for="filter_grayscale" class="TR">seatEdit.Filter grayscale</label>
+                    <input type="range" id="filter_grayscale" min="0" max="100" value="0">
+                </div>
+                <div class="range-field">
+                    <label for="filter_sepia" class="TR">seatEdit.Filter sepia</label>
+                    <input type="range" id="filter_sepia" min="0" max="100" value="0">
+                </div>
+                <div class="range-field">
+                    <label for="filter_saturate" class="TR">seatEdit.Filter saturate</label>
+                    <input type="range" id="filter_saturate" min="0" max="200" value="100">
+                </div>
+                <div class="range-field">
+                    <label for="filter_hue" class="TR">seatEdit.Filter hue-rotate</label>
+                    <input type="range" id="filter_hue" min="0" max="360" value="0">
+                </div>
+                <div class="range-field">
+                    <label for="filter_brightness" class="TR">seatEdit.Filter brightness</label>
+                    <input type="range" id="filter_brightness" min="0" max="200" value="100">
+                </div>
+                <div class="range-field">
+                    <label for="filter_contrast" class="TR">seatEdit.Filter contrast</label>
+                    <input type="range" id="filter_contrast" min="0" max="200" value="100">
+                </div>
+            </div>
+
+            <div id="seat_edit_panel" style="visibility: hidden; flex: none;">
+                <div class="input-field">
+                    <input id="seat_name" type="text">
+                    <label for="seat_name" class="TR">seatEdit.Seat name</label>
+                </div>
+                <div class="input-field">
+                    <input id="seat_x" type="number" min="0">
+                    <label for="seat_x" class="TR">seatEdit.X</label>
+                </div>
+                <div class="input-field">
+                    <input id="seat_y" type="number" min="0">
+                    <label for="seat_y" class="TR">seatEdit.Y</label>
+                </div>
+                <div class="input-field">
+                    <select id="seat_zone">
+                    </select>
+                    <label class="TR">seatEdit.Zone</label>
+                </div>
+                <div class="input-field center-align">
+                    <a class="waves-effect btn-flat warp-btn-flat-danger TR" id="seat_delete_btn">btn.Delete</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="zone_modify_footer">
+            <a class="waves-effect btn-flat TR" id="cancelBtn">btn.Cancel</a>
+            <a class="waves-effect waves-light btn warp-btn-primary disabled TR" id="saveBtn">btn.Save</a>
+        </div>
+    </div>
+
+</div>

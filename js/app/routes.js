@@ -17,6 +17,7 @@ export const routes = [
   { name: 'bookings', pattern: '/bookings', meta: {report: false}, load: () => import(/* webpackChunkName: "view-bookings" */ '../views/bookings.js') },
   { name: 'bookingsReport', pattern: '/bookings/report', meta: {report: true}, load: () => import(/* webpackChunkName: "view-bookings" */ '../views/bookings.js') },
   { name: 'plan', pattern: '/plan/:pid', load: () => import(/* webpackChunkName: "view-plan" */ '../views/plan.js') },
+  { name: 'planModify', pattern: '/plans/modify/:pid', load: () => import(/* webpackChunkName: "view-planModify" */ '../views/planModify.js') },
 ];
 
 function segs(path) {
