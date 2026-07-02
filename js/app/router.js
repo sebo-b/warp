@@ -1,0 +1,239 @@
+'use strict';
+
+// Hand-rolled History-API router. Handles view transitions (spinner, unmount/
+// mount lifecycle, error views), same-origin link interception, and popstate.
+// See PLAN_SPA_REFACTOR.md §2.2 for the transition-order contract each view
+// module must honor: default-export { html, async mount(ctx) -> unmount }.
+
+import spinner from './spinner.js';
+import { M } from './materialize.js';
+import { matchRoute, basePath } from './routes.js';
+import * as nav from './nav.js';
+
+let currentUnmount = null;
+let currentController = null;
+let transitionSeq = 0;
+
+function renderErrorView(root, kind) {
+  var title, action = '';
+  if (kind === 'network') {
+    // Server unreachable mid-session (a context/bootstrap XHR failed at the
+    // network layer, not an HTTP error). Don't call it "not found" — offer a
+    // retry that re-runs this transition once the server is back.
+    title = "Can't reach the server.";
+    action = '<a href="' + window.location.pathname + window.location.search +
+             '" class="btn warp-btn-primary TR">Retry</a>';
+  } else if (kind === 'forbidden') {
+    title = 'You do not have access to this page.';
+  } else if (kind === 'server') {
+    title = 'Something went wrong.';
+  } else { // 'notfound'
+    title = 'Page not found.';
+  }
+  root.innerHTML =
+    '<div id="view-error" class="view-error">' +
+    '<h5 class="TR">' + title + '</h5>' +
+    (action ? '<div class="view-error-actions" style="margin-top:16px">' + action + '</div>' : '') +
+    '</div>';
+  if (window.TR) window.TR.updateDOM(root);
+}
+
+function parseQuery(search) {
+  var query = {};
+  new URLSearchParams(search).forEach(function (v, k) { query[k] = v; });
+  return query;
+}
+
+export async function transition(pathname, search) {
+  var seq = ++transitionSeq;
+  var root = document.getElementById('view-root');
+
+  spinner.acquire();
+  delete document.body.dataset.viewReady;
+
+  try {
+    // 2. Await the previous view's unmount, then clear the mount point.
+    // Null the handle BEFORE awaiting it: two rapid navigations could both
+    // observe a non-null currentUnmount and double-invoke the same unmount
+    // (double table.destroy()/om.destroy()/BookAs.reset()), where the second
+    // throw is swallowed by the catch below and any teardown after it is
+    // silently skipped (leaked observers/sliders across the navigation).
+    var prevUnmount = currentUnmount;
+    currentUnmount = null;
+    if (typeof prevUnmount === 'function') {
+      try { await prevUnmount(); } catch (e) { /* a broken unmount must not wedge navigation */ }
+    }
+    if (currentController) currentController.abort();
+    currentController = null;
+    if (seq !== transitionSeq) return; // superseded by a newer navigation
+    root.replaceChildren();
+
+    var match;
+    try {
+      match = matchRoute(pathname);
+    } catch (e) {
+      // decodeURIComponent throws URIError on a malformed %-encoded path —
+      // treat it as not-found rather than crashing the transition.
+      match = null;
+    }
+
+    if (!match) {
+      renderErrorView(root, 'notfound');
+      document.body.dataset.view = 'error';
+    } else {
+      // 3. Dynamic-import the view chunk, mount its markup, translate, mount().
+      // The chunk load and the mount share one catch: a rejected import()
+      // (redeploy swapped content-hashed chunks mid-session, or a transient
+      // network failure) is a "can't reach the server" condition, not a
+      // 404 — and it must not leave a blank #view-root after replaceChildren()
+      // already cleared the previous view.
+      var view;
+      try {
+        view = await match.route.load();
+      } catch (loadErr) {
+        if (seq !== transitionSeq) return;
+        renderErrorView(root, 'network');
+        document.body.dataset.view = 'error';
+        return;
+      }
+      if (seq !== transitionSeq) return;
+
+      root.innerHTML = view.html || '';
+      if (window.TR) window.TR.updateDOM(root);
+      // Apply the same .outlined text-field variant + placeholder=" " seeding
+      // the shell got at boot (main.js) — but the boot scan ran before this
+      // view fragment was in the DOM, so without re-applying it here every
+      // view-mounted input/select would render in Materialize's default
+      // (filled) style with broken label-float. Idempotent: already-outlined /
+      // already-placeholdered elements are skipped.
+      root.querySelectorAll('.warp-fields .input-field:not(.chips)').forEach(function (el) {
+        el.classList.add('outlined');
+      });
+      M.updateTextFields();
+
+      var controller = new AbortController();
+      currentController = controller;
+
+      var ctx = {
+        root: root,
+        params: match.params,
+        query: parseQuery(search),
+        navigate: navigate,
+        signal: controller.signal,
+        // route.name/meta let two patterns share one view module (e.g.
+        // /bookings and /bookings/report both load views/bookings.js, which
+        // reads ctx.meta.report to pick its mode).
+        route: match.route.name,
+        meta: match.route.meta || {}
+      };
+
+      try {
+        var unmount = await view.mount(ctx);
+        if (seq !== transitionSeq) {
+          // Superseded while mount() was in flight (e.g. plan A -> B -> C with
+          // a slow getContext): the just-returned unmount is NOT assigned to
+          // currentUnmount (the seq check below would skip it), so without
+          // invoking it here B's OfficeMap listeners/theme observer leak
+          // permanently and its PlanUserData/BookAs singletons stay init'd,
+          // then C's mount throws "already initialized" -> "Page not found".
+          // Tear B down now so C mounts clean.
+          currentController = null;
+          if (typeof unmount === 'function') {
+            try { await unmount(); } catch (e) { /* best-effort teardown */ }
+          }
+          return;
+        }
+        currentUnmount = typeof unmount === 'function' ? unmount : null;
+        document.body.dataset.view = match.route.name;
+      } catch (err) {
+        // 5. mount() rejected — map the rejection to the right client error
+        // view (the SPA's replacement for the old server-side 403/404 on deep
+        // links). A network failure (server down mid-session) is its own case,
+        // distinct from a 403/404 HTTP response.
+        if (seq !== transitionSeq) return;
+        root.replaceChildren();
+        var kind;
+        if (err && err.network) kind = 'network';
+        else if (err && err.status === 403) kind = 'forbidden';
+        else if (err && err.status === 404) kind = 'notfound';
+        else if (err && err.status === 500) kind = 'server';
+        else kind = 'notfound';
+        renderErrorView(root, kind);
+        document.body.dataset.view = 'error';
+      }
+    }
+  } finally {
+    // acquire()/release() must stay balanced per transition() call regardless
+    // of staleness (a mount() that calls ctx.navigate() without awaiting it —
+    // e.g. the index -> default-plan redirect — starts a nested transition
+    // before this one settles; both hold a spinner claim and must each release
+    // exactly once, or the spinner gets stuck on). Only the dataset/event side
+    // effects that describe "which view is showing" are guarded by seq, so a
+    // superseded transition doesn't stomp the newer one's result.
+    spinner.release();
+    if (seq === transitionSeq) {
+      document.body.dataset.viewReady = '';
+      nav.setActive();
+      document.dispatchEvent(new CustomEvent('warp:view-ready', { detail: { view: document.body.dataset.view } }));
+    }
+  }
+}
+
+export function navigate(path, opts) {
+  opts = opts || {};
+  var url = new URL(path, window.location.origin);
+  // Views call navigate() with route-relative paths ('/plan/1'), while link
+  // interception passes already-prefixed pathnames (a.pathname under a mount
+  // includes the prefix). Prepend the base path only when the path isn't
+  // already under it, so both forms resolve correctly under a reverse-proxy
+  // mount and are a no-op at root (basePath === '').
+  if (basePath && url.pathname.indexOf(basePath + '/') === 0) {
+    // already prefixed (link interception) — leave as-is
+  } else if (basePath && url.pathname !== basePath) {
+    url.pathname = basePath + url.pathname;
+  }
+  if (opts.replace) {
+    window.history.replaceState(null, '', url);
+  } else {
+    window.history.pushState(null, '', url);
+  }
+  return transition(url.pathname, url.search);
+}
+
+function isPlainLeftClick(ev) {
+  return !ev.defaultPrevented && ev.button === 0 &&
+    !ev.metaKey && !ev.ctrlKey && !ev.shiftKey && !ev.altKey;
+}
+
+function initLinkInterception() {
+  document.addEventListener('click', function (ev) {
+    if (!isPlainLeftClick(ev)) return;
+    var a = ev.target.closest && ev.target.closest('a[href]');
+    if (!a) return;
+
+    var hrefAttr = a.getAttribute('href');
+    // Hash-only hrefs are modal triggers / dropdown/collapsible affordances
+    // (triggers.js owns those) — never routes.
+    if (!hrefAttr || hrefAttr.charAt(0) === '#') return;
+    if (a.target && a.target !== '' && a.target !== '_self') return;
+    if (a.hasAttribute('download')) return;
+    if (a.origin !== window.location.origin) return;
+    // Only intercept paths that resolve to a registered SPA route; everything
+    // else (server-rendered routes like /logout, /plan/image/<pid>, login,
+    // mailto:, …) falls through to a normal full-page navigation.
+    if (!matchRoute(a.pathname)) return;
+
+    ev.preventDefault();
+    navigate(a.pathname + a.search);
+  });
+}
+
+export function start() {
+  initLinkInterception();
+  window.addEventListener('popstate', function () {
+    transition(window.location.pathname, window.location.search);
+  });
+  return transition(window.location.pathname, window.location.search);
+}
+
+export default { start, navigate, transition };

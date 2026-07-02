@@ -1,8 +1,17 @@
 import type { Page, APIResponse } from '@playwright/test';
 import { expect } from '@playwright/test';
+import { waitForViewReady } from './spa';
 
-/** Open the desktop user-menu dropdown (the person icon). */
+/** Open the desktop user-menu dropdown (the person icon).
+ *
+ *  Waits for the SPA shell to finish booting first: the dropdown-trigger's
+ *  click handler is attached in boot()'s initDropdowns(), which runs AFTER
+ *  #mobile-nav is in the DOM. Without this, a click landing before init can
+ *  race and the dropdown never opens — the intermittent "#user_menu_dropdown
+ *  is hidden" flake. Idempotent: if the SPA is already ready this returns at
+ *  once. */
 export async function openUserMenu(page: Page): Promise<void> {
+  await waitForViewReady(page);
   await page.locator('.dropdown-trigger[data-target="user_menu_dropdown"]').click();
   await expect(page.locator('#user_menu_dropdown')).toBeVisible();
 }

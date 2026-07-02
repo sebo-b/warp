@@ -82,6 +82,19 @@ const COVERED_ENDPOINTS: ReadonlySet<string> = new Set([
   // xhr — prefs & calendar settings
   '/xhr/prefs',
   '/xhr/calendar',
+
+  // xhr — SPA shell bootstrap (hit by every page load once logged in)
+  '/xhr/bootstrap',
+
+  // xhr — SPA per-view context (group/zone name lookup for the assign views)
+  '/xhr/groups/info/<login>',
+  '/xhr/zones/info/<int:zid>',
+
+  // xhr — SPA per-view context (bookings/report default filter window)
+  '/xhr/bookings/context',
+
+  // xhr — SPA per-view context (plan calendar grid, dark filter, role flags)
+  '/xhr/plan/getContext/<int:pid>',
 ]);
 
 test('all registered endpoints are covered by e2e tests', async ({ request }) => {

@@ -58,6 +58,19 @@ npm run report           # open last HTML report
   import `test` and `expect` from `../fixtures`, never from
   `@playwright/test`**, or your test will inherit whatever data the previous
   test left behind.
+- **SPA navigation** (`helpers/spa.ts`): the app is a single-page app with a
+  hand-rolled History-API router (`js/app/router.js`). After a client-side
+  navigation (nav-link click, `ctx.navigate()` from a saved form, …) there is no
+  real page load, so `waitForLoadState('networkidle')` is meaningless. Use
+  `waitForViewReady(page, view?)` instead — it asserts `body[data-view-ready]`
+  (set at the end of every transition) and optionally the view name
+  (`body[data-view="users"]`, …, or `"error"` for the client error view). A
+  deep link whose mount-time context XHR fails (403/404/network) renders the
+  `#view-error` view instead of a server error; assert that with
+  `waitForViewReady(page, 'error')` + `expect(page.locator('#view-error'))`.
+  Direct `page.goto()` still does a real page load, so most existing
+  `networkidle` uses on those stay fine — only replace the ones following a
+  client-side nav.
 - **Virtual time** (`helpers/debug.ts`): `setTimeOffset`/`advanceDays` shift
   the server clock through the debug-only `/debug/set_time_offset` endpoint.
   The offset is process-global flask state — the fixture resets it before each

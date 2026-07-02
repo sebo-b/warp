@@ -1,231 +1,121 @@
 "use strict";
 
+import html from './html/zoneAssign.html';
 import Utils from './modules/utils.js';
-import WarpModal from './modules/modal.js';
+import { userTypeFormatter, userGroupLinkFormatter, iconFormatter, labelFormatter } from '../lib/formatters.js';
+import { createTable } from '../lib/tablePage.js';
+import { confirmDelete } from '../lib/confirmDelete.js';
+import { safeReturn } from '../app/routes.js';
 
-import {TabulatorFull as Tabulator} from 'tabulator-tables';
-import "./css/tabulator/tabulator.css";
+export { html };
 
-document.addEventListener("DOMContentLoaded", function(e) {
+export async function mount(ctx) {
+    const root = ctx.root;
+    const zid = parseInt(ctx.params.zid, 10);
 
-    var titleEl = document.getElementById('zone_assign_title_text');
-    if (titleEl) {
-        titleEl.textContent = TR('Users assigned to: %{zone_name}', {zone_name: window.warpGlobals.zoneName});
-    }
+    // The old server-side zone-name lookup (view.zoneAssign, dropped in
+    // WP1) — a 404/403 here propagates out of mount() and router.js renders
+    // the client #view-error state, same as the deep-link case used to.
+    const info = await Utils.xhr.get(
+        window.warpGlobals.URLs['zoneInfo'].replace('__ZID__', String(zid)),
+        { toastOnSuccess: false, errorOnFailure: false });
+    const zoneName = info.response.name;
 
-    var table;
+    root.querySelector('#zone_assign_title_text').textContent = TR('Users assigned to: %{zone_name}', {zone_name: zoneName});
 
+    const returnURL = safeReturn(ctx.query.return, window.warpGlobals.URLs['zones']);
+    root.querySelector('#zone_assign_return_link').setAttribute('href', returnURL);
+
+    const ZR = window.warpGlobals.zoneRoles;
     let zoneRoles = [
         {label: "---" },
-        {label: TR("zoneRoles.ZoneAdmin"), value: 10 },
-        {label: TR("zoneRoles.User"), value: 20 },
-        {label: TR("zoneRoles.Viewer"), value: 30 }
+        {label: TR("zoneRoles.ZoneAdmin"), value: ZR.admin },
+        {label: TR("zoneRoles.User"), value: ZR.user },
+        {label: TR("zoneRoles.Viewer"), value: ZR.viewer }
     ];
-    let defaultZoneRole = 20;
+    let defaultZoneRole = ZR.user;
+    const zoneRoleFormatter = labelFormatter(zoneRoles);
 
-    var zoneRoleFormatter = function(cell, formatterParams) {
-        let value = cell.getValue();
-        for (let i of zoneRoles) {
-            if (i['value'] == value)
-                return i['label'];
-        }
-        return zoneRoles[0]['label'];
-    }
-
-    var iconFormater = function(cell, formatterParams, onRendered) {
-        var icon = formatterParams.icon || "warning";
-        var colorClass = formatterParams.colorClass || "";
-        return '<i class="material-icons '+colorClass+'">'+icon+'</i>';
-    }
-
-    var userGroupFormatter = function(cell, formatterParams, onRendered) {
-        let data = cell.getData();
-        let isGroup = data['isGroup'];
-        if (!isGroup)
-            return cell.getValue();
-
-        let url = window.warpGlobals.URLs['groupAssign'].replace('__LOGIN__',data['login']);
-        return '<a href="'+url+'" class="userGroupCell">'+cell.getValue()+"</a>";
-    }
-
-    var userTypeFormater = function(cell, formatterParams, onRendered) {
-        let isGroup = cell.getRow().getData()['isGroup'];
-
-        if (isGroup)
-            return '<i class="material-icons">group</i>';
-        else
-            return '<i class="material-icons">person</i>';
-    }
-
-    var deleteClicked = function(e,cell) {
-
+    function deleteClicked(e, cell) {
         let cellData = cell.getRow().getData();
-
-        WarpModal.getInstance().open(
+        confirmDelete(
             TR("Are you sure?"),
-            TR("Are you sure to unassign %{user} from the zone?",{user:cellData['name']}),
-            {
-                buttons: [ {id: 1, text: TR("btn.Yes")}, {id: 0, text: TR("btn.No")} ],
-                onButtonHook: function(buttonId) {
-                    if (buttonId != 1)
-                        return;
-
-                    let payload = {
-                        zid: window.warpGlobals.zid,
-                        remove: [ cellData['login'] ] };
-                    Utils.xhr.post(window.warpGlobals.URLs['zoneAssign'],payload)
-                        .then( () => {table.replaceData();})
-                }
-            }
-        );
+            TR("Are you sure to unassign %{user} from the zone?", {user: cellData['name']})
+        ).then((confirmed) => {
+            if (!confirmed) return;
+            let payload = { zid: zid, remove: [cellData['login']] };
+            Utils.xhr.post(window.warpGlobals.URLs['zoneAssignXHR'], payload)
+                .then(() => { table.replaceData(); });
+        });
     }
 
-    var zoneRoleChanged = function(cell) {
+    function zoneRoleChanged(cell) {
         let payload = {
-            zid: window.warpGlobals.zid,
-            change: [{
-                login: cell.getData()['login'],
-                role: cell.getValue()
-            }]
+            zid: zid,
+            change: [{ login: cell.getData()['login'], role: cell.getValue() }]
         };
-        Utils.xhr.post(window.warpGlobals.URLs['zoneAssign'], payload);
+        Utils.xhr.post(window.warpGlobals.URLs['zoneAssignXHR'], payload);
     }
 
-    table = new Tabulator("#zone_assignees_table", {
-        height: "2000px",   //this will be limited by maxHeight, we need to provide height
-        maxHeight:"100%",   //to make paginationSize work correctly
-        langs: warpGlobals.i18n.tabulatorLangs,
+    var table = createTable(root.querySelector('#zone_assignees_table'), {
+        height: "2000px",
         ajaxURL: window.warpGlobals.URLs['zoneMembers'],
-        ajaxParams:{zid:window.warpGlobals.zid},
-        index:"login",
-        layout:"fitDataFill",
-        columnDefaults:{
-            resizable:true,
-        },
-        pagination:true,
-        paginationMode:"remote",
-        sortMode:"remote",
-        filterMode:"remote",
-        ajaxConfig: "POST",
-        ajaxContentType: "json",
+        ajaxParams: {zid: zid},
+        index: "login",
         columns: [
-            {formatter:iconFormater, formatterParams:{icon:"person_remove",colorClass:"warp-icon-danger"}, width:40, hozAlign:"center", cellClick:deleteClicked, headerSort:false},
-            {title:TR("Login"), field: "login", formatter:userGroupFormatter, headerFilter:"input", headerFilterFunc:"starts"},
-            {title:TR("User/group name"), field: "name", formatter:userGroupFormatter, headerFilter:"input", headerFilterFunc:"starts"},
+            {formatter: iconFormatter({icon: "person_remove", colorClass: "warp-icon-danger", iconClass: "material-icons"}), width: 40, hozAlign: "center", cellClick: deleteClicked, headerSort: false},
+            {title: TR("Login"), field: "login", formatter: userGroupLinkFormatter('groupAssign'), headerFilter: "input", headerFilterFunc: "starts"},
+            {title: TR("User/group name"), field: "name", formatter: userGroupLinkFormatter('groupAssign'), headerFilter: "input", headerFilterFunc: "starts"},
             {
-                title:TR("Zone role"),
+                title: TR("Zone role"),
                 field: "zone_role",
-                headerFilter:Utils.makeSelect(zoneRoles), headerFilterFunc:"=",
-                editor:Utils.makeSelect(zoneRoles),
-                formatter:zoneRoleFormatter
+                headerFilter: Utils.makeSelect(zoneRoles), headerFilterFunc: "=",
+                editor: Utils.makeSelect(zoneRoles),
+                formatter: zoneRoleFormatter
             },
-            {formatter:userTypeFormater, width:40, hozAlign:"center", headerSort:false},
+            {formatter: userTypeFormatter, width: 40, hozAlign: "center", headerSort: false},
         ],
         initialSort: [
-            {column:"login", dir:"asc"},
-            {column:"name", dir:"asc"},
-            {column:"zone_role", dir:"asc"}
+            {column: "login", dir: "asc"},
+            {column: "name", dir: "asc"},
+            {column: "zone_role", dir: "asc"}
         ]
     });
 
     table.on('cellEdited', zoneRoleChanged);
 
-    var assignToZoneBtn = document.getElementById('assign_to_zone_btn');
-    var assignToZoneModalEl = document.getElementById('assign_to_zone_modal');
-    var assignToZoneModalHeader = document.getElementById('assign_to_zone_modal_header');
-    var assignToZoneModaAutocompleteEl = document.getElementById('assign_to_zone_autocomplete');
+    var assignToZoneBtn = root.querySelector('#assign_to_zone_btn');
 
-    let assignToZoneTable;
-
-    assignToZoneBtn.addEventListener('click', function(e) {
-
-        let assignToZoneModal = warpDialog.getInstance(assignToZoneModalEl);
-
-        let showModal = function() {
-            assignToZoneTable.clearData();
-            assignToZoneModal.open();
-        }
-
-        let initModal = function(usersData) {
-
-            assignToZoneModal = warpDialog(assignToZoneModalEl);
-            if (assignToZoneModalHeader) {
-                assignToZoneModalHeader.textContent = TR("Assign to zone: %{zone_name}", {zone_name: window.warpGlobals.zoneName});
-            }
-
-            let assignToZoneTableRemoveClicked = function(e,cell) {
-                cell.getRow().delete();
-            }
-
-            document.getElementById('assign_to_zone_modal_addbtn').addEventListener('click', function(e) {
-
-                    let payload = {
-                        zid: window.warpGlobals.zid,
-                        change: assignToZoneTable.getData().map(
-                            (a) => ({'login': a['login'], 'role': a['zone_role']}) )
-                    }
-
-                    Utils.xhr.post(window.warpGlobals.URLs['zoneAssign'],payload)
-                         .then( () => {table.replaceData();})
-            });
-
-            assignToZoneTable = new Tabulator("#assign_to_zone_table", {
-                height: "200px",
-                maxHeight:"100%",
-                index:"login",
-                layout:"fitDataFill",
-                headerVisible: false,
-                columns: [
-                    {formatter:iconFormater, formatterParams:{icon:"disabled_by_default",colorClass:"warp-icon-danger"}, width:40, hozAlign:"center", cellClick:assignToZoneTableRemoveClicked},
-                    {field: "name"},
-                    {field: "zone_role", editor:Utils.makeSelect(zoneRoles), formatter:zoneRoleFormatter},
-                ],
-                initialSort: [
-                    {column:"name", dir:"asc"}
-                ]
-            });
-
-            let autocompleteData = [];
-            for (let i of usersData) {
-                let label = Utils.makeUserStr(i['login'], i['name']);
-                autocompleteData.push({ id: label, text: label });
-            }
-
-            let onAutocomplete = function(selectedLabel) {
-                var u = Utils.makeUserStrRev(selectedLabel);
-                assignToZoneTable.updateOrAddData([{"login": u[0],"name": u[1], "zone_role": defaultZoneRole}]);
-                assignToZoneModaAutocompleteEl.value = "";
-                assignToZoneModaAutocompleteEl.focus();
-            }
-
-            M.Autocomplete.init(assignToZoneModaAutocompleteEl,{
-                data: autocompleteData,
-                dropdownOptions: {
-                    constrainWidth: true,
-                    container: assignToZoneModaAutocompleteEl.closest('dialog') || document.body
-                },
-                minLength: 2,
-                limit: 10,
-                onAutocomplete: onAutocomplete
-            });
-        }
-
-        if (typeof(assignToZoneModal) == 'undefined') {
-
-            Utils.xhr.post(
-                window.warpGlobals.URLs['usersList'],
-                {},
-                {toastOnSuccess: false})
-            .then( function(value) {
-                initModal(value.response['data']);
-                showModal();
-            });
-        }
-        else {
-            showModal();
+    let userPicker = createUserPicker({
+        btnEl: assignToZoneBtn,
+        modalEl: root.querySelector('#assign_to_zone_modal'),
+        headerEl: root.querySelector('#assign_to_zone_modal_header'),
+        autocompleteEl: root.querySelector('#assign_to_zone_autocomplete'),
+        tableEl: root.querySelector('#assign_to_zone_table'),
+        addBtnEl: root.querySelector('#assign_to_zone_modal_addbtn'),
+        dropdownContainer: root,
+        titleText: TR("Assign to zone: %{zone_name}", {zone_name: zoneName}),
+        signal: ctx.signal,
+        columns: [
+            {formatter: iconFormatter({icon: "disabled_by_default", colorClass: "warp-icon-danger", iconClass: "material-icons"}), width: 40, hozAlign: "center", cellClick: function (e, cell) { cell.getRow().delete(); }},
+            {field: "name"},
+            {field: "zone_role", editor: Utils.makeSelect(zoneRoles), formatter: zoneRoleFormatter},
+        ],
+        rowFromLogin: function (login, name) { return { login: login, name: name, zone_role: defaultZoneRole }; },
+        onAdd: function (rows) {
+            Utils.xhr.post(window.warpGlobals.URLs['zoneAssignXHR'], {
+                zid: zid,
+                change: rows.map(function (a) { return { login: a['login'], role: a['zone_role'] }; })
+            }).then(function () { table.replaceData(); });
         }
     });
 
+    assignToZoneBtn.addEventListener('click', function () { userPicker.open(); }, {signal: ctx.signal});
 
-});
+    return function unmount() {
+        table.destroy();
+        userPicker.destroy();
+    };
+}
 
+export default { html, mount };

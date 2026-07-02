@@ -16,6 +16,8 @@ RUN npm ci
 # build
 COPY js/views/ views/
 COPY js/base/ base/
+COPY js/app/ app/
+COPY js/lib/ lib/
 RUN npm run build
 
 # copy warp and build it as a module

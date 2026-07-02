@@ -205,7 +205,7 @@ test.describe('plan management', () => {
 
   test('plan view page loads for accessible user', async ({ page }) => {
     await logIn(page, USER1);
-    const resp = await page.request.get('/plan/1');
+    const resp = await page.request.get('/xhr/plan/getContext/1');
     expect(resp.status()).toBe(200);
   });
 

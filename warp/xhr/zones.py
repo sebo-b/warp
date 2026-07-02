@@ -74,6 +74,19 @@ def zoneNames():
     return flask.jsonify([r['name'] for r in rows.iterator()])
 
 
+@bp.route("info/<int:zid>", endpoint='info', methods=["GET"])
+def info(zid):
+    """{id, name} for a single zone — the SPA's replacement for the server-side
+    zone-name lookup view.zoneAssign used to do before the refactor (the client
+    renders the assign view and calls this for the title)."""
+    if not flask.g.isAdmin:
+        flask.abort(403)
+    zone = Zone.select(Zone.id, Zone.name).where(Zone.id == zid).first()
+    if zone is None:
+        flask.abort(404)
+    return {"id": zone['id'], "name": zone['name']}
+
+
 deleteSchema = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",

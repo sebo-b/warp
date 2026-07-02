@@ -60,6 +60,20 @@ PlanUserData.prototype.getData = function() {
     return this.data;
 }
 
+// Clears loaded data so init() can reload it on a fresh SPA mount (the plan
+// view's unmount() calls this). Deliberately keeps this.listeners — bookas.js
+// wires BookAs to the 'load' event once, at module-import time, against this
+// same singleton instance; replacing the instance instead of resetting it
+// would orphan that wiring.
+// Bumps the init generation so an in-flight PlanUserData.init() from a previous
+// mount drops its response instead of installing the old plan's user list into
+// the new mount's singleton (the plan A -> plan B fast-switch race).
+var initGen = 0;
+PlanUserData.prototype.reset = function() {
+    this.__data = null;
+    initGen++;
+}
+
 PlanUserData.prototype.formatedIterator = function*() {
 
     for (let login in this.data) {
@@ -106,10 +120,17 @@ PlanUserData.prototype.on = function (type,listener) {
 
 PlanUserData.init = function() {
 
+    // Generation token: a newer init() or a reset() (mount unmount) invalidates
+    // this call, so a stale getUsers response from a previous plan can't poison
+    // the current mount's singleton (and can't throw "already initialized" as an
+    // unhandled rejection when the newer mount already installed its data).
+    var gen = ++initGen;
     Utils.xhr.get(
         window.warpGlobals.URLs['planGetUsers'],
         {toastOnSuccess:false})
     .then( (e) => {
+        if (gen !== initGen) return;   // superseded by a newer init() / reset()
         PlanUserData.getInstance().data = e.response;
     })
+    .catch( () => {} );   // fire-and-forget: never surface an unhandled rejection
 }

@@ -32,8 +32,6 @@ async function generateConfig() {
     return Promise.all(p);
   }
 
-  // do not use {clean: true} option in webpack config
-  // as we write from multiple entries to the same dir
   await Promise.all([
     removeFiles(outputDir),
     removeFiles(htmlOutputDir)
@@ -52,119 +50,74 @@ async function generateConfig() {
 
   }
 
-  let config = [
-    {
-      entry: {},
-      mode: 'production',
-      output: {
-        path: outputDir,
-        filename: '[name].[contenthash].js',
-  //      clean: true,
+  const config = {
+    // 'app' boots the SPA shell (logged-in pages, client-side routed);
+    // 'public' is the small bundle for the server-rendered pages that stay
+    // outside the SPA (login, auth error, ical action). Per-view chunks are
+    // NOT separate entries — routes.js dynamic-import()s them, and
+    // splitChunks below lets webpack name/split those chunks automatically.
+    entry: {
+      app: './app/main.js',
+      public: './base/public.js',
+    },
+    mode: 'production',
+    output: {
+      path: outputDir,
+      filename: '[name].[contenthash].js',
+      chunkFilename: '[name].[contenthash].js',
+      publicPath: '',   // runtime publicPath is set from warpGlobals.URLs.distBase (app/publicPath.js) — mount-prefix-safe
+    },
+    performance: {
+      maxEntrypointSize: 400000,
+      maxAssetSize: 400000
+    },
+    optimization: {
+      moduleIds: 'deterministic',
+      runtimeChunk: {
+        name: 'webpack_runtime',
       },
-      performance: {
-        maxEntrypointSize: 400000,
-        maxAssetSize: 400000
+      minimize: true,
+      minimizer: [new TerserPlugin()],
+      splitChunks: {
+        chunks: 'all',
+        minChunks: 2,
+        minSize: 0,
+        minSizeReduction: 0,
       },
-      optimization: {
-        moduleIds: 'deterministic',
-        runtimeChunk: {
-          name: 'webpack_runtime',
-        },
-        minimize: true,
-        minimizer: [new TerserPlugin()],
-        splitChunks: {
-          chunks: 'all',
-          minChunks: 2,
-          minSize: 0,
-          minSizeReduction: 0,
-        },
-      },
-      module: {
-        rules: [
-          {
-            test: /\.css$/i,
-            use: [
-              MiniCssExtractPlugin.loader,
-              "css-loader",
-              {
-                loader: "postcss-loader",
-                options: {
-                  postcssOptions: {
-                    plugins: [ "postcss-preset-env", "cssnano" ],
-                  }
+    },
+    module: {
+      rules: [
+        {
+          test: /\.css$/i,
+          use: [
+            MiniCssExtractPlugin.loader,
+            "css-loader",
+            {
+              loader: "postcss-loader",
+              options: {
+                postcssOptions: {
+                  plugins: [ "postcss-preset-env", "cssnano" ],
                 }
-              },
-            ],
-          },
-        ],
-      },
-      plugins: [
-        new MiniCssExtractPlugin({
-          filename: "[name].[contenthash].css",
-        }),
+              }
+            },
+          ],
+        },
+        {
+          // View markup fragments (js/views/html/*.html): raw source, not
+          // parsed as an HTML module — router.js sets it via root.innerHTML.
+          test: /views[\\/]html[\\/].*\.html$/,
+          type: 'asset/source',
+        },
       ],
     },
-    {
-      entry: {
-        base: './base/base.js',
-      },
-      mode: 'production',
-      output: {
-        path: outputDir,
-        filename: '[name].[contenthash].js',
-      },
-      optimization: {
-        moduleIds: 'deterministic',
-        minimize: true,
-        minimizer: [new TerserPlugin()],
-      },
-      module: {
-        rules: [
-          {
-            test: /\.css$/i,
-            use: [
-              MiniCssExtractPlugin.loader,
-              "css-loader",
-              {
-                loader: "postcss-loader",
-                options: {
-                  postcssOptions: {
-                    plugins: [ "postcss-preset-env", "cssnano" ],
-                  }
-                }
-              },
-            ],
-          },
-        ],
-      },
-      plugins: [
-        new MiniCssExtractPlugin({
-          filename: "[name].[contenthash].css",
-        }),
-        createHtmlWebpackPlugin('base'),
-      ]
-    }
-  ]
-
-  async function fillConfig(config,directory) {
-
-    directory = path.resolve(directory);
-
-    try {
-      const files = await fsp.readdir(directory,{withFileTypes:true});
-      for (const f of files) {
-        if (f.isFile() && f.name.endsWith('.js')) {
-          let chunk = f.name.slice(0,-3);
-          config.entry[chunk] = path.join(directory, f.name);
-          config.plugins.push(createHtmlWebpackPlugin(chunk));
-        }
-      }
-    } catch (err) {
-      console.error(err);
-    }
+    plugins: [
+      new MiniCssExtractPlugin({
+        filename: "[name].[contenthash].css",
+      }),
+      createHtmlWebpackPlugin('app'),
+      createHtmlWebpackPlugin('public'),
+    ],
   };
-
-  await fillConfig(config[0],'views');
 
   return config;
 }

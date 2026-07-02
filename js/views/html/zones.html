@@ -1,22 +1,3 @@
-{% extends 'base_logged.html' %}
-
-{% block header %}
-    {{ super() }}
-
-<script>
-    window.warpGlobals.URLs['zonesList'] = "{{ url_for('xhr.zones.list') }}";
-    window.warpGlobals.URLs['zonesDelete'] = "{{ url_for('xhr.zones.delete') }}";
-    window.warpGlobals.URLs['zonesAddOrEdit'] = "{{ url_for('xhr.zones.addOrEdit') }}";
-    window.warpGlobals.URLs['zonesGroups'] = "{{ url_for('xhr.zones.groups') }}";
-    window.warpGlobals.URLs['zoneAssign'] = "{{ url_for('view.zoneAssign', zid='__ZID__', return=request.url) }}";
-    window.warpGlobals.ungroupedFilterKey = "{{ ungroupedFilterKey }}";
-</script>
-
-{% endblock %}
-
-{% block overlays %}
-    {{ super() }}
-
 <dialog id="edit_modal" class="modal warp-form-modal warp-fields">
     <div class="modal-content">
         <div class="row">
@@ -61,14 +42,6 @@
     </a>
 </div>
 
-
-{% endblock %}
-
-{% block content %}
-    {{ super() }}
-
-    <div class="container">
-        <div id="zonesTable"></div>
-    </div>
-
-{% endblock %}
+<div class="container">
+    <div id="zonesTable"></div>
+</div>

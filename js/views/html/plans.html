@@ -1,22 +1,3 @@
-{% extends 'base_logged.html' %}
-
-{% block header %}
-    {{ super() }}
-
-<script>
-    window.warpGlobals.URLs['plansList'] = "{{ url_for('xhr.plans.list') }}";
-    window.warpGlobals.URLs['plansDelete'] = "{{ url_for('xhr.plans.delete') }}";
-    window.warpGlobals.URLs['plansAddOrEdit'] = "{{ url_for('xhr.plans.addOrEdit') }}";
-    window.warpGlobals.URLs['plansTimezones'] = "{{ url_for('xhr.plans.timezones') }}";
-    window.warpGlobals.URLs['planModify'] = "{{ url_for('view.planModify', pid='__PID__', return=request.url) }}";
-    window.warpGlobals.URLs['zoneNames'] = "{{ url_for('xhr.zones.names') }}";
-</script>
-
-{% endblock %}
-
-{% block overlays %}
-    {{ super() }}
-
 <dialog id="edit_modal" class="modal warp-form-modal warp-fields">
     <div class="modal-content">
         <div class="row">
@@ -48,13 +29,6 @@
     </a>
 </div>
 
-{% endblock %}
-
-{% block content %}
-    {{ super() }}
-
-    <div class="container">
-        <div id="plansTable"></div>
-    </div>
-
-{% endblock %}
+<div class="container">
+    <div id="plansTable"></div>
+</div>
