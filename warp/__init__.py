@@ -47,4 +47,29 @@ def create_app():
         from . import debug as debug_mod
         app.register_blueprint(debug_mod.bp)
 
+    # Themed server-level error pages (404/403/500): without these Flask serves
+    # its bare default HTML — no top bar, no theme, no bundle. Render a simple
+    # themed card (base.html + public bundle + public_nav.html) so an unknown
+    # path or an unhandled abort lands on a page that matches the rest of the
+    # app. Status is preserved from the abort; bodies are not asserted by e2e
+    # (only resp.status()), so the SPA's /xhr 403/404 aborts are unaffected.
+    # Titles mirror the SPA's own #view-error strings (app/router.js) so the
+    # client and server error views read the same.
+    @app.errorhandler(403)
+    def _forbidden(e):
+        return flask.render_template(
+            'error.html', title='You do not have access to this page.'), 403
+
+    @app.errorhandler(404)
+    def _not_found(e):
+        return flask.render_template('error.html', title='Page not found.'), 404
+
+    # The 500 handler replaces Flask's interactive Werkzeug debugger, which we
+    # want to KEEP in debug mode (so a dev traceback isn't hidden behind a
+    # pretty page). Register it only outside debug.
+    if not app.debug:
+        @app.errorhandler(500)
+        def _server_error(e):
+            return flask.render_template('error.html', title='Something went wrong.'), 500
+
     return app

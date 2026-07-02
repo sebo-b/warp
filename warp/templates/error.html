@@ -23,9 +23,6 @@
             width: 100%;
             max-width: 480px;
         }
-        .confirm-links {
-            margin-top: 24px;
-        }
     </style>
 {% endblock %}
 
@@ -39,16 +36,11 @@
     <div class="action-outer">
         <div class="card action-card">
             <div class="card-content">
-                <span class="card-title">{{ title }}</span>
-                {% if details %}
-                <p>{{ details }}</p>
-                {% endif %}
-                {% if confirm_url %}
-                <div class="confirm-links">
-                    <a href="{{ confirm_url }}" class="waves-effect waves-light btn warp-btn-primary">{{ confirm_label }}</a>
-                    <a href="{{ cancel_url }}" class="waves-effect btn-flat">{{ cancel_label }}</a>
-                </div>
-                {% endif %}
+                {# title is the (English) key the SPA's own #view-error uses;
+                   polyglot falls back to it unchanged when no phrase exists,
+                   so the server and client error views read identically. #}
+                <span class="card-title TR">{{ title }}</span>
+                {% if message %}<p class="TR">{{ message }}</p>{% endif %}
             </div>
         </div>
     </div>
