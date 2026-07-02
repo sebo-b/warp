@@ -1,25 +1,25 @@
 "use strict";
 
+import html from './html/plans.html';
 import Utils from './modules/utils.js';
-import WarpModal from './modules/modal.js';
+import { M } from '../app/materialize.js';
+import warpDialog from '../app/dialog.js';
+import { createTable } from '../lib/tablePage.js';
+import { initFormSelect } from '../lib/formSelect.js';
+import { clearFieldError, showFieldError } from '../lib/formDialog.js';
+import { confirmDelete } from '../lib/confirmDelete.js';
+import { lazyCache } from '../lib/lazyCache.js';
+import { iconFormatter, chipListFormatter } from '../lib/formatters.js';
+import * as bootstrap from '../app/bootstrap.js';
+import * as nav from '../app/nav.js';
 
-import {TabulatorFull as Tabulator} from 'tabulator-tables';
-import "./css/tabulator/tabulator.css";
+export { html };
 
-document.addEventListener("DOMContentLoaded", function(e) {
+export async function mount(ctx) {
+    const root = ctx.root;
 
-    var chipFormatter = function(cell) {
-        let zones = cell.getValue();
-        if (!zones || !zones.length) return '<span class="grey-text">—</span>';
-        return zones.map(z => '<div class="chip" style="margin:1px 2px">' + z + '</div>').join('');
-    };
-
-    var iconFormater = function(cell, formatterParams, onRendered) {
-        var icon = formatterParams.icon || "warning";
-        var colorClass = formatterParams.colorClass || "";
-        var iconClass = formatterParams.iconClass || "material-icons-outlined";
-        return '<i class="'+iconClass+' '+colorClass+'">'+icon+'</i>';
-    };
+    var chipFormatter = chipListFormatter;
+    var iconFormater = iconFormatter();
 
     // Custom header filter: a <select> of zone names fetched from the server.
     var zoneHeaderFilter = function(cell, onRendered, success, cancel, editorParams) {
@@ -50,21 +50,15 @@ document.addEventListener("DOMContentLoaded", function(e) {
     var showEditDialog;
     var table;
 
-    // Timezone list is fetched once and cached in memory.
-    var _timezonesCache = null;
-    function loadTimezones() {
-        if (_timezonesCache) return Promise.resolve(_timezonesCache);
+    var timezoneCache = lazyCache(function() {
         return Utils.xhr.get(window.warpGlobals.URLs['plansTimezones'], {toastOnSuccess: false})
-            .then(function(result) {
-                _timezonesCache = result.response || [];
-                return _timezonesCache;
-            });
-    }
+            .then(function(result) { return result.response || []; });
+    });
 
     var openPlanModify = function(e, cell) {
         let pid = cell.getRow().getData()['id'];
         let url = window.warpGlobals.URLs['planModify'].replace('__PID__', pid);
-        window.location.href = url;
+        ctx.navigate(url);
     };
 
     var addEditClicked = function(e, cell) {
@@ -86,26 +80,22 @@ document.addEventListener("DOMContentLoaded", function(e) {
                     return Utils.xhr.post(window.warpGlobals.URLs['plansDelete'], {id: actionData.id});
                 }
             })
-            .then(() => table.replaceData());
+            .then(function() {
+                // A plan add/rename/delete changes the nav link set and the
+                // prefs/calendar "Default plan" option list — refresh
+                // /xhr/bootstrap and re-render the nav instead of leaving a
+                // stale top nav for the rest of the session (PLAN_SPA_REFACTOR.md §1.2.1).
+                bootstrap.refresh().then(function() { return nav.render(); });
+                table.replaceData();
+            })
+            .catch(() => {});
     };
 
-    var addPlanBtn = document.getElementById('add_plan_btn');
-    addPlanBtn.addEventListener('click', addEditClicked);
+    root.querySelector('#add_plan_btn').addEventListener('click', addEditClicked, {signal: ctx.signal});
 
-    table = new Tabulator("#plansTable", {
-        height: "3000px",
-        maxHeight: "100%",
-        langs: warpGlobals.i18n.tabulatorLangs,
+    table = createTable(root.querySelector('#plansTable'), {
         ajaxURL: window.warpGlobals.URLs['plansList'],
         index: "id",
-        layout: "fitDataFill",
-        columnDefaults: {resizable: true},
-        pagination: true,
-        paginationMode: "remote",
-        sortMode: "remote",
-        filterMode: "remote",
-        ajaxConfig: "POST",
-        ajaxContentType: "json",
         columns: [
             {formatter: iconFormater, formatterParams: {icon: "edit", colorClass: "warp-icon-edit"}, width: 40, hozAlign: "center", cellClick: addEditClicked, headerSort: false, tooltip: TR('Edit plan')},
             {formatter: iconFormater, formatterParams: {icon: "map", colorClass: "warp-icon-edit", iconClass: "material-icons"}, width: 40, hozAlign: "center", cellClick: openPlanModify, headerSort: false, tooltip: TR('Edit map & seats')},
@@ -117,76 +107,83 @@ document.addEventListener("DOMContentLoaded", function(e) {
         initialSort: [{column: "name", dir: "asc"}],
     });
 
-    var editModalEl = document.getElementById('edit_modal');
-    var planNameEl = document.getElementById("plan_name");
-    var planTzEl = document.getElementById("plan_timezone");
-    var errorDiv = document.getElementById('error_div');
-    var errorMsg = document.getElementById('error_message');
-    var saveBtn = document.getElementById('edit_modal_save_btn');
-    var deleteBtn = document.getElementById('edit_modal_delete_btn');
+    var editModalEl = root.querySelector('#edit_modal');
+    var planNameEl = root.querySelector("#plan_name");
+    var planTzEl = root.querySelector("#plan_timezone");
+    var errorDiv = root.querySelector('#error_div');
+    var errorMsg = root.querySelector('#error_message');
+    var saveBtn = root.querySelector('#edit_modal_save_btn');
+    var deleteBtn = root.querySelector('#edit_modal_delete_btn');
+
+    // Per-open dialog state. The Save/Delete listeners are wired ONCE per mount
+    // (not per open): wiring them per-open with {signal: ctx.signal} (unmount)
+    // meant a second edit within one mount stacked a stale handler from the
+    // first open, which ran first on Save, closed the modal, fired the second
+    // open's onCloseStart while its `resolved` was still false -> reject(), and
+    // the second handler's resolve() was a no-op on the settled promise -> the
+    // POST was never sent and the edit was silently lost. Handlers read the
+    // current open's args/state from this object instead of a per-open closure.
+    var currentEdit = null;
 
     showEditDialog = function(id, name, timezone) {
 
         var editModal = warpDialog.getInstance(editModalEl);
         if (typeof(editModal) === 'undefined') {
-            editModal = warpDialog(editModalEl);
-        }
-
-        planNameEl.value = name || "";
-        errorDiv.style.display = "none";
-        errorMsg.innerText = "";
-        deleteBtn.style.display = (id === null) ? "none" : "inline-flex";
-
-        return new Promise((resolve, reject) => {
-            let resolved = false;
+            editModal = warpDialog(editModalEl, {
+                onCloseStart: function() {
+                    // Runs for every close (Save, Delete, or dismiss). Only reject
+                    // for a clean dismiss (no button resolved the promise yet).
+                    if (currentEdit && !currentEdit.resolved) currentEdit.reject();
+                }
+            });
 
             function onClick(e) {
+                if (!currentEdit) return;
                 switch (e.target) {
                     case saveBtn: {
                         if (!planNameEl.value.trim()) {
-                            errorMsg.innerText = TR('Plan name cannot be empty.');
-                            errorDiv.style.display = "block";
+                            showFieldError(errorDiv, errorMsg, TR('Plan name cannot be empty.'));
                             return;
                         }
                         if (!planTzEl.value) {
-                            errorMsg.innerText = TR('Plan timezone must be selected.');
-                            errorDiv.style.display = "block";
+                            showFieldError(errorDiv, errorMsg, TR('Plan timezone must be selected.'));
                             return;
                         }
-                        resolved = true;
+                        currentEdit.resolved = true;
                         editModal.close();
-                        resolve({action: 'save', id: id, name: planNameEl.value.trim(), timezone: planTzEl.value});
+                        currentEdit.resolve({action: 'save', id: currentEdit.id, name: planNameEl.value.trim(), timezone: planTzEl.value});
                         break;
                     }
                     case deleteBtn:
-                        WarpModal.getInstance().open(
-                            TR("Are you sure to delete plan: %{plan_name}", {plan_name: name}),
-                            TR("You will delete all seats and the log of all past bookings on this plan."),
-                            {
-                                buttons: [{id: 1, text: TR("btn.Yes")}, {id: 0, text: TR("btn.No")}],
-                                onButtonHook: (btnId) => {
-                                    if (btnId == 1) {
-                                        resolved = true;
-                                        editModal.close();
-                                        resolve({action: 'delete', id: id});
-                                    }
-                                }
+                        confirmDelete(
+                            TR("Are you sure to delete plan: %{plan_name}", {plan_name: currentEdit.name}),
+                            TR("You will delete all seats and the log of all past bookings on this plan.")
+                        ).then((confirmed) => {
+                            if (confirmed && currentEdit) {
+                                currentEdit.resolved = true;
+                                editModal.close();
+                                currentEdit.resolve({action: 'delete', id: currentEdit.id});
                             }
-                        );
+                        });
                         break;
                 }
             }
 
-            editModal.options.onCloseStart = function() {
-                saveBtn.removeEventListener('click', onClick);
-                deleteBtn.removeEventListener('click', onClick);
-                if (!resolved) reject();
-            };
+            saveBtn.addEventListener('click', onClick, {signal: ctx.signal});
+            deleteBtn.addEventListener('click', onClick, {signal: ctx.signal});
+        }
+
+        planNameEl.value = name || "";
+        clearFieldError(errorDiv, errorMsg);
+        deleteBtn.style.display = (id === null) ? "none" : "inline-flex";
+
+        return new Promise((resolve, reject) => {
+            currentEdit = { id: id, name: name || "", resolve: resolve, reject: reject, resolved: false, editModal: editModal };
 
             // Load timezone list (cached after first fetch), populate the select,
             // then open — so open() resets _dirty AFTER FormSelect fires its change
             // event, and warpLiftSelect() runs when the .select-wrapper already exists.
-            loadTimezones().then(function(tzList) {
+            timezoneCache.get().then(function(tzList) {
                 var current = timezone || 'UTC';
                 planTzEl.innerHTML = '';
                 var found = false;
@@ -207,17 +204,17 @@ document.addEventListener("DOMContentLoaded", function(e) {
                     extra.selected = true;
                     planTzEl.insertBefore(extra, planTzEl.firstChild);
                 }
-                var inst = M.FormSelect.getInstance(planTzEl);
-                if (inst) inst.destroy();
-                M.FormSelect.init(planTzEl);
+                initFormSelect(planTzEl);
                 M.updateTextFields();
-
-                saveBtn.addEventListener('click', onClick);
-                deleteBtn.addEventListener('click', onClick);
                 // open() resets _dirty and lifts the now-existing select dropdown.
                 editModal.open();
             });
         });
     };
 
-});
+    return function unmount() {
+        table.destroy();
+    };
+}
+
+export default { html, mount };

@@ -30,7 +30,7 @@ test.describe('group management', () => {
     await querySql("INSERT INTO groups (login, \"group\") VALUES ('user3', 'group_1a')", []);
 
     await logIn(page, USER3);
-    const resp = await page.request.get('/plan/1');
+    const resp = await page.request.get('/xhr/plan/getContext/1');
     expect(resp.status()).toBe(200);
   });
 
@@ -52,7 +52,10 @@ test.describe('group management', () => {
     await querySql("DELETE FROM groups WHERE login = 'user2' AND \"group\" = 'group_1a'", []);
 
     await logIn(page, USER2);
-    const resp = await page.request.get('/plan/1');
+    // /plan/1 itself always 200s now (it just serves the SPA shell); access
+    // control lives in /xhr/plan/getContext/<pid>, which the client calls on
+    // mount and renders as the #view-error state on failure.
+    const resp = await page.request.get('/xhr/plan/getContext/1');
     expect(resp.status()).toBe(403);
   });
 

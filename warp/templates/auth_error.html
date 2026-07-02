@@ -1,5 +1,9 @@
 {% extends 'base.html' %}
 
+{% block bundle %}
+    {% include 'headers/public.html' ignore missing %}
+{% endblock %}
+
 {% block header %}
     {{ super() }}
 
@@ -21,14 +25,12 @@
     </style>
 {% endblock %}
 
+{% block nav %}
+    {% include 'public_nav.html' %}
+{% endblock %}
+
 {% block content %}
   {{ super() }}
-
-    <nav>
-        <div class="nav-wrapper">
-            <div class="center"><svg class="logo" viewBox="0 0 390 85" role="img" aria-label="WARP"><use href="{{ url_for('static', filename='images/logo.svg') }}#wordmark"/></svg></div>
-        </div>
-    </nav>
 
     <div class="auth-error-container valign-wrapper">
       <div class="row center-align">

@@ -149,7 +149,7 @@ test.describe('PUBLIC_VIEW zone (zone_type=30)', () => {
 
     // user3 has no zone assignment, but PUBLIC_VIEW gives VIEWER access
     await logIn(page, USER3);
-    const resp = await page.request.get('/plan/1');
+    const resp = await page.request.get('/xhr/plan/getContext/1');
     expect(resp.status()).toBe(200);
   });
 
@@ -240,7 +240,7 @@ test.describe('DISABLED zone (zone_type=10)', () => {
 
     // user1 is admin of Zone 1A
     await logIn(page, USER1);
-    const resp = await page.request.get('/plan/1');
+    const resp = await page.request.get('/xhr/plan/getContext/1');
     expect(resp.status()).toBe(200);
 
     // But booking should be forbidden even for admins
@@ -256,9 +256,12 @@ test.describe('DISABLED zone (zone_type=10)', () => {
   test('non-admin user cannot access a DISABLED zone at all', async ({ page }) => {
     await setZoneType(1, 10);
 
-    // user2 only has USER role in Zone 1A, which is now disabled
+    // user2 only has USER role in Zone 1A, which is now disabled.
+    // /plan/1 itself always 200s now (it just serves the SPA shell); access
+    // control lives in /xhr/plan/getContext/<pid>, which the client calls on
+    // mount and renders as the #view-error state on failure.
     await logIn(page, USER2);
-    const resp = await page.request.get('/plan/1');
+    const resp = await page.request.get('/xhr/plan/getContext/1');
     expect(resp.status()).toBe(403);
   });
 
@@ -266,7 +269,7 @@ test.describe('DISABLED zone (zone_type=10)', () => {
     await setZoneType(1, 10);
 
     await logIn(page, ADMIN);
-    const resp = await page.request.get('/plan/1');
+    const resp = await page.request.get('/xhr/plan/getContext/1');
     expect(resp.status()).toBe(200);
 
     const [seat] = await getZoneSeats(1);

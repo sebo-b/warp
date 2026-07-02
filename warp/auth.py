@@ -197,25 +197,30 @@ def session():
             flask.abort(403)
         return
 
+    def expired():
+        # The SPA can't follow a redirect from an XHR (it would just land the
+        # raw login HTML in the fetch response) — signal expiry as JSON so the
+        # client can do a full-page navigate to the login route itself.
+        if flask.request.path.startswith('/xhr'):
+            return flask.jsonify({"code": "SESSION_EXPIRED"}), 401
+        return flask.redirect(flask.url_for('auth.login'))
+
     login = flask.session.get('login')
 
     if login is None:
-        return flask.redirect(
-            flask.url_for('auth.login'))
+        return expired()
 
     latestValidSessionTime = utils.now(tz="UTC") - 24*3600*flask.current_app.config['SESSION_LIFETIME']
     lastLoginTime = flask.session.get('login_time')
 
     if lastLoginTime is None or lastLoginTime < latestValidSessionTime:
-        return flask.redirect(
-            flask.url_for('auth.login'))
+        return expired()
 
     # check if user still exists and if it is not blocked
     c = Users.select(Users.account_type, Users.name).where(Users.login == login)
 
     if len(c) != 1 or c[0]['account_type'] >= ACCOUNT_TYPE_BLOCKED:
-        return flask.redirect(
-            flask.url_for('auth.login'))
+        return expired()
 
     flask.g.isAdmin = c[0]['account_type'] == ACCOUNT_TYPE_ADMIN
     flask.g.login = login

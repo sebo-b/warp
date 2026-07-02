@@ -7,7 +7,8 @@
        auto via prefers-color-scheme, stamp both attributes on <html>. Runs in
        <head> before first paint. No-JS falls back to light (the static attr).
        Owns ALL theme state (cookie, attrs, live system-theme following) and
-       exposes window.warpThemeApply so base.js's toggle can reuse it. #}
+       exposes window.warpThemeApply so each bundle's toggle (app/theme.js,
+       base/public.js) can reuse it. #}
     <script>(function () {
       var html = document.documentElement;
 
@@ -25,15 +26,15 @@
 
         // Live-follow system theme. Always attached; the guard makes it a no-op
         // unless the current choice is 'auto', so an explicit light/dark choice
-        // (toggled by base.js) wins. base.js isn't loaded on login/ical_action,
-        // so without this those pages wouldn't react to a system change after load.
+        // (toggled in-page) wins. Lives here (not in a bundle) so it works
+        // identically on every page regardless of which bundle (or none) loads.
         matchMedia('(prefers-color-scheme: dark)').onchange = function (ev) {
           if (html.getAttribute('data-theme-choice') === 'auto') {
             html.setAttribute('theme', ev.matches ? 'dark' : 'light');
           }
         };
 
-        // Reused by base.js's top-bar toggle (logged-in pages only).
+        // Reused by the top-bar toggle click handler (app/theme.js, base/public.js).
         window.warpThemeApply = applyTheme;
       } catch (e) { /* leave the static light/auto attrs in place */ }
     })();</script>
@@ -65,7 +66,7 @@
         window.warpGlobals = { URLs: {}, i18nUrl: "{{ url_for('static', filename=config['LANGUAGE_FILE']) }}" };
     </script>
 
-    {% include 'headers/base.html' %}
+    {% block bundle %}{% endblock %}
 
     <!-- Single source of truth for colours: defines the M3 tokens Materialize 2.x
          reads (overriding its defaults — loaded AFTER the base bundle so the

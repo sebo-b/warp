@@ -1,16 +1,42 @@
 "use strict";
 
+import html from './html/planModify.html';
 import Utils from './modules/utils.js';
 import WarpModal from './modules/modal.js';
 import { SeatFactory, spriteSize} from './modules/planModify_seat.js';
 import { MarqueeController } from './modules/zoneModify_marquee.js';
 import { TransformController } from './modules/zoneModify_transform.js';
+import { M } from '../app/materialize.js';
+import { initFormSelect } from '../lib/formSelect.js';
+import { confirmDelete } from '../lib/confirmDelete.js';
+import { setLeaveGuard, clearLeaveGuard } from '../app/router.js';
 
-document.addEventListener("DOMContentLoaded", function(e) {
+export { html };
 
-    let chooseImgBtn = document.getElementById('chooseImgBtn');
-    let mapUploadInput = document.getElementById('mapUploadInput');
-    let saveBtn = document.getElementById('saveBtn');
+export async function mount(ctx) {
+    const root = ctx.root;
+    // Route params are always strings (router.js); the backend's JSON schema
+    // requires pid as an integer (the old Jinja-rendered `window.warpGlobals.pid
+    // = {{ pid }}` emitted a bare numeric literal, not a string).
+    const pid = parseInt(ctx.params.pid, 10);
+    const returnURL = ctx.query.return || '/plans';
+
+    const plansGetSeatsURL = window.warpGlobals.URLs['plansGetSeats'].replace('__PID__', pid);
+    const planImageURL = window.warpGlobals.URLs['planImage'].replace('__PID__', pid);
+
+    // darkFilter is per-plan (dropped from view.py's planModify route in WP1);
+    // getContext is the SPA replacement — same endpoint the plan view uses,
+    // here only its darkFilter field is needed.
+    const contextResp = await Utils.xhr.get(
+        window.warpGlobals.URLs['planGetContext'].replace('__PID__', pid),
+        { toastOnSuccess: false, errorOnFailure: false });
+    const darkFilter = contextResp.response.darkFilter;
+
+    let themeObserver = null;
+
+    let chooseImgBtn = root.querySelector('#chooseImgBtn');
+    let mapUploadInput = root.querySelector('#mapUploadInput');
+    let saveBtn = root.querySelector('#saveBtn');
 
     function isDirty() {
         return mapUploadInput.files.length > 0 || seatFactory.isChanged() || isFilterDirty();
@@ -21,26 +47,27 @@ document.addEventListener("DOMContentLoaded", function(e) {
         else saveBtn.classList.add('disabled');
     }
 
-    let zoneMapImg = document.getElementById('zone_map');
-    let zoneMapContainer = document.getElementById('zone_map_container');
+    let zoneMapImg = root.querySelector('#zone_map');
+    zoneMapImg.src = planImageURL;
+    let zoneMapContainer = root.querySelector('#zone_map_container');
 
-    let planModifyTabs = document.getElementById('plan_modify_tabs');
+    let planModifyTabs = root.querySelector('#plan_modify_tabs');
     let activeTab = 'transform';
 
-    let seatEditPanel = document.getElementById("seat_edit_panel");
-    let seatNameEl = document.getElementById("seat_name");
-    let seatXEl = document.getElementById("seat_x");
-    let seatYEl = document.getElementById("seat_y");
-    let seatZoneEl = document.getElementById("seat_zone");
-    let seatDeleteBtn = document.getElementById('seat_delete_btn');
+    let seatEditPanel = root.querySelector("#seat_edit_panel");
+    let seatNameEl = root.querySelector("#seat_name");
+    let seatXEl = root.querySelector("#seat_x");
+    let seatYEl = root.querySelector("#seat_y");
+    let seatZoneEl = root.querySelector("#seat_zone");
+    let seatDeleteBtn = root.querySelector('#seat_delete_btn');
 
     // Available zones for the seat zone selector
     let allZones = [];
 
     // Zone dropdown for add-seats mode (added in template)
-    let addSeatZoneSelector = document.getElementById('add_seat_zone_selector');
-    let addSeatZoneEl = document.getElementById('add_seat_zone');
-    let addSeatZoneError = document.getElementById('add_seat_zone_error');
+    let addSeatZoneSelector = root.querySelector('#add_seat_zone_selector');
+    let addSeatZoneEl = root.querySelector('#add_seat_zone');
+    let addSeatZoneError = root.querySelector('#add_seat_zone_error');
 
     // Most-frequent zone on this plan (pre-selected in add-seats mode)
     let mostFrequentZid = null;
@@ -48,12 +75,6 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     function populateAddSeatZoneSelect(selectedZid) {
         if (!addSeatZoneEl) return;
-
-        // Clean up any previous Materialize select instance before mutating the <select>
-        let existing = M.FormSelect.getInstance(addSeatZoneEl);
-        if (existing) {
-            existing.destroy();
-        }
 
         addSeatZoneEl.innerHTML = '';
         for (let z of allZones) {
@@ -66,16 +87,14 @@ document.addEventListener("DOMContentLoaded", function(e) {
         }
 
         // Initialize as proper Materialize select (not .browser-default)
-        M.FormSelect.init(addSeatZoneEl, {
+        initFormSelect(addSeatZoneEl, {
             dropdownOptions: {
-                container: addSeatZoneEl.closest('.zone_modify_sidepanel') || document.body
+                container: addSeatZoneEl.closest('.zone_modify_sidepanel') || root
             }
         });
     }
 
     function populateZoneSelect(selectedZid) {
-        let existing = M.FormSelect.getInstance(seatZoneEl);
-        if (existing) existing.destroy();
         seatZoneEl.innerHTML = '';
         for (let z of allZones) {
             let opt = document.createElement('option');
@@ -85,9 +104,9 @@ document.addEventListener("DOMContentLoaded", function(e) {
                 opt.selected = true;
             seatZoneEl.appendChild(opt);
         }
-        M.FormSelect.init(seatZoneEl, {
+        initFormSelect(seatZoneEl, {
             dropdownOptions: {
-                container: seatZoneEl.closest('.zone_modify_sidepanel') || document.body
+                container: seatZoneEl.closest('.zone_modify_sidepanel') || root
             }
         });
     }
@@ -96,8 +115,8 @@ document.addEventListener("DOMContentLoaded", function(e) {
     // so we can compute the most-frequent zone (by seat count) for the "first time entering add mode" preselection.
     Promise.all([
         Utils.xhr.get(window.warpGlobals.URLs['plansAllZones'], {toastOnSuccess: false}),
-        Utils.xhr.get(window.warpGlobals.URLs['plansZonesForPlan'], {toastOnSuccess: false}),
-        Utils.xhr.get(window.warpGlobals.URLs['plansGetSeats'], {toastOnSuccess: false})
+        Utils.xhr.get(window.warpGlobals.URLs['plansZonesForPlan'] + '?pid=' + pid, {toastOnSuccess: false}),
+        Utils.xhr.get(plansGetSeatsURL, {toastOnSuccess: false})
     ])
     .then(function(results) {
         allZones = results[0].response || [];
@@ -153,7 +172,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         // "the moment user switches to add for the first time".
     });
 
-    let seatFactory = new SeatFactory(window.warpGlobals.URLs['plansGetSeats'], zoneMapContainer, zoneMapImg);
+    let seatFactory = new SeatFactory(plansGetSeatsURL, zoneMapContainer, zoneMapImg);
     let marquee = new MarqueeController(zoneMapContainer, spriteSize);
     let transform = null;
 
@@ -268,7 +287,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         }
 
         e.stopPropagation();
-    });
+    }, {signal: ctx.signal});
 
     let seatDeleteBtnUpdate = function(seat) {
         if (seat.deleted) {
@@ -286,24 +305,24 @@ document.addEventListener("DOMContentLoaded", function(e) {
         let seat = seatFactory.getSelectedSeat();
         seatFactory.deleteRestoreSeat(seat);
         seatDeleteBtnUpdate(seat);
-    });
+    }, {signal: ctx.signal});
 
     chooseImgBtn.addEventListener('click', function(e) {
         mapUploadInput.click();
-    });
+    }, {signal: ctx.signal});
 
     mapUploadInput.addEventListener('change', function(e) {
         if (mapUploadInput.files.length != 1) return;
         zoneMapImg.src = URL.createObjectURL(mapUploadInput.files[0]);
         setDirty();
-    });
+    }, {signal: ctx.signal});
 
     saveBtn.addEventListener('click', function(e) {
 
         if (!isDirty()) return;
 
         let json = {
-            pid: window.warpGlobals.pid
+            pid: pid
         };
 
         let data = new FormData();
@@ -348,27 +367,30 @@ document.addEventListener("DOMContentLoaded", function(e) {
         for (let line of lines)
             msg += "<br>- " + line;
 
-        WarpModal.getInstance().open(
+        confirmDelete(
             TR("Are you sure to update the plan?"),
             msg,
-            {
-                buttons: [{id: 1, text: TR("btn.Yes")}, {id: 0, text: TR("btn.No")}],
-                onButtonHook: function(btnId) {
-                    if (btnId != 1) return;
-
-                    Utils.xhr.post(
-                        window.warpGlobals.URLs['plansModifyXHR'],
-                        data,
-                        {toastOnSuccess: false})
-                    .then(() => {
-                        storedFilter = currentFilterState();
-                        window.sessionStorage.setItem('pendingToast', TR('Action successfull.'));
-                        window.removeEventListener('beforeunload', onBeforeUnload);
-                        window.location.href = window.warpGlobals['returnURL'];
-                    });
-                },
+            { yesText: TR("btn.Yes"), noText: TR("btn.No") }
+        ).then((confirmed) => {
+            if (!confirmed) return;
+            Utils.xhr.post(
+                window.warpGlobals.URLs['plansModifyXHR'],
+                data,
+                {toastOnSuccess: false})
+            .then(() => {
+                // The changes are now persisted: reset every source isDirty() reads
+                // (seat overlay, uploaded map, filter baseline) so the navigate-away
+                // below and any later tab close don't re-prompt. The editor is
+                // per-mount (fresh SeatFactory each open), so no stale state carries
+                // forward.
+                seatFactory.clearChanges();
+                mapUploadInput.value = '';
+                storedFilter = currentFilterState();
+                window.sessionStorage.setItem('pendingToast', TR('Action successfull.'));
+                ctx.navigate(returnURL);
             });
-    });
+        });
+    }, {signal: ctx.signal});
 
     seatFactory.on('select', (seat) => {
         if (transform) {
@@ -431,19 +453,11 @@ document.addEventListener("DOMContentLoaded", function(e) {
         showMarquee();
     });
 
-    // update seat zone when add-seat zone dropdown changes (safe if element missing)
-    if (addSeatZoneEl) {
-        addSeatZoneEl.addEventListener('change', function() {
-            // Pre-update for new seats created by clicking the map
-            // The selected seat's zone is handled via seatZoneEl
-        });
-    }
-
     seatZoneEl.addEventListener('change', function() {
         let seat = seatFactory.getSelectedSeat();
         if (!seat) return;
         seat.zid = parseInt(this.value) || null;
-    });
+    }, {signal: ctx.signal});
 
     let beginTransform = (handle, x, y) => {
         if (activeTab !== 'transform' || !marquee.active) return;
@@ -548,12 +562,15 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     marquee.onHandleMouseDown(beginTransform);
 
-    zoneMapContainer.addEventListener('mousedown', containerMousedownCapture, true);
-    zoneMapContainer.addEventListener('mousedown', containerMousedown);
-    zoneMapContainer.addEventListener('mousemove', updateHoverCursor);
-    window.addEventListener('mousemove', containerMousemove);
-    window.addEventListener('mouseup', containerMouseup);
+    zoneMapContainer.addEventListener('mousedown', containerMousedownCapture, {capture: true, signal: ctx.signal});
+    zoneMapContainer.addEventListener('mousedown', containerMousedown, {signal: ctx.signal});
+    zoneMapContainer.addEventListener('mousemove', updateHoverCursor, {signal: ctx.signal});
+    window.addEventListener('mousemove', containerMousemove, {signal: ctx.signal});
+    window.addEventListener('mouseup', containerMouseup, {signal: ctx.signal});
 
+    // Covers real page unloads (tab close, hard refresh, typing a new URL,
+    // navigating to a non-SPA route like /logout). In-SPA route changes are
+    // covered by the leave guard registered below (setLeaveGuard).
     let onBeforeUnload = function(e) {
         if (isDirty()) {
             e.preventDefault();
@@ -561,31 +578,32 @@ document.addEventListener("DOMContentLoaded", function(e) {
         }
     };
 
-    window.addEventListener('beforeunload', onBeforeUnload);
+    window.addEventListener('beforeunload', onBeforeUnload, {signal: ctx.signal});
 
-    let cancelBtn = document.getElementById('cancelBtn');
+    // Single source of truth for "ok to leave the dirty editor?": dirty ->
+    // ask the Yes/No confirm; clean -> resolve true. The beforeunload guard
+    // above covers real tab unloads; the router leave guard and the Cancel
+    // button both route through here so the check lives in one place.
+    function confirmLeave() {
+        if (!isDirty()) return Promise.resolve(true);
+        return confirmDelete(
+            TR("Are you sure?"),
+            TR("All unsaved changes will be lost."),
+            { yesText: TR("btn.Yes"), noText: TR("btn.No") }
+        );
+    }
+
+    // In-SPA route changes (nav links, back/forward) never fire beforeunload, so
+    // register a leave guard the router awaits before navigating away. The
+    // Cancel button below also routes through this guard (it just calls
+    // ctx.navigate), so confirmLeave is the single point of check for every way
+    // out of a dirty editor.
+    setLeaveGuard(confirmLeave);
+
+    let cancelBtn = root.querySelector('#cancelBtn');
     cancelBtn.addEventListener('click', function(e) {
-        let pageRet = function() {
-            window.removeEventListener('beforeunload', onBeforeUnload);
-            window.location.href = window.warpGlobals['returnURL'];
-        };
-
-        let dirty = isDirty();
-        if (dirty) {
-            WarpModal.getInstance().open(
-                TR("Are you sure?"),
-                TR("All unsaved changes will be lost."),
-                {
-                    buttons: [{id: true, text: TR("btn.Yes")}, {id: false, text: TR("btn.No")}],
-                    onButtonHook: function(btnId) {
-                        if (btnId) pageRet();
-                    }
-                }
-            );
-        } else {
-            pageRet();
-        }
-    });
+        ctx.navigate(returnURL);
+    }, {signal: ctx.signal});
 
     var changeFactory = function(prop) {
         return function(e) {
@@ -597,9 +615,9 @@ document.addEventListener("DOMContentLoaded", function(e) {
         };
     };
 
-    seatNameEl.addEventListener('input', changeFactory('name'));
-    seatXEl.addEventListener('input', changeFactory('x'));
-    seatYEl.addEventListener('input', changeFactory('y'));
+    seatNameEl.addEventListener('input', changeFactory('name'), {signal: ctx.signal});
+    seatXEl.addEventListener('input', changeFactory('x'), {signal: ctx.signal});
+    seatYEl.addEventListener('input', changeFactory('y'), {signal: ctx.signal});
 
     var seatXYMax = function() {
         seatXEl.max = zoneMapImg.width - spriteSize;
@@ -607,26 +625,26 @@ document.addEventListener("DOMContentLoaded", function(e) {
     };
 
     if (zoneMapImg.complete) seatXYMax();
-    zoneMapImg.addEventListener('load', seatXYMax);
+    zoneMapImg.addEventListener('load', seatXYMax, {signal: ctx.signal});
 
     seatFactory.updateData();
 
     // Map image filter controls (dark mode only).
     let filterControls = {
-        invert: document.getElementById('filter_invert'),
-        grayscale: document.getElementById('filter_grayscale'),
-        sepia: document.getElementById('filter_sepia'),
-        saturate: document.getElementById('filter_saturate'),
-        hue: document.getElementById('filter_hue'),
-        brightness: document.getElementById('filter_brightness'),
-        contrast: document.getElementById('filter_contrast'),
+        invert: root.querySelector('#filter_invert'),
+        grayscale: root.querySelector('#filter_grayscale'),
+        sepia: root.querySelector('#filter_sepia'),
+        saturate: root.querySelector('#filter_saturate'),
+        hue: root.querySelector('#filter_hue'),
+        brightness: root.querySelector('#filter_brightness'),
+        contrast: root.querySelector('#filter_contrast'),
     };
-    let filterPresetEl = document.getElementById('map_filter_preset');
+    let filterPresetEl = root.querySelector('#map_filter_preset');
     let filterPresets = [];
 
     // The last-saved filter state, used to detect a dirty filter. Updated after a
     // successful save (see the save handler above).
-    let storedFilter = window.warpGlobals.darkFilter || {};
+    let storedFilter = darkFilter || {};
 
     function filterStateMatches(a, b) {
         let keys = ['id', 'invert', 'grayscale', 'sepia', 'saturate', 'hue', 'brightness', 'contrast'];
@@ -721,8 +739,6 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
     function populateFilterPresets(selectedId) {
         if (!filterPresetEl) return;
-        let existing = M.FormSelect.getInstance(filterPresetEl);
-        if (existing) existing.destroy();
 
         filterPresetEl.innerHTML = '';
         for (let p of filterPresets) {
@@ -738,9 +754,9 @@ document.addEventListener("DOMContentLoaded", function(e) {
 
         if (selectedId) filterPresetEl.value = selectedId;
 
-        M.FormSelect.init(filterPresetEl, {
+        initFormSelect(filterPresetEl, {
             dropdownOptions: {
-                container: filterPresetEl.closest('.zone_modify_sidepanel') || document.body
+                container: filterPresetEl.closest('.zone_modify_sidepanel') || root
             }
         });
     }
@@ -756,7 +772,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
         filterPresetEl.addEventListener('change', function() {
             setDirty();
             applyFilterPreset(filterPresetEl.value);
-        });
+        }, {signal: ctx.signal});
     }
 
     for (let key in filterControls) {
@@ -770,7 +786,7 @@ document.addEventListener("DOMContentLoaded", function(e) {
                     populateFilterPresets('custom');
                 setDirty();
                 applyMapFilter();
-            });
+            }, {signal: ctx.signal});
         }
     }
 
@@ -786,7 +802,11 @@ document.addEventListener("DOMContentLoaded", function(e) {
             loadStoredFilter(storedFilter);
         });
 
-    new MutationObserver(applyMapFilter).observe(document.documentElement, {
+    // Disconnected in unmount() — it closes over zoneMapImg (part of the
+    // discarded #view-root subtree); a leaked observer keeps firing on every
+    // subsequent theme toggle even after navigating away.
+    themeObserver = new MutationObserver(applyMapFilter);
+    themeObserver.observe(document.documentElement, {
         attributes: true,
         attributeFilter: ['theme']
     });
@@ -796,12 +816,13 @@ document.addEventListener("DOMContentLoaded", function(e) {
     // Make sure the add-seat zone select is initialized as Materialize if it's already visible on load
     // (mostly a no-op; actual init happens in populateAddSeatZoneSelect).
     if (addSeatZoneEl) {
-        // If someone put a static selection in markup we still want to upgrade it.
-        if (!M.FormSelect.getInstance(addSeatZoneEl)) {
-            // Only initialize if it has options (we populate options in the Promise then()).
-            // Safe no-op if empty .
-            try { M.FormSelect.init(addSeatZoneEl); } catch (e) {}
-        }
+        try { initFormSelect(addSeatZoneEl); } catch (e) {}
     }
 
-});
+    return function unmount() {
+        if (themeObserver) themeObserver.disconnect();
+        clearLeaveGuard();
+    };
+}
+
+export default { html, mount };

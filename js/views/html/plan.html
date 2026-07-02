@@ -1,0 +1,156 @@
+<!-- Overlays: action_modal/seat_edit_modal are removed in mount() when
+     isZoneViewer/!isZoneAdmin respectively (was a Jinja {% if %} server-side). -->
+<dialog id="action_modal" class="modal bottom-sheet" data-requires="notZoneViewer">
+    <!-- Neutral autofocus target: a native <dialog> otherwise focuses the first
+         action button on open (an unwanted focus ring on Edit/Book). Focus stays
+         inside the dialog (a11y) but on a non-interactive container. -->
+    <div class="modal-content" tabindex="-1" autofocus>
+        <h4 id="action_modal_title" style="display: none;"></h4>
+        <div class="action_modal_bar">
+            <div class="action_modal_messages">
+                <div id="action_modal_msg1"></div>
+                <div id="action_modal_msg2"></div>
+            </div>
+
+            <div class="action_modal_buttons">
+                <a href="#!" class="modal-close waves-effect btn-flat plan_action_btn TR" data-action="seat-edit" data-requires="zoneAdmin">btn.Edit</a>
+                <a href="#!" class="modal-close waves-effect waves-light btn warp-btn-danger plan_action_btn TR" data-action="delete">btn.Remove</a>
+                <a href="#!" class="modal-close waves-effect waves-light btn warp-btn-primary plan_action_btn TR" data-action="update">btn.Update</a>
+                <a href="#!" class="modal-close waves-effect waves-light btn warp-btn-primary plan_action_btn TR" data-action="book">btn.Book</a>
+            </div>
+        </div>
+    </div>
+</dialog>
+
+<dialog id="seat_edit_modal" class="modal warp-form-modal warp-fields" data-requires="zoneAdmin">
+    <div class="modal-content">
+        <div class="row">
+            <div class="col s12 seat_edit_enabled_row">
+                <span class="TR" id="seat_edit_enabled_label">Seat enabled</span>
+                <div class="switch"><label>
+                    <input type="checkbox" id="seat_edit_enabled" aria-labelledby="seat_edit_enabled_label">
+                    <span class="lever"></span>
+                </label></div>
+            </div>
+        </div>
+        <p class="TR">Select users to which the seat will be assigned:</p>
+        <div class="input-field">
+            <input type="text" id="assigned_seat_add_input" class="autocomplete" autocomplete="off">
+            <label for="assigned_seat_add_input" class="TR">Select user</label>
+        </div>
+        <ul id="assigned_seat_list" class="collection assigned_seat_list"></ul>
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="modal-close waves-effect waves-light btn plan_action_btn TR" data-action="seat-edit-save">btn.Save</a>
+        <a href="#!" class="modal-close waves-effect waves-light btn-flat TR">btn.Cancel</a>
+    </div>
+</dialog>
+
+<dialog id="planmap_help_modal" class="modal modal-fixed-footer warp-form-modal">
+    <div class="modal-content">
+        <table>
+            <tr>
+                <td><div class="help_modal_sprite" data-sprite="book"></div></td>
+                <td class="TR">The seat is available to be booked on the selected dates and time.</td>
+            </tr>
+            <tr>
+                <td><div class="help_modal_sprite" data-sprite="rebook"></div></td>
+                <td class="TR">The seat is available, but you have another booking at that time which will be automatically updated.</td>
+            </tr>
+            <tr>
+                <td><div class="help_modal_sprite" data-sprite="bookAssigned"></div></td>
+                <td class="TR">The seat is assigned to you and available to be booked.</td>
+            </tr>
+            <tr>
+                <td><div class="help_modal_sprite" data-sprite="rebookAssigned"></div></td>
+                <td class="TR">The seat is assigned to you and available, but you have another booking at that time which will be automatically updated.</td>
+            </tr>
+            <tr>
+                <td><div class="help_modal_sprite" data-sprite="userExact"></div></td>
+                <td class="TR">The seat is booked by you exactly on the selected date and time.</td>
+            </tr>
+            <tr>
+                <td><div class="help_modal_sprite" data-sprite="userRebook"></div></td>
+                <td class="TR">The seat is booked by you, but not exactly on the selected date or time. You can update; other reservations at that time will be automatically updated.</td>
+            </tr>
+            <tr>
+                <td><div class="help_modal_sprite" data-sprite="conflict"></div></td>
+                <td class="TR">The seat is booked by someone else or not available for booking.</td>
+            </tr>
+            <tr>
+                <td><div class="help_modal_sprite" data-sprite="assigned"></div></td>
+                <td class="TR">The seat is assigned to some people but currently not booked.</td>
+            </tr>
+            <tr>
+                <td><div class="help_modal_sprite" data-sprite="viewOnly"></div></td>
+                <td class="TR">The seat is not available for booking: no dates selected, disabled, or view-only zone.</td>
+            </tr>
+        </table>
+    </div>
+    <div class="modal-footer">
+        <div class="center-align">
+            <a href="#!" class="modal-close waves-effect waves-light btn TR">btn.Ok</a>
+        </div>
+    </div>
+</dialog>
+
+<div class="plan_container">
+
+    <div id="plan_sidepanel">
+
+        <div class="plan_sidepanel_topcontainer">
+
+            <div class="input-field book-as_container" data-requires="zoneAdmin">
+                <input type="text" id="book-as" class="autocomplete book-as_input" autocomplete="off">
+                <label for="book-as" class="active TR">Book as</label>
+            </div>
+
+            <div class="plan_sidepanel_close">
+                <i class="material-icons">close</i>
+            </div>
+        </div>
+
+        <div class="plan_datetime_container">
+
+            <div class="plan_timeslider">
+                <div class="plan_timeslider_inputs">
+                    <input type="text" id="timeslider-min" class="timeslider-input" inputmode="numeric" placeholder="HH:MM" aria-label="start time">
+                    <input type="text" id="timeslider-max" class="timeslider-input" inputmode="numeric" placeholder="HH:MM" aria-label="end time">
+                </div>
+                <div id="timeslider" class="timeslider"></div>
+            </div>
+
+            <div class="plan_calendar" id="plan_calendar">
+                <div class="warp-cal-grid" id="plan_calendar_grid"></div>
+            </div>
+        </div>
+
+    </div>
+
+
+    <div class="plan_map" id="planmap">
+        <div class="planmap_help">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="10.5" fill="var(--warp-on-brand)" class="warp-icon-disc"/>
+                <circle cx="12" cy="12" r="10.5" fill="currentColor" fill-opacity="0.2"/>
+                <circle cx="12" cy="12" r="10.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                <text x="12" y="17" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="600" fill="currentColor">?</text>
+            </svg>
+        </div>
+    </div>
+    <div class="planmap_datetime_trigger">
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="48" viewBox="0 0 40 48" aria-hidden="true">
+            <path d="M 2 2 L 14 2 A 22 22 0 0 1 14 46 L 2 46 Z" fill="var(--warp-on-brand)" class="warp-icon-disc"/>
+            <path d="M 2 2 L 14 2 A 22 22 0 0 1 14 46 L 2 46 Z" fill="currentColor" fill-opacity="0.2"/>
+            <path d="M 2 2 L 14 2 A 22 22 0 0 1 14 46 L 2 46 Z" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M 16 20 L 21 24 L 16 28 M 22 20 L 27 24 L 22 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+    </div>
+
+    <div class="fixed-action-btn auto_book_fab" data-requires="notZoneViewer">
+        <a id="auto_book_btn" class="btn-floating btn-large waves-effect waves-light disabled">
+            <i class="material-icons">add</i>
+        </a>
+    </div>
+
+</div>

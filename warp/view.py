@@ -3,88 +3,145 @@ import flask
 from warp.db import *
 from . import utils
 from . import blob_storage
-from warp.xhr.prefs import get_user_prefs
 
 bp = flask.Blueprint('view', __name__)
 
 
 @bp.context_processor
-def headerDataInit():
-
-    # Left nav: plans the user has access to (has accessible seats in at least one zone)
-    headerDataL = []
-
-    # Zones accessible to user (for calendar reminder dropdown)
-    accessible_zones = []
-
-    # Plans accessible to user (for default_plan preference)
-    accessible_plans = []
-
-    # A row in the view means effective access (the view is the single source
-    # of truth — it includes synthetic rows for public zones).
-    accessible_zone_rows = Zone.select(Zone.id, Zone.name) \
-        .join(UserToZoneRoles,
-              on=((Zone.id == UserToZoneRoles.zid) & (UserToZoneRoles.login == flask.g.login))) \
-        .order_by(Zone.name)
-
-    for z in accessible_zone_rows:
-        accessible_zones.append({"id": z['id'], "name": z['name']})
-
-    # Plans that have at least one seat in an accessible zone
-    accessible_zids = [z['id'] for z in accessible_zones]
-
-    if accessible_zids:
-        plan_rows = Plan.select(Plan.id, Plan.name) \
-            .join(Seat, on=(Seat.pid == Plan.id)) \
-            .where(Seat.zid.in_(accessible_zids)) \
-            .group_by(Plan.id, Plan.name) \
-            .order_by(Plan.name)
-
-        for p in plan_rows:
-            accessible_plans.append({"id": p['id'], "name": p['name']})
-            headerDataL.append(
-                {"text": p['name'], "endpoint": "view.plan", "view_args": {"pid": str(p['id'])}})
-
-    if headerDataL:
-        headerDataL.insert(0, {"text": "Bookings", "endpoint": "view.bookings", "view_args": {"report": ""}})
-
-    headerDataR = [
-        {"text": "Report", "endpoint": "view.bookings", "view_args": {"report": "report"}},
-    ]
-
-    for hdata in [headerDataL, headerDataR]:
-        for h in hdata:
-            h['url'] = flask.url_for(h['endpoint'], **h['view_args'])
-            h['active'] = flask.request.endpoint == h['endpoint'] and flask.request.view_args == h['view_args']
-
+def spaGlobals():
+    # Cheap (no DB) flags/constants spa.html needs at first paint, before
+    # /xhr/bootstrap resolves — e.g. to decide whether to render the
+    # change-password dialog, or to seed the timeslider ranges that used to be
+    # Jinja data-min/max attrs on the per-page templates (now inlined into view
+    # fragments Jinja never touches).
+    config = flask.current_app.config
     return {
-        "headerDataL": headerDataL,
-        "headerDataR": headerDataR,
-        "accessibleZones": accessible_zones,
-        "accessiblePlans": accessible_plans,
         'hasLogout': 'auth.logout' in flask.current_app.view_functions,
         'hasChangePassword': 'auth.change_password' in flask.current_app.view_functions,
-        'minPasswordLength': flask.current_app.config.get('MIN_PASSWORD_LENGTH', 6)
+        'minPasswordLength': config.get('MIN_PASSWORD_LENGTH', 6),
+        'ungroupedFilterKey': UNGROUPED_FILTER_KEY,
+        'maxReportRows': config['MAX_REPORT_ROWS'],
+        'daysInAdvance': (config['WEEKS_IN_ADVANCE'] + 1) * 7,
+        'bookOpen': config['BOOK_OPEN'],
+        'bookClose': config['BOOK_CLOSE'],
+        'spaURLs': spaURLs(),
+        # Backend sentinels consumed by JS (project rule: shared backend-JS
+        # constants flow through window.warpGlobals, defined once — never
+        # duplicated as JS literals). Renumbering a role/type in db.py must not
+        # silently break the client-side filters/editors.
+        'accountTypeGroup': ACCOUNT_TYPE_GROUP,
+        'zoneRoles': {'admin': ZONE_ROLE_ADMIN, 'user': ZONE_ROLE_USER, 'viewer': ZONE_ROLE_VIEWER},
+        'zoneTypes': {
+            'disabled': ZONE_TYPE_DISABLED,
+            'enabled': ZONE_TYPE_ENABLED,
+            'publicView': ZONE_TYPE_PUBLIC_VIEW,
+            'publicBook': ZONE_TYPE_PUBLIC_BOOK,
+        },
     }
+
+
+def _intUrlFor(endpoint, param, placeholder, **kwargs):
+    """url_for a route whose dynamic segment uses the <int:...> converter,
+    with a placeholder the client substitutes per-row instead of a real id.
+    <int:...> rejects a non-numeric value outright, so build with a real int
+    (0 — never a valid row id) and swap it back out; the value only ever
+    appears as the route's trailing path segment, so the replacement is exact."""
+    url = flask.url_for(endpoint, **{param: 0}, **kwargs)
+    suffix = '/0'
+    assert url.endswith(suffix), f"expected {endpoint} to end with {suffix}, got {url}"
+    return url[:-len(suffix)] + '/' + placeholder
+
+
+def spaURLs():
+    """The full warpGlobals.URLs table, injected once into spa.html via
+    url_for() — the single-definition union of the per-page URL tables that
+    used to live in the 10 page templates. url_for is mount-prefix/proxy-aware,
+    so this (not a hardcoded JS route table) is what keeps prefixed deployments
+    working. __LOGIN__/__ZID__/__PID__ are placeholders the client substitutes
+    per-row (Tabulator formatters, dialog opens, …)."""
+
+    urls = {
+        'login': flask.url_for('auth.login'),
+        'distBase': flask.url_for('static', filename='dist/'),
+        'bootstrap': flask.url_for('xhr.bootstrap.bootstrap'),
+        'logoSvg': flask.url_for('static', filename='images/logo.svg'),
+
+        'planImage': flask.url_for('view.planImage', pid='__PID__'),
+        'plan': flask.url_for('view.plan', pid='__PID__'),
+        'planApply': flask.url_for('xhr.plan.apply'),
+        'planGetSeat': _intUrlFor('xhr.plan.getSeats', 'pid', '__PID__'),
+        'planAutoBook': _intUrlFor('xhr.plan.autoBook', 'pid', '__PID__'),
+        'planGetUsers': _intUrlFor('xhr.plan.getUsers', 'pid', '__PID__'),
+        'planGetContext': _intUrlFor('xhr.plan.getContext', 'pid', '__PID__'),
+        'seatSprite': flask.url_for('static', filename='images/seat_icons.svg'),
+
+        'usersList': flask.url_for('xhr.users.list'),
+        'usersEdit': flask.url_for('xhr.users.edit'),
+        'usersDelete': flask.url_for('xhr.users.delete'),
+        'userGroups': flask.url_for('xhr.users.groups', login='__LOGIN__'),
+
+        'groups': flask.url_for('view.groups'),
+        'groupAssign': flask.url_for('view.groupAssign', group_login='__LOGIN__'),
+        'groupMemberList': flask.url_for('xhr.groups.members'),
+        'groupsAssignXHR': flask.url_for('xhr.groups.assign'),
+        'groupInfo': flask.url_for('xhr.groups.info', login='__LOGIN__'),
+
+        'zones': flask.url_for('view.zones'),
+        'zonesList': flask.url_for('xhr.zones.list'),
+        'zonesDelete': flask.url_for('xhr.zones.delete'),
+        'zonesAddOrEdit': flask.url_for('xhr.zones.addOrEdit'),
+        'zonesGroups': flask.url_for('xhr.zones.groups'),
+        'zoneNames': flask.url_for('xhr.zones.names'),
+        'zoneAssign': flask.url_for('view.zoneAssign', zid='__ZID__'),
+        'zoneMembers': flask.url_for('xhr.zones.members'),
+        'zoneAssignXHR': flask.url_for('xhr.zones.assign'),
+        'zoneInfo': _intUrlFor('xhr.zones.info', 'zid', '__ZID__'),
+
+        'plans': flask.url_for('view.plans'),
+        'plansList': flask.url_for('xhr.plans.list'),
+        'plansDelete': flask.url_for('xhr.plans.delete'),
+        'plansAddOrEdit': flask.url_for('xhr.plans.addOrEdit'),
+        'plansTimezones': flask.url_for('xhr.plans.timezones'),
+        'planModify': flask.url_for('view.planModify', pid='__PID__'),
+        'plansModifyXHR': flask.url_for('xhr.plans.modify'),
+        'plansGetSeats': _intUrlFor('xhr.plans.getSeats', 'pid', '__PID__'),
+        'plansZonesForPlan': flask.url_for('xhr.plans.zonesForPlan'),
+        'plansAllZones': flask.url_for('xhr.plans.allZones'),
+
+        'bookings': flask.url_for('view.bookings', report=''),
+        'bookingsReportPage': flask.url_for('view.bookings', report='report'),
+        'bookingsList': flask.url_for('xhr.bookings.list'),
+        'bookingsReport': flask.url_for('xhr.bookings.report'),
+        'bookingsContext': flask.url_for('xhr.bookings.context'),
+        'excelIcon': flask.url_for('static', filename='images/excel_icon.png'),
+
+        # Shell modals (prefs / calendar). GET and POST share each path, so one
+        # url_for entry (the GET endpoint) suffices. Routed through Utils.xhr in
+        # JS — via these entries, not a hardcoded '/xhr/...' — so they share the
+        # 401 session-expiry redirect + ref-counted spinner and stay correct
+        # under a reverse-proxy mount prefix.
+        'prefs': flask.url_for('xhr.prefs.prefs_get'),
+        'calendar': flask.url_for('xhr.calendar.calendar_get'),
+    }
+
+    if 'auth.change_password' in flask.current_app.view_functions:
+        urls['changePassword'] = flask.url_for('auth.change_password')
+
+    return urls
+
+
+def _admin_spa():
+    """SPA shell for an admin-only route: cheap 403 guard + render spa.html.
+    Shared by the seven admin views (users/groups/zones/plans + the two assigns
+    + planModify) that used to each repeat the same two lines."""
+    if not flask.g.isAdmin:
+        flask.abort(403)
+    return flask.render_template('spa.html')
 
 
 @bp.route("/")
 def index():
-    default_plan = get_user_prefs(flask.g.login).get('default_plan')
-
-    if default_plan is not None:
-        # Check if the plan is still accessible to the user: a row in the view
-        # for any zone on the plan means access.
-        has_access = UserToZoneRoles.select(SQL_ONE) \
-            .where(UserToZoneRoles.login == flask.g.login) \
-            .where(UserToZoneRoles.zid.in_(
-                Zone.select(Zone.id).join(Seat, on=(Seat.zid == Zone.id))
-                  .where(Seat.pid == default_plan)
-            )).exists()
-        if has_access:
-            return flask.redirect(flask.url_for('view.plan', pid=default_plan))
-
-    return flask.render_template('index.html')
+    return flask.render_template('spa.html')
 
 
 @bp.route("/bookings/<string:report>")
@@ -92,102 +149,12 @@ def index():
 def bookings(report):
     if report == "report" and not flask.g.isAdmin:
         flask.abort(403)
-    # The report's default 2-week filter window is sourced from the backend
-    # (PLAN per_plan_timezone §7): today in a FIXED reference (UTC), so the
-    # window doesn't shift with the admin's browser timezone. The report spans
-    # plans in many TZs, so there's no single "viewer" zone — UTC is the neutral
-    # anchor, and this is only the default filter (cosmetic). Report view only.
-    return flask.render_template('bookings.html',
-                                 report=(report == "report"),
-                                 maxReportRows=flask.current_app.config['MAX_REPORT_ROWS'],
-                                 today=int(utils.today(tz='UTC')))
+    return flask.render_template('spa.html')
 
 
 @bp.route("/plan/<pid>")
 def plan(pid):
-
-    # Collect zones on this plan and check user access
-    zone_rows = list(Zone.select(Zone.id)
-                     .join(Seat, on=(Seat.zid == Zone.id))
-                     .where(Seat.pid == pid)
-                     .group_by(Zone.id)
-                     .iterator())
-
-    # Fetch the plan's dark-mode map filter and timezone at once; a None result
-    # doubles as the plan-existence check (no extra query needed).
-    plan_row = Plan.select(Plan.dark_filter, Plan.timezone).where(Plan.id == pid).first()
-    if plan_row is None:
-        flask.abort(403)
-    dark_filter = plan_row['dark_filter']
-    plan_tz = plan_row['timezone'] or "UTC"
-
-    if not zone_rows and not flask.g.isAdmin:
-        # Plan exists but has no seats — only an admin may open it.
-        flask.abort(403)
-
-    plan_zids = [z['id'] for z in zone_rows]
-
-    # Effective roles from the view (single source of truth — already resolves
-    # public-zone "everyone" roles and DISABLED ADMIN-only filtering).
-    effective_roles = {}
-    if plan_zids:
-        for row in UserToZoneRoles.select(UserToZoneRoles.zid, UserToZoneRoles.zone_role) \
-                .where(UserToZoneRoles.login == flask.g.login) \
-                .where(UserToZoneRoles.zid.in_(plan_zids)).dicts():
-            effective_roles[row['zid']] = row['zone_role']
-
-    if not effective_roles and not flask.g.isAdmin:
-        flask.abort(403)
-
-    prefs = get_user_prefs(flask.g.login)
-    default_time = prefs.get('default_time', [9 * 3600, 17 * 3600])
-    default_day = prefs.get('default_day', 'same')
-
-    planPreviewPrefs = {
-        'show_seat_names': prefs.get('zone_show_seat_names', False),
-        'show_booking_preview': prefs.get('zone_show_booking_preview', False),
-        'show_assigned_names': prefs.get('zone_show_assigned_names', False),
-    }
-
-    defaultSelectedDates = {"slider": default_time}
-
-    now_ts = utils.now(tz=plan_tz)
-    today_ts = utils.today(tz=plan_tz)
-    seconds_into_day = now_ts - today_ts
-
-    if default_day == 'boundary':
-        target_ts = today_ts + (24 * 3600 if seconds_into_day >= default_time[0] else 0)
-    elif default_day == 'tomorrow':
-        target_ts = today_ts + (24 * 3600)
-    else:
-        target_ts = today_ts
-
-    # The booking calendar grid (replaces the old getNextWeek date checkbox
-    # list). Cell range + selectable flags + default-day pick are backend-driven
-    # (TZ-safe by construction — R1, R9); the frontend only renders + selects.
-    calendarGrid = utils.getCalendarGrid(target_ts=target_ts, today_ts=today_ts)
-    if calendarGrid['defaultTs'] is not None:
-        defaultSelectedDates['cb'] = [calendarGrid['defaultTs']]
-
-    is_plan_admin = any(r <= ZONE_ROLE_ADMIN for r in effective_roles.values()) or flask.g.isAdmin
-    is_plan_viewer = effective_roles and all(r >= ZONE_ROLE_VIEWER for r in effective_roles.values()) and \
-                     not any(r <= ZONE_ROLE_USER for r in effective_roles.values())
-
-    role_flags = {}
-    if is_plan_admin:
-        role_flags['isZoneAdmin'] = True
-    elif is_plan_viewer:
-        role_flags['isZoneViewer'] = True
-
-    return flask.render_template('plan.html',
-                                 **role_flags,
-                                 pid=pid,
-                                 dark_filter=dark_filter,
-                                 calendarGrid=calendarGrid,
-                                 today=today_ts,
-                                 plan_timezone=plan_tz or '',
-                                 defaultSelectedDates=defaultSelectedDates,
-                                 planPreviewPrefs=planPreviewPrefs)
+    return flask.render_template('spa.html')
 
 
 @bp.route("/plan/image/<pid>")
@@ -210,74 +177,34 @@ def planImage(pid):
 
 @bp.route("/users")
 def users():
-    if not flask.g.isAdmin:
-        flask.abort(403)
-    return flask.render_template('users.html')
+    return _admin_spa()
 
 
 @bp.route("/groups")
 def groups():
-    if not flask.g.isAdmin:
-        flask.abort(403)
-    return flask.render_template('groups.html')
+    return _admin_spa()
 
 
 @bp.route("/zones")
 def zones():
-    if not flask.g.isAdmin:
-        flask.abort(403)
-    return flask.render_template('zones.html',
-                                 ungroupedFilterKey=UNGROUPED_FILTER_KEY)
+    return _admin_spa()
 
 
 @bp.route("/plans")
 def plans():
-    if not flask.g.isAdmin:
-        flask.abort(403)
-    return flask.render_template('plans.html')
+    return _admin_spa()
 
 
 @bp.route("/groups/assign/<group_login>")
 def groupAssign(group_login):
-    if not flask.g.isAdmin:
-        flask.abort(403)
-
-    groupName = Users.select(Users.name) \
-        .where((Users.login == group_login) & (Users.account_type >= ACCOUNT_TYPE_GROUP)) \
-        .scalar()
-    if groupName is None:
-        flask.abort(404)
-
-    returnURL = flask.request.args.get('return', flask.url_for('view.groups'))
-    return flask.render_template('group_assign.html',
-                                 groupLogin=group_login,
-                                 groupName=groupName,
-                                 returnURL=returnURL)
+    return _admin_spa()
 
 
 @bp.route("/zones/assign/<zid>")
 def zoneAssign(zid):
-    if not flask.g.isAdmin:
-        flask.abort(403)
-
-    zoneName = Zone.select(Zone.name).where(Zone.id == zid).scalar()
-    if zoneName is None:
-        flask.abort(404)
-
-    returnURL = flask.request.args.get('return', flask.url_for('view.zones'))
-    return flask.render_template('zone_assign.html',
-                                 zoneName=zoneName,
-                                 zid=zid,
-                                 returnURL=returnURL)
+    return _admin_spa()
 
 
 @bp.route("/plans/modify/<pid>")
 def planModify(pid):
-    if not flask.g.isAdmin:
-        flask.abort(403)
-
-    returnURL = flask.request.args.get('return', flask.url_for('view.plans'))
-    return flask.render_template('plan_modify.html',
-                                 pid=pid,
-                                 returnURL=returnURL,
-                                 dark_filter=Plan.select(Plan.dark_filter).where(Plan.id == pid).scalar())
+    return _admin_spa()

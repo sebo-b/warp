@@ -30,6 +30,15 @@ bp = flask.Blueprint('bookings', __name__, url_prefix='bookings')
 def report():
     return listW(True)
 
+
+@bp.route("context", methods=["GET"])
+def context():
+    # Backend-computed "today" (UTC — the report spans plans in many TZs, so
+    # there's no single "viewer" zone) for the report's default 2-week filter
+    # window. Fetched on report-mount so a long-lived SPA session crossing
+    # midnight still gets a fresh default.
+    return {"today": int(utils.today(tz='UTC'))}
+
 listSchema = addToTabulatorSchema({
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",

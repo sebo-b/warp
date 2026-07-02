@@ -41,27 +41,66 @@
     color: var(--warp-error);
 }
 
-/* WARP loading spinner (replaces the stock "Loading..." text). Reuses the
-   spinnerRotate keyframes defined in base/style.css. */
-.tabulator .tabulator-loader {
+/* WARP loading spinner (replaces the stock "Loading…" bordered-text box).
+   Tabulator 6 renders the data-load overlay as .tabulator-alert /
+   .tabulator-alert-msg (5.x used .tabulator-loader / .tabulator-loader-msg —
+   these selectors were never updated, so the spinner CSS below was dead and
+   the stock Materialize loader showed instead). Reuses the spinnerRotate
+   keyframes from base/style.css. Scoped under :root[theme] (always present)
+   for specificity over the stock theme's .tabulator-alert-msg rules.
+
+   NOTE: Tabulator's dataLoader alert only fires for NON-silent loads, and
+   remote sort/filter go through the silent path — so for those the alert
+   never appears. The reliable spinner is the .warp-loading overlay below,
+   toggled from tablePage.js's ajaxRequesting/ajaxResponse. The rules here
+   still cover the cases where the stock alert does fire (and the error box). */
+:root[theme] .tabulator .tabulator-alert {
     background: rgba(var(--warp-surface-rgb), 0.4);
 }
-.tabulator .tabulator-loader .tabulator-loader-msg.tabulator-loading {
-    display: block;
-    width: 100px;
-    height: 100px;
+/* Loading state -> the spinner; hide the stock "Loading" text (color:transparent). */
+:root[theme] .tabulator .tabulator-alert .tabulator-alert-msg.tabulator-alert-state-msg {
+    background: transparent;
     color: transparent;
-    border-radius: 50%;
     border: 6px solid var(--warp-secondary-pale);
     border-left-color: var(--warp-secondary);
+    border-radius: 50%;
+    width: 100px;
+    height: 100px;
+    padding: 0;
     animation: spinnerRotate 1s infinite linear;
 }
-.tabulator .tabulator-loader .tabulator-loader-msg.tabulator-error {
+/* Error state -> themed error box. */
+:root[theme] .tabulator .tabulator-alert .tabulator-alert-msg.tabulator-alert-state-error {
     background: var(--warp-surface);
     color: var(--warp-text);
     padding: 20px 40px;
     border: 4px solid var(--warp-error);
     border-radius: 10px;
+}
+
+/* In-table loading overlay, toggled by tablePage.js around Tabulator's own ajax
+   (initial/pagination/sort/filter). Scoped to .tabulator (the table root, which
+   Tabulator makes position:relative), so only the table dims+spins — not the
+   whole page. ::before is the translucent backdrop, ::after the spinner (reuses
+   spinnerRotate from base/style.css). */
+.tabulator.warp-loading::before {
+    content: "";
+    position: absolute;
+    top: 0; right: 0; bottom: 0; left: 0;
+    background: rgba(var(--warp-surface-rgb), 0.4);
+    z-index: 100;
+}
+.tabulator.warp-loading::after {
+    content: "";
+    position: absolute;
+    top: 50%; left: 50%;
+    margin: -30px 0 0 -30px;
+    width: 60px; height: 60px;
+    z-index: 101;
+    border: 6px solid var(--warp-secondary-pale);
+    border-left-color: var(--warp-secondary);
+    border-radius: 50%;
+    animation: spinnerRotate 1s infinite linear;
 }
 
 /* Theme overrides for the stock Tabulator Materialize theme, which hard-codes its
@@ -87,14 +126,34 @@
 
 /* Floating popups/menus stay on the raised surface tier. */
 :root[theme] .tabulator-edit-select-list,
-:root[theme] .tabulator-popup-container,
-:root[theme] .tabulator .tabulator-alert .tabulator-alert-msg {
+:root[theme] .tabulator-popup-container {
     background-color: var(--warp-surface);
     color: var(--warp-text);
 }
 
 :root[theme] .tabulator-row.tabulator-row-even {
     background-color: color-mix(in srgb, var(--warp-grey-bg), var(--warp-text) 5%);
+}
+
+/* A Tabulator table inside a modal (.warp-form-modal) is page content raised onto
+   the modal surface tier, not the page tier the main admin tables sit on. The
+   base rules above put it on --warp-grey-bg, which reads as a different-colored
+   block inside the dialog (the assign-seat collection it mirrors is transparent
+   over the same --warp-surface). Override to the surface tier so the staging
+   table blends with the modal like the reference list. Specificity beats the
+   base rule above via the extra .warp-form-modal class; main tables (no modal
+   ancestor) are unaffected. */
+:root[theme] .warp-form-modal .tabulator,
+:root[theme] .warp-form-modal .tabulator .tabulator-tableholder .tabulator-table,
+:root[theme] .warp-form-modal .tabulator-row,
+:root[theme] .warp-form-modal .tabulator-row.tabulator-row-even,
+:root[theme] .warp-form-modal .tabulator .tabulator-footer {
+    background-color: var(--warp-surface);
+    color: var(--warp-text);
+}
+
+:root[theme] .warp-form-modal .tabulator-row.tabulator-selectable:hover {
+    background-color: color-mix(in srgb, var(--warp-surface), var(--warp-text) 6%);
 }
 
 /* Table rows/cols/footer-page hover: lighten onto the raised surface tier

@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block bundle %}
+    {% include 'headers/public.html' ignore missing %}
+{% endblock %}
+
+{% block header %}
+    {{ super() }}
+
+    <style>
+        html, body {
+            height: 100%;
+            width: 100%;
+        }
+        .action-outer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 80vh;
+            padding: 16px;
+        }
+        .action-card {
+            width: 100%;
+            max-width: 480px;
+        }
+    </style>
+{% endblock %}
+
+{% block nav %}
+    {% include 'public_nav.html' %}
+{% endblock %}
+
+{% block content %}
+    {{ super() }}
+
+    <div class="action-outer">
+        <div class="card action-card">
+            <div class="card-content">
+                {# title is the (English) key the SPA's own #view-error uses;
+                   polyglot falls back to it unchanged when no phrase exists,
+                   so the server and client error views read identically. #}
+                <span class="card-title TR">{{ title }}</span>
+                {% if message %}<p class="TR">{{ message }}</p>{% endif %}
+            </div>
+        </div>
+    </div>
+{% endblock %}
