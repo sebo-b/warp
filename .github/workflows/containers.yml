@@ -134,6 +134,7 @@ jobs:
           # digests into separate arguments to imagetools create.
           # shellcheck disable=SC2046
           docker buildx imagetools create \
+            --annotation "index:org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
             $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf '${{ env.IMAGE }}@sha256:%s ' *)
 
