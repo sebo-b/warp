@@ -167,6 +167,7 @@
         "The seat is available to be booked on the selected dates and time.": "The seat is available to be booked on the selected dates and time.",
         "The seat is available, but you have another booking at that time which will be automatically updated.": "The seat is available, but you have another booking at that time which will be automatically updated.",
         "The seat is assigned to you and available to be booked.": "The seat is assigned to you and available to be booked.",
+        "The seat is assigned to someone else, but as a zone admin booking for a user you may override that assignment and book it for them here.": "The seat is assigned to someone else, but as a zone admin booking for a user you may override that assignment and book it for them here.",
         "The seat is assigned to you and available, but you have another booking at that time which will be automatically updated.": "The seat is assigned to you and available, but you have another booking at that time which will be automatically updated.",
         "The seat is booked by you exactly on the selected date and time.": "The seat is booked by you exactly on the selected date and time.",
         "The seat is booked by you, but not exactly on the selected date or time. You can update; other reservations at that time will be automatically updated.": "The seat is booked by you, but not exactly on the selected date or time. You can update; other reservations at that time will be automatically updated.",

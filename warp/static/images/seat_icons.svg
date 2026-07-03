@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="552" height="48" viewBox="0 0 552 48">
+<svg xmlns="http://www.w3.org/2000/svg" width="608" height="48" viewBox="0 0 608 48">
   <!--
     Seat status cells (#cell-<name>). One per visual state; colours come from
     the :root warp-seat-* family theme vars (fg/bground), which cross an
@@ -83,6 +83,13 @@
       <use href="#tie-path" fill="var(--warp-seat-unavailable-bg)"/>
     </g>
 
+    <g id="cell-assignedOverride">   <!-- head + tie knockout, green (book-for override of an assignment) -->
+      <circle cx="12" cy="12" r="10.5" fill="var(--warp-seat-available-bg)"/>
+      <circle cx="12" cy="12" r="10.5" fill="none" stroke="var(--warp-seat-available-fg)" stroke-width="1.5"/>
+      <use href="#head-path" fill="var(--warp-seat-available-fg)"/>
+      <use href="#tie-path" fill="var(--warp-seat-available-bg)"/>
+    </g>
+
     <g id="cell-unavailable">         <!-- no-symbol (plus rotated 45deg), grey (view-only free / disabled / no dates) -->
       <circle cx="12" cy="12" r="10.5" fill="var(--warp-seat-unavailable-bg)"/>
       <circle cx="12" cy="12" r="10.5" fill="none" stroke="var(--warp-seat-unavailable-fg)" stroke-width="1.5"/>
@@ -102,4 +109,5 @@
   <use href="#cell-assigned"         x="392" y="0" width="48" height="48"/>
   <use href="#cell-unavailable"       x="448" y="0" width="48" height="48"/>
   <use href="#cell-edited"           x="504" y="0" width="48" height="48"/>
+  <use href="#cell-assignedOverride" x="560" y="0" width="48" height="48"/>
 </svg>

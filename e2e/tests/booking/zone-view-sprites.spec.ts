@@ -32,6 +32,7 @@ import {
   ZONE_TYPE_ENABLED,
   ZONE_TYPE_PUBLIC_VIEW,
   ZONE_ROLE_USER,
+  ZONE_ROLE_ADMIN,
   createPlan,
   createZone,
   addSeats,
@@ -249,5 +250,64 @@ test.describe('assigned-to-me in a bookable ENABLED zone (risk #5 guard)', () =>
     await page.waitForTimeout(400);
 
     await expectSprite(page, seat, 'cell-availableAssigned');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Book-for override of an assignment: admin books FOR a target onto a seat
+// assigned to someone else (apply() skips 106/110 under is_book_for). The
+// seat is bookable despite the assignment, so it renders a distinct green
+// "assigned + bookable via override" icon (head+tie in the available colour
+// family), not the grey ASSIGNED one, and the book action is offered.
+// ---------------------------------------------------------------------------
+
+/** Activate book-for for the given display label (e.g. "Bar [user2]"). */
+async function activateBookFor(page: any, label: string): Promise<void> {
+  const bookForInput = page.locator('#book-for');
+  await bookForInput.click();
+  await bookForInput.pressSequentially(label.split(' ')[0], { delay: 50 });
+  const item = page.locator('ul.autocomplete-content li', { hasText: label });
+  await expect(item).toBeVisible({ timeout: 5000 });
+  await item.click();
+  await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(400);
+}
+
+test.describe('book-for override of an assignment', () => {
+  test('8. seat assigned to a third person, book-for target is a member → assignedOverride + book works', async ({ page }) => {
+    const pid = await createPlan('Sprite Override Plan', 1);
+    const zid = await createZone('SO Zone', ZONE_TYPE_ENABLED);
+    const [seat] = await addSeats(pid, zid, ['SO.1']);
+    // user1 administers the zone; user2 (the book-for target) is a member;
+    // the seat is assigned to user3 (a third person, not the target).
+    await assignZoneRole(zid, USER1.login, ZONE_ROLE_ADMIN);
+    await assignZoneRole(zid, USER2.login, ZONE_ROLE_USER);
+    await assignSeat(seat, USER3.login, null);
+
+    await logIn(page, USER1);
+    await page.goto(`/plan/${pid}`);
+    await waitForSeatsLoaded(page);
+    // Default self-view (admin): the seat is bookable at the zone level but
+    // self-book is blocked by 106 → grey ASSIGNED, NOT the override icon.
+    await selectOnlyDates(page, [DAY]);
+    await page.waitForTimeout(400);
+    await expectSprite(page, seat, 'cell-assigned');
+
+    // Switch to book-for user2: the admin may now override the assignment →
+    // green assignedOverride icon, and the book action books for user2.
+    await activateBookFor(page, `${USER2.name} [${USER2.login}]`);
+    await selectOnlyDates(page, [DAY]);
+    await page.waitForTimeout(400);
+    await expectSprite(page, seat, 'cell-assignedOverride');
+
+    await page.locator(`#sprite-${seat}`).click();
+    await expect(page.locator('#action_modal')).toHaveClass(/open/);
+    await clickActionBtn(page, 'book');
+
+    const r = await querySql(
+      'SELECT COUNT(*)::int AS cnt FROM book WHERE login = $1 AND sid = $2',
+      [USER2.login, seat],
+    );
+    expect(r.rows[0].cnt).toBe(1);
   });
 });

@@ -893,6 +893,7 @@ export async function mount(ctx) {
             userRebook:     'yoursChange',
             userConflict:   'taken',
             bookAssigned:   'availableAssigned',
+            bookAssignedOverride: 'assignedOverride',
             rebookAssigned: 'rebookAssigned',
             disabled:       'unavailable',
             assigned:       'assigned'
