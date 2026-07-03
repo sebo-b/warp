@@ -342,8 +342,8 @@ export async function mount(ctx) {
 
         data.append('json', JSON.stringify(json));
 
-        // Build the change summary as plain translated phrases; the "- " bullet and
-        // <br> line breaks are presentation and are added here, not baked into i18n.
+        // Build the change summary as plain translated phrases; the list markup
+        // is presentation and is added here, not baked into i18n.
         let lines = [];
         if (data.has('image'))
             lines.push(TR("updated plan map"));
@@ -363,13 +363,15 @@ export async function mount(ctx) {
         if ('darkFilter' in json)
             lines.push(TR("updated map filter"));
 
-        let msg = TR("The following changes will be applied:");
+        let container = document.createElement('div');
+        container.appendChild(document.createTextNode(TR("The following changes will be applied:")));
+        let list = container.appendChild(document.createElement('ul'));
         for (let line of lines)
-            msg += "<br>- " + line;
+            list.appendChild(document.createElement('li')).innerText = line;
 
         confirmDelete(
             TR("Are you sure to update the plan?"),
-            msg,
+            container.outerHTML,
             { yesText: TR("btn.Yes"), noText: TR("btn.No") }
         ).then((confirmed) => {
             if (!confirmed) return;

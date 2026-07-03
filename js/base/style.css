@@ -1694,15 +1694,23 @@ SELECT.warp_select {
     padding: 0 15px 0 0;
 }
 
-/* Auto-book result (WarpModal): the result tables inherit Materialize's default
-   td padding (15px 5px), which makes the rows huge and out of step with the
-   rest of the app. Use a modest vertical padding (~6px) so a row is roughly
-   1.5× a normal text line-height, and right-pad cells for column separation. */
-.autobook-result table {
+/* Structured-data tables inside a WarpModal message (auto-book results,
+   release-booking / conflict confirmations): the tables inherit Materialize's
+   default td padding (15px 5px), which makes the rows huge and out of step
+   with the rest of the app. Use a modest vertical padding (~6px) so a row is
+   roughly 1.5x a normal text line-height, and right-pad cells for column
+   separation. */
+.warp-data-table {
     width: auto;
 }
-.autobook-result td {
+.warp-data-table td {
     padding: 6px 15px 6px 0;
+}
+
+/* Label/value variant (first column is the field label) — bold it like a
+   form label so it reads as "Field: value" rather than two data columns. */
+.warp-data-table-kv td:first-child {
+    font-weight: 600;
 }
 
 

@@ -10,6 +10,7 @@ import BookAs from './modules/bookas.js';
 import { WarpCalendar } from './modules/calendarGrid.js';
 import { M } from '../app/materialize.js';
 import warpDialog from '../app/dialog.js';
+import { buildDataTable } from '../lib/dataTable.js';
 
 import noUiSlider from 'nouislider';
 import "./css/plan/nouislider.css";
@@ -29,12 +30,6 @@ const PRISTINE_URLS = {
 };
 
 export { html };
-
-function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, function(c) {
-        return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
-    });
-}
 
 export async function mount(ctx) {
     const root = ctx.root;
@@ -781,45 +776,39 @@ export async function mount(ctx) {
                 {toastOnSuccess: false})
             .then( (value) => {
 
-                var msg = "";
+                var container = document.createElement('div');
 
-                if (value.response.conflicts_in_disable) {
-                    msg += TR("Seat is successfully disabled.<br>However there are existing reservations in the the next few weeks. " +
-                          "Existing reservations are not automatically released, it has to be done manually.<br><br>");
-                    let rList = [];
-                    for (let r of value.response.conflicts_in_disable) {
+                function appendConflictSection(introText, conflicts) {
+                    if (!conflicts) return;
+                    if (container.children.length)
+                        container.appendChild(document.createElement('br'));
+                    var intro = container.appendChild(document.createElement('div'));
+                    intro.innerHTML = introText;
+                    var rows = conflicts.map(function(r) {
                         let dateStr = WarpSeatFactory._formatDatePair(r);
-                        rList.push( escapeHtml(r.username) + "&nbsp;on&nbsp;" + dateStr.datetime1 + "&nbsp;" + dateStr.datetime2);
-                    }
-                    msg += rList.join('<br>');
+                        return [r.username, dateStr.datetime1, dateStr.datetime2];
+                    });
+                    container.appendChild(buildDataTable(rows));
                 }
 
-                if (value.response.conflicts_in_assign) {
-                    msg += TR("Seat is successfully assigned.<br>However there are non-assignees' existing reservations in the the next few weeks. " +
-                          "Existing reservations are not automatically released, it has to be done manually.<br><br>");
-                    let rList = [];
-                    for (let r of value.response.conflicts_in_assign) {
-                        let dateStr = WarpSeatFactory._formatDatePair(r);
-                        rList.push( escapeHtml(r.username) + "&nbsp;on&nbsp;" + dateStr.datetime1 + "&nbsp;" + dateStr.datetime2);
-                    }
-                    msg += rList.join('<br>');
-                }
+                appendConflictSection(
+                    TR("Seat is successfully disabled.<br>However there are existing reservations in the the next few weeks. " +
+                       "Existing reservations are not automatically released, it has to be done manually."),
+                    value.response.conflicts_in_disable);
 
-                if (value.response.conflicts_in_window) {
-                    if (msg) msg += "<br><br>";
-                    msg += TR("Some reservations are outside the new booking window and must be released manually.") + "<br>";
-                    let rList = [];
-                    for (let r of value.response.conflicts_in_window) {
-                        let dateStr = WarpSeatFactory._formatDatePair(r);
-                        rList.push( escapeHtml(r.username) + "&nbsp;on&nbsp;" + dateStr.datetime1 + "&nbsp;" + dateStr.datetime2);
-                    }
-                    msg += rList.join('<br>');
-                }
+                appendConflictSection(
+                    TR("Seat is successfully assigned.<br>However there are non-assignees' existing reservations in the the next few weeks. " +
+                       "Existing reservations are not automatically released, it has to be done manually."),
+                    value.response.conflicts_in_assign);
 
-                if (msg == "")
+                appendConflictSection(
+                    TR("Some reservations are outside the new booking window and must be released manually."),
+                    value.response.conflicts_in_window);
+
+                if (!container.children.length)
                     M.toast({text: TR('Action successfull.')});
                 else
-                    WarpModal.getInstance().open(TR("Warning"),msg);
+                    WarpModal.getInstance().open(TR("Warning"), container.outerHTML);
 
                 downloadSeatData(seatFactory);
             }).catch( (value) => {
@@ -1009,7 +998,6 @@ export async function mount(ctx) {
         var notExtended = resp.not_extended || [];
 
         var container = document.createElement('div');
-        container.className = 'autobook-result';
 
         function appendSection(headerText, rowBuilder, items) {
             if (!items.length)
@@ -1021,49 +1009,39 @@ export async function mount(ctx) {
             var header = container.appendChild(document.createElement('b'));
             header.innerText = headerText;
 
-            var table = container.appendChild(document.createElement('table'));
-            for (let it of items) {
-                let tr = table.appendChild(document.createElement('tr'));
-                rowBuilder(tr, it);
-            }
+            container.appendChild(buildDataTable(items.map(rowBuilder)));
         }
 
-        appendSection(TR("Booked:"), function(tr, b) {
+        appendSection(TR("Booked:"), function(b) {
             let f = WarpSeatFactory._formatDatePair(b);
-            tr.appendChild(document.createElement('td')).innerText = b.seat_name;
-            tr.appendChild(document.createElement('td')).innerText = f.datetime1;
-            tr.appendChild(document.createElement('td')).innerText = f.datetime2;
+            return [b.seat_name, f.datetime1, f.datetime2];
         }, booked);
 
-        appendSection(TR("Could not extend or rebook:"), function(tr, u) {
+        appendSection(TR("Could not extend or rebook:"), function(u) {
             let f = WarpSeatFactory._formatDatePair(u);
-            tr.appendChild(document.createElement('td')).innerText = f.datetime1;
-            tr.appendChild(document.createElement('td')).innerText = f.datetime2;
+            return [f.datetime1, f.datetime2];
         }, notExtended);
 
-        appendSection(TR("Could not book the following dates:"), function(tr, u) {
+        appendSection(TR("Could not book the following dates:"), function(u) {
             let f = WarpSeatFactory._formatDatePair(u);
-            tr.appendChild(document.createElement('td')).innerText = f.datetime1;
-            let timeTd = tr.appendChild(document.createElement('td'));
-            timeTd.innerText = f.datetime2;
+            let timeCell = document.createDocumentFragment();
+            timeCell.appendChild(document.createTextNode(f.datetime2));
             if (u.future_options && u.future_options.length) {
                 for (let o of u.future_options) {
                     let dateStr = new Date(o.available_from_ts * 1000).toISOString().substring(0, 10);
-                    timeTd.appendChild(document.createElement('br'));
-                    timeTd.appendChild(document.createTextNode(
+                    timeCell.appendChild(document.createElement('br'));
+                    timeCell.appendChild(document.createTextNode(
                         TR("Seat %{seat_name} becomes available on %{date}",
                             {seat_name: o.seat_name, date: dateStr})));
                 }
             }
+            return [f.datetime1, timeCell];
         }, unbookable);
 
         if (!container.children.length) {
             container.appendChild(document.createTextNode(TR("No seat could be booked.")));
         }
 
-        // outerHTML (not innerHTML) so the .autobook-result wrapper class —
-        // which scopes the compact result-table padding in style.css — survives
-        // into the modal's message element.
         WarpModal.getInstance().open(TR("Auto book"), container.outerHTML);
     }
 

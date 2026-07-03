@@ -5,6 +5,7 @@ import Utils from './modules/utils.js';
 import WarpModal from './modules/modal.js';
 import { createTable } from '../lib/tablePage.js';
 import { confirmDelete } from '../lib/confirmDelete.js';
+import { buildDataTable } from '../lib/dataTable.js';
 import { M } from '../app/materialize.js';
 import { timestampFormatter } from '../lib/formatters.js';
 
@@ -167,17 +168,20 @@ export async function mount(ctx) {
         if (!data.rw)
             return;
 
-        var msg = TR('User name')+": "+data['user_name']+"<br>"+
-              TR("Plan")+": "+data['plan_name']+"<br>"+
-              TR("Seat")+": "+data['seat_name']+"<br>"+
-              TR("Time")+": "+mergedTsFormatter(cell);
+        var table = buildDataTable([
+            [TR('User name'), data['user_name']],
+            [TR("Plan"), data['plan_name']],
+            [TR("Seat"), data['seat_name']],
+            [TR("Time"), mergedTsFormatter(cell)]
+        ]);
+        table.classList.add('warp-data-table-kv');
 
         // Route through the shared confirmDelete helper (same Yes/No WarpModal +
         // Esc/outside-click->false handling every other delete uses) instead of
         // re-implementing the buttons/onButtonHook boilerplate here.
         confirmDelete(
             TR("Are you sure to release this booking?"),
-            msg,
+            table.outerHTML,
             { yesText: TR("btn.Yes"), noText: TR("btn.No") }
         ).then((confirmed) => {
             if (!confirmed) return;
