@@ -15,3 +15,6 @@ node_modules/
 # local scratch / generated artifacts
 /graphify-out/
 PLAN_*.md
+.claude/
+.opencode/
+.pi/
