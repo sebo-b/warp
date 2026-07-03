@@ -886,6 +886,26 @@ nav .dropdown-content li > span {
     backdrop-filter: none;
 }
 
+/* Materialize 2.x styles .toast / .material-tooltip (+ its .backdrop caret) on
+   the M3 "inverse" tokens, whose dark-theme values are a near-white #e2e2e5 —
+   a glaring bright panel on a dark page. The inverse-on-surface token is
+   already repurposed for the picker dialogs (mapped to --warp-surface), so it
+   can't be flipped here; instead scope these transient overlays onto WARP's
+   own dark tier: a raised dark chip (surface lifted ~12% toward text, distinct
+   from both the #121212 page and the #1e1e1e surface) with light text and the
+   secondary-blue action. Light mode keeps Materialize's inverse snackbar. */
+:root[theme="dark"] .toast,
+:root[theme="dark"] .material-tooltip {
+    background-color: color-mix(in srgb, var(--warp-surface), var(--warp-text) 12%);
+    color: var(--warp-text);
+}
+:root[theme="dark"] .toast .toast-action {
+    color: var(--warp-secondary);
+}
+:root[theme="dark"] .backdrop {
+    background-color: color-mix(in srgb, var(--warp-surface), var(--warp-text) 12%);
+}
+
 /* Per-modal extras (only what differs from the shared sheet). */
 /* Calendar packs many controls; give it a fixed height cap and roomier rows. */
 #calendar_modal {
