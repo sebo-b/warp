@@ -1489,6 +1489,7 @@ dialog.modal:focus {
     justify-content: flex-end;
     align-items: center;
     gap: var(--warp-space-2);
+    margin-left: auto;   /* stick to the right edge when wrapped below the messages */
 }
 .action_modal_buttons .plan_action_btn {
     margin: 0;
