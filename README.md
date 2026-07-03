@@ -13,6 +13,7 @@ I've quickly evaluated a couple of existing solutions, but they were either too 
 - It allows people to book / change / unbook desks (or even parking stalls) in the office.
 - It allows people to check who else will be in the office.
 - It works on mobile.
+- Installable as a PWA (add to home screen) for an app-like experience.
 - All is done in an easy, visual way.
 - Generate a report of past bookings and export it to Excel file
 - Generate and subscribe to interactive iCal feeds for automatic booking reminders in any calendar app

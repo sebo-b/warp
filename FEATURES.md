@@ -668,7 +668,7 @@ All text on these pages is translated according to the deployment-wide language 
 ## 20. Multi-Language Support
 
 - WARP supports **English, German, French, Spanish, and Polish**.
-- The language is configured globally per instance via `LANGUAGE_FILE` (e.g., `i18n/de.js`).
+- The language is configured globally per instance via `LANGUAGE_FILE` (e.g., `i18n/de.json`).
 - All UI strings (buttons, labels, error messages, modal text) are translated.
 - The iCal feed uses the same language for event summaries and action page text.
 - Date pickers adapt to the locale (first day of week, month names, etc.).
@@ -685,6 +685,19 @@ All text on these pages is translated according to the deployment-wide language 
   open its action sheet, **long-press** for the seat hint, **double-tap** to reset
   the zoom. Seat icons stay finger-sized as you zoom in and shrink with the map as
   you zoom out, so a zoomed-out overview stays uncluttered.
+
+### 21.1 PWA Installability
+
+- WARP can be installed as a Progressive Web App (Add to Home Screen / browser
+  install prompt), launching in a standalone window without browser chrome.
+- Served via a web app manifest (`/manifest.webmanifest`) with icons and,
+  on iOS, dedicated splash screens for common device sizes.
+- The service worker (`/sw.js`) is intentionally a **no-op**: it exists only to
+  satisfy the installability criterion and does not cache anything or provide
+  offline access. Every request still goes over the network as normal.
+- Both the manifest's `scope`/`start_url` and the service worker's scope are
+  rebased automatically when WARP is mounted under `WARP_BASE_PATH` (see
+  [CONFIGURATION.md](CONFIGURATION.md#mounting-under-a-url-prefix)).
 
 ---
 
@@ -813,7 +826,7 @@ menus) switches between them, showing a **moon** icon in light mode and a **sun*
 | `MAX_MAP_SIZE`               | 2 MB           | Maximum zone map image size                          |
 | `MAX_CONTENT_LENGTH`         | 5 MB           | Maximum request body size                            |
 | `TIMEZONE`                   | auto-detect    | Timezone label for iCal DTSTART/DTEND                |
-| `LANGUAGE_FILE`              | `i18n/en.js`   | UI language file                                     |
+| `LANGUAGE_FILE`              | `i18n/en.json` | UI language file                                     |
 | `SECRET_KEY`                 | — (required)   | Key for signing session cookies                      |
 | `DATABASE_ADDRESS`          | — (required)   | Database host or `host:port` (port defaults to 5432) |
 | `DATABASE_NAME`             | — (required)   | Database name                                         |

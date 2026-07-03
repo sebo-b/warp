@@ -118,6 +118,13 @@ the `/run/warp/uwsgi-http.sock` unix socket. By default it listens on plain HTTP
 (`auto_https off`); to let Caddy manage TLS certificates, set a real domain as
 the site address and remove `auto_https off`.
 
+If WARP is mounted under a URL prefix (`WARP_BASE_PATH`, see
+[CONFIGURATION.md](../CONFIGURATION.md#mounting-under-a-url-prefix)), the
+Caddyfile's `/static/*` matcher must be updated to include that prefix — it
+serves static files directly from disk and does not go through WARP's own
+prefix handling. See the comments in `res/Caddyfile` for the exact line to
+change.
+
 ---
 
 ## `compose/compose.yaml`

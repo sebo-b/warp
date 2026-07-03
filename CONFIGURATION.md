@@ -59,7 +59,7 @@ environment:
 | `SECRET_KEY`                 | —            | **yes**¹ | Cookie signing key                             |
 | `DATABASE_ARGS`              | `{}`         |    no    | Extra args for the psycopg3 driver             |
 | `SESSION_LIFETIME`           | `1`          |    no    | Session duration in days                       |
-| `LANGUAGE_FILE`              | `i18n/en.js` |    no    | UI translation file                            |
+| `LANGUAGE_FILE`              | `i18n/en.json` |    no    | UI translation file                            |
 | `THEME_FILE`                 | `theme.css`  |    no    | Colour theme stylesheet (`static/`-relative name, or absolute path/URL) |
 | `BASE_PATH`                  | *(empty)*    |    no    | URL prefix WARP is mounted under, e.g. `/warp` (see [Mounting under a URL prefix](#mounting-under-a-url-prefix)) |
 | `WEEKS_IN_ADVANCE`           | `1`          |    no    | Weeks after current week available for booking |
@@ -167,14 +167,14 @@ The UI language is set globally for the instance — all users see the same lang
 
 | Language          | `LANGUAGE_FILE` value |
 | ----------------- | --------------------- |
-| English (default) | `i18n/en.js`          |
-| German            | `i18n/de.js`          |
-| French            | `i18n/fr.js`          |
-| Spanish           | `i18n/es.js`          |
-| Polish            | `i18n/pl.js`          |
+| English (default) | `i18n/en.json`        |
+| German            | `i18n/de.json`        |
+| French            | `i18n/fr.json`        |
+| Spanish           | `i18n/es.json`        |
+| Polish            | `i18n/pl.json`        |
 
 ```
-WARP_LANGUAGE_FILE=i18n/de.js
+WARP_LANGUAGE_FILE=i18n/de.json
 ```
 
 The iCal feed and action pages use the same language file for event summaries and
