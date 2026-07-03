@@ -416,7 +416,8 @@ The old "Already booked in another zone" section is gone; an existing booking on
 
 ### 8.4 Auto-Book for Zone Admins
 - Zone admins can use the "Book For" feature with auto-book to find a seat for another user (see §9).
-- The seat pool is confined to the zones the **actor** administers on that plan (unconfined for a site admin). Within that pool, the target only needs to be a member of the zone — any role, including viewer — since booking-for overrides seat-level assignment restrictions there. Manual "book for" is likewise scoped to the specific seat's zone adminship, with the same membership-only requirement on the target.
+- The seat pool is confined to the zones the **actor** administers on that plan (unconfined for a site admin). Within that pool, the target only needs to be a member of the zone — any role, including viewer — for the request to be accepted. Manual "book for" is likewise scoped to the specific seat's zone adminship, with the same membership-only requirement on the target.
+- Unlike manual "book for", auto-book does **not** override seat-level assignments: a seat assigned to a different person is never auto-picked for the target, whether self-booking or booking for someone else. Only a manually-picked seat (an admin deliberately choosing that exact seat) can override an assignment.
 
 ---
 

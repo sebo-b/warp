@@ -53,20 +53,25 @@ overlapping slots in the request or a database conflict at commit time.
   may be released to make room) is confined to the zones the **actor**
   administers (unconfined for a site admin — see §3). Within that pool the
   target only needs to be a **member** of the zone (any role, viewers
-  included) — not `zone_role ≤ user` — since the actor's admin standing
-  overrides seat-level restrictions there. A regular user may never book for
-  someone else (`403`, code 104).
+  included) — not `zone_role ≤ user` — for the request to be accepted at all.
+  A regular user may never book for someone else (`403`, code 104).
+- **This does not relax seat-level assignments.** The algorithm still only ever
+  picks a seat the target is eligible for by assignment (§3) — auto-book never
+  auto-places someone on a seat assigned to a different person, for either
+  self-book or book-for. That override is manual-book-for-only, where an admin
+  deliberately picks the exact seat with full knowledge of what it's assigned
+  to (PERMISSIONS.md §8) — auto-book's heuristic has no such context and must
+  not silently displace a third party's dedicated desk.
 
 The plan must also contain at least one eligible zone for the request (the
 subject's own zones for self-booking; the actor's administered zones,
 intersected with the target's membership, for book-for); otherwise the request
 is rejected (`403`, code 104).
 
-> This mirrors **manual** book-for (PERMISSIONS.md §8): both require the actor
-> to administer the zone and only require target membership, not `zone_role ≤
-> user`. Auto-book's difference from manual book-for is purely mechanical — it
-> picks the seat instead of the admin picking one explicitly — the permission
-> boundary (actor's administered zones) is the same for both.
+> This mirrors **manual** book-for (PERMISSIONS.md §8) only on the zone-admin/
+> membership gate: both require the actor to administer the zone and only
+> require target membership, not `zone_role ≤ user`. It does **not** mirror
+> manual book-for's assignment override (see above and §3).
 
 ---
 
@@ -93,6 +98,14 @@ bookings may be displaced the same way — see §2). Within `allowedZids`, the
 viewer in one of the actor's administered zones is a valid auto-book target
 there. The target is never placed in a zone the actor doesn't administer, and
 never in a zone they aren't at least a member of.
+
+`is_book_for` only affects that zone-role gate. The seat-level assignment
+classification below it (`seatInfo`: `none` / `direct` / `everyone` /
+`blocked`) is computed identically for self-book and book-for — a seat
+assigned to a login other than the subject, with no `everyone` row, is
+`blocked` and excluded from the candidate pool either way. Only **manual**
+book-for (`apply()`) skips the assignment check; the auto-book heuristic never
+does.
 
 All of this is scoped to the **plan named in the request** (`pid`) — i.e. the
 plan currently open in the UI. Auto-book only ever considers the zones and seats

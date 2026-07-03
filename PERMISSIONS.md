@@ -234,11 +234,12 @@ Book-for is fundamentally different from booking as yourself: the actor is
 acting in their capacity as **zone admin**, not as the target. Self-booking
 requires the booker's own effective role to be _user_ or better; book-for
 instead requires the **actor** to administer the zone, and only requires the
-**target** to be a _member_ of it — any zone role, viewers included. Because
-the actor is the zone's admin, they may also override seat-level assignment
-restrictions there (they could reassign the seat themselves anyway) — but only
-in zones they administer. Disabled zones reject booking outright, for
-everyone, book-for included.
+**target** to be a _member_ of it — any zone role, viewers included. When the
+actor **manually** picks the seat, they may also override seat-level
+assignment restrictions there (they could reassign the seat themselves
+anyway) — but only in zones they administer, and only for that deliberate,
+explicit pick; the auto-book heuristic never does this (see below). Disabled
+zones reject booking outright, for everyone, book-for included.
 
 ### Manual book-for (picking a specific seat for someone)
 
@@ -273,9 +274,12 @@ everyone, book-for included.
   on the plan** may trigger it. The seat pool (and the release side — which
   bookings of the target's may be displaced) is confined to the zones the
   **actor** administers (unconfined for a site admin). Within that pool the
-  target only needs to be a member — any role, viewers included — mirroring
-  the manual book-for rule; the auto-book heuristic then picks the best seat
-  among eligible ones exactly as it would for a normal booking.
+  target only needs to be a member — any role, viewers included — for the
+  request to be accepted at all; this mirrors the manual book-for rule only on
+  that zone-admin/membership gate. **It does not mirror the assignment
+  override**: the heuristic still excludes seats assigned to someone other
+  than the target, exactly as it would for a self-book — auto-book never
+  silently displaces a third party's dedicated desk, even under book-for.
 
 See [AUTOBOOK.md](AUTOBOOK.md) for the full auto-book selection priority.
 

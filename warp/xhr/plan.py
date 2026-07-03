@@ -404,6 +404,17 @@ def getSeats(pid):
         res['zones'][str(i[0])] = i[1]
         res['zoneGroups'][str(i[0])] = i[2]
 
+    # zoneAdmin reflects the ACTOR's own admin standing (effective_roles, not
+    # bookable_roles/targetLogin) — seat-edit is an admin action performed by
+    # the actor regardless of who book-for is viewing as. The frontend uses
+    # this to gate seat-edit per-seat instead of the plan-wide isZoneAdmin
+    # flag, which would otherwise offer seat-edit (and its always-403 save) on
+    # seats in zones the actor merely views.
+    res['zoneAdmin'] = {
+        str(zid): (effective_roles.get(zid) is not None and effective_roles[zid] <= ZONE_ROLE_ADMIN)
+        for zid in usedZids
+    }
+
     usedUsersQuery = Users.select(Users.login, Users.name).where(Users.login.in_(usedUsers)).tuples()
     res['users'] = {str(i[0]): i[1] for i in usedUsersQuery.iterator()}
 

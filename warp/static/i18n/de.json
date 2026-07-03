@@ -179,6 +179,7 @@
         "Bookings:": "Buchungen:",
         "Seat %{seat_name} to be booked:": "Sitzplatz %{seat_name} soll gebucht werden:",
         "To be released:": "Soll freigegeben werden:",
+        "This seat can't be updated here: the conflicting booking is in a zone you don't administer.": "Dieser Platz kann hier nicht aktualisiert werden: Die widersprüchliche Buchung befindet sich in einer Zone, die Sie nicht verwalten.",
         "Seat is successfully disabled.<br>However there are existing reservations in the the next few weeks. Existing reservations are not automatically released, it has to be done manually.<br><br>": "Sitzplatz ist erfolgreich deaktiviert.<br>Es gibt jedoch bestehende Reservierungen für die nächsten Wochen. Bestehende Reservierungen werden nicht automatisch freigegeben, dies muss manuell geschehen.<br><br>",
         "Seat is successfully assigned.<br>However there are non-assignees' existing reservations in the the next few weeks. Existing reservations are not automatically released, it has to be done manually.<br><br>": "Der Sitzplatz wurde erfolgreich zugewiesen.<br> Allerdings gibt es in den nächsten Wochen bestehende Reservierungen von Nicht-Empfängern. Bestehende Reservierungen werden nicht automatisch freigegeben, sondern müssen manuell vorgenommen werden.<br><br>",
         "Warning": "Warnung",

@@ -145,6 +145,10 @@ WarpSeatFactory.prototype.setSeatsData = function(seatsData = {}) {
 
     // Full refresh — replace the zone-group map.
     this.zoneGroups = seatsData.zoneGroups || {};
+    // zid -> true if the acting (real, not book-for target) user administers
+    // that zone. Used to gate seat-edit per-seat instead of the plan-wide
+    // isZoneAdmin flag.
+    this.zoneAdmin = seatsData.zoneAdmin || {};
 
     var oldSeatsIds = new Set( Object.keys(this.instances))
 
@@ -216,6 +220,26 @@ WarpSeatFactory.prototype.setSeatsData = function(seatsData = {}) {
 
     return res;
  }
+
+// True if updating forSeat would need to release a conflicting booking that
+// lies in a zone the acting admin does not administer. Only relevant under
+// book-for: apply() only requires zone-admin to release someone ELSE's
+// booking (self-releases are never gated — see apply()'s seatsReqZoneAdmin,
+// which excludes Book.login == flask.g.login). Releasing a foreign zone's
+// booking would 403 (code 102) and roll back the whole book+remove request,
+// so the frontend must not offer that "update" as if it would succeed.
+WarpSeatFactory.prototype.hasUnmanageableConflict = function(forSeat) {
+
+    if (this.login === window.warpGlobals.login)
+        return false;
+
+    for (var c of this.getMyConflictingBookings(forSeat)) {
+        var conflictSeat = this.instances[c.sid];
+        if (conflictSeat && !this.zoneAdmin[conflictSeat.zid])
+            return true;
+    }
+    return false;
+}
 
 // Plan-wide: used by the auto-book FAB to detect when the current selection is
 // already exactly satisfied by an existing booking in any zone.
@@ -299,6 +323,14 @@ WarpSeat.prototype.getName = function() {
 
 WarpSeat.prototype.getZoneName = function() {
     return this.zoneName;
+}
+
+// True if the acting user (the real logged-in admin, not a book-for target)
+// administers this seat's zone — the correct per-seat gate for admin-only
+// actions (seat-edit), as opposed to the plan-wide isZoneAdmin flag which is
+// true if they administer ANY zone on the plan.
+WarpSeat.prototype.isMyZoneAdmin = function() {
+    return !!this.factory.zoneAdmin[this.zid];
 }
 
 

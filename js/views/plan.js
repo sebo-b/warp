@@ -638,6 +638,7 @@ export async function mount(ctx) {
             var actions = [];
             var bookMsg = false;
             var removeMsg = false;
+            var blockedMsg = false;
 
             switch (state) {
                 case WarpSeat.SeatStates.CAN_BOOK:
@@ -646,10 +647,21 @@ export async function mount(ctx) {
                     break;
                 case WarpSeat.SeatStates.CAN_CHANGE:
                     actions.push('delete');
-                    // no break here
-                case WarpSeat.SeatStates.CAN_REBOOK:
                     actions.push('update');
                     bookMsg = removeMsg = true;
+                    break;
+                case WarpSeat.SeatStates.CAN_REBOOK:
+                    // Under book-for, updating this free seat would release the
+                    // target's conflicting booking elsewhere in the zone group.
+                    // If that booking is outside the zones we administer, apply()
+                    // rejects the release (403/102) and the whole request rolls
+                    // back — don't offer an action that's guaranteed to fail.
+                    if (seatFactory.hasUnmanageableConflict(this)) {
+                        blockedMsg = true;
+                    } else {
+                        actions.push('update');
+                        bookMsg = removeMsg = true;
+                    }
                     break;
                 case WarpSeat.SeatStates.CAN_DELETE:
                 case WarpSeat.SeatStates.CAN_DELETE_EXACT:
@@ -658,7 +670,10 @@ export async function mount(ctx) {
                     break;
             };
 
-            if (window.warpGlobals.isZoneAdmin) {
+            // Per-seat check: isZoneAdmin is plan-wide (true if the actor admins
+            // ANY zone on the plan), which would otherwise offer seat-edit (and
+            // its always-403 save) on seats in zones the actor merely views.
+            if (this.isMyZoneAdmin()) {
                 actions.push('seat-edit');
                 actions.push('seat-edit-save');
             }
@@ -668,6 +683,12 @@ export async function mount(ctx) {
 
             let msg1El = root.querySelector("#action_modal_msg1");
             msg1El.innerHTML = "";
+
+            if (blockedMsg) {
+                let p = document.createElement('P');
+                p.innerText = TR("This seat can't be updated here: the conflicting booking is in a zone you don't administer.");
+                msg1El.appendChild(p);
+            }
 
             if (bookMsg) {
 

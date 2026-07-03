@@ -179,6 +179,7 @@
         "Bookings:": "Bookings:",
         "Seat %{seat_name} to be booked:": "Seat %{seat_name} to be booked:",
         "To be released:": "To be released:",
+        "This seat can't be updated here: the conflicting booking is in a zone you don't administer.": "This seat can't be updated here: the conflicting booking is in a zone you don't administer.",
         "Seat is successfully disabled.<br>However there are existing reservations in the the next few weeks. Existing reservations are not automatically released, it has to be done manually.<br><br>": "Seat is successfully disabled.<br>However there are existing reservations in the the next few weeks. Existing reservations are not automatically released, it has to be done manually.<br><br>",
         "Seat is successfully assigned.<br>However there are non-assignees' existing reservations in the the next few weeks. Existing reservations are not automatically released, it has to be done manually.<br><br>": "Seat is successfully assigned.<br>However there are non-assignees' existing reservations in the the next few weeks. Existing reservations are not automatically released, it has to be done manually.<br><br>",
         "Warning": "Warning",
