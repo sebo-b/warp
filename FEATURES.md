@@ -466,9 +466,9 @@ The old "Already booked in another zone" section is gone; an existing booking on
 ## 11. Bookings List & Report
 
 ### 11.1 Bookings List (available to all users)
-- Shows **future** bookings in zones the user is assigned to.
+- Shows **future** bookings in zones the user is assigned to, plus the user's own future bookings in zones they no longer have access to (so they can still release them — the plan map can't reach a seat in a zone they can't open).
 - Columns: User name, Plan, Seat, Time (merged from/to into one column).
-- A **delete button** (🗑) appears for bookings the user can remove (own bookings where they have User role, or any booking where they have Zone Admin role).
+- A **delete button** (🗑) appears for any of the user's **own** bookings (regardless of their role in that zone — viewers and users who have lost access can still release their own), plus any booking in a zone where they have **Zone Admin** role.
 - Filtering by user name, plan, seat, and date range.
 - Sorting by time and user name.
 - Paginated with remote data loading.
@@ -796,7 +796,7 @@ menus) switches between them, showing a **moon** icon in light mode and a **sun*
 | Change own password                   | ✅³ | ✅³ | ✅³ | ✅³ |
 
 ¹ System Admins do not automatically hold zone-level rights. Zone-level actions require the corresponding zone role (User or Zone Admin) in that zone — which a System Admin can always grant themselves via zone user assignment.  
-² Viewers can remove their own bookings (even from zones they are only a viewer in), to clean up leftover bookings after role changes.  
+² Viewers — and users who have lost access to a zone entirely — can remove their own bookings there, to clean up leftover bookings after role changes.  
 ³ Only available with built-in authentication (not SSO).
 
 ---
