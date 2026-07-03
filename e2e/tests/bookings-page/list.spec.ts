@@ -120,7 +120,7 @@ test.describe('delete booking from the bookings page', () => {
     await expect(page.locator('.tabulator-row').first()).toBeVisible();
 
     await page.locator('.tabulator-row').first().locator('.material-icons.warp-icon-danger').click();
-    await expect(page.locator('.modal', { hasText: 'Are you sure to delete this booking?' })).toBeVisible();
+    await expect(page.locator('.modal', { hasText: 'Are you sure to release this booking?' })).toBeVisible();
   });
 
   test('confirmation modal shows booking details', async ({ page }) => {
@@ -132,7 +132,7 @@ test.describe('delete booking from the bookings page', () => {
     await page.waitForLoadState('networkidle');
     await page.locator('.tabulator-row').first().locator('.material-icons.warp-icon-danger').click();
 
-    const modal = page.locator('.modal', { hasText: 'Are you sure to delete this booking?' });
+    const modal = page.locator('.modal', { hasText: 'Are you sure to release this booking?' });
     await expect(modal).toContainText(seat.name);
     await expect(modal).toContainText('Plan 1A');
   });
@@ -146,7 +146,7 @@ test.describe('delete booking from the bookings page', () => {
     await page.waitForLoadState('networkidle');
     await page.locator('.tabulator-row').first().locator('.material-icons.warp-icon-danger').click();
 
-    const modal = page.locator('.modal', { hasText: 'Are you sure to delete this booking?' });
+    const modal = page.locator('.modal', { hasText: 'Are you sure to release this booking?' });
     await expect(modal).toBeVisible();
     await Promise.all([
       page.waitForResponse(r => r.url().includes('/xhr/plan/apply') && r.status() === 200),
@@ -169,7 +169,7 @@ test.describe('delete booking from the bookings page', () => {
     await page.waitForLoadState('networkidle');
     await page.locator('.tabulator-row').first().locator('.material-icons.warp-icon-danger').click();
 
-    const modal = page.locator('.modal', { hasText: 'Are you sure to delete this booking?' });
+    const modal = page.locator('.modal', { hasText: 'Are you sure to release this booking?' });
     await expect(modal).toBeVisible();
     await modal.locator('a.modal-close', { hasText: /no/i }).click();
     await page.waitForTimeout(300);
@@ -189,7 +189,7 @@ test.describe('delete booking from the bookings page', () => {
     await clearDefaultUserFilter(page);
     await page.locator('.tabulator-row').first().locator('.material-icons.warp-icon-danger').click();
 
-    const modal = page.locator('.modal', { hasText: 'Are you sure to delete this booking?' });
+    const modal = page.locator('.modal', { hasText: 'Are you sure to release this booking?' });
     await Promise.all([
       page.waitForResponse(r => r.url().includes('/xhr/plan/apply') && r.status() === 200),
       modal.locator('a.modal-close', { hasText: /yes/i }).click(),

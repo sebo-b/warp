@@ -176,7 +176,7 @@ export async function mount(ctx) {
         // Esc/outside-click->false handling every other delete uses) instead of
         // re-implementing the buttons/onButtonHook boilerplate here.
         confirmDelete(
-            TR("Are you sure to delete this booking?"),
+            TR("Are you sure to release this booking?"),
             msg,
             { yesText: TR("btn.Yes"), noText: TR("btn.No") }
         ).then((confirmed) => {

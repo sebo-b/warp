@@ -707,7 +707,7 @@ export async function mount(ctx) {
                 }
 
                 let p = document.createElement('P');
-                p.innerText = TR("To be removed:");
+                p.innerText = TR("To be released:");
 
                 msg2El.appendChild(p);
                 msg2El.appendChild(myConflictsTable);
@@ -785,7 +785,7 @@ export async function mount(ctx) {
 
                 if (value.response.conflicts_in_disable) {
                     msg += TR("Seat is successfully disabled.<br>However there are existing reservations in the the next few weeks. " +
-                          "Existing reservations are not automatically removed, it has to be done manually.<br><br>");
+                          "Existing reservations are not automatically released, it has to be done manually.<br><br>");
                     let rList = [];
                     for (let r of value.response.conflicts_in_disable) {
                         let dateStr = WarpSeatFactory._formatDatePair(r);
@@ -796,7 +796,7 @@ export async function mount(ctx) {
 
                 if (value.response.conflicts_in_assign) {
                     msg += TR("Seat is successfully assigned.<br>However there are non-assignees' existing reservations in the the next few weeks. " +
-                          "Existing reservations are not automatically removed, it has to be done manually.<br><br>");
+                          "Existing reservations are not automatically released, it has to be done manually.<br><br>");
                     let rList = [];
                     for (let r of value.response.conflicts_in_assign) {
                         let dateStr = WarpSeatFactory._formatDatePair(r);
@@ -807,7 +807,7 @@ export async function mount(ctx) {
 
                 if (value.response.conflicts_in_window) {
                     if (msg) msg += "<br><br>";
-                    msg += TR("Some reservations are outside the new booking window and must be removed manually.") + "<br>";
+                    msg += TR("Some reservations are outside the new booking window and must be released manually.") + "<br>";
                     let rList = [];
                     for (let r of value.response.conflicts_in_window) {
                         let dateStr = WarpSeatFactory._formatDatePair(r);
