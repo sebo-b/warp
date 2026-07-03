@@ -220,24 +220,24 @@ export async function mount(ctx) {
             footer.className = 'modal-footer';
 
             // Red delete seats button (always shown when we reached this modal)
-            let delBtn = document.createElement('a');
-            delBtn.href = '#!';
+            let delBtn = document.createElement('button');
+            delBtn.type = 'button';
             delBtn.className = 'waves-effect waves-light btn warp-btn-danger';
             delBtn.id = 'reassign_delete_seats';
             delBtn.textContent = TR('Delete seats');
             footer.appendChild(delBtn);
 
             if (hasAlternatives) {
-                let moveBtn = document.createElement('a');
-                moveBtn.href = '#!';
+                let moveBtn = document.createElement('button');
+                moveBtn.type = 'button';
                 moveBtn.className = 'waves-effect waves-light btn';
                 moveBtn.id = 'reassign_move_btn';
                 moveBtn.textContent = TR('Reassign seats');
                 footer.appendChild(moveBtn);
             }
 
-            let cancelBtn = document.createElement('a');
-            cancelBtn.href = '#!';
+            let cancelBtn = document.createElement('button');
+            cancelBtn.type = 'button';
             cancelBtn.className = 'modal-close waves-effect waves-light btn-flat';
             cancelBtn.textContent = TR('btn.Cancel');
             footer.appendChild(cancelBtn);

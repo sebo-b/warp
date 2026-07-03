@@ -544,12 +544,11 @@ export async function mount(ctx) {
                         if (entry) entry.days_in_advance = this.value ? parseInt(this.value) : null;
                     });
 
-                    var delBtn = document.createElement('a');
-                    delBtn.href = '#!';
+                    var delBtn = document.createElement('button');
+                    delBtn.type = 'button';
                     delBtn.className = 'btn-flat assigned_seat_delete_btn';
                     delBtn.innerHTML = '<i class="material-icons small warp-icon-danger">delete</i>';
                     delBtn.addEventListener('click', function(e) {
-                        e.preventDefault();
                         var idx = assignedData.findIndex(d => d.login === item.login);
                         if (idx !== -1) assignedData.splice(idx, 1);
                         renderList();
