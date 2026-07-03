@@ -182,7 +182,13 @@ that catch agents out:
 
 - **Do not push without a clear order from the user.**
 - When asked to commit, attribute yourself with a `Co-Authored-By:` trailer
-  under your own agent identity (name + email).
+  under your own agent identity (name + email). Examples:
+    - Co-Authored-By: Claude Fable 5 <claude@anthropic.com>
+    - Co-Authored-By: Claude Opus 4.8 <claude@anthropic.com>
+    - Co-Authored-By: Claude Sonnet 5 <claude@anthropic.com>
+    - Co-Authored-By: GLM 5.2 <glm-5.2@z.ai>
+    - Co-Authored-By: Grok Build 0.1 <noreply@x.ai>
+    - Co-Authored-By: Kimi Code 2.7 <noreply@moonshot.ai>
 - Never `git add` gitignored artifacts: `warp/static/dist/`,
   `warp/templates/headers/`, `PLAN_*.md`, `graphify-out/`.
 
