@@ -62,7 +62,7 @@ test.describe('zone map booking flow (end-to-end)', () => {
     const modal = page.locator('.modal', { hasText: 'Are you sure to release this booking?' });
     await Promise.all([
       page.waitForResponse(r => r.url().includes('/xhr/plan/apply') && r.status() === 200),
-      modal.locator('a.modal-close', { hasText: /yes/i }).click(),
+      modal.locator('button.modal-close', { hasText: /yes/i }).click(),
     ]);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(200);

@@ -26,6 +26,16 @@ function initDropdowns() {
   });
 }
 
+// Same 2.x gap for .collapsible: without an explicit init the mobile
+// sidenav's accordion groups (Admin / <login>) render folded and never
+// expand on click. The sidenav is static shell markup, so a one-shot boot
+// init covers it (nav.js only inserts flat <li> links, no collapsibles).
+function initSidenavCollapsibles() {
+  document.querySelectorAll('.sidenav .collapsible').forEach(function (el) {
+    M.Collapsible.init(el, { accordion: true });
+  });
+}
+
 async function boot() {
   let pendingToast = window.sessionStorage.getItem('pendingToast');
 
@@ -34,6 +44,7 @@ async function boot() {
   // closes the race where a shell .dropdown-trigger painted at first paint
   // was only wired after boot() resolved two fetches (e2e waited around it).
   initDropdowns();
+  initSidenavCollapsibles();
   initThemeToggle();
   initTriggerClasses();
 

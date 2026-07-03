@@ -234,12 +234,12 @@ function initLinkInterception() {
     if (!a) return;
 
     var hrefAttr = a.getAttribute('href');
-    // Hash-only hrefs are modal triggers / dropdown/collapsible affordances
-    // (triggers.js owns those) — never routes. The bare '#'/'#!' no-op
-    // affordances (Materialize-style action buttons: Save/Delete/Cancel in
-    // modals, FABs, …) must not perform a fragment navigation either: it
-    // rewrites the URL to e.g. /users#! and fires popstate, which used to
-    // remount the whole view mid-save (see the popstate guard in start()).
+    // Hash-only hrefs are never routes. Action buttons were migrated to real
+    // <button type="button"> elements; what's left on '#'/'#!' is Materialize's
+    // own nav idiom (dropdown-/sidenav-triggers, .modal-trigger targets —
+    // triggers.js owns those). Still suppress the bare '#'/'#!' default so no
+    // affordance can rewrite the URL to /users#! and fire popstate (which used
+    // to remount the whole view mid-save — see the popstate guard in start()).
     if (!hrefAttr || hrefAttr.charAt(0) === '#') {
       if (hrefAttr === '#' || hrefAttr === '#!') ev.preventDefault();
       return;

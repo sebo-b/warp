@@ -150,7 +150,7 @@ test.describe('delete booking from the bookings page', () => {
     await expect(modal).toBeVisible();
     await Promise.all([
       page.waitForResponse(r => r.url().includes('/xhr/plan/apply') && r.status() === 200),
-      modal.locator('a.modal-close', { hasText: /yes/i }).click(),
+      modal.locator('button.modal-close', { hasText: /yes/i }).click(),
     ]);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(200);
@@ -171,7 +171,7 @@ test.describe('delete booking from the bookings page', () => {
 
     const modal = page.locator('.modal', { hasText: 'Are you sure to release this booking?' });
     await expect(modal).toBeVisible();
-    await modal.locator('a.modal-close', { hasText: /no/i }).click();
+    await modal.locator('button.modal-close', { hasText: /no/i }).click();
     await page.waitForTimeout(300);
 
     await expect(page.locator('.tabulator-row')).toHaveCount(1);
@@ -192,7 +192,7 @@ test.describe('delete booking from the bookings page', () => {
     const modal = page.locator('.modal', { hasText: 'Are you sure to release this booking?' });
     await Promise.all([
       page.waitForResponse(r => r.url().includes('/xhr/plan/apply') && r.status() === 200),
-      modal.locator('a.modal-close', { hasText: /yes/i }).click(),
+      modal.locator('button.modal-close', { hasText: /yes/i }).click(),
     ]);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(200);

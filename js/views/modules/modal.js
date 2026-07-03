@@ -68,14 +68,14 @@ export default function WarpModal() {
         }
 
         this.options.buttons.forEach(function(b, i) {
-            var bElem = this.footerElement.appendChild( document.createElement("a") );
+            var bElem = this.footerElement.appendChild( document.createElement("button") );
+            bElem.type = "button";
             // First button is the affirmative action (Yes/Ok/Confirm) -> primary
             // (filled, picks up the footer's indigo from style.css); rest flat.
             bElem.className = (i === 0)
                 ? "modal-close waves-effect waves-light btn"
                 : "modal-close waves-effect waves-light btn-flat";
 
-            bElem.href = "#!";
             bElem.innerText = b.text;
             bElem.addEventListener('click', function() {
                 this.clickedBtnId = b.id;

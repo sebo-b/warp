@@ -68,7 +68,7 @@ async function saveAndConfirm(page: import('@playwright/test').Page): Promise<vo
   // `/plans`, so a bare toHaveURL(/\/plans$/) would falsely match it and return
   // before the save landed — a race the 1.x modal-close timing masked.)
   const modifyResp = page.waitForResponse(r => r.url().includes('/xhr/plans/modify') && r.request().method() === 'POST');
-  await modal.locator('a', { hasText: /Yes/i }).click();
+  await modal.locator('button', { hasText: /Yes/i }).click();
   await modifyResp;
   await expect(page).toHaveURL(/\/plans$/);
 }
@@ -128,7 +128,7 @@ test.describe('selecting and editing a seat', () => {
     const modal = page.locator('.modal.open', { hasText: /update the plan/ });
     await expect(modal).toBeVisible();
     await expect(modal).toContainText('updated data of a seat');
-    await modal.locator('a', { hasText: /No/i }).click();
+    await modal.locator('button', { hasText: /No/i }).click();
   });
 
   test('renaming a seat persists to DB', async ({ page }) => {
@@ -198,7 +198,7 @@ test.describe('deleting a seat', () => {
     await page.locator('#saveBtn').click();
     const modal = page.locator('.modal.open', { hasText: /update the plan/ });
     await expect(modal).toContainText('deleted a seat');
-    await modal.locator('a', { hasText: /No/i }).click();
+    await modal.locator('button', { hasText: /No/i }).click();
   });
 
   test('confirming delete removes seat from DB', async ({ page }) => {
@@ -233,7 +233,7 @@ test.describe('deleting a seat', () => {
     await page.locator('#saveBtn').click();
     const modal = page.locator('.modal.open', { hasText: /update the plan/ });
     await expect(modal).not.toContainText('deleted');
-    await modal.locator('a', { hasText: /No/i }).click();
+    await modal.locator('button', { hasText: /No/i }).click();
   });
 
 });
@@ -299,7 +299,7 @@ test.describe('adding a seat', () => {
     await page.locator('#saveBtn').click();
     const modal = page.locator('.modal.open', { hasText: /update the plan/ });
     await expect(modal).toContainText('added one seat');
-    await modal.locator('a', { hasText: /No/i }).click();
+    await modal.locator('button', { hasText: /No/i }).click();
   });
 
   test('adding a seat focuses the name field for immediate typing', async ({ page }) => {
@@ -423,7 +423,7 @@ test.describe('combined changes and summary dialog', () => {
     await expect(modal).toContainText('added one seat');
     await expect(modal).toContainText('updated data of a seat');
     await expect(modal).toContainText('deleted a seat');
-    await modal.locator('a', { hasText: /No/i }).click();
+    await modal.locator('button', { hasText: /No/i }).click();
   });
 
   test('cancel discards all changes', async ({ page }) => {
@@ -702,7 +702,7 @@ test.describe('seat labels in the editor', () => {
     await page.locator('#cancelBtn').click();
     const modal = page.locator('.modal.open', { hasText: /unsaved changes/ });
     if (await modal.isVisible()) {
-      await modal.locator('a', { hasText: /Yes/i }).click();
+      await modal.locator('button', { hasText: /Yes/i }).click();
     }
   });
 
@@ -786,7 +786,7 @@ test.describe('seat labels in the editor', () => {
     await page.locator('#cancelBtn').click();
     const modal = page.locator('.modal.open', { hasText: /unsaved changes/ });
     if (await modal.isVisible()) {
-      await modal.locator('a', { hasText: /Yes/i }).click();
+      await modal.locator('button', { hasText: /Yes/i }).click();
     }
   });
 

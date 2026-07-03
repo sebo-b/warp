@@ -252,7 +252,7 @@ test.describe('plan management', () => {
     const modal = page.locator('.modal.open', { hasText: /update the plan/ });
     await expect(modal).toBeVisible();
     const modifyResp = page.waitForResponse(r => r.url().includes('/xhr/plans/modify') && r.request().method() === 'POST');
-    await modal.locator('a', { hasText: /Yes/i }).click();
+    await modal.locator('button', { hasText: /Yes/i }).click();
     await modifyResp;
     await expect(page).toHaveURL(/\/plans$/);
 
@@ -318,7 +318,7 @@ test.describe('plan editor dirty-state leave guard', () => {
     await expect(confirm).toBeVisible();
 
     // "No" -> stay on the editor, edits preserved (Save still enabled).
-    await confirm.locator('a', { hasText: 'No' }).click();
+    await confirm.locator('button', { hasText: 'No' }).click();
     await expect(page).toHaveURL(/\/plans\/modify\/1$/);
     await expect(page.locator('#saveBtn')).not.toHaveClass(/disabled/);
 
@@ -326,7 +326,7 @@ test.describe('plan editor dirty-state leave guard', () => {
     await page.locator('#cancelBtn').click();
     const confirm2 = page.locator('dialog.modal[open]').filter({ hasText: 'unsaved changes' });
     await expect(confirm2).toBeVisible();
-    await confirm2.locator('a', { hasText: 'Yes' }).click();
+    await confirm2.locator('button', { hasText: 'Yes' }).click();
     await page.waitForURL('/plans');
   });
 
@@ -342,7 +342,7 @@ test.describe('plan editor dirty-state leave guard', () => {
     await expect(confirm).toBeVisible();
 
     // Dismiss (No) -> the route change is aborted, URL unchanged, edits kept.
-    await confirm.locator('a', { hasText: 'No' }).click();
+    await confirm.locator('button', { hasText: 'No' }).click();
     await expect(page).toHaveURL(/\/plans\/modify\/1$/);
     await expect(page.locator('#saveBtn')).not.toHaveClass(/disabled/);
   });
@@ -363,7 +363,7 @@ test.describe('plan editor dirty-state leave guard', () => {
     await page.goBack();
     const confirm = page.locator('dialog.modal[open]').filter({ hasText: 'unsaved changes' });
     await expect(confirm).toBeVisible();
-    await confirm.locator('a', { hasText: 'No' }).click();
+    await confirm.locator('button', { hasText: 'No' }).click();
     // The popstate was undone — we stay on the editor.
     await expect(page).toHaveURL(/\/plans\/modify\/1$/);
     await expect(page.locator('#saveBtn')).not.toHaveClass(/disabled/);
@@ -383,7 +383,7 @@ test.describe('plan editor dirty-state leave guard', () => {
     await expect(summary).toBeVisible();
     const modifyResp = page.waitForResponse(
       (r) => r.url().includes('/xhr/plans/modify') && r.request().method() === 'POST');
-    await summary.locator('a', { hasText: /Yes/i }).click();
+    await summary.locator('button', { hasText: /Yes/i }).click();
     await modifyResp;
 
     // The save navigates back to /plans. The dirty flag must be cleared on

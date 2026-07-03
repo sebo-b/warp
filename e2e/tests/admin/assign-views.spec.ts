@@ -81,7 +81,7 @@ test.describe('zone assign view', () => {
     await expect(confirm).toBeVisible();
     const removeResp = page.waitForResponse(
       (r) => r.url().includes('/xhr/zones/assign') && r.request().method() === 'POST');
-    await confirm.locator('a', { hasText: 'Yes' }).click();
+    await confirm.locator('button', { hasText: 'Yes' }).click();
     await expect((await removeResp).status()).toBe(200);
 
     await expect(page.locator('#zone_assignees_table .tabulator-row').filter({ hasText: 'group_1a' })).toHaveCount(0);
@@ -135,7 +135,7 @@ test.describe('group assign view', () => {
     await expect(confirm).toBeVisible();
     const removeResp = page.waitForResponse(
       (r) => r.url().includes('/xhr/groups/assign') && r.request().method() === 'POST');
-    await confirm.locator('a', { hasText: 'Yes' }).click();
+    await confirm.locator('button', { hasText: 'Yes' }).click();
     await expect((await removeResp).status()).toBe(200);
 
     await expect(page.locator('#groupMembersTable .tabulator-row').filter({ hasText: 'user2' })).toHaveCount(0);

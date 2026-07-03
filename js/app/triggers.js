@@ -12,6 +12,20 @@ import warpDialog from './dialog.js';
 // its own handling.
 export function initTriggerClasses() {
   document.addEventListener('click', function(ev) {
+    // Selecting a destination inside the mobile sidenav must close it. The
+    // pre-SPA app got this for free (every nav click was a full page load);
+    // under the SPA router only #view-root changes, so an open sidenav would
+    // stay covering the new view. Runs for any in-sidenav link EXCEPT the
+    // collapsible group headers (Admin / <login>), which toggle their submenu
+    // and must keep the sidenav open. Not exclusive with the trigger handling
+    // below — a .modal-trigger item in the sidenav both closes the sidenav
+    // and opens its modal.
+    var snLink = ev.target.closest && ev.target.closest('.sidenav a');
+    if (snLink && !snLink.classList.contains('collapsible-header')) {
+      var snInst = M.Sidenav.getInstance(snLink.closest('.sidenav'));
+      if (snInst) snInst.close();
+    }
+
     var modalTrig = ev.target.closest && ev.target.closest('.modal-trigger');
     if (modalTrig) {
       var sel = modalTrig.getAttribute('href');
