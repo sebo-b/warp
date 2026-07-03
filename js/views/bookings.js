@@ -296,6 +296,13 @@ export async function mount(ctx) {
         initialHeaderFilter: initialHeaderFilter
     });
 
+    // Surface a backend-down/5xx on the initial table load as a full-page
+    // error view (via the router's mount() rejection) instead of Tabulator's
+    // inline alert. The report branch is already gated by the bookingsContext
+    // await above; this covers the non-report branch (and a server going down
+    // between bookingsContext and the table ajax in the report branch).
+    await table.initialLoad;
+
     if (report) {
 
         root.querySelector('#export_btn_container').style.display = "";

@@ -59,6 +59,11 @@ export async function mount(ctx) {
         ]
     });
 
+    // Surface a backend-down/5xx on the initial table load as a full-page
+    // error view (via the router's mount() rejection) instead of Tabulator's
+    // inline alert — see tablePage.js `table.initialLoad`.
+    await table.initialLoad;
+
     showEditDialog = function(login,name) {
 
         var editModalEl = root.querySelector('#edit_modal');

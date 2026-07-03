@@ -341,6 +341,11 @@ export async function mount(ctx) {
         ],
     });
 
+    // Surface a backend-down/5xx on the initial table load as a full-page
+    // error view (via the router's mount() rejection) instead of Tabulator's
+    // inline alert — see tablePage.js `table.initialLoad`.
+    await table.initialLoad;
+
     var editModalEl = root.querySelector('#edit_modal');
     var zoneNameEl = root.querySelector("#zone_name");
     var zoneTypeEl = root.querySelector("#zone_type");

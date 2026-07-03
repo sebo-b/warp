@@ -81,6 +81,19 @@ export function createTable(selector, options) {
     var clear = function () { table.element.classList.remove('warp-loading'); };
     table.on('dataLoadError', clear);
     table.on('tableDestroyed', clear);
+
+    // Expose the initial ajax as a promise so a table-first view (one whose
+    // mount() creates the table and returns without awaiting any XHR) can
+    // `await table.initialLoad` in mount(). A network failure on the first
+    // load then rejects mount() and the router renders the full-page "server
+    // down" view — without this, the table's inline Tabulator alert is the
+    // only feedback (the router never sees the failure, since mount() already
+    // resolved). One-shot: settles on the first dataLoaded/dataLoadError only.
+    var settled = false;
+    table.initialLoad = new Promise(function (resolve, reject) {
+      table.on('dataLoaded', function () { if (!settled) { settled = true; resolve(); } });
+      table.on('dataLoadError', function (err) { if (!settled) { settled = true; reject(err); } });
+    });
   }
 
   return table;

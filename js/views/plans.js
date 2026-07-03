@@ -107,6 +107,11 @@ export async function mount(ctx) {
         initialSort: [{column: "name", dir: "asc"}],
     });
 
+    // Surface a backend-down/5xx on the initial table load as a full-page
+    // error view (via the router's mount() rejection) instead of Tabulator's
+    // inline alert — see tablePage.js `table.initialLoad`.
+    await table.initialLoad;
+
     var editModalEl = root.querySelector('#edit_modal');
     var planNameEl = root.querySelector("#plan_name");
     var planTzEl = root.querySelector("#plan_timezone");
