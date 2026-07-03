@@ -240,7 +240,12 @@ test.describe('book-for + zone group', () => {
     // UI counterpart of the contract guard: the inaccessible Parking booking
     // must make the accessible Zone 1A seat a rebook under book-for. This passes
     // only if the conflict seat is recognised as the target's, i.e. its login
-    // arrived from the server and the client honoured it.
+    // arrived from the server and the client honoured it. The release sits in
+    // Parking, which user1 does NOT administer → release confinement blocks
+    // the doomed "update" (hasUnmanageableConflict): the seat is still a
+    // rebook (conflict recognised) but the update action is not offered and an
+    // explanatory message is shown instead. (The server-side 102 pin is the
+    // companion test "book-for cannot release a target's booking..." below.)
     const ts = futureDayTs(1);
     const zone1Seat = (await getZoneSeats(1))[0];
     const parkingSeat = (await getZoneSeats(3))[0];
@@ -261,13 +266,13 @@ test.describe('book-for + zone group', () => {
     await page.waitForTimeout(400);
     await activateBookFor(page, 'Bar [user2]');
 
+    // The conflict was recognised (the seat is a rebook, not a plain book):
+    // book is NOT offered, and the update is blocked by release confinement.
     await clickZoneSeat(page, zone1Seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
-    await expect(page.locator('.plan_action_btn[data-action="update"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="update"]')).not.toBeVisible();
     await expect(page.locator('.plan_action_btn[data-action="book"]')).not.toBeVisible();
-    // The conflicting Parking booking is listed for removal (built by
-    // getMyConflictingBookings, which matches on the acting login).
-    await expect(page.locator('#action_modal_msg2')).toContainText('Parking');
+    await expect(page.locator('#action_modal_msg1')).toContainText("don't administer");
   });
 
   test('book-for cannot release a target\'s booking in a non-administered same-group zone', async ({ page }) => {

@@ -404,16 +404,30 @@ def getSeats(pid):
         res['zones'][str(i[0])] = i[1]
         res['zoneGroups'][str(i[0])] = i[2]
 
-    # zoneAdmin reflects the ACTOR's own admin standing (effective_roles, not
-    # bookable_roles/targetLogin) — seat-edit is an admin action performed by
-    # the actor regardless of who book-for is viewing as. The frontend uses
-    # this to gate seat-edit per-seat instead of the plan-wide isZoneAdmin
-    # flag, which would otherwise offer seat-edit (and its always-403 save) on
-    # seats in zones the actor merely views.
-    res['zoneAdmin'] = {
-        str(zid): (effective_roles.get(zid) is not None and effective_roles[zid] <= ZONE_ROLE_ADMIN)
-        for zid in usedZids
-    }
+    # zoneAdmin reflects the ACTOR's own admin standing (not bookable_roles /
+    # targetLogin) — seat-edit is an admin action performed by the actor
+    # regardless of who book-for is viewing as. The frontend also uses it in
+    # hasUnmanageableConflict() to decide whether a book-for "update" can
+    # release the target's conflicting booking. effective_roles is plan-scoped
+    # (zones ON this plan), but a conflict booking can sit in a same-group zone
+    # on ANOTHER plan, so effective_roles alone would mark an administered
+    # cross-plan conflict zone as not-administered and wrongly block the
+    # update. Query the actor's roles for every zone in the response (plan +
+    # conflict) so cross-plan release confinement is judged correctly. Site
+    # admins administer every zone.
+    if flask.g.isAdmin:
+        admin_zids = set(usedZids)
+    elif usedZids:
+        admin_zids = {
+            r['zid'] for r in UserToZoneRoles.select(UserToZoneRoles.zid)
+                .where(UserToZoneRoles.zid.in_(list(usedZids)))
+                .where(UserToZoneRoles.login == flask.g.login)
+                .where(UserToZoneRoles.zone_role <= ZONE_ROLE_ADMIN)
+                .iterator()
+        }
+    else:
+        admin_zids = set()
+    res['zoneAdmin'] = {str(zid): (zid in admin_zids) for zid in usedZids}
 
     usedUsersQuery = Users.select(Users.login, Users.name).where(Users.login.in_(usedUsers)).tuples()
     res['users'] = {str(i[0]): i[1] for i in usedUsersQuery.iterator()}
