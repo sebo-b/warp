@@ -1,0 +1,22 @@
+{# iOS home-screen splash images (apple-touch-startup-image). Safari ignores
+   the manifest for splash and shows an image ONLY when one matches the
+   device's point size x DPR exactly — an unmatched device silently gets a
+   plain white screen. Portrait iPhone set; the (w_pt, h_pt, dpr) triples must
+   stay in sync with SPLASH_SIZES in res/gen_pwa_assets.sh, which generates
+   the PNGs (re-run it when Apple ships a new screen size). #}
+{% for w, h, dpr in [
+    (375, 667, 2),
+    (414, 896, 2),
+    (375, 812, 3),
+    (390, 844, 3),
+    (393, 852, 3),
+    (402, 874, 3),
+    (414, 896, 3),
+    (428, 926, 3),
+    (430, 932, 3),
+    (440, 956, 3),
+] %}
+    <link rel="apple-touch-startup-image"
+          href="{{ url_for('static', filename='images/splash/splash-%dx%d.png'|format(w*dpr, h*dpr)) }}"
+          media="(device-width: {{ w }}px) and (device-height: {{ h }}px) and (-webkit-device-pixel-ratio: {{ dpr }}) and (orientation: portrait)">
+{% endfor %}

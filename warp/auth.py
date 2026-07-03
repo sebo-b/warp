@@ -192,6 +192,15 @@ def session():
     if flask.request.endpoint == 'static':
         return
 
+    # PWA plumbing must be public. Manifest fetches are a spec'd special case
+    # among <link>s: credentials mode is "omit" EVEN SAME-ORIGIN unless the
+    # <link> carries crossorigin="use-credentials" — so the session cookie is
+    # never sent and a login redirect here would make the app uninstallable.
+    # (Install can also legitimately start from the pre-login page anyway.)
+    # Neither file is sensitive.
+    if flask.request.endpoint in ('view.manifest', 'view.serviceWorker'):
+        return
+
     if flask.request.blueprint == 'debug':
         if not flask.current_app.debug:
             flask.abort(403)

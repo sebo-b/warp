@@ -43,6 +43,22 @@
 
     <link rel="icon" href="{{ url_for('static', filename='images/favicon.png') }}" type="image/png" />
 
+    {# PWA: manifest is a templated route (not a static file) so its
+       scope/start_url follow the mount prefix (SCRIPT_NAME/BASE_PATH). The
+       theme-color matches the manifest's theme_color/background_color
+       (--warp-primary) — a single color, since Android bakes it in at install
+       time with no light/dark mechanism. #}
+    <link rel="manifest" href="{{ url_for('view.manifest') }}">
+    <meta name="theme-color" content="#2C3E50">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/icon-192.png') }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="WARP">
+    {# "default" (opaque status bar), NOT black-translucent: the SPA top bar
+       has no env(safe-area-inset-top) handling, so an overlay status bar
+       would put the clock/battery on top of the nav in standalone mode. #}
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    {% include 'pwa_splash.html' %}
+
     <style>
         @font-face {
             font-family: 'Material Icons';
@@ -91,5 +107,19 @@
     {% block nav %}{% endblock %}
     {% block content %}{% endblock %}
     </div>
+
+    {# PWA: register the no-op service worker (installability requires one).
+       Served from the app root (view.serviceWorker), NOT /static — a SW can
+       only control paths at or below its own URL, and its scope must equal
+       the manifest scope; both derive from url_for so they can't drift under
+       a mount prefix. Harmless on public/login pages. #}
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register(
+                "{{ url_for('view.serviceWorker') }}",
+                { scope: "{{ url_for('view.index') }}" })
+                .catch(function () { /* not installable then; the app is unaffected */ });
+        }
+    </script>
 </body>
 </html>

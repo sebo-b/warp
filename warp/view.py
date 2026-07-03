@@ -1,3 +1,5 @@
+import json
+
 import flask
 
 from warp.db import *
@@ -208,3 +210,62 @@ def zoneAssign(zid):
 @bp.route("/plans/modify/<pid>")
 def planModify(pid):
     return _admin_spa()
+
+
+# --- PWA ---------------------------------------------------------------------
+# Both files are served through app routes (not /static) on purpose:
+# - the manifest's scope/start_url must be prefix-aware (url_for/SCRIPT_NAME),
+#   which a static file can't be without a build step;
+# - a service worker can only control paths at or below its own URL, so sw.js
+#   must be served from the app root — /static/sw.js could only ever control
+#   /static/*. The SW itself is a no-op (installability gate only, no offline).
+
+@bp.route("/manifest.webmanifest")
+def manifest():
+    scope = flask.url_for('view.index')
+    body = {
+        'name': 'WARP',
+        'short_name': 'WARP',
+        'description': 'WARP workspace autobooking, reservation platform',
+        'start_url': scope,
+        'scope': scope,
+        'display': 'standalone',
+        'lang': 'en',
+        'background_color': '#2C3E50',
+        'theme_color': '#2C3E50',
+        'icons': [
+            {
+                'src': flask.url_for('static', filename='images/icon-192.png'),
+                'sizes': '192x192', 'type': 'image/png', 'purpose': 'any',
+            },
+            {
+                'src': flask.url_for('static', filename='images/icon-512.png'),
+                'sizes': '512x512', 'type': 'image/png', 'purpose': 'any',
+            },
+            {
+                # Required for the Android 12+ system splash to render the icon
+                # full-bleed instead of letterboxed in a white circle.
+                'src': flask.url_for('static', filename='images/icon-512-maskable.png'),
+                'sizes': '512x512', 'type': 'image/png', 'purpose': 'maskable',
+            },
+        ],
+    }
+    # json.dumps (not jsonify) keeps the key order of the dict above, so the
+    # served manifest diffs cleanly against this source. no-cache = revalidate
+    # each fetch (the spec-recommended manifest caching).
+    resp = flask.Response(json.dumps(body, indent=2),
+                          mimetype='application/manifest+json')
+    resp.headers['Cache-Control'] = 'no-cache'
+    return resp
+
+
+@bp.route("/sw.js")
+def serviceWorker():
+    # no-cache: today's SW is a no-op, but a cached SW is an upgrade-latency
+    # trap the moment it gains real handlers — opt out of the static-file
+    # max-age default now, while it's cheap.
+    resp = flask.send_from_directory(
+        flask.current_app.static_folder, 'sw.js',
+        mimetype='text/javascript', max_age=None)
+    resp.headers['Cache-Control'] = 'no-cache'
+    return resp

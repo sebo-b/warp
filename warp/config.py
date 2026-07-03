@@ -10,6 +10,12 @@ class DefaultSettings(object):
 
     LANGUAGE_FILE="i18n/en.json"
 
+    # URL prefix WARP is mounted under (e.g. "/warp"). Empty = root. Applied as
+    # WSGI SCRIPT_NAME in create_app, so every url_for-generated URL (routes,
+    # static, xhr, PWA manifest/scope) is rebased automatically. The reverse
+    # proxy must forward requests with the prefix intact (see CONFIGURATION.md).
+    BASE_PATH = ""
+
     # Stylesheet that defines the colour theme (the --warp-* tokens). Path is
     # relative to the static folder, so the default is served at /static/theme.css.
     # Override with WARP_THEME_FILE to re-skin WARP by pointing at a replacement
@@ -232,6 +238,7 @@ _ENV_SETTINGS = {
     "SECRET_KEY":                 _fmt_str,
     "SECRET_KEY_FILE":            _fmt_file,
     "LANGUAGE_FILE":              _fmt_str,
+    "BASE_PATH":                  _fmt_str,
     "THEME_FILE":                 _fmt_str,
     "SESSION_LIFETIME":           _fmt_int,
     "WEEKS_IN_ADVANCE":           _fmt_int,
@@ -372,6 +379,11 @@ def initConfig(app):
         app.config.from_object(ProductionSettings)
 
     readEnvironmentSettings(app)
+
+    # Normalize BASE_PATH so "warp", "/warp" and "/warp/" are equivalent;
+    # canonical form is "/warp" (or "" for root).
+    basePath = app.config.get('BASE_PATH', '').strip('/')
+    app.config['BASE_PATH'] = f'/{basePath}' if basePath else ''
 
     missing = []
     if app.config.get('SECRET_KEY', None) is None:

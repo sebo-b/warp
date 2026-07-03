@@ -1,12 +1,45 @@
 import flask
-from werkzeug.middleware.proxy_fix import ProxyFix
 from warp.config import *
+
+class _BasePathMiddleware:
+    """Mounts the app under BASE_PATH by setting SCRIPT_NAME on every request.
+    Flask's url_for (routes, static, xhr, the PWA manifest scope/start_url)
+    rebases off SCRIPT_NAME automatically, so this one middleware makes the
+    whole app prefix-aware. The reverse proxy must forward the full path
+    (prefix included); the prefix is stripped here, not at the proxy.
+
+    A request outside the prefix is answered 404 right here — deliberately
+    loud. The quiet alternatives are both misconfiguration traps: passing it
+    through unstripped would serve the whole app at unprefixed URLs too
+    (a duplicate origin), and stamping SCRIPT_NAME without stripping would
+    render pages whose every url_for link is wrong."""
+
+    def __init__(self, wsgi_app, basePath):
+        self.wsgi_app = wsgi_app
+        self.basePath = basePath
+
+    def __call__(self, environ, start_response):
+        pathInfo = environ.get('PATH_INFO', '')
+        # The prefix is a path segment, not a string prefix: /warp and
+        # /warp/... match, /warpstuff must not.
+        if pathInfo == self.basePath:
+            environ['PATH_INFO'] = '/'
+        elif pathInfo.startswith(self.basePath + '/'):
+            environ['PATH_INFO'] = pathInfo[len(self.basePath):]
+        else:
+            start_response('404 NOT FOUND', [('Content-Type', 'text/plain')])
+            return [b'404: outside of WARP_BASE_PATH\n']
+        environ['SCRIPT_NAME'] = self.basePath
+        return self.wsgi_app(environ, start_response)
 
 def create_app():
 
     app = flask.Flask(__name__)
 
     initConfig(app)
+
+    if app.config['BASE_PATH']:
+        app.wsgi_app = _BasePathMiddleware(app.wsgi_app, app.config['BASE_PATH'])
 
     from . import db
     db.init(app)

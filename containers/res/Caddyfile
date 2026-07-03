@@ -12,6 +12,13 @@
 	# Static assets are served straight from the shared volume that the app
 	# container populates on start (see entrypoint.sh). The /static prefix is
 	# stripped before looking up the file on disk.
+	#
+	# If WARP is mounted under a URL prefix (WARP_BASE_PATH=/warp on the app
+	# container), mirror it here: change the matcher to /warp/static/*
+	# (handle_path strips the whole matched prefix, so the on-disk root stays
+	# the same). The catch-all handle below needs NO change — `handle` (unlike
+	# `handle_path`) forwards the full path, prefix included, which is what the
+	# app expects. The two prefixes must agree; see CONFIGURATION.md.
 	handle_path /static/* {
 		root * {$WARPAPP_RUN_DIR:/run/warp}/static
 		file_server

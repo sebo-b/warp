@@ -61,6 +61,7 @@ environment:
 | `SESSION_LIFETIME`           | `1`          |    no    | Session duration in days                       |
 | `LANGUAGE_FILE`              | `i18n/en.js` |    no    | UI translation file                            |
 | `THEME_FILE`                 | `theme.css`  |    no    | Colour theme stylesheet (`static/`-relative name, or absolute path/URL) |
+| `BASE_PATH`                  | *(empty)*    |    no    | URL prefix WARP is mounted under, e.g. `/warp` (see [Mounting under a URL prefix](#mounting-under-a-url-prefix)) |
 | `WEEKS_IN_ADVANCE`           | `1`          |    no    | Weeks after current week available for booking |
 | `BOOK_OPEN`                  | `0`          |    no    | Earliest bookable time (seconds from midnight) |
 | `BOOK_CLOSE`                 | `86400`      |    no    | Latest bookable time (seconds from midnight)   |
@@ -212,6 +213,40 @@ The file is loaded after the base bundle, so it only needs to redefine the
 `--warp-*` tokens it wants to change (e.g. `--warp-primary`, `--warp-secondary`,
 `--warp-nav-bg`). See the comments in `warp/static/theme.css` for the full token
 list and which roles drive what.
+
+---
+
+## Mounting under a URL prefix
+
+| Variable         | Default   | Description                                        |
+| ---------------- | --------- | -------------------------------------------------- |
+| `WARP_BASE_PATH` | *(empty)* | URL prefix WARP is mounted under, e.g. `/warp`     |
+
+By default WARP runs at the root of its host. To serve it under a sub-path
+(e.g. `https://intranet.example.org/warp/`), set:
+
+```bash
+WARP_BASE_PATH=/warp
+```
+
+Leading/trailing slashes are normalized (`warp`, `/warp` and `/warp/` are
+equivalent). The prefix is applied as WSGI `SCRIPT_NAME`, so every URL WARP
+generates — views, `/xhr/*`, static assets, login redirects, the PWA manifest
+scope/start_url and service-worker scope — is rebased automatically.
+
+Two things must be configured *outside* WARP to match:
+
+1. **The reverse proxy** must forward requests **with the prefix intact**
+   (WARP strips it itself); do not rewrite the path. If the proxy serves
+   `/static/*` directly from disk (as the bundled Caddyfile does), that
+   matcher must become `<BASE_PATH>/static/*` — see the comments in
+   `containers/res/Caddyfile`. The proxy site block and `WARP_BASE_PATH`
+   must agree, or requests route to the wrong path.
+2. **External auth registrations**: OIDC/SAML redirect/consumer URIs are
+   registered at the IdP as absolute URLs and must include the prefix (e.g.
+   `https://…/warp/oidc/callback`, SAML SP endpoints under
+   `<BASE_PATH>/saml`). A prefix change without updating the IdP breaks
+   SSO login. The same applies to `MELLON_ENDPOINT` for mod_auth_mellon.
 
 ---
 
