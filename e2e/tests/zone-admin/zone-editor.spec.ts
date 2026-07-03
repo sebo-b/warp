@@ -344,6 +344,7 @@ test.describe('adding a seat', () => {
     await toggleMode(page);                                  // → Add mode
     await page.locator('#zone_map').click({ position: EMPTY_SPOT });
     await expect(page.locator('#seat_edit_panel')).toBeVisible();
+    await expect(page.locator('#seat_name')).toBeFocused();
 
     // Type a name so the placeholder is replaced.
     await page.keyboard.type('FirstRename');
