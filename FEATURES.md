@@ -809,6 +809,8 @@ menus) switches between them, showing a **moon** icon in light mode and a **sun*
 | **Zone Admin actions**| —        | + Book For, + Edit | same | same          | same            | same         | + Edit    | + Edit  | + Edit                    |
 | **Viewer actions**    | —        | —                     | —                    | —             | —               | —            | —           | —                           | —                           |
 
+A viewer (view-only access to every zone on the plan) can still **release their own booking** from the plan map — clicking it opens the action panel with only the Release button. Non-actionable seats (free, taken by others, assigned) open no panel. The auto-book button and book-for input stay hidden in viewer mode.
+
 ---
 
 ## 28. Configuration Reference

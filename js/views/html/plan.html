@@ -1,6 +1,9 @@
-<!-- Overlays: action_modal/seat_edit_modal are removed in mount() when
-     isZoneViewer/!isZoneAdmin respectively (was a Jinja {% if %} server-side). -->
-<dialog id="action_modal" class="modal bottom-sheet" data-requires="notZoneViewer">
+<!-- Overlays: seat_edit_modal is removed in mount() when !isZoneAdmin (was a
+     Jinja {% if %} server-side). The action_modal stays for viewers so a pure
+     viewer can still release their own booking from the plan map — the click
+     handler only ever offers Release for an own booking (CAN_DELETE*); all
+     other seats are non-actionable and open no modal. -->
+<dialog id="action_modal" class="modal bottom-sheet">
     <!-- Neutral autofocus target: a native <dialog> otherwise focuses the first
          action button on open (an unwanted focus ring on Edit/Book). Focus stays
          inside the dialog (a11y) but on a non-interactive container. -->

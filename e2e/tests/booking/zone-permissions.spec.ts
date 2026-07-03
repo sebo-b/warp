@@ -424,10 +424,12 @@ test.describe('plan with all view-only zones → isZoneViewer', () => {
     await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
 
-    // The action modal HTML should not exist (viewer mode hides it)
-    await expect(page.locator('#action_modal')).toHaveCount(0);
+    // The action modal HTML stays in the DOM for viewers so a pure viewer can
+    // still release their OWN booking from the plan map; the click handler opens
+    // it only for an own booking (CAN_DELETE*), never for non-actionable seats.
+    await expect(page.locator('#action_modal')).toHaveCount(1);
 
-    // Auto-book FAB should not exist either
+    // Auto-book FAB must not exist (viewers can't auto-book).
     await expect(page.locator('#auto_book_btn')).toHaveCount(0);
   });
 });

@@ -195,6 +195,50 @@ test.describe('own booking in a view-only zone', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Pure viewer (isZoneViewer): the action modal is kept in the DOM so an own
+// booking can be released from the plan map, but non-actionable seats open no
+// modal. (Counterpart to test 5, which uses a mixed plan so isZoneViewer is
+// false; here the user has ONLY view-only access.)
+// ---------------------------------------------------------------------------
+
+test.describe('pure viewer releasing own booking from the plan map', () => {
+  test('9. pure viewer: own booking -> yours + release works; free/TAKEN open no modal', async ({ page }) => {
+    const pid = await createPlan('Sprite Pure Viewer Plan', 1);
+    const zid = await createZone('SPV Zone', ZONE_TYPE_PUBLIC_VIEW);
+    const [ownSeat, freeSeat, takenSeat] = await addSeats(pid, zid, ['SPV.own', 'SPV.free', 'SPV.taken']);
+    const { fromTS, toTS } = slot();
+    await insertBooking(USER3.login, ownSeat, fromTS, toTS);
+    await insertBooking(USER1.login, takenSeat, fromTS, toTS);
+
+    await logIn(page, USER3);            // user3 has no explicit role -> pure viewer
+    await page.goto(`/plan/${pid}`);
+    await waitForSeatsLoaded(page);
+    await selectOnlyDates(page, [DAY]);
+    await page.waitForTimeout(400);
+
+    // Own booking -> yours; the other two are non-actionable for a viewer.
+    await expectSprite(page, ownSeat, 'cell-yours');
+    await expectSprite(page, freeSeat, 'cell-unavailable');
+    await expectSprite(page, takenSeat, 'cell-taken');
+
+    // Non-actionable seats must NOT open the bottom-sheet panel.
+    await clickExpectsNoModal(page, freeSeat);
+    await clickExpectsNoModal(page, takenSeat);
+
+    // Own booking -> Release modal -> booking gone (apply() remove bypasses the
+    // zone-admin check for own bookings).
+    await page.locator(`#sprite-${ownSeat}`).click();
+    await expect(page.locator('#action_modal')).toHaveClass(/open/);
+    await clickActionBtn(page, 'delete');
+    const r = await querySql(
+      'SELECT COUNT(*)::int AS cnt FROM book WHERE login = $1 AND sid = $2',
+      [USER3.login, ownSeat],
+    );
+    expect(r.rows[0].cnt).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Risk #1 guard: conflict map across a mixed ENABLED + PUBLIC_VIEW zone_group
 // ---------------------------------------------------------------------------
 

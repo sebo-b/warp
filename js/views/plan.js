@@ -438,9 +438,15 @@ export async function mount(ctx) {
 
     function initActionMenu(seatFactory) {
 
-        if (window.warpGlobals.isZoneViewer)
-            return;
-
+        // isZoneViewer no longer bails out: a pure viewer can still release
+        // their OWN booking from the plan map (CAN_DELETE/CAN_DELETE_EXACT →
+        // 'delete'). The click handler's state machine already opens no modal
+        // for non-actionable seats (VIEW_ONLY/NOT_AVAILABLE early-return;
+        // TAKEN/ASSIGNED push no action and isMyZoneAdmin() is false for a
+        // viewer so no seat-edit → actions empty → return before open()).
+        // Booking actions (book/rebook) can't fire for !bookable seats, and
+        // the auto-book FAB + book-for input stay hidden for viewers via their
+        // own data-requires/isZoneViewer gates.
         var seat = null;    // used for passing seat to btn click events (closure)
         var assignedData = [];
 
