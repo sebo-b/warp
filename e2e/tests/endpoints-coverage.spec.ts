@@ -95,6 +95,10 @@ const COVERED_ENDPOINTS: ReadonlySet<string> = new Set([
 
   // xhr — SPA per-view context (plan calendar grid, dark filter, role flags)
   '/xhr/plan/getContext/<int:pid>',
+
+  // PWA install assets (see pwa.spec.ts)
+  '/manifest.webmanifest',
+  '/sw.js',
 ]);
 
 test('all registered endpoints are covered by e2e tests', async ({ request }) => {
