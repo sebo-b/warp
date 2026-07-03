@@ -49,3 +49,48 @@ test.describe('admin table views render data', () => {
     await expect(page.locator('.tabulator-row').first()).toBeVisible();
   });
 });
+
+// Regression: saving an edit dialog must refresh the table IN PLACE. The
+// Save/Delete buttons are legacy Materialize `<a href="#!">` affordances;
+// before the router guards (router.js initLinkInterception + the popstate
+// hash-only check), clicking one performed a fragment navigation to
+// /users#!, popstate remounted the whole view, and the fresh table's list
+// request raced the still-in-flight save POST — the table then showed
+// pre-commit (stale) data until a manual reload.
+test.describe('edit dialog refreshes the table without remounting', () => {
+  test('editing a user name updates the users table in place', async ({ page }) => {
+    await logIn(page, ADMIN);
+    await page.goto('/users');
+    await waitForViewReady(page, 'users');
+
+    const row = page.locator('.tabulator-row').filter({ hasText: 'user1' });
+    await expect(row).toBeVisible();
+    await row.locator('.warp-icon-edit-alt').click();
+    await expect(page.locator('#edit_modal')).toHaveClass(/open/);
+    await page.locator('#name').fill('Renamed InPlace');
+    await page.locator('#edit_modal_save_btn').click();
+
+    // The row must reflect the change without any reload/navigation…
+    await expect(page.locator('.tabulator-row').filter({ hasText: 'Renamed InPlace' })).toBeVisible();
+    // …and the save button must not have rewritten the URL (no /users#!).
+    expect(new URL(page.url()).hash).toBe('');
+    expect(new URL(page.url()).pathname).toBe('/users');
+  });
+
+  test('editing a plan name updates the plans table in place', async ({ page }) => {
+    await logIn(page, ADMIN);
+    await page.goto('/plans');
+    await waitForViewReady(page, 'plans');
+
+    const row = page.locator('.tabulator-row').filter({ hasText: 'Plan 1A' });
+    await expect(row).toBeVisible();
+    await row.locator('.warp-icon-edit').first().click();
+    await expect(page.locator('#edit_modal')).toHaveClass(/open/);
+    await page.locator('#plan_name').fill('Plan 1A renamed');
+    await page.locator('#edit_modal_save_btn').click();
+
+    await expect(page.locator('.tabulator-row').filter({ hasText: 'Plan 1A renamed' })).toBeVisible();
+    expect(new URL(page.url()).hash).toBe('');
+    expect(new URL(page.url()).pathname).toBe('/plans');
+  });
+});

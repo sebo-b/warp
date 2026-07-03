@@ -235,8 +235,15 @@ function initLinkInterception() {
 
     var hrefAttr = a.getAttribute('href');
     // Hash-only hrefs are modal triggers / dropdown/collapsible affordances
-    // (triggers.js owns those) — never routes.
-    if (!hrefAttr || hrefAttr.charAt(0) === '#') return;
+    // (triggers.js owns those) — never routes. The bare '#'/'#!' no-op
+    // affordances (Materialize-style action buttons: Save/Delete/Cancel in
+    // modals, FABs, …) must not perform a fragment navigation either: it
+    // rewrites the URL to e.g. /users#! and fires popstate, which used to
+    // remount the whole view mid-save (see the popstate guard in start()).
+    if (!hrefAttr || hrefAttr.charAt(0) === '#') {
+      if (hrefAttr === '#' || hrefAttr === '#!') ev.preventDefault();
+      return;
+    }
     if (a.target && a.target !== '' && a.target !== '_self') return;
     if (a.hasAttribute('download')) return;
     if (a.origin !== window.location.origin) return;
@@ -255,6 +262,13 @@ export function start() {
   currentPath = window.location.pathname + window.location.search;
   window.addEventListener('popstate', async function () {
     var toPath = window.location.pathname + window.location.search;
+    // Same-document fragment navigations (clicking any legacy '#'/'#!'-href
+    // affordance, in-page anchors, or back/forward between hash states) fire
+    // popstate too. The route (pathname+search) didn't change, so remounting
+    // would destroy and recreate the view — racing whatever XHR the view just
+    // fired (an edit-dialog save) against the remount's fresh table load, and
+    // leaving the visible table stale when the list read beat the commit.
+    if (toPath === currentPath) return;
     if (!await mayLeave()) {
       // The browser already moved the URL; the user chose to stay, so undo
       // by pushing the previous path back. Adds one history entry (the usual
