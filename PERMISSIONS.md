@@ -190,7 +190,7 @@ A plan can mix zones, so the screen picks a mode from the user's roles across al
 zones on that plan:
 
 - **Admin mode** — the user administers _at least one_ zone on the plan (or is a
-  site admin). The assign / enable / disable / book-as tools appear.
+  site admin). The assign / enable / disable / book-for tools appear.
 - **Viewer mode** — the user can only _view_ every zone they can reach on the
   plan (no booking anywhere). The booking actions and the auto-book button are
   hidden.
@@ -228,38 +228,54 @@ Rule 6 is enforced at the database level, so it holds no matter which path
 
 ---
 
-## 8. Booking on behalf of others ("book as")
+## 8. Booking on behalf of others ("book for")
 
-### Manual book-as (picking a specific seat for someone)
+Book-for is fundamentally different from booking as yourself: the actor is
+acting in their capacity as **zone admin**, not as the target. Self-booking
+requires the booker's own effective role to be _user_ or better; book-for
+instead requires the **actor** to administer the zone, and only requires the
+**target** to be a _member_ of it — any zone role, viewers included. Because
+the actor is the zone's admin, they may also override seat-level assignment
+restrictions there (they could reassign the seat themselves anyway) — but only
+in zones they administer. Disabled zones reject booking outright, for
+everyone, book-for included.
+
+### Manual book-for (picking a specific seat for someone)
 
 - **The actor must be a zone admin of the seat's zone** (site admins qualify
   everywhere). Being an admin of a _different_ zone on the same plan is not
-  enough — e.g. an admin of the enabled zone cannot book-as into a public-book
-  zone on the same plan unless they also administer that public-book zone.
-- **The target must be allowed to book in that zone** — i.e. the _target's_
-  effective role must be _user_ or better. You cannot park a booking on someone
-  who has no business in the zone. (In a public-book zone that is everyone; in a
-  public-view zone only users with an explicit grant; in an enabled zone only
-  those granted _user_/_admin_.)
+  enough — e.g. an admin of the enabled zone cannot book for someone into a
+  public-book zone on the same plan unless they also administer that
+  public-book zone.
+- **The target only needs to be a member of that zone** — a
+  `user_to_zone_roles` row for the zone, of _any_ role. A zone admin can book
+  for a viewer in their own zone; this is the point of the mechanism (it makes
+  view-only zones genuinely centrally managed — the office manager books,
+  viewers just see the outcome).
+- **Assignments do not bind the target under book-for.** If the seat is
+  assigned to someone else, or its days-in-advance window would otherwise
+  block the date, the zone admin's book-for override still succeeds.
+- **Release confinement still applies to unrelated zones.** Book-for can only
+  release (delete) an existing conflicting booking of the target's if that
+  booking is in a zone the actor also administers. If the conflicting booking
+  is in a zone outside the actor's control, the operation is rejected rather
+  than silently deleting it.
 - **Disabled zones** still reject the booking outright.
 
 ### Auto-book ("find me a seat")
 
-Auto-book is always a **regular-user action**: it picks a seat the **subject**
-(the booking's owner) could have picked themselves — no super-user bypass, and no
-confinement to the actor's own zones. The actor's role only gates _who may book
-for whom_:
-
-- **For yourself** — always allowed; the pool is the zones where _you_ have a
-  regular booking grant (or that are public-bookable). The site-admin bypass is
-  excluded here (§4), so auto-book never picks a zone you only oversee.
-- **As another user** — only a **site admin** or a **zone admin of some zone on
-  the plan** may trigger it. The seat is then chosen exactly as the **target**
-  would get it (across the target's own accessible zones), so the target is never
-  placed on a seat they couldn't book themselves, and the actor's zones do not
-  constrain the choice. This is intentionally looser than manual book-as (which
-  also requires the actor to administer the specific seat's zone) — safe, because
-  the picked seat is by construction one the target could book on their own.
+- **For yourself** — always a regular-user action: it picks a seat you could
+  have picked yourself — no super-user bypass, and no confinement to zones you
+  merely oversee. The pool is the zones where _you_ have a regular booking
+  grant (or that are public-bookable). The site-admin bypass is excluded here
+  (§4), so auto-book never picks a zone you only oversee.
+- **For another user** — only a **site admin** or a **zone admin of some zone
+  on the plan** may trigger it. The seat pool (and the release side — which
+  bookings of the target's may be displaced) is confined to the zones the
+  **actor** administers (unconfined for a site admin). Within that pool the
+  target only needs to be a member — any role, viewers included — mirroring
+  the manual book-for rule; the auto-book heuristic then picks the best seat
+  among eligible ones exactly as it would for a normal booking.
 
 See [AUTOBOOK.md](AUTOBOOK.md) for the full auto-book selection priority.
 
@@ -307,8 +323,10 @@ See [AUTOBOOK.md](AUTOBOOK.md) for the full auto-book selection priority.
                  ✅  BOOKED
 ```
 
-(For _book as_, run the booking-access checks against the **target** user and
-additionally require the **actor** to administer S's zone — §8.)
+(For _book for_, replace the first two checks: require the **actor** to
+administer S's zone, and the **target** to merely be a member of it — any
+role — instead of running the role/assignment checks against the target. The
+zone-disabled, booking-window, and conflict checks still apply — §8.)
 
 ---
 
@@ -317,23 +335,28 @@ additionally require the **actor** to administer S's zone — §8.)
 A plan **"Office"** has three zones:
 
 - **Open** — public (book)
-- **Quiet** — enabled (private); _Bob_ is zone admin, _Carol_ is zone user
+- **Quiet** — enabled (private); _Bob_ is zone admin, _Carol_ is zone user, _Eve_ is zone viewer
 - **Lab** — disabled; _Bob_ is zone admin
 
 | Person                    | Open        | Quiet       | Lab         | Notes                                        |
 | ------------------------- | ----------- | ----------- | ----------- | -------------------------------------------- |
 | **Dana** (no grants)      | book        | –           | –           | public-book gives everyone _user_ in Open    |
 | **Carol** (user in Quiet) | book        | book        | –           | sees Lab? no — disabled & no admin grant     |
+| **Eve** (viewer in Quiet) | book        | view only   | –           | can see Quiet's occupancy, cannot book there |
 | **Bob** (admin Quiet+Lab) | book        | book+manage | view+manage | cannot _book_ in Lab (disabled), only manage |
 | **Site admin**            | book+manage | book+manage | view+manage | super-user; still cannot book in Lab         |
 
-Book-as on this plan:
+Book-for on this plan:
 
-- Bob books **as Carol** in **Quiet** → ✅ (Bob admins Quiet, Carol may book there).
-- Bob books **as Dana** in **Open** → ❌ Bob is only a _user_ of Open, not its
-  admin; he cannot book-as there (even though Dana herself could book).
-- Bob auto-books **as Carol** → he may trigger it (he admins Quiet, a zone on the
-  plan), and it then runs **as Carol**, so it may place her in **any zone Carol
-  can book** (Quiet or the public Open) by the auto-book priority — never in Lab.
-- Site admin books **as Dana** in **Open** → ✅ (super-user admins Open; Dana may
-  book there).
+- Bob books **for Carol** in **Quiet** → ✅ (Bob admins Quiet, Carol is a member).
+- Bob books **for Eve** in **Quiet** → ✅ (Bob admins Quiet, Eve is a member —
+  her _viewer_ role doesn't matter for book-for; if the seat happens to be
+  assigned to someone else, Bob's book-for still overrides that).
+- Bob books **for Dana** in **Open** → ❌ Bob is only a _user_ of Open, not its
+  admin; he cannot book for anyone there (even though Dana herself could book).
+- Bob auto-books **for Eve** → he may trigger it (he admins Quiet, a zone on
+  the plan), and the seat pool is confined to **zones Bob administers**
+  (Quiet, Lab) — never Open, even though Eve could book there herself. Lab is
+  excluded too (disabled). So the seat is picked from Quiet only.
+- Site admin books **for Dana** in **Open** → ✅ (super-user admins Open; Dana
+  is a member there).

@@ -1,19 +1,20 @@
 /**
- * Book-as interaction with zone-group / multi-plan booking.
+ * Book-for interaction with zone-group / multi-plan booking.
  *
  * These cover the bugs fixed alongside the unified zone-group conflict query:
  *
- *  - Book-as used to fetch only conflict seats (getSeats?onlyOtherZone=1). That
+ *  - Book-for used to fetch only conflict seats (getSeats?onlyOtherZone=1). That
  *    partial response also returned the target's bookings in *accessible* zones
  *    that happened to share a conflict zone-group with the viewed plan, and the
  *    client overwrote those live (rendered) seats with div-less "other zone"
  *    ghosts — leaving the original sprite frozen on its stale TAKEN (padlock)
- *    icon. Book-as now does a full getSeats?login=target refresh, so the
+ *    icon. Book-for now does a full getSeats?login=target refresh, so the
  *    target's own bookings in accessible zones stay recognisable as theirs.
  *
- *  - `bookable` in getSeats now reflects the *target* user's role under book-as,
- *    so a seat the target can only view (VIEWER zone) is no longer offered as
- *    bookable to the admin (which apply() would then reject with 104).
+ *  - `bookable` in getSeats reflects the *actor's* admin standing under book-for
+ *    plus the target's membership in the zone (any role, viewers included) — so
+ *    a seat in a zone the admin administers is offered as bookable even for a
+ *    viewer target; apply() applies the same membership-only rule.
  */
 
 import { test, expect } from '../../fixtures';
@@ -31,25 +32,25 @@ import {
   apiApply,
 } from '../../helpers/booking';
 
-/** Activate book-as for the given display label (e.g. "Bar [user2]"). */
-async function activateBookAs(page: any, label: string): Promise<void> {
-  const bookAsInput = page.locator('#book-as');
-  await bookAsInput.click();
-  await bookAsInput.pressSequentially(label.split(' ')[0], { delay: 50 });
+/** Activate book-for for the given display label (e.g. "Bar [user2]"). */
+async function activateBookFor(page: any, label: string): Promise<void> {
+  const bookForInput = page.locator('#book-for');
+  await bookForInput.click();
+  await bookForInput.pressSequentially(label.split(' ')[0], { delay: 50 });
   const item = page.locator('ul.autocomplete-content li', { hasText: label });
   await expect(item).toBeVisible({ timeout: 5000 });
   await item.click();
-  // book-as fires a full getSeats?login= refresh; wait for it to settle.
+  // book-for fires a full getSeats?login= refresh; wait for it to settle.
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(400);
 }
 
-/** Clear book-as (Enter on an empty input resets to the admin's own login). */
-async function clearBookAs(page: any): Promise<void> {
-  const bookAsInput = page.locator('#book-as');
-  await bookAsInput.click();
-  await bookAsInput.fill('');
-  await bookAsInput.press('Enter');
+/** Clear book-for (Enter on an empty input resets to the admin's own login). */
+async function clearBookFor(page: any): Promise<void> {
+  const bookForInput = page.locator('#book-for');
+  await bookForInput.click();
+  await bookForInput.fill('');
+  await bookForInput.press('Enter');
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(400);
 }
@@ -74,7 +75,7 @@ async function seatActions(page: any, seat: any): Promise<string[]> {
   return actions;
 }
 
-test.describe('book-as + zone group', () => {
+test.describe('book-for + zone group', () => {
 
   test('target\'s own booking in an accessible same-group zone shows as deletable, not a padlock', async ({ page }) => {
     const ts = futureDayTs(1);
@@ -100,7 +101,7 @@ test.describe('book-as + zone group', () => {
     await waitForSeatsLoaded(page);
     await selectOnlyDates(page, [ts]);
     await page.waitForTimeout(400);
-    await activateBookAs(page, 'Bar [user2]');
+    await activateBookFor(page, 'Bar [user2]');
 
     // The seat user2 already holds must be recognised as user2's own booking
     // (delete offered), not shown as taken-by-someone-else (padlock → admin-only
@@ -110,7 +111,7 @@ test.describe('book-as + zone group', () => {
     await expect(page.locator('.plan_action_btn[data-action="delete"]')).toBeVisible();
   });
 
-  test('rebooking across a same-group zone via book-as leaves consistent state after refresh', async ({ page }) => {
+  test('rebooking across a same-group zone via book-for leaves consistent state after refresh', async ({ page }) => {
     const ts = futureDayTs(1);
     const zone1Seat = (await getZoneSeats(1))[0];
     const zone2Seat = (await getZoneSeats(2))[0];
@@ -137,7 +138,7 @@ test.describe('book-as + zone group', () => {
     await waitForSeatsLoaded(page);
     await selectOnlyDates(page, [ts]);
     await page.waitForTimeout(400);
-    await activateBookAs(page, 'Bar [user2]');
+    await activateBookFor(page, 'Bar [user2]');
 
     // Zone 1B seat is same-group → rebook (update), moving user2's booking.
     await clickZoneSeat(page, zone2Seat);
@@ -165,7 +166,7 @@ test.describe('book-as + zone group', () => {
     await expect(page.locator('.plan_action_btn[data-action="delete"]')).toBeVisible();
   });
 
-  test('book-as a viewer-only user marks the seat not bookable (Fix 5)', async ({ page }) => {
+  test('book-for a viewer-only user still offers booking when the admin administers the zone', async ({ page }) => {
     const ts = futureDayTs(1);
     // Zone 3 (Parking): user2 has no group role here, so a direct VIEWER role
     // is genuinely viewer-only (zone 1 would be polluted by group_1a's USER role).
@@ -189,15 +190,15 @@ test.describe('book-as + zone group', () => {
     await page.keyboard.press('Escape');
     await page.waitForTimeout(200);
 
-    // Book-as user2 (viewer): the seat is now view-only for user2, so clicking
-    // it must not open the booking modal (VIEW_ONLY short-circuits the handler).
-    await activateBookAs(page, 'Bar [user2]');
+    // Book-for user2 (viewer): user1 administers this zone, so book-for overrides
+    // user2's viewer restriction — the seat is still bookable, not view-only.
+    await activateBookFor(page, 'Bar [user2]');
     await clickZoneSeat(page, parkingSeat);
-    await page.waitForTimeout(300);
-    await expect(page.locator('#action_modal')).not.toHaveClass(/open/);
+    await expect(page.locator('#action_modal')).toHaveClass(/open/);
+    await expect(page.locator('.plan_action_btn[data-action="book"]')).toBeVisible();
   });
 
-  test('GUARD: getSeats sends login on book-as conflict seats (Fix 1 server contract)', async ({ page }) => {
+  test('GUARD: getSeats sends login on book-for conflict seats (Fix 1 server contract)', async ({ page }) => {
     // Deterministic contract guard. The target's only booking is in a zone the
     // admin cannot access, so it reaches the response purely via the conflict
     // query (an other-zone seat: no x/y). Fix 1 requires that conflict booking
@@ -235,9 +236,9 @@ test.describe('book-as + zone group', () => {
     expect(conflictSeat.book[0].login).toBe(USER2.login);
   });
 
-  test('book-as conflict seat in an inaccessible same-group zone drives rebook (client uses server login)', async ({ page }) => {
+  test('book-for conflict seat in an inaccessible same-group zone drives rebook (client uses server login)', async ({ page }) => {
     // UI counterpart of the contract guard: the inaccessible Parking booking
-    // must make the accessible Zone 1A seat a rebook under book-as. This passes
+    // must make the accessible Zone 1A seat a rebook under book-for. This passes
     // only if the conflict seat is recognised as the target's, i.e. its login
     // arrived from the server and the client honoured it.
     const ts = futureDayTs(1);
@@ -258,7 +259,7 @@ test.describe('book-as + zone group', () => {
     await waitForSeatsLoaded(page);
     await selectOnlyDates(page, [ts]);
     await page.waitForTimeout(400);
-    await activateBookAs(page, 'Bar [user2]');
+    await activateBookFor(page, 'Bar [user2]');
 
     await clickZoneSeat(page, zone1Seat);
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
@@ -269,9 +270,49 @@ test.describe('book-as + zone group', () => {
     await expect(page.locator('#action_modal_msg2')).toContainText('Parking');
   });
 
+  test('book-for cannot release a target\'s booking in a non-administered same-group zone', async ({ page }) => {
+    // user1 administers Zone 1A but is only a regular USER in Parking (Zone 3),
+    // same group. user2 already holds the Parking seat. Booking user2 into Zone
+    // 1A while asking to release the Parking booking must fail — release
+    // confinement (apply()'s per-seat zone-admin check) blocks the remove bid,
+    // and the whole atomic request is rejected, not partially applied.
+    const ts = futureDayTs(1);
+    const zone1Seat = (await getZoneSeats(1))[0];
+    const parkingSeat = (await getZoneSeats(3))[0];
+    const fromTS = ts + 9 * 3600, toTS = ts + 17 * 3600;
+
+    await querySql("UPDATE zone SET zone_group = 'floor-1' WHERE id IN (1, 3)");
+    await logIn(page, ADMIN);
+    await adminPost(page, '/xhr/zones/assign', { zid: 1, change: [{ login: USER1.login, role: 10 }] });
+    await adminPost(page, '/xhr/zones/assign', { zid: 3, change: [{ login: USER1.login, role: 20 }] }); // USER only, not admin
+    await adminPost(page, '/xhr/zones/assign', { zid: 1, change: [{ login: USER2.login, role: 20 }] });
+    await adminPost(page, '/xhr/zones/assign', { zid: 3, change: [{ login: USER2.login, role: 20 }] });
+
+    await querySql(
+      'INSERT INTO book (login, sid, fromts, tots) VALUES ($1, $2, $3, $4)',
+      [USER2.login, parkingSeat.id, fromTS, toTS]);
+    const bidRow = await querySql(
+      'SELECT id FROM book WHERE login = $1 AND sid = $2',
+      [USER2.login, parkingSeat.id]);
+    const removeBid = bidRow.rows[0].id;
+
+    await logIn(page, USER1);
+    const resp = await apiApply(page, {
+      book: { sid: zone1Seat.id, login: USER2.login, dates: [{ fromTS, toTS }] },
+      remove: [removeBid],
+    });
+    expect(resp.status()).toBe(403);
+    expect((await resp.json()).code).toBe(102);
+
+    const r = await querySql(
+      'SELECT COUNT(*)::int AS cnt FROM book WHERE login = $1 AND sid = $2',
+      [USER2.login, parkingSeat.id]);
+    expect(r.rows[0].cnt).toBe(1);
+  });
+
 });
 
-test.describe('book-as target switching', () => {
+test.describe('book-for target switching', () => {
 
   // Helper: zones 1 & 2 share group 'floor-1'; user1 admins both; the given
   // users get USER access to Zone 1B (zid 2). Returns the two seats of interest.
@@ -287,7 +328,7 @@ test.describe('book-as target switching', () => {
     return { zone1Seat, zone2Seat };
   }
 
-  test('switching book-as back to self restores the admin\'s own (conflict-free) view', async ({ page }) => {
+  test('switching book-for back to self restores the admin\'s own (conflict-free) view', async ({ page }) => {
     const ts = futureDayTs(1);
     const { zone1Seat, zone2Seat } = await setupGroup(page);
     const fromTS = ts + 9 * 3600, toTS = ts + 17 * 3600;
@@ -303,18 +344,18 @@ test.describe('book-as target switching', () => {
     await page.waitForTimeout(400);
 
     // As user2: Zone 1B seat is a rebook (user2's same-group Zone 1A booking).
-    await activateBookAs(page, 'Bar [user2]');
+    await activateBookFor(page, 'Bar [user2]');
     expect(await seatActions(page, zone2Seat)).toContain('update');
     expect(await seatActions(page, zone2Seat)).not.toContain('book');
 
     // Back to self (admin user1, who holds nothing): plain book, no rebook.
-    await clearBookAs(page);
+    await clearBookFor(page);
     const selfActions = await seatActions(page, zone2Seat);
     expect(selfActions).toContain('book');
     expect(selfActions).not.toContain('update');
   });
 
-  test('switching book-as between two targets reflects each target\'s own conflicts', async ({ page }) => {
+  test('switching book-for between two targets reflects each target\'s own conflicts', async ({ page }) => {
     const ts = futureDayTs(1);
     const { zone1Seat, zone2Seat } = await setupGroup(page, [USER3.login]);
     const fromTS = ts + 9 * 3600, toTS = ts + 17 * 3600;
@@ -330,16 +371,16 @@ test.describe('book-as target switching', () => {
     await page.waitForTimeout(400);
 
     // user2 → rebook (has conflict); user3 → plain book (no conflict).
-    await activateBookAs(page, 'Bar [user2]');
+    await activateBookFor(page, 'Bar [user2]');
     expect(await seatActions(page, zone2Seat)).toContain('update');
 
-    await activateBookAs(page, 'Baz [user3]');
+    await activateBookFor(page, 'Baz [user3]');
     const u3 = await seatActions(page, zone2Seat);
     expect(u3).toContain('book');
     expect(u3).not.toContain('update');
 
     // Back to user2 → rebook again (no stale ghost from the user3 view).
-    await activateBookAs(page, 'Bar [user2]');
+    await activateBookFor(page, 'Bar [user2]');
     expect(await seatActions(page, zone2Seat)).toContain('update');
   });
 

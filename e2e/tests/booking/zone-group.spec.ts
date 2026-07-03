@@ -356,7 +356,7 @@ test.describe('zone group constraint (non-null zone_group)', () => {
     expect(Number(rows.rows[0].sid)).toBe(zone2Seat.id);
   });
 
-  test('UI: book-as shows rebook icon when target has same-group booking on another plan', async ({ page }) => {
+  test('UI: book-for shows rebook icon when target has same-group booking on another plan', async ({ page }) => {
     const ts = futureDayTs(1);
     const zone1Seat = (await getZoneSeats(1))[0];
     const zone2Seat = (await getZoneSeats(2))[0];
@@ -375,17 +375,17 @@ test.describe('zone group constraint (non-null zone_group)', () => {
     await logIn(page, USER2);
     await apiApply(page, { book: { sid: zone1Seat.id, dates: [{ fromTS, toTS }] } });
 
-    // user1 (admin of zone 1B) opens plan 2 and book-as user2
+    // user1 (admin of zone 1B) opens plan 2 and books for user2
     await logIn(page, USER1);
     await page.goto('/plan/2');
     await waitForSeatsLoaded(page);
     await selectOnlyDates(page, [ts]);
     await page.waitForTimeout(400);
 
-    // Activate book-as for user2
-    const bookAsInput = page.locator('#book-as');
-    await bookAsInput.click();
-    await bookAsInput.pressSequentially('Bar', { delay: 50 });
+    // Activate book-for for user2
+    const bookForInput = page.locator('#book-for');
+    await bookForInput.click();
+    await bookForInput.pressSequentially('Bar', { delay: 50 });
     const item = page.locator('ul.autocomplete-content li', { hasText: 'Bar [user2]' });
     await expect(item).toBeVisible({ timeout: 5000 });
     await item.click();

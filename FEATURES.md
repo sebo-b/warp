@@ -101,7 +101,7 @@ WARP has two independent role layers: **account-level** roles and **zone-level**
 
 | Role        | Value | Description                                                                                                                               |
 |-------------|-------|-------------------------------------------------------------------------------------------------------------------------------------------|
-| **Admin**   |    10 | Full system access: user/group/zone management and reports. Zone-level actions (e.g., "Book As", enabling/disabling seats) still require a Zone Admin assignment in that zone — which admins can grant themselves. |
+| **Admin**   |    10 | Full system access: user/group/zone management and reports. Zone-level actions (e.g., "Book For", enabling/disabling seats) still require a Zone Admin assignment in that zone — which admins can grant themselves. |
 | **User**    |    20 | Regular user. Can book seats in zones they are assigned to.                                                                               |
 | **Blocked** |    90 | Cannot log in. Account exists but is disabled.                                                                                            |
 | **Group**   |   100 | Virtual account representing a user group. Not a real person; cannot log in.                                                              |
@@ -112,7 +112,7 @@ Each user (or group) can be assigned a role **per zone**:
 
 | Role           | Value | What they can do in the zone                                                                 |
 |----------------|-------|---------------------------------------------------------------------------------------------|
-| **Zone Admin** |    10 | Assign/unassign users to the zone and to seats, enable/disable seats, book on behalf of any zone user ("Book As"), see disabled seats. |
+| **Zone Admin** |    10 | Assign/unassign users to the zone and to seats, enable/disable seats, book on behalf of any zone member including viewers ("Book For"), see disabled seats. |
 | **User**       |    20 | Book, update, and delete their own bookings.                                                |
 | **Viewer**     |    30 | See the zone map, seats, and other people's bookings, but **cannot book**.                   |
 
@@ -415,19 +415,19 @@ The UI modal surfaces this as sections titled "Booked", "Could not extend or reb
 The old "Already booked in another zone" section is gone; an existing booking on the same plan for the same slots takes top priority at step 1 instead.
 
 ### 8.4 Auto-Book for Zone Admins
-- Zone admins can use the "Book As" feature with auto-book to find a seat for another user (see §9).
-- When doing so via auto-book, the seat is chosen exactly as it would have been for the target user themselves (the actor's own zones do not restrict the choice). Manual "book as" is still scoped to the specific seat's zone adminship.
+- Zone admins can use the "Book For" feature with auto-book to find a seat for another user (see §9).
+- The seat pool is confined to the zones the **actor** administers on that plan (unconfined for a site admin). Within that pool, the target only needs to be a member of the zone — any role, including viewer — since booking-for overrides seat-level assignment restrictions there. Manual "book for" is likewise scoped to the specific seat's zone adminship, with the same membership-only requirement on the target.
 
 ---
 
-## 9. "Book As" (Zone Admin Feature)
+## 9. "Book For" (Zone Admin Feature)
 
-- A "Book As" input field appears in the plan-view side panel (the booking map) for zone admins.
-- It is an autocomplete field listing all users with access to the zones on that plan (resolved through the `user_to_zone_roles` view — the single source of truth). For a public zone that is every non-group user, including blocked users (an admin can manage and book on behalf of blocked users); for an enabled zone it is the explicitly assigned users.
-- Selecting a user switches the entire plan view to show what that user sees, including their bookings and conflicting bookings across the plan.
+- A "Book For" input field appears in the plan-view side panel (the booking map) for zone admins.
+- It is an autocomplete field listing all users with access to the zones on that plan (resolved through the `user_to_zone_roles` view — the single source of truth). For a public zone that is every non-group user, including blocked users (an admin can manage and book on behalf of blocked users); for an enabled zone it is the explicitly assigned users, including viewers.
+- Selecting a user switches the entire plan view to show what that user sees, including their bookings and conflicting bookings across the plan. Seats in zones the admin administers show real booking actions even if the target is only a viewer there — booking-for overrides the viewer restriction and any seat-level assignment for that seat.
 - When the admin books, updates, or removes a booking, it is performed **on behalf of the selected user**.
 - The admin can also auto-book for the selected user.
-- Clearing the "Book As" field (pressing Enter while empty) reverts to the admin's own view.
+- Clearing the "Book For" field (pressing Enter while empty) reverts to the admin's own view.
 
 ---
 
@@ -805,7 +805,7 @@ menus) switches between them, showing a **moon** icon in light mode and a **sun*
 | Seat State            | No Dates | Green (Book)          | Green (Rebook)      | Blue (Update) | Blue (Conflict) | Blue (Exact) | Red (Taken) | Yellow (Assigned)           | Gray (Disabled)             |
 |-----------------------|----------|-----------------------|----------------------|---------------|-----------------|--------------|-------------|-----------------------------|-----------------------------|
 | **User actions**      | —        | Book                  | Book (replaces)      | Update        | Remove          | Remove       | —           | —                           | —                           |
-| **Zone Admin actions**| —        | + Book As, + Edit | same | same          | same            | same         | + Edit    | + Edit  | + Edit                    |
+| **Zone Admin actions**| —        | + Book For, + Edit | same | same          | same            | same         | + Edit    | + Edit  | + Edit                    |
 | **Viewer actions**    | —        | —                     | —                    | —             | —               | —            | —           | —                           | —                           |
 
 ---

@@ -83,7 +83,7 @@ async function boot() {
 
   // Opt every WARP form field into Materialize 2.x's built-in `.outlined`
   // text-field variant (bordered box). Scoped to .warp-fields containers so
-  // the nav search and the zone "book-as" underline field are left untouched;
+  // the nav search and the zone "book-for" underline field are left untouched;
   // chips are excluded (they are a multi-value container, not a text field).
   document.querySelectorAll('.warp-fields .input-field:not(.chips)').forEach(function (el) {
     el.classList.add('outlined');

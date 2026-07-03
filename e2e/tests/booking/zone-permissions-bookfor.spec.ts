@@ -1,5 +1,5 @@
 /**
- * Zone permission edge cases around "book as" (acting on behalf of another user),
+ * Zone permission edge cases around "book for" (acting on behalf of another user),
  * site-admin super-user access, multi-zone plans, and public zones mixed with
  * regular/enabled zones.
  *
@@ -8,30 +8,33 @@
  *   A. Site admin (account_type 10) is a super-user over every zone, even ones
  *      they are not explicitly assigned to:
  *        A1 view + self-book any plan with no zone assignment
- *        A2 book-as a user who has access, in an unassigned zone
- *        A3 cannot book-as a user who has no access to the zone
+ *        A2 book-for a user who has access, in an unassigned zone
+ *        A3 cannot book-for a user who has no access to the zone
  *        A4 still cannot book a DISABLED-zone seat
  *
- *   B. Manual book-as by a *zone* admin, in multi-zone / public-mixed plans:
- *        B1 zone admin books-as in the zone they administer
- *        B2 zone admin CANNOT book-as in a PUBLIC_BOOK zone they don't administer
- *        B3 admin of a PUBLIC_BOOK zone can book-as anyone (public ⇒ USER)
- *        B4 admin of a PUBLIC_VIEW zone can book-as an explicit USER but not a
- *           view-only (public VIEWER) user
+ *   B. Manual book-for by a *zone* admin, in multi-zone / public-mixed plans:
+ *        B1 zone admin books-for in the zone they administer
+ *        B2 zone admin CANNOT book-for in a PUBLIC_BOOK zone they don't administer
+ *        B3 admin of a PUBLIC_BOOK zone can book-for anyone (public ⇒ USER)
+ *        B4 admin of a PUBLIC_VIEW zone can book-for both an explicit USER and a
+ *           view-only (public VIEWER) user — book-for only requires membership
+ *        B5 book-for overrides a seat assignment to someone else
+ *        B6 book-for overrides a seat's days-in-advance assignment window
  *
- *   C. Auto-book ("find me a seat") as another user:
- *        C1 zone admin can auto-book-as (previously wrongly rejected with 403)
- *        C2 auto-book-as is confined to the zones the actor administers
- *        C3 site admin can auto-book-as anyone
- *        C4 a non-admin cannot auto-book-as
- *        C5 zone admin can auto-book-as via the FAB (UI)
+ *   C. Auto-book ("find me a seat") for another user:
+ *        C1 zone admin can auto-book-for (previously wrongly rejected with 403)
+ *        C2 auto-book-for is confined to the zones the actor administers
+ *        C3 site admin can auto-book-for anyone
+ *        C4 a non-admin cannot auto-book-for
+ *        C5 zone admin can auto-book-for via the FAB (UI)
+ *        C12 zone admin can auto-book-for a viewer into a zone they administer
  *
- *   D. Multi-zone exclusivity (book_overlap trigger) combined with book-as:
- *        D1 same zone-group ⇒ one seat per group (second book-as rejected, 109)
+ *   D. Multi-zone exclusivity (book_overlap trigger) combined with book-for:
+ *        D1 same zone-group ⇒ one seat per group (second book-for rejected, 109)
  *        D2 ungrouped zones ⇒ a user may hold a seat in each simultaneously
  *
- *   E. getSeats book-as guard:
- *        E1 a non-admin cannot use the ?login= book-as parameter
+ *   E. getSeats book-for guard:
+ *        E1 a non-admin cannot use the ?login= book-for parameter
  */
 import { test, expect } from '../../fixtures';
 import { logIn } from '../../helpers/auth';
@@ -45,10 +48,12 @@ import {
   ZONE_TYPE_PUBLIC_BOOK,
   ZONE_ROLE_ADMIN,
   ZONE_ROLE_USER,
+  ZONE_ROLE_VIEWER,
   createPlan,
   createZone,
   addSeats,
   assignZoneRole,
+  assignSeat,
   clearZoneRoles,
   countBookings,
   insertBooking,
@@ -84,8 +89,8 @@ test.describe('site admin is a super-user over all zones', () => {
     expect(await countBookings('admin', seatId)).toBe(1);
   });
 
-  test('A2: can book as a user who has access, in an unassigned zone', async ({ page }) => {
-    const pid = await createPlan('Superuser BookAs Plan');
+  test('A2: can book for a user who has access, in an unassigned zone', async ({ page }) => {
+    const pid = await createPlan('Superuser BookFor Plan');
     const zid = await createZone('Enabled X', ZONE_TYPE_ENABLED);
     const [seatId] = await addSeats(pid, zid, ['X.1']);
     await assignZoneRole(zid, 'user2', ZONE_ROLE_USER);
@@ -98,7 +103,7 @@ test.describe('site admin is a super-user over all zones', () => {
     expect(await countBookings('admin', seatId)).toBe(0);
   });
 
-  test('A3: cannot book as a user who has no access to the zone', async ({ page }) => {
+  test('A3: cannot book for a user who has no access to the zone', async ({ page }) => {
     const pid = await createPlan('Superuser NoAccess Plan');
     const zid = await createZone('Enabled Y', ZONE_TYPE_ENABLED);
     const [seatId] = await addSeats(pid, zid, ['Y.1']);
@@ -124,10 +129,10 @@ test.describe('site admin is a super-user over all zones', () => {
 });
 
 // ---------------------------------------------------------------------------
-// B. Manual book-as by a zone admin in multi-zone / public-mixed plans
+// B. Manual book-for by a zone admin in multi-zone / public-mixed plans
 // ---------------------------------------------------------------------------
 
-test.describe('manual book-as in multi-zone / public-mixed plans', () => {
+test.describe('manual book-for in multi-zone / public-mixed plans', () => {
 
   /** Plan with an ENABLED zone (user1 admin, user2 user) + a PUBLIC_BOOK zone. */
   async function setupEnabledPlusPublicBook() {
@@ -142,7 +147,7 @@ test.describe('manual book-as in multi-zone / public-mixed plans', () => {
     return { pid, enabledZid, publicZid, enabledSeat, publicSeat };
   }
 
-  test('B1: zone admin books-as a user in the zone they administer', async ({ page }) => {
+  test('B1: zone admin books-for a user in the zone they administer', async ({ page }) => {
     const { enabledSeat } = await setupEnabledPlusPublicBook();
     await logIn(page, USER1);
     const resp = await apiApply(page, { book: { sid: enabledSeat, login: 'user2', dates: [slot(1)] } });
@@ -150,7 +155,7 @@ test.describe('manual book-as in multi-zone / public-mixed plans', () => {
     expect(await countBookings('user2', enabledSeat)).toBe(1);
   });
 
-  test('B2: zone admin CANNOT book-as in a public-book zone they do not administer', async ({ page }) => {
+  test('B2: zone admin CANNOT book-for in a public-book zone they do not administer', async ({ page }) => {
     const { publicSeat } = await setupEnabledPlusPublicBook();
     await logIn(page, USER1);
     // user1 is admin of the enabled zone but only an implicit USER of the public zone
@@ -160,8 +165,8 @@ test.describe('manual book-as in multi-zone / public-mixed plans', () => {
     expect(await countBookings('user2', publicSeat)).toBe(0);
   });
 
-  test('B3: admin of a PUBLIC_BOOK zone can book-as any user', async ({ page }) => {
-    const pid = await createPlan('PublicBook BookAs Plan');
+  test('B3: admin of a PUBLIC_BOOK zone can book-for any user', async ({ page }) => {
+    const pid = await createPlan('PublicBook BookFor Plan');
     const zid = await createZone('PB Zone', ZONE_TYPE_PUBLIC_BOOK);
     const [seatId] = await addSeats(pid, zid, ['PB.1']);
     await assignZoneRole(zid, 'user1', ZONE_ROLE_ADMIN);
@@ -173,8 +178,8 @@ test.describe('manual book-as in multi-zone / public-mixed plans', () => {
     expect(await countBookings('user3', seatId)).toBe(1);
   });
 
-  test('B4: admin of a PUBLIC_VIEW zone can book-as an explicit USER but not a view-only user', async ({ page }) => {
-    const pid = await createPlan('PublicView BookAs Plan');
+  test('B4: admin of a PUBLIC_VIEW zone can book-for both an explicit USER and a view-only user', async ({ page }) => {
+    const pid = await createPlan('PublicView BookFor Plan');
     const zid = await createZone('PV Zone', ZONE_TYPE_PUBLIC_VIEW);
     const [seatId] = await addSeats(pid, zid, ['PV.1']);
     await assignZoneRole(zid, 'user1', ZONE_ROLE_ADMIN);
@@ -186,19 +191,54 @@ test.describe('manual book-as in multi-zone / public-mixed plans', () => {
     expect(ok.status()).toBe(200);
     expect(await countBookings('user2', seatId)).toBe(1);
 
-    // user3 only has implicit VIEWER via PUBLIC_VIEW → cannot be booked for
-    const denied = await apiApply(page, { book: { sid: seatId, login: 'user3', dates: [slot(2)] } });
-    expect(denied.status()).toBe(403);
-    expect((await denied.json()).code).toBe(104);
-    expect(await countBookings('user3', seatId)).toBe(0);
+    // user3 only has implicit VIEWER via PUBLIC_VIEW — under book-for, membership
+    // (not role <= USER) is all that's required, since the admin overrides the
+    // viewer restriction for this booking.
+    const alsoOk = await apiApply(page, { book: { sid: seatId, login: 'user3', dates: [slot(2)] } });
+    expect(alsoOk.status()).toBe(200);
+    expect(await countBookings('user3', seatId)).toBe(1);
+  });
+
+  test('B5: book-for overrides a seat assignment to someone else', async ({ page }) => {
+    const pid = await createPlan('BookFor Assignment Override Plan');
+    const zid = await createZone('BA Assign Zone', ZONE_TYPE_ENABLED);
+    const [seatId] = await addSeats(pid, zid, ['BA.1']);
+    await assignZoneRole(zid, 'user1', ZONE_ROLE_ADMIN);
+    await assignZoneRole(zid, 'user2', ZONE_ROLE_USER);
+    await assignZoneRole(zid, 'user3', ZONE_ROLE_USER);
+    await assignSeat(seatId, 'user3'); // seat is assigned to user3 only
+
+    await logIn(page, USER1);
+    // A regular (non-book-for) booking by user2 would be rejected with 106 —
+    // but the zone admin booking FOR user2 overrides the assignment.
+    const resp = await apiApply(page, { book: { sid: seatId, login: 'user2', dates: [slot(1)] } });
+    expect(resp.status()).toBe(200);
+    expect(await countBookings('user2', seatId)).toBe(1);
+  });
+
+  test('B6: book-for overrides a seat\'s days-in-advance assignment window', async ({ page }) => {
+    const pid = await createPlan('BookFor Days-In-Advance Override Plan');
+    const zid = await createZone('BA Dia Zone', ZONE_TYPE_ENABLED);
+    const [seatId] = await addSeats(pid, zid, ['DIA.1']);
+    await assignZoneRole(zid, 'user1', ZONE_ROLE_ADMIN);
+    await assignZoneRole(zid, 'user2', ZONE_ROLE_USER);
+    await assignSeat(seatId, 'user2', 0); // user2 may normally only book 0 days out
+
+    await logIn(page, USER1);
+    // 3 days out: beyond the assignment's 0-days-in-advance window (would
+    // normally be 110), but within the default 1-week global booking horizon
+    // (code 103), so this isolates the assignment-window override.
+    const resp = await apiApply(page, { book: { sid: seatId, login: 'user2', dates: [slot(3)] } });
+    expect(resp.status()).toBe(200);
+    expect(await countBookings('user2', seatId)).toBe(1);
   });
 });
 
 // ---------------------------------------------------------------------------
-// C. Auto-book ("find me a seat") as another user
+// C. Auto-book ("find me a seat") for another user
 // ---------------------------------------------------------------------------
 
-test.describe('auto-book as another user', () => {
+test.describe('auto-book for another user', () => {
 
   async function autoBook(page: any, pid: number, dates: object[], login?: string) {
     const data: any = { dates };
@@ -210,8 +250,8 @@ test.describe('auto-book as another user', () => {
     });
   }
 
-  test('C1: a zone admin can auto-book as another user', async ({ page }) => {
-    const pid = await createPlan('AutoBookAs Plan');
+  test('C1: a zone admin can auto-book for another user', async ({ page }) => {
+    const pid = await createPlan('AutoBookFor Plan');
     const zid = await createZone('ABA Zone', ZONE_TYPE_ENABLED);
     await addSeats(pid, zid, ['A.1', 'A.2']);
     await assignZoneRole(zid, 'user1', ZONE_ROLE_ADMIN);
@@ -229,8 +269,8 @@ test.describe('auto-book as another user', () => {
     expect(r.rows[0].cnt).toBeGreaterThan(0);
   });
 
-  test('C2: auto-book-as is confined — cannot book into a zone the actor does not administer', async ({ page }) => {
-    const pid = await createPlan('AutoBookAs Confined Plan');
+  test('C2: auto-book-for is confined — cannot book into a zone the actor does not administer', async ({ page }) => {
+    const pid = await createPlan('AutoBookFor Confined Plan');
     const zidA = await createZone('Conf A', ZONE_TYPE_ENABLED);
     const zidB = await createZone('Conf B', ZONE_TYPE_ENABLED);
     const [seatA] = await addSeats(pid, zidA, ['CA.1']);
@@ -238,7 +278,7 @@ test.describe('auto-book as another user', () => {
     await assignZoneRole(zidA, 'user1', ZONE_ROLE_ADMIN);
     await assignZoneRole(zidB, 'user2', ZONE_ROLE_USER);
     // user2 has no role in zone A, and user1 is not admin of zone B.
-    // user1 auto-books-as user2: subject has no accessible seat in user1's managed zone A,
+    // user1 auto-books-for user2: subject has no accessible seat in user1's managed zone A,
     // so the endpoint rejects with 403/104.
 
     await logIn(page, USER1);
@@ -249,8 +289,8 @@ test.describe('auto-book as another user', () => {
     expect(await countBookings('user2', seatB)).toBe(0);
   });
 
-  test('C2b: auto-book-as lands the subject in a zone the actor administers', async ({ page }) => {
-    const pid = await createPlan('AutoBookAs Positive Plan');
+  test('C2b: auto-book-for lands the subject in a zone the actor administers', async ({ page }) => {
+    const pid = await createPlan('AutoBookFor Positive Plan');
     const zidA = await createZone('Pos A', ZONE_TYPE_ENABLED);
     const zidB = await createZone('Pos B', ZONE_TYPE_ENABLED);
     const [seatA] = await addSeats(pid, zidA, ['PA.1']);
@@ -259,7 +299,7 @@ test.describe('auto-book as another user', () => {
     await assignZoneRole(zidA, 'user2', ZONE_ROLE_USER);
     await assignZoneRole(zidB, 'user2', ZONE_ROLE_USER);
     // user1 administers zone A only; user2 has USER in both A and B.
-    // Auto-book-as must confine to zone A — user2 lands in A, never B.
+    // Auto-book-for must confine to zone A — user2 lands in A, never B.
 
     await logIn(page, USER1);
     const resp = await autoBook(page, pid, [slot(1)], 'user2');
@@ -270,8 +310,8 @@ test.describe('auto-book as another user', () => {
     expect(await countBookings('user2', seatB)).toBe(0);
   });
 
-  test('C3: a site admin can auto-book as anyone', async ({ page }) => {
-    const pid = await createPlan('AutoBookAs Admin Plan');
+  test('C3: a site admin can auto-book for anyone', async ({ page }) => {
+    const pid = await createPlan('AutoBookFor Admin Plan');
     const zid = await createZone('ABA Admin Zone', ZONE_TYPE_ENABLED);
     await addSeats(pid, zid, ['AA.1']);
     await assignZoneRole(zid, 'user2', ZONE_ROLE_USER);
@@ -288,8 +328,8 @@ test.describe('auto-book as another user', () => {
     expect(r.rows[0].cnt).toBeGreaterThan(0);
   });
 
-  test('C4: a non-admin cannot auto-book as another user', async ({ page }) => {
-    const pid = await createPlan('AutoBookAs Denied Plan');
+  test('C4: a non-admin cannot auto-book for another user', async ({ page }) => {
+    const pid = await createPlan('AutoBookFor Denied Plan');
     const zid = await createZone('ABA Denied Zone', ZONE_TYPE_ENABLED);
     await addSeats(pid, zid, ['AD.1']);
     await assignZoneRole(zid, 'user2', ZONE_ROLE_USER); // user2 is only a USER here
@@ -300,7 +340,7 @@ test.describe('auto-book as another user', () => {
     expect((await resp.json()).code).toBe(104);
   });
 
-  test('C5: a zone admin can auto-book as another user via the FAB (UI)', async ({ page }) => {
+  test('C5: a zone admin can auto-book for another user via the FAB (UI)', async ({ page }) => {
     // Plan 1 / Zone 1A: user1 is admin, user2 is a USER (via group_1a).
     await logIn(page, USER1);
     await page.goto('/plan/1');
@@ -308,9 +348,9 @@ test.describe('auto-book as another user', () => {
     await pickFirstDate(page);
     await page.waitForTimeout(400);
 
-    const bookAsInput = page.locator('#book-as');
-    await bookAsInput.click();
-    await bookAsInput.pressSequentially('Bar', { delay: 50 });
+    const bookForInput = page.locator('#book-for');
+    await bookForInput.click();
+    await bookForInput.pressSequentially('Bar', { delay: 50 });
     const item = page.locator('ul.autocomplete-content li', { hasText: 'Bar [user2]' });
     await expect(item).toBeVisible({ timeout: 5000 });
     await item.click();
@@ -391,7 +431,7 @@ test.describe('auto-book as another user', () => {
     expect(await countBookings('user3', seatId)).toBe(1);
   });
 
-  test('C10: release gate — auto-book-as cannot release a booking in an unmanaged same-group zone', async ({ page }) => {
+  test('C10: release gate — auto-book-for cannot release a booking in an unmanaged same-group zone', async ({ page }) => {
     const pid = await createPlan('Release Gate Plan');
     const zidA = await createZone('RelGrp A', ZONE_TYPE_ENABLED, 'relGrp');
     const zidB = await createZone('RelGrp B', ZONE_TYPE_ENABLED, 'relGrp');
@@ -402,7 +442,7 @@ test.describe('auto-book as another user', () => {
     await assignZoneRole(zidB, 'user2', ZONE_ROLE_USER);
     // user1 administers zone A only; zone B is in the same group but not administered.
     const s = slot(1);
-    // Pre-book user2 in zone B for the morning only (09:00-13:00). Auto-book-as
+    // Pre-book user2 in zone B for the morning only (09:00-13:00). Auto-book-for
     // requests the full day (09:00-17:00) — the exact-match shortcut won't fire
     // because the times differ. A candidate in zone A would conflict with B's
     // same-group booking, and can_release must block releasing B's booking.
@@ -451,16 +491,31 @@ test.describe('auto-book as another user', () => {
     expect(await countBookings('user2', seatA)).toBe(1);
     expect(await countBookings('user2', seatB)).toBe(1);
   });
+
+  test('C12: a zone admin can auto-book for a viewer into a zone they administer', async ({ page }) => {
+    const pid = await createPlan('AutoBookFor Viewer Plan');
+    const zid = await createZone('ABA Viewer Zone', ZONE_TYPE_ENABLED);
+    const [seatId] = await addSeats(pid, zid, ['AV.1']);
+    await assignZoneRole(zid, 'user1', ZONE_ROLE_ADMIN);
+    await assignZoneRole(zid, 'user2', ZONE_ROLE_VIEWER); // viewer only, not a booking role
+
+    await logIn(page, USER1);
+    const resp = await autoBook(page, pid, [slot(1)], 'user2');
+    expect(resp.status()).toBe(200);
+    const body = await resp.json();
+    expect(body.booked.length).toBe(1);
+    expect(await countBookings('user2', seatId)).toBe(1);
+  });
 });
 
 // ---------------------------------------------------------------------------
-// D. Multi-zone exclusivity (book_overlap trigger) combined with book-as
+// D. Multi-zone exclusivity (book_overlap trigger) combined with book-for
 // ---------------------------------------------------------------------------
 
-test.describe('multi-zone exclusivity with book-as', () => {
+test.describe('multi-zone exclusivity with book-for', () => {
 
-  test('D1: same zone-group enforces one seat per group (second book-as rejected)', async ({ page }) => {
-    const pid = await createPlan('Group BookAs Plan');
+  test('D1: same zone-group enforces one seat per group (second book-for rejected)', async ({ page }) => {
+    const pid = await createPlan('Group BookFor Plan');
     const zidA = await createZone('Grp A', ZONE_TYPE_ENABLED, 'grpG');
     const zidB = await createZone('Grp B', ZONE_TYPE_ENABLED, 'grpG');
     const [seatA] = await addSeats(pid, zidA, ['GA.1']);
@@ -533,12 +588,12 @@ test.describe('multi-zone exclusivity with book-as', () => {
 });
 
 // ---------------------------------------------------------------------------
-// E. getSeats book-as guard
+// E. getSeats book-for guard
 // ---------------------------------------------------------------------------
 
-test.describe('getSeats book-as guard', () => {
+test.describe('getSeats book-for guard', () => {
 
-  test('E1: a non-admin cannot use the book-as query parameters', async ({ page }) => {
+  test('E1: a non-admin cannot use the book-for query parameters', async ({ page }) => {
     // Zone 1A is enabled by default; user2 is a USER there (via group_1a), not an admin.
     await logIn(page, USER2);
     const resp = await page.request.get('/xhr/plan/getSeats/1?login=user1', { maxRedirects: 0 });
@@ -548,7 +603,7 @@ test.describe('getSeats book-as guard', () => {
 });
 
 // ---------------------------------------------------------------------------
-// F. Cross-zone book-as release confinement (security regression)
+// F. Cross-zone book-for release confinement (security regression)
 //
 // Guards the invariant that a zone admin who administers only Z1 (but is a
 // mere USER in Z2, same zone group) can NEVER release another user's Z2 booking
@@ -559,7 +614,7 @@ test.describe('getSeats book-as guard', () => {
 // (See plan-expand-user-to-zone-roles.md §3.3.)
 // ---------------------------------------------------------------------------
 
-test.describe('cross-zone book-as release confinement', () => {
+test.describe('cross-zone book-for release confinement', () => {
 
   async function autoBook(page: any, pid: number, dates: object[], login?: string) {
     const data: any = { dates };
@@ -571,10 +626,10 @@ test.describe('cross-zone book-as release confinement', () => {
     });
   }
 
-  test('F1: auto-book-as never releases a booking in an unmanaged same-group zone', async ({ page }) => {
+  test('F1: auto-book-for never releases a booking in an unmanaged same-group zone', async ({ page }) => {
     // Z1 and Z2 share a zone group.  A1 (user1) is ADMIN on Z1 but only USER on
     // Z2.  U (user2) has USER access to both.  U already holds a seat in Z2.
-    // A1 auto-books-as U for the same day: a Z1 candidate would conflict with U's
+    // A1 auto-books-for U for the same day: a Z1 candidate would conflict with U's
     // same-group Z2 booking, but can_release must reject releasing it (Z2 is not
     // in A1's manageableZids).  The day is returned unbookable / not_extended, and
     // U's Z2 booking survives untouched.
@@ -589,7 +644,7 @@ test.describe('cross-zone book-as release confinement', () => {
     await assignZoneRole(zid2, 'user2', ZONE_ROLE_USER);  // U can book Z2
 
     const s = slot(1);
-    // U holds a partial-day booking in Z2 (09:00-13:00).  Auto-book-as requests
+    // U holds a partial-day booking in Z2 (09:00-13:00).  Auto-book-for requests
     // the full day (09:00-17:00), so the exact-match shortcut won't fire and a
     // Z1 candidate would conflict with U's same-group Z2 booking — can_release
     // must block releasing it (Z2 is not in A1's manageableZids).
@@ -638,7 +693,7 @@ test.describe('cross-zone book-as release confinement', () => {
 
   test('F3: apply() book only inserts — a same-group conflict is rejected, never silently released', async ({ page }) => {
     // The book action never releases a conflicting booking: it inserts only, and
-    // the DB trigger rejects a same-group overlap (109).  A1 books-as U on Z1 for
+    // the DB trigger rejects a same-group overlap (109).  A1 books-for U on Z1 for
     // the same slot U already holds in Z2 (same group) → 109, and U's Z2 booking
     // is untouched.
     const pid = await createPlan('XConf Book Plan');

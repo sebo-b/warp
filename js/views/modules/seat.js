@@ -39,8 +39,7 @@ WarpSeat.SeatStates = {
     CAN_CHANGE: 6,      // seat is already booked by this user, but can be changed (extended, reduced, deleted)
     CAN_DELETE: 7,      // seat is already booked by this user, but cannot be changed
     CAN_DELETE_EXACT: 8, // seat is already booked by this user, cannot be changed and selected dated are exactly matching booking dates
-    VIEW_ONLY: 9,       // seat is visible but cannot be booked — free (grey empty circle)
-    VIEW_ONLY_TAKEN: 10 // seat is visible but taken by someone else (grey circle with person)
+    VIEW_ONLY: 9        // bookable-shaped seat in a zone where this user may only view (free, unassigned)
 }
 
 WarpSeat.Sprites = {
@@ -102,7 +101,7 @@ WarpSeatFactory.prototype.getLogin = function() {
     return this.login;
 }
 
-// Switch the "acting" login (book-as). Callers must follow this with a full
+// Switch the "acting" login (book-for). Callers must follow this with a full
 // downloadSeatData()/setSeatsData() refresh so every seat — accessible and
 // conflict — is rebuilt consistently for the new login. (The old partial
 // onlyOtherZone path is gone: it overwrote accessible seats that happened to
@@ -375,32 +374,6 @@ WarpSeat.prototype._updateState = function() {
         return this.state;
     }
 
-    if (!this.bookable) {
-        // View-only access (PUBLIC_VIEW zone, or DISABLED zone even for admins)
-        // Existing own bookings can still be cancelled, but no new bookings allowed.
-        var hasOwnBooking = false;
-        for (var i of this._bookingsIterator()) {
-            if (i.book.login == this.factory.login) {
-                hasOwnBooking = true;
-                break;
-            }
-        }
-        if (hasOwnBooking) {
-            // Allow cancellation only (CAN_DELETE or CAN_DELETE_EXACT), not rebooking.
-            // Fall through to normal logic to compute isMine/isExact, but then
-            // override the state to prevent CAN_CHANGE / CAN_REBOOK / CAN_BOOK.
-        } else {
-            // No own booking — seat is not bookable, show as view-only or taken.
-            var isFree = true;
-            for (var i of this._bookingsIterator()) {
-                isFree = false;
-                break;
-            }
-            this.state = isFree ? WarpSeat.SeatStates.VIEW_ONLY : WarpSeat.SeatStates.VIEW_ONLY_TAKEN;
-            return this.state;
-        }
-    }
-
     var assignedButNotForMe = false;
 
     if (Object.keys(this.assignments).length > 0) {
@@ -409,8 +382,19 @@ WarpSeat.prototype._updateState = function() {
         const hasEveryone = everyoneData !== undefined;
         const userAssignment = this.assignments[this.factory.login];
         const hasUserAssignment = userAssignment !== undefined;
+        const hasSpecificAssignment = Object.keys(this.assignments).some(k => k !== EVERYONE_KEY);
 
-        if (hasUserAssignment || hasEveryone) {
+        if (!this.bookable) {
+            // Under book-for/viewer access, a specific-login assignment (anyone's,
+            // including this acting user's own) is informational only — it never
+            // grants booking rights here, so any named assignee marks the seat as
+            // assigned to someone. An everyone-only assignment names no one, so it
+            // carries no information for a non-booker and is ignored (falls through
+            // to occupancy, i.e. CAN_BOOK below, later demoted to VIEW_ONLY).
+            if (hasSpecificAssignment) {
+                assignedButNotForMe = true;
+            }
+        } else if (hasUserAssignment || hasEveryone) {
             // Compute most-permissive days_in_advance across user's own row and everyone row
             let bestDays;
             if (hasUserAssignment) {
@@ -498,11 +482,16 @@ WarpSeat.prototype._updateState = function() {
     else
         this.state = WarpSeat.SeatStates.TAKEN;
 
-    // For non-bookable seats with own bookings, only allow cancellation.
-    // Clamp CAN_CHANGE / CAN_REBOOK / CAN_BOOK → CAN_DELETE.
-    if (!this.bookable && this.state != WarpSeat.SeatStates.CAN_DELETE_EXACT) {
-        if (this.state == WarpSeat.SeatStates.CAN_CHANGE ||
-            this.state == WarpSeat.SeatStates.CAN_DELETE) {
+    // Demote action states to their informational equivalent for !bookable
+    // seats (view-only zones, or book-for into a zone the actor doesn't
+    // administer): occupancy/assignment states are permission-independent,
+    // `bookable` only demotes the action states. CAN_REBOOK doesn't exist yet
+    // here — it's set in _updateView only for CAN_BOOK, which is already
+    // demoted below, so it can never fire for a !bookable seat.
+    if (!this.bookable) {
+        if (this.state == WarpSeat.SeatStates.CAN_BOOK) {
+            this.state = WarpSeat.SeatStates.VIEW_ONLY;
+        } else if (this.state == WarpSeat.SeatStates.CAN_CHANGE) {
             this.state = WarpSeat.SeatStates.CAN_DELETE;
         }
     }
@@ -520,8 +509,7 @@ function spriteFor(state, assignedToMe) {
         case WarpSeat.SeatStates.CAN_CHANGE:      return 'yoursChange';
         case WarpSeat.SeatStates.CAN_DELETE_EXACT: return 'yours';
         case WarpSeat.SeatStates.CAN_DELETE:
-        case WarpSeat.SeatStates.TAKEN:
-        case WarpSeat.SeatStates.VIEW_ONLY_TAKEN:   return 'taken';
+        case WarpSeat.SeatStates.TAKEN:            return 'taken';
         case WarpSeat.SeatStates.ASSIGNED:        return 'assigned';
         case WarpSeat.SeatStates.VIEW_ONLY:
         case WarpSeat.SeatStates.DISABLED:
@@ -543,9 +531,9 @@ WarpSeat.prototype._updateView = function() {
 
     switch (this.state) {
         case WarpSeat.SeatStates.CAN_BOOK:
-            if (!this.bookable)
-                this.state = WarpSeat.SeatStates.VIEW_ONLY;
-            else if (this.factory._conflictCount(this.exclusivityKey) > 0)
+            // !bookable seats never reach _updateView as CAN_BOOK — they were
+            // already demoted to VIEW_ONLY at the end of _updateState.
+            if (this.factory._conflictCount(this.exclusivityKey) > 0)
                 this.state = WarpSeat.SeatStates.CAN_REBOOK;   // conflict map is final here
             break;
         // all other states are already final from _updateState

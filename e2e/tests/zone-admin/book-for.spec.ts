@@ -11,7 +11,7 @@ import {
 } from '../../helpers/booking';
 import { pickFirstDate } from '../../helpers/zone-admin';
 
-test.describe('booking as another user', () => {
+test.describe('booking for another user', () => {
 
   test('zone admin can book a seat for another user via API', async ({ page }) => {
     await logIn(page, USER1);
@@ -44,7 +44,7 @@ test.describe('booking as another user', () => {
     expect(result.rows[0].cnt).toBe(0);
   });
 
-  test('zone admin can book a seat via "Book as" UI (autocomplete)', async ({ page }) => {
+  test('zone admin can book a seat via "Book for" UI (autocomplete)', async ({ page }) => {
     await logIn(page, USER1);
     await page.goto('/plan/1');
     await waitForSeatsLoaded(page);
@@ -52,9 +52,9 @@ test.describe('booking as another user', () => {
     await pickFirstDate(page);
     await page.waitForTimeout(400);
 
-    const bookAsInput = page.locator('#book-as');
-    await bookAsInput.click();
-    await bookAsInput.pressSequentially('Bar', { delay: 50 });
+    const bookForInput = page.locator('#book-for');
+    await bookForInput.click();
+    await bookForInput.pressSequentially('Bar', { delay: 50 });
     const dropdownItem = page.locator('ul.autocomplete-content li', { hasText: 'Bar [user2]' });
     await expect(dropdownItem).toBeVisible({ timeout: 5000 });
     await dropdownItem.click();

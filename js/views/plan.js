@@ -6,7 +6,7 @@ import WarpModal from './modules/modal.js';
 import {WarpSeatFactory,WarpSeat,EVERYONE_KEY} from './modules/seat.js';
 import { OfficeMap } from './modules/officeMap.js';
 import PlanUserData from './modules/planuserdata.js';
-import BookAs from './modules/bookas.js';
+import BookFor from './modules/bookfor.js';
 import { WarpCalendar } from './modules/calendarGrid.js';
 import { M } from '../app/materialize.js';
 import warpDialog from '../app/dialog.js';
@@ -632,7 +632,7 @@ export async function mount(ctx) {
 
             var state = this.getState();
 
-            if (state == WarpSeat.SeatStates.NOT_AVAILABLE || state == WarpSeat.SeatStates.VIEW_ONLY || state == WarpSeat.SeatStates.VIEW_ONLY_TAKEN)
+            if (state == WarpSeat.SeatStates.NOT_AVAILABLE || state == WarpSeat.SeatStates.VIEW_ONLY)
                 return;
 
             var actions = [];
@@ -753,7 +753,7 @@ export async function mount(ctx) {
                 }
 
                 if (window.warpGlobals.isZoneAdmin) {
-                    let login = BookAs.getInstance().getSelectedLogin(true);
+                    let login = BookFor.getInstance().getSelectedLogin(true);
                     if (login !== null)
                         applyData['book']['login'] = login;
                 }
@@ -868,7 +868,6 @@ export async function mount(ctx) {
             rebook:         'rebook',
             conflict:       'taken',
             viewOnly:       'unavailable',
-            viewOnlyTaken:  'taken',
             userExact:      'yours',
             userRebook:     'yoursChange',
             userConflict:   'taken',
@@ -924,9 +923,9 @@ export async function mount(ctx) {
         }
     }
 
-    function initBookAs(seatFactory) {
+    function initBookFor(seatFactory) {
 
-        BookAs.getInstance().on('change', function(newLogin) {
+        BookFor.getInstance().on('change', function(newLogin) {
 
             // Full refresh under the new acting login. downloadSeatData adds
             // ?login= when newLogin differs from our own, so the server returns a
@@ -970,7 +969,7 @@ export async function mount(ctx) {
 
             var payload = { dates: dates };
             if (window.warpGlobals.isZoneAdmin) {
-                let login = BookAs.getInstance().getSelectedLogin(true);
+                let login = BookFor.getInstance().getSelectedLogin(true);
                 if (login !== null)
                     payload['login'] = login;
             }
@@ -1130,7 +1129,7 @@ export async function mount(ctx) {
 
     if (window.warpGlobals.isZoneAdmin) {
         PlanUserData.init();
-        initBookAs(seatFactory);
+        initBookFor(seatFactory);
     }
 
     return function unmount() {
@@ -1143,10 +1142,10 @@ export async function mount(ctx) {
         if (slider && slider.noUiSlider) slider.noUiSlider.destroy();
         // Both are app-wide module singletons (getInstance()) that guard
         // against double-init — a re-mount (this plan again, or a different
-        // one) must clear their state or PlanUserData.init()/initBookAs()
+        // one) must clear their state or PlanUserData.init()/initBookFor()
         // throw "already initialized" instead of loading fresh data.
         if (PlanUserData.instance) PlanUserData.instance.reset();
-        if (BookAs.instance) BookAs.instance.reset();
+        if (BookFor.instance) BookFor.instance.reset();
     };
 }
 
