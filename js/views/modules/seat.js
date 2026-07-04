@@ -416,6 +416,11 @@ WarpSeat.prototype._updateState = function() {
     // apply), so the green override icon is book-for-only. Set in the
     // assignment block below; read by spriteFor to render cell-assignedOverride.
     this.assignedOverride = false;
+    // Set when a !bookable seat's own-booking CAN_CHANGE is demoted to CAN_DELETE
+    // (below): the action becomes release-only, but the icon stays blue "yours"
+    // so the user recognises their own booking — the grey "taken" icon would
+    // imply someone else's booking / not actionable. Read by spriteFor.
+    this.ownReleaseOnly = false;
     const bookForOverride = this.bookable && this.factory.login !== window.warpGlobals.login;
 
     if (Object.keys(this.assignments).length > 0) {
@@ -549,7 +554,13 @@ WarpSeat.prototype._updateState = function() {
         if (this.state == WarpSeat.SeatStates.CAN_BOOK) {
             this.state = WarpSeat.SeatStates.VIEW_ONLY;
         } else if (this.state == WarpSeat.SeatStates.CAN_CHANGE) {
+            // Own booking that could normally be changed (extended/reduced) — in
+            // a view-only zone only release is allowed, so demote the action to
+            // CAN_DELETE (delete only). Keep the blue "yours" icon (not the grey
+            // "taken" one) so the user still recognises their own booking even
+            // when the selected time doesn't match exactly.
             this.state = WarpSeat.SeatStates.CAN_DELETE;
+            this.ownReleaseOnly = true;
         }
     }
 
@@ -559,7 +570,7 @@ WarpSeat.prototype._updateState = function() {
 // Map a (final) seat state + assignedToMe flag to a #cell-<name> sprite name
 // (PLAN_officemap.md §3). The state must already reflect the CAN_REBOOK /
 // VIEW_ONLY side-effects applied in _updateView below.
-function spriteFor(state, assignedToMe, assignedOverride) {
+function spriteFor(state, assignedToMe, assignedOverride, ownReleaseOnly) {
     switch (state) {
         case WarpSeat.SeatStates.CAN_BOOK:
             // Book-for override of an assignment (assigned to another, or beyond
@@ -572,6 +583,11 @@ function spriteFor(state, assignedToMe, assignedOverride) {
         case WarpSeat.SeatStates.CAN_CHANGE:      return 'yoursChange';
         case WarpSeat.SeatStates.CAN_DELETE_EXACT: return 'yours';
         case WarpSeat.SeatStates.CAN_DELETE:
+            // ownReleaseOnly: a view-only-zone own booking demoted from
+            // CAN_CHANGE — release-only, but still yours (blue head), not grey
+            // "taken".
+            if (ownReleaseOnly) return 'yours';
+            return 'taken';
         case WarpSeat.SeatStates.TAKEN:            return 'taken';
         case WarpSeat.SeatStates.ASSIGNED:        return 'assigned';
         case WarpSeat.SeatStates.VIEW_ONLY:
@@ -602,7 +618,7 @@ WarpSeat.prototype._updateView = function() {
         // all other states are already final from _updateState
     }
 
-    this.sprite = spriteFor(this.state, assignedToMe, this.assignedOverride);
+    this.sprite = spriteFor(this.state, assignedToMe, this.assignedOverride, this.ownReleaseOnly);
 }
 
 WarpSeat.prototype._destroy = function() {

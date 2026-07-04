@@ -236,6 +236,38 @@ test.describe('pure viewer releasing own booking from the plan map', () => {
     );
     expect(r.rows[0].cnt).toBe(0);
   });
+
+  test('10. pure viewer: own booking with non-matching time stays blue (yours), release works', async ({ page }) => {
+    // user3's booking is seeded at 10:00-16:00; the default slider selects
+    // 09:00-17:00, so the booking overlaps but is NOT an exact match. Previously
+    // this demoted CAN_CHANGE -> CAN_DELETE -> grey "taken"; the own-booking
+    // release-only demotion now keeps the blue "yours" icon (release still
+    // offered, change is not).
+    const pid = await createPlan('Sprite NonExact Plan', 1);
+    const zid = await createZone('SNE Zone', ZONE_TYPE_PUBLIC_VIEW);
+    const [ownSeat] = await addSeats(pid, zid, ['SNE.1']);
+    await insertBooking(USER3.login, ownSeat, DAY + 10 * 3600, DAY + 16 * 3600);
+
+    await logIn(page, USER3);            // pure viewer
+    await page.goto(`/plan/${pid}`);
+    await waitForSeatsLoaded(page);
+    await selectOnlyDates(page, [DAY]);   // default slider 09:00-17:00
+    await page.waitForTimeout(400);
+
+    // Non-exact own booking -> still blue "yours" (NOT grey "taken", not the
+    // blue "yoursChange" which would imply an available update).
+    await expectSprite(page, ownSeat, 'cell-yours');
+
+    // Release still works end-to-end for the non-exact own booking.
+    await page.locator(`#sprite-${ownSeat}`).click();
+    await expect(page.locator('#action_modal')).toHaveClass(/open/);
+    await clickActionBtn(page, 'delete');
+    const r = await querySql(
+      'SELECT COUNT(*)::int AS cnt FROM book WHERE login = $1 AND sid = $2',
+      [USER3.login, ownSeat],
+    );
+    expect(r.rows[0].cnt).toBe(0);
+  });
 });
 
 // ---------------------------------------------------------------------------
