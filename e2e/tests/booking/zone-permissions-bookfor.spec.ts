@@ -719,3 +719,58 @@ test.describe('cross-zone book-for release confinement', () => {
     expect(await countBookings('user2', seat1)).toBe(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// D. Book-for onto a disabled seat: a zone admin may override a
+// seat-level disable (they could re-enable it anyway) when booking FOR a
+// target. The zone-type DISABLED block (104) still applies — only the
+// seat-enabled check (105) is skipped under is_book_for. Self-booking onto a
+// disabled seat stays 105, and auto-book-for never picks a disabled seat.
+// ---------------------------------------------------------------------------
+
+async function disableSeat(seatId: number): Promise<void> {
+  await querySql('UPDATE seat SET enabled = false WHERE id = $1', [seatId]);
+}
+
+test.describe('book-for onto a disabled seat (zone-admin override)', () => {
+  test('D1: book-for onto a disabled seat -> 200; self-book onto it -> 403 / 105', async ({ page }) => {
+    const pid = await createPlan('BookFor Disabled Seat Plan');
+    const zid = await createZone('BFD Zone', ZONE_TYPE_ENABLED);
+    const [seat] = await addSeats(pid, zid, ['BFD.1']);
+    await assignZoneRole(zid, 'user1', ZONE_ROLE_ADMIN);
+    await assignZoneRole(zid, 'user2', ZONE_ROLE_USER);
+    await disableSeat(seat);
+
+    await logIn(page, USER1);
+    // Book-for user2 onto the disabled seat -> the admin overrides the disable.
+    const ok = await apiApply(page, { book: { sid: seat, login: 'user2', dates: [slot(1)] } });
+    expect(ok.status()).toBe(200);
+    expect(await countBookings('user2', seat)).toBe(1);
+
+    // Clear it and try a self-book onto the same disabled seat -> 105.
+    await querySql('DELETE FROM book WHERE sid = $1', [seat]);
+    const denied = await apiApply(page, { book: { sid: seat, dates: [slot(1)] } });
+    expect(denied.status()).toBe(403);
+    expect((await denied.json()).code).toBe(105);
+    expect(await countBookings('user1', seat)).toBe(0);
+  });
+
+  test('D2: auto-book-for never picks a disabled seat (only free seat -> booked empty)', async ({ page }) => {
+    const pid = await createPlan('AutoBookFor Disabled Plan');
+    const zid = await createZone('ABD Zone', ZONE_TYPE_ENABLED);
+    const [seat] = await addSeats(pid, zid, ['ABD.1']);
+    await assignZoneRole(zid, 'user1', ZONE_ROLE_ADMIN);
+    await assignZoneRole(zid, 'user2', ZONE_ROLE_USER);
+    await disableSeat(seat);   // the only seat, and it is disabled
+
+    await logIn(page, USER1);
+    const resp = await page.request.post(`/xhr/plan/autoBook/${pid}`, {
+      data: { dates: [slot(1)], login: 'user2' },
+      headers: { 'Content-Type': 'application/json' },
+      maxRedirects: 0,
+    });
+    expect(resp.status()).toBe(200);
+    expect((await resp.json()).booked).toEqual([]);
+    expect(await countBookings('user2', seat)).toBe(0);
+  });
+});

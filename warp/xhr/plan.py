@@ -542,7 +542,7 @@ def apply():
 
     if 'book' in apply_data:
 
-        # Pure-shrink bypass (PLAN_VIEW_ONLY_SEATS.md Phase 3C): a self update
+        # Pure-shrink bypass: a self update
         # (no book.login) whose every booked range is fully covered by one of
         # the actor's own bookings being removed on this seat only narrows an
         # existing own booking. A shrink never increases exposure, so it skips
@@ -605,11 +605,15 @@ def apply():
 
         # Disabled zones cannot be booked at all — even by admins.
         # Enable the zone first, then book. (A pure shrink is still allowed —
-        # the seat was bookable when the user booked it; see 3C.)
+        # the seat was bookable when the user booked it.)
         if seatZone['zone_type'] == ZONE_TYPE_DISABLED and not is_pure_shrink:
             return {"msg": "Forbidden", "code": 104}, 403
 
-        if not seatZone['enabled'] and not is_pure_shrink:
+        if not seatZone['enabled'] and not is_book_for and not is_pure_shrink:
+            # A zone admin may book-for onto a seat they have disabled (they
+            # could re-enable it anyway) — the zone-admin gate already ran via
+            # seatsReqZoneAdmin. Self-booking and pure shrinks are handled by
+            # the is_pure_shrink guard above; this skip is book-for-only.
             return {"msg": "Forbidden", "code": 105}, 403
 
         assignedQ = SeatAssign.select(SQL_ONE).where(SeatAssign.sid == sid) if not is_book_for and not is_pure_shrink else None

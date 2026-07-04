@@ -1,12 +1,11 @@
 /**
- * Phase 2 display-fix sprite assertions (PLAN_VIEW_ONLY_SEATS.md "Phase 2 test
- * plan"). These lock down the core invariant of the view-only-zone fix: in a
- * view-only zone the user sees real occupancy/assignment icons (taken /
- * assigned / yours), and `bookable: false` only demotes the *action* states
- * (book → unavailable). Without these, a future refactor could revert
- * viewer-zone seats to a uniform `unavailable` and no e2e would catch it — the
- * bookings/permission specs only assert action-button visibility, never the
- * rendered sprite.
+ * View-only-zone seat display sprite assertions. These lock down the core
+ * invariant of the view-only-zone fix: in a view-only zone the user sees real
+ * occupancy/assignment icons (taken / assigned / yours), and `bookable: false`
+ * only demotes the *action* states (book → unavailable). Without these, a
+ * future refactor could revert viewer-zone seats to a uniform `unavailable`
+ * and no e2e would catch it — the bookings/permission specs only assert
+ * action-button visibility, never the rendered sprite.
  *
  * Sprite cell names come from js/views/modules/seat.js `spriteFor`:
  *   taken, assigned, unavailable, yours, available, rebook, availableAssigned
@@ -76,6 +75,11 @@ async function clickExpectsNoModal(page: any, seatId: number) {
 const DAY = futureDayTs(1);
 function slot() {
   return { fromTS: DAY + 9 * 3600, toTS: DAY + 17 * 3600 };
+}
+
+/** Disable a seat directly (no helper in zone-setup yet). */
+async function disableSeat(seatId: number) {
+  await querySql('UPDATE seat SET enabled = false WHERE id = $1', [seatId]);
 }
 
 /** Set the plan time-slider range via the HH:MM edit boxes (fires `change`,
@@ -255,9 +259,9 @@ test.describe('pure viewer releasing own booking from the plan map', () => {
   test('10. pure viewer: own booking with non-matching time stays blue (yoursChange), release works', async ({ page }) => {
     // user3's booking is seeded at 10:00-16:00; the default slider selects
     // 09:00-17:00, so the booking overlaps but is NOT an exact match. CAN_CHANGE
-    // is no longer demoted for !bookable seats (Phase 3B): the seat shows the
-    // blue "yoursChange" icon. The selection extends beyond the booking on both
-    // sides, so it is NOT a pure shrink → Update is not offered, only Release.
+    // is not demoted for !bookable seats: the seat shows the blue "yoursChange"
+    // icon. The selection extends beyond the booking on both sides, so it is
+    // NOT a pure shrink → Update is not offered, only Release.
     const pid = await createPlan('Sprite NonExact Plan', 1);
     const zid = await createZone('SNE Zone', ZONE_TYPE_PUBLIC_VIEW);
     const [ownSeat] = await addSeats(pid, zid, ['SNE.1']);
@@ -287,12 +291,12 @@ test.describe('pure viewer releasing own booking from the plan map', () => {
   });
 
   test('12. pure viewer: shrink own booking through the modal (Update offered + works; extend offers Release only)', async ({ page }) => {
-    // Phase 3B/3C: a pure shrink of an own booking is always allowed, even in a
-    // view-only zone. user3's booking is seeded at 09:00-17:00; narrowing the
-    // slider to 10:00-16:00 (fully contained) -> cell-yoursChange, modal offers
-    // Release AND Update, Update succeeds (apply() is_pure_shrink bypass) and
-    // the booking becomes 10:00-16:00. Then widening the slider back to
-    // 09:00-17:00 (extends beyond the now-10:00-16:00 booking) -> Release only.
+    // A pure shrink of an own booking is always allowed, even in a view-only
+    // zone. user3's booking is seeded at 09:00-17:00; narrowing the slider to
+    // 10:00-16:00 (fully contained) -> cell-yoursChange, modal offers Release
+    // AND Update, Update succeeds (apply() pure-shrink bypass) and the booking
+    // becomes 10:00-16:00. Then widening the slider back to 09:00-17:00
+    // (extends beyond the now-10:00-16:00 booking) -> Release only.
     const pid = await createPlan('Sprite Shrink Plan', 1);
     const zid = await createZone('SS Zone', ZONE_TYPE_PUBLIC_VIEW);
     const [ownSeat] = await addSeats(pid, zid, ['SS.1']);
@@ -475,6 +479,42 @@ test.describe('book-for override of an assignment', () => {
     await selectOnlyDates(page, [DAY]);
     await page.waitForTimeout(400);
     await expectSprite(page, seat, 'cell-availableAssigned');
+  });
+
+  test('8c. disabled seat under book-for -> available (green); self-view stays unavailable', async ({ page }) => {
+    // A seat the admin has disabled shows the grey X in self-view (DISABLED
+    // early return). Under book-for the admin may override the seat-level
+    // disable (apply() skips 105 under is_book_for), so the seat falls through
+    // to CAN_BOOK -> green `available` and the book action works for the target.
+    const pid = await createPlan('Sprite Override Disabled Plan', 1);
+    const zid = await createZone('SOD Zone', ZONE_TYPE_ENABLED);
+    const [seat] = await addSeats(pid, zid, ['SOD.1']);
+    await assignZoneRole(zid, USER1.login, ZONE_ROLE_ADMIN);
+    await assignZoneRole(zid, USER2.login, ZONE_ROLE_USER);
+    await disableSeat(seat);
+
+    await logIn(page, USER1);
+    await page.goto(`/plan/${pid}`);
+    await waitForSeatsLoaded(page);
+    await selectOnlyDates(page, [DAY]);
+    await page.waitForTimeout(400);
+    // Self-view: disabled seat -> grey unavailable.
+    await expectSprite(page, seat, 'cell-unavailable');
+
+    // Book-for user2: the disable is overridden -> green available, book works.
+    await activateBookFor(page, `${USER2.name} [${USER2.login}]`);
+    await selectOnlyDates(page, [DAY]);
+    await page.waitForTimeout(400);
+    await expectSprite(page, seat, 'cell-available');
+
+    await page.locator(`#sprite-${seat}`).click();
+    await expect(page.locator('#action_modal')).toHaveClass(/open/);
+    await clickActionBtn(page, 'book');
+    const r = await querySql(
+      'SELECT COUNT(*)::int AS cnt FROM book WHERE login = $1 AND sid = $2',
+      [USER2.login, seat],
+    );
+    expect(r.rows[0].cnt).toBe(1);
   });
 });
 

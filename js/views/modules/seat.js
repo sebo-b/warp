@@ -451,22 +451,28 @@ WarpSeat.prototype._updateState = function() {
         return this.state;
     }
 
-    if (!this.enabled) {
+    // Book-for override (see apply() skipping 105/106/110 under is_book_for):
+    // a zone admin booking FOR a target may book onto a seat assigned to
+    // someone else, beyond the target's days-in-advance window, OR a seat the
+    // admin has disabled — fall through to the normal pipeline -> CAN_BOOK
+    // instead of the early DISABLED / ASSIGNED return. Only under book-for
+    // (factory.login != the real login) and where `bookable` holds — which
+    // under book-for already means the actor administers the zone. Self-booking
+    // never overrides (105/106/110 apply). Hoisted above the !this.enabled
+    // check so a disabled seat under book-for skips that early return.
+    const bookForOverride = this.bookable && this.factory.login !== window.warpGlobals.login;
+
+    if (!this.enabled && !bookForOverride) {
         this.state = WarpSeat.SeatStates.DISABLED;
         return this.state;
     }
 
     var assignedButNotForMe = false;
-    // Book-for override of a seat-level assignment (see apply() skipping
-    // 106/110 under is_book_for): a zone admin booking FOR a target may book
-    // onto a seat assigned to someone else, or beyond the target's
-    // days-in-advance window. Only under book-for (factory.login != the real
-    // login) and where `bookable` holds — which under book-for already means
-    // the actor administers the zone. Self-booking never overrides (106/110
-    // apply), so the fall-through is book-for-only. The seat then renders plain
-    // green `available` (third-party assignment) or blue `availableAssigned`
-    // (assigned to the target, beyond its window).
-    const bookForOverride = this.bookable && this.factory.login !== window.warpGlobals.login;
+    // (bookForOverride is hoisted above — see the comment near the !this.enabled
+    // check.) Under book-for a seat assigned to someone else, or beyond the
+    // target's days-in-advance window, falls through to CAN_BOOK: the seat then
+    // renders plain green `available` (third-party assignment) or blue
+    // `availableAssigned` (assigned to the target, beyond its window).
 
     if (Object.keys(this.assignments).length > 0) {
 

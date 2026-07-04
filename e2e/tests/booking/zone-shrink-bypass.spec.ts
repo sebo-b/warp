@@ -1,5 +1,5 @@
 /**
- * Phase 3C: the pure-shrink bypass in apply() (PLAN_VIEW_ONLY_SEATS.md).
+ * The pure-shrink bypass in apply().
  *
  * Invariant (PERMISSIONS.md §8): any operation that strictly shrinks the
  * actor's own bookings is always allowed, everywhere — release is the
