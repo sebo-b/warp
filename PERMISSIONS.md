@@ -283,6 +283,17 @@ zones reject booking outright, for everyone, book-for included.
 
 See [AUTOBOOK.md](AUTOBOOK.md) for the full auto-book selection priority.
 
+### Acting for yourself is normal mode
+
+A zone admin who selects **their own login** in the book-for picker is, for
+that selection, a regular user: no `book.login` is sent on the wire, so the
+backend never enters the book-for path, and the plan renders the admin's own
+normal-mode icons (assignments and days-in-advance windows apply; no green
+override). The picker keeps the admin's own login in the list precisely as
+the **exit** from book-for mode — book-for is "acting for *another* user";
+acting for yourself is just booking. (The backend tolerates an explicit
+`login = <own login>` in `apply()` — harmless, but unreachable from the UI.)
+
 ---
 
 ## 9. Decision flow: "can user **U** book seat **S**?"
@@ -364,3 +375,32 @@ Book-for on this plan:
   excluded too (disabled). So the seat is picked from Quiet only.
 - Site admin books **for Dana** in **Open** → ✅ (super-user admins Open; Dana
   is a member there).
+
+---
+
+## 11. Seat-icon & action invariants
+
+The plan-map display and the click-to-act modal follow four invariants. Any
+behaviour not derivable from them is a bug — or requires amending them first.
+
+1. **Icons state facts; colours carry the meaning.** Green = the actor (or
+   their book-for target) can book here; blue = the actor's/target's own
+   (booking or assignment); grey = not bookable/updatable. Arrows = acting
+   here changes existing bookings.
+2. **The click reveals the permitted actions; the icon never enumerates them.**
+   A grey seat may still offer *Release* — an own overlap, or a foreign
+   booking for a zone admin. The icon is a scan-friendly summary, not an
+   action list.
+3. **Any operation that strictly shrinks the actor's own bookings is always
+   allowed, everywhere.** Release is the shrink-to-nothing case (already
+   ungated); shortening a booking to a contained sub-range is the same
+   invariant generalised — it bypasses the role, zone-disabled,
+   seat-disabled, assignment, and booking-horizon checks. Book-for is never a
+   shrink.
+4. **A zone admin is unrestricted for seat-level matters inside their zone**
+   (book-for members; override assignments, days-in-advance windows, and
+   disabled seats; release anyone) **and powerless across its boundary**
+   (release confinement — a conflicting booking in a zone the actor does not
+   administer is not silently deleted; the zone-type DISABLED block still
+   rejects book-for outright). Acting for themselves, an admin is a regular
+   user (see §8, "Acting for yourself is normal mode").

@@ -516,6 +516,40 @@ test.describe('book-for override of an assignment', () => {
     );
     expect(r.rows[0].cnt).toBe(1);
   });
+
+  test('8d. admin selects themselves in book-for -> normal mode (assigned-to-other stays grey, no book offered)', async ({ page }) => {
+    // Selecting your own login in the book-for picker is the exit from
+    // book-for mode: no book.login is sent, so the admin is a regular user
+    // for that selection -- assignments/windows apply, no green override. A
+    // seat assigned to a third person stays grey `assigned` (not green), and
+    // the book action is not offered (self-book there would be 106).
+    const pid = await createPlan('Sprite SelfInBookFor Plan', 1);
+    const zid = await createZone('SSB Zone', ZONE_TYPE_ENABLED);
+    const [seat] = await addSeats(pid, zid, ['SSB.1']);
+    await assignZoneRole(zid, USER1.login, ZONE_ROLE_ADMIN);
+    await assignZoneRole(zid, USER2.login, ZONE_ROLE_USER);
+    await assignSeat(seat, USER3.login, null);
+
+    await logIn(page, USER1);
+    await page.goto(`/plan/${pid}`);
+    await waitForSeatsLoaded(page);
+    await selectOnlyDates(page, [DAY]);
+    await page.waitForTimeout(400);
+    // Default self-view: grey assigned (self-book blocked by 106).
+    await expectSprite(page, seat, 'cell-assigned');
+
+    // Select the admin's OWN login in the book-for picker -> still normal mode.
+    await activateBookFor(page, `${USER1.name} [${USER1.login}]`);
+    await selectOnlyDates(page, [DAY]);
+    await page.waitForTimeout(400);
+    await expectSprite(page, seat, 'cell-assigned');
+
+    // No book action offered (an actual book-for target would show green +
+    // book; self-selection does not).
+    await page.locator(`#sprite-${seat}`).click();
+    await expect(page.locator('#action_modal')).toHaveClass(/open/);
+    await expect(page.locator('.plan_action_btn[data-action="book"]')).not.toBeVisible();
+  });
 });
 
 // ---------------------------------------------------------------------------
