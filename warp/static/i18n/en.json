@@ -169,7 +169,7 @@
         "The seat is assigned to you and available to be booked.": "The seat is assigned to you and available to be booked.",
         "The seat is assigned to you and available, but you have another booking at that time which will be automatically updated.": "The seat is assigned to you and available, but you have another booking at that time which will be automatically updated.",
         "The seat is booked by you exactly on the selected date and time.": "The seat is booked by you exactly on the selected date and time.",
-        "The seat is booked by you, but not exactly on the selected date or time. You can update; other reservations at that time will be automatically updated.": "The seat is booked by you, but not exactly on the selected date or time. You can update; other reservations at that time will be automatically updated.",
+        "The seat is booked by you, but not exactly on the selected date or time — click to release it or update it to the selected time.": "The seat is booked by you, but not exactly on the selected date or time — click to release it or update it to the selected time.",
         "The seat is booked by someone else or not available for booking.": "The seat is booked by someone else or not available for booking.",
         "The seat is not available for you to book: no dates selected, disabled, or nothing to book in a view-only zone.": "The seat is not available for you to book: no dates selected, disabled, or nothing to book in a view-only zone.",
         "The seat is assigned to some people but currently not booked.": "The seat is assigned to some people but currently not booked.",

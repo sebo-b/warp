@@ -169,7 +169,7 @@
         "The seat is assigned to you and available to be booked.": "Miejsce jest przypisane do Ciebie i dostępne do rezerwacji.",
         "The seat is assigned to you and available, but you have another booking at that time which will be automatically updated.": "Miejsce jest przypisane do Ciebie i dostępne, ale posiadasz inną rezerwację w tym samym czasie, która zostanie automatycznie zaktualizowana.",
         "The seat is booked by you exactly on the selected date and time.": "W wybranym czasie miejsce jest dokładnie zarezerwowane przez Ciebie.",
-        "The seat is booked by you, but not exactly on the selected date or time. You can update; other reservations at that time will be automatically updated.": "Miejsce jest zarezerwowane przez Ciebie, ale nie dokładnie w wybranym czasie. Możesz uaktualnić rezerwację; inne rezerwacje w tym czasie zostaną automatycznie zaktualizowane.",
+        "The seat is booked by you, but not exactly on the selected date or time — click to release it or update it to the selected time.": "Miejsce jest zarezerwowane przez Ciebie, ale nie dokładnie w wybranym czasie — kliknij, aby je zwolnić lub uaktualnić do wybranego czasu.",
         "The seat is booked by someone else or not available for booking.": "Miejsce jest zarezerwowane przez kogoś innego lub niedostępne do rezerwacji.",
         "The seat is not available for you to book: no dates selected, disabled, or nothing to book in a view-only zone.": "To miejsce nie jest dostępne do rezerwacji: nie wybrano dat, jest wyłączone lub nie ma nic do zarezerwowania w strefie tylko do odczytu.",
         "The seat is assigned to some people but currently not booked.": "Miejsce jest przypisane do niektórych osób, ale obecnie nie jest zarezerwowane.",

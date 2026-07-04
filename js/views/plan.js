@@ -646,6 +646,13 @@ export async function mount(ctx) {
             var removeMsg = false;
             var blockedMsg = false;
             var foreignRelease = false;
+            // Under book-for, the "own" states (CAN_CHANGE / CAN_DELETE /
+            // CAN_DELETE_EXACT) are the TARGET's bookings. Releasing one is a
+            // foreign release that apply() only allows in a zone the actor
+            // administers (seatsReqZoneAdmin). In a non-administered (!bookable)
+            // zone the release would 403 — don't offer a doomed action (mirrors
+            // the CAN_REBOOK hasUnmanageableConflict guard).
+            var bookForForeignRelease = this.factory.login !== window.warpGlobals.login && !this.bookable;
 
             switch (state) {
                 case WarpSeat.SeatStates.CAN_BOOK:
@@ -653,6 +660,7 @@ export async function mount(ctx) {
                     bookMsg = true;
                     break;
                 case WarpSeat.SeatStates.CAN_CHANGE:
+                    if (bookForForeignRelease) break;   // target's booking in a non-administered zone — release would 403
                     actions.push('delete');
                     removeMsg = true;
                     // Update extends/changes the booking — only offer it where
@@ -679,6 +687,7 @@ export async function mount(ctx) {
                     break;
                 case WarpSeat.SeatStates.CAN_DELETE:
                 case WarpSeat.SeatStates.CAN_DELETE_EXACT:
+                    if (bookForForeignRelease) break;   // target's booking in a non-administered zone — release would 403
                     actions.push('delete');
                     removeMsg = true;
                     break;

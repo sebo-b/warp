@@ -294,6 +294,13 @@ the **exit** from book-for mode — book-for is "acting for *another* user";
 acting for yourself is just booking. (The backend tolerates an explicit
 `login = <own login>` in `apply()` — harmless, but unreachable from the UI.)
 
+Notably, this means an admin **cannot book themselves onto a seat they have
+disabled**: under self-view the disabled seat stays grey (no Book action
+offered — the admin must re-enable it first). Booking **for another member**
+onto that same disabled seat *is* offered (book-for overrides the seat-level
+disable; see §11 invariant #4). The asymmetry is intentional — for themselves,
+an admin is a regular user, and a disabled seat is disabled for regular users.
+
 ---
 
 ## 9. Decision flow: "can user **U** book seat **S**?"

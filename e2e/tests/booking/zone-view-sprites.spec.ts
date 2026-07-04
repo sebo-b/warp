@@ -481,11 +481,11 @@ test.describe('book-for override of an assignment', () => {
     await expectSprite(page, seat, 'cell-availableAssigned');
   });
 
-  test('8c. disabled seat under book-for -> available (green); self-view stays unavailable', async ({ page }) => {
-    // A seat the admin has disabled shows the grey X in self-view (DISABLED
-    // early return). Under book-for the admin may override the seat-level
-    // disable (apply() skips 105 under is_book_for), so the seat falls through
-    // to CAN_BOOK -> green `available` and the book action works for the target.
+  test('8c. disabled seat under book-for -> disabled icon; click offers book-for', async ({ page }) => {
+    // A seat the admin has disabled keeps the grey X icon even under book-for
+    // (visual cue the seat is off), but clicking it offers the book-for action
+    // (apply() skips 105 under is_book_for) — the admin books for the target
+    // without re-enabling the seat. Self-view offers no book (re-enable first).
     const pid = await createPlan('Sprite Override Disabled Plan', 1);
     const zid = await createZone('SOD Zone', ZONE_TYPE_ENABLED);
     const [seat] = await addSeats(pid, zid, ['SOD.1']);
@@ -498,23 +498,113 @@ test.describe('book-for override of an assignment', () => {
     await waitForSeatsLoaded(page);
     await selectOnlyDates(page, [DAY]);
     await page.waitForTimeout(400);
-    // Self-view: disabled seat -> grey unavailable.
+    // Self-view: disabled seat -> grey X, no book offered (seat-edit only).
     await expectSprite(page, seat, 'cell-unavailable');
+    await page.locator(`#sprite-${seat}`).click();
+    await expect(page.locator('#action_modal')).toHaveClass(/open/);
+    await expect(page.locator('.plan_action_btn[data-action="book"]')).not.toBeVisible();
+    await page.keyboard.press('Escape');   // close the action modal before opening book-for
+    await page.waitForTimeout(200);
 
-    // Book-for user2: the disable is overridden -> green available, book works.
+    // Book-for user2: icon stays grey X (visual cue), but book is offered + works.
     await activateBookFor(page, `${USER2.name} [${USER2.login}]`);
     await selectOnlyDates(page, [DAY]);
     await page.waitForTimeout(400);
-    await expectSprite(page, seat, 'cell-available');
-
+    await expectSprite(page, seat, 'cell-unavailable');
     await page.locator(`#sprite-${seat}`).click();
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
+    await expect(page.locator('.plan_action_btn[data-action="book"]')).toBeVisible();
     await clickActionBtn(page, 'book');
     const r = await querySql(
       'SELECT COUNT(*)::int AS cnt FROM book WHERE login = $1 AND sid = $2',
       [USER2.login, seat],
     );
     expect(r.rows[0].cnt).toBe(1);
+  });
+
+  test('8e. book-for: target booking in a non-administered zone -> no doomed Release', async ({ page }) => {
+    // user1 admins zoneA; user2 (the book-for target) has a non-exact booking in
+    // zoneB (PUBLIC_VIEW), which user1 does NOT administer. Under book-for
+    // user2 that booking is user2's "own" (CAN_CHANGE -> yoursChange icon), but
+    // releasing it is a foreign release apply() would reject (403/102) — so no
+    // action is offered and no modal opens (the doomed Release button is
+    // suppressed, mirroring the CAN_REBOOK hasUnmanageableConflict guard).
+    const pid = await createPlan('Sprite DoomedRelease Plan', 1);
+    const zidA = await createZone('DR Admin', ZONE_TYPE_ENABLED);
+    const zidB = await createZone('DR View', ZONE_TYPE_PUBLIC_VIEW);
+    const [seatA] = await addSeats(pid, zidA, ['DR.A']);
+    const [seatB] = await addSeats(pid, zidB, ['DR.B']);
+    await assignZoneRole(zidA, USER1.login, ZONE_ROLE_ADMIN);
+    await assignZoneRole(zidA, USER2.login, ZONE_ROLE_USER);
+    await insertBooking(USER2.login, seatB, DAY + 10 * 3600, DAY + 16 * 3600);
+
+    await logIn(page, USER1);
+    await page.goto(`/plan/${pid}`);
+    await waitForSeatsLoaded(page);
+    await selectOnlyDates(page, [DAY]);
+    await page.waitForTimeout(400);
+    // Self-view: seatB is a foreign booking to user1 -> taken.
+    await expectSprite(page, seatB, 'cell-taken');
+
+    // Book-for user2: seatB is user2's own non-exact booking -> yoursChange, but
+    // in a zone user1 doesn't administer -> no Release offered (doomed).
+    await activateBookFor(page, `${USER2.name} [${USER2.login}]`);
+    await selectOnlyDates(page, [DAY]);
+    await page.waitForTimeout(400);
+    await expectSprite(page, seatB, 'cell-yoursChange');
+    await page.locator(`#sprite-${seatB}`).click();
+    await page.waitForTimeout(300);
+    const modal = page.locator('#action_modal');
+    if (await modal.count() > 0) {
+      await expect(modal).not.toHaveClass(/open/);
+    }
+    // The administered zoneA seat still behaves normally under book-for.
+    await expectSprite(page, seatA, 'cell-available');
+  });
+
+  test('8f. disabled seat under book-for with a target conflict -> update (relocate target)', async ({ page }) => {
+    // Target user2 already holds enabled seat E in zoneA (same zone_group as the
+    // disabled seat D). Under book-for user2, D runs the normal pipeline ->
+    // CAN_BOOK, then _updateView promotes it to CAN_REBOOK (the target's booking
+    // on E is a same-group conflict). The icon is forced to grey X (disabled
+    // cue), but clicking offers Update (book D + release E) — NOT just book,
+    // which the DB book_overlap trigger would reject. Update succeeds and user2
+    // is relocated from E to D.
+    const pid = await createPlan('Sprite DisabledRebook Plan', 1);
+    const zid = await createZone('DRA Zone', ZONE_TYPE_ENABLED, 'draGrp');
+    const [seatD, seatE] = await addSeats(pid, zid, ['DRA.D', 'DRA.E']);
+    await assignZoneRole(zid, USER1.login, ZONE_ROLE_ADMIN);
+    await assignZoneRole(zid, USER2.login, ZONE_ROLE_USER);
+    await disableSeat(seatD);
+    const { fromTS, toTS } = slot();
+    await insertBooking(USER2.login, seatE, fromTS, toTS);
+
+    await logIn(page, USER1);
+    await page.goto(`/plan/${pid}`);
+    await waitForSeatsLoaded(page);
+    await activateBookFor(page, `${USER2.name} [${USER2.login}]`);
+    await selectOnlyDates(page, [DAY]);
+    await page.waitForTimeout(400);
+    // D shows the disabled grey X (forced), not green rebook.
+    await expectSprite(page, seatD, 'cell-unavailable');
+
+    // Clicking D offers Update (relocate user2 from E to D), not book.
+    await page.locator(`#sprite-${seatD}`).click();
+    await expect(page.locator('#action_modal')).toHaveClass(/open/);
+    await expect(page.locator('.plan_action_btn[data-action="update"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="book"]')).not.toBeVisible();
+    await clickActionBtn(page, 'update');
+
+    const onD = await querySql(
+      'SELECT COUNT(*)::int AS cnt FROM book WHERE login = $1 AND sid = $2',
+      [USER2.login, seatD],
+    );
+    const onE = await querySql(
+      'SELECT COUNT(*)::int AS cnt FROM book WHERE login = $1 AND sid = $2',
+      [USER2.login, seatE],
+    );
+    expect(onD.rows[0].cnt).toBe(1);
+    expect(onE.rows[0].cnt).toBe(0);
   });
 
   test('8d. admin selects themselves in book-for -> normal mode (assigned-to-other stays grey, no book offered)', async ({ page }) => {

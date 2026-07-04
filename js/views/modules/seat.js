@@ -451,16 +451,22 @@ WarpSeat.prototype._updateState = function() {
         return this.state;
     }
 
-    // Book-for override (see apply() skipping 105/106/110 under is_book_for):
-    // a zone admin booking FOR a target may book onto a seat assigned to
-    // someone else, beyond the target's days-in-advance window, OR a seat the
-    // admin has disabled — fall through to the normal pipeline -> CAN_BOOK
-    // instead of the early DISABLED / ASSIGNED return. Only under book-for
-    // (factory.login != the real login) and where `bookable` holds — which
-    // under book-for already means the actor administers the zone. Self-booking
-    // never overrides (105/106/110 apply). Hoisted above the !this.enabled
-    // check so a disabled seat under book-for skips that early return.
+    // Book-for override of seat-level restrictions (see apply() skipping
+    // 105/106/110 under is_book_for): a zone admin booking FOR a target may
+    // book onto a seat assigned to someone else, beyond the target's
+    // days-in-advance window, OR a seat the admin has disabled — so under
+    // book-for a disabled seat does NOT take the DISABLED early return; it
+    // runs the normal pipeline (CAN_BOOK / CAN_REBOOK / CAN_CHANGE / CAN_DELETE_*)
+    // so the click handler offers the right action (book, update when the target
+    // has a conflicting booking in the zone group, release when the target
+    // already holds it). Only under book-for (factory.login != the real login)
+    // and where `bookable` holds — which under book-for already means the actor
+    // administers the zone. Self-booking never overrides (105/106/110 apply).
+    // The disabled ICON is kept as a visual cue: _updateView forces the sprite
+    // to 'unavailable' for a disabled seat under book-for (the state still
+    // drives the actions; the icon just signals "this seat is off").
     const bookForOverride = this.bookable && this.factory.login !== window.warpGlobals.login;
+    this.bookForOverride = bookForOverride;
 
     if (!this.enabled && !bookForOverride) {
         this.state = WarpSeat.SeatStates.DISABLED;
@@ -649,6 +655,13 @@ WarpSeat.prototype._updateView = function() {
     }
 
     this.sprite = spriteFor(this.state, assignedToMe);
+
+    // Book-for override of a seat-level disable: the disabled seat ran the
+    // normal pipeline (so its state drives the click actions — book / update /
+    // release) but the ICON stays the grey "unavailable" X as a visual cue that
+    // the seat is off. Only under book-for in an administered zone.
+    if (!this.enabled && this.bookForOverride)
+        this.sprite = 'unavailable';
 }
 
 WarpSeat.prototype._destroy = function() {
