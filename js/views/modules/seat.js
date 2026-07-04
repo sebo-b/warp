@@ -435,20 +435,20 @@ WarpSeat.prototype._updateState = function() {
     }
 
     var assignedButNotForMe = false;
+    // Set when a !bookable seat's own-booking CAN_CHANGE is demoted to CAN_DELETE
+    // (below): the action becomes release-only, but the icon stays blue "yours"
+    // so the user recognises their own booking — the grey "taken" icon would
+    // imply someone else's booking / not actionable. Read by spriteFor.
+    this.ownReleaseOnly = false;
     // Book-for override of a seat-level assignment (see apply() skipping
     // 106/110 under is_book_for): a zone admin booking FOR a target may book
     // onto a seat assigned to someone else, or beyond the target's
     // days-in-advance window. Only under book-for (factory.login != the real
     // login) and where `bookable` holds — which under book-for already means
     // the actor administers the zone. Self-booking never overrides (106/110
-    // apply), so the green override icon is book-for-only. Set in the
-    // assignment block below; read by spriteFor to render cell-assignedOverride.
-    this.assignedOverride = false;
-    // Set when a !bookable seat's own-booking CAN_CHANGE is demoted to CAN_DELETE
-    // (below): the action becomes release-only, but the icon stays blue "yours"
-    // so the user recognises their own booking — the grey "taken" icon would
-    // imply someone else's booking / not actionable. Read by spriteFor.
-    this.ownReleaseOnly = false;
+    // apply), so the fall-through is book-for-only. The seat then renders plain
+    // green `available` (third-party assignment) or blue `availableAssigned`
+    // (assigned to the target, beyond its window).
     const bookForOverride = this.bookable && this.factory.login !== window.warpGlobals.login;
 
     if (Object.keys(this.assignments).length > 0) {
@@ -491,10 +491,8 @@ WarpSeat.prototype._updateState = function() {
                 if (this.factory.selectedDates.some(d => d.fromTS >= cutoffTs)) {
                     if (bookForOverride) {
                         // Book-for overrides the days-in-advance window
-                        // (apply() skips 110 under is_book_for): fall through to
-                        // CAN_BOOK, flagged so the sprite renders the green
-                        // override icon instead of the grey ASSIGNED one.
-                        this.assignedOverride = true;
+                        // (apply() skips 110 under is_book_for): fall through
+                        // to CAN_BOOK (green available / availableAssigned).
                     } else {
                         this.state = WarpSeat.SeatStates.ASSIGNED;
                         return this.state;
@@ -506,9 +504,7 @@ WarpSeat.prototype._updateState = function() {
             // Specific assignment(s) exist, but not for this user and no everyone row.
             if (bookForOverride) {
                 // Book-for overrides the assignment check (apply() skips 106
-                // under is_book_for): fall through to CAN_BOOK, flagged for the
-                // green override icon.
-                this.assignedOverride = true;
+                // under is_book_for): fall through to CAN_BOOK (green available).
             } else {
                 // The seat is effectively assigned to others; still show as booked if it is.
                 assignedButNotForMe = true;
@@ -598,14 +594,9 @@ WarpSeat.prototype._updateState = function() {
 // Map a (final) seat state + assignedToMe flag to a #cell-<name> sprite name
 // (PLAN_officemap.md §3). The state must already reflect the CAN_REBOOK /
 // VIEW_ONLY side-effects applied in _updateView below.
-function spriteFor(state, assignedToMe, assignedOverride, ownReleaseOnly) {
+function spriteFor(state, assignedToMe, ownReleaseOnly) {
     switch (state) {
         case WarpSeat.SeatStates.CAN_BOOK:
-            // Book-for override of an assignment (assigned to another, or beyond
-            // the target's window) takes precedence over the "assigned to you"
-            // blue variant — the seat is only bookable because the admin is
-            // overriding, not because it's within the target's normal rights.
-            if (assignedOverride) return 'assignedOverride';
             return assignedToMe ? 'availableAssigned' : 'available';
         case WarpSeat.SeatStates.CAN_REBOOK:     return assignedToMe ? 'rebookAssigned'    : 'rebook';
         case WarpSeat.SeatStates.CAN_CHANGE:      return 'yoursChange';
@@ -646,7 +637,7 @@ WarpSeat.prototype._updateView = function() {
         // all other states are already final from _updateState
     }
 
-    this.sprite = spriteFor(this.state, assignedToMe, this.assignedOverride, this.ownReleaseOnly);
+    this.sprite = spriteFor(this.state, assignedToMe, this.ownReleaseOnly);
 }
 
 WarpSeat.prototype._destroy = function() {

@@ -332,9 +332,9 @@ test.describe('assigned-to-me in a bookable ENABLED zone (risk #5 guard)', () =>
 // ---------------------------------------------------------------------------
 // Book-for override of an assignment: admin books FOR a target onto a seat
 // assigned to someone else (apply() skips 106/110 under is_book_for). The
-// seat is bookable despite the assignment, so it renders a distinct green
-// "assigned + bookable via override" icon (head+tie in the available colour
-// family), not the grey ASSIGNED one, and the book action is offered.
+// seat is bookable despite the assignment, so it renders the plain green
+// "available" icon (third-party assignment) or blue "availableAssigned"
+// (assigned to the target, beyond its window) — no special override glyph.
 // ---------------------------------------------------------------------------
 
 /** Activate book-for for the given display label (e.g. "Bar [user2]"). */
@@ -350,7 +350,7 @@ async function activateBookFor(page: any, label: string): Promise<void> {
 }
 
 test.describe('book-for override of an assignment', () => {
-  test('8. seat assigned to a third person, book-for target is a member → assignedOverride + book works', async ({ page }) => {
+  test('8. seat assigned to a third person, book-for target is a member → available + book works', async ({ page }) => {
     const pid = await createPlan('Sprite Override Plan', 1);
     const zid = await createZone('SO Zone', ZONE_TYPE_ENABLED);
     const [seat] = await addSeats(pid, zid, ['SO.1']);
@@ -364,17 +364,18 @@ test.describe('book-for override of an assignment', () => {
     await page.goto(`/plan/${pid}`);
     await waitForSeatsLoaded(page);
     // Default self-view (admin): the seat is bookable at the zone level but
-    // self-book is blocked by 106 → grey ASSIGNED, NOT the override icon.
+    // self-book is blocked by 106 → grey ASSIGNED.
     await selectOnlyDates(page, [DAY]);
     await page.waitForTimeout(400);
     await expectSprite(page, seat, 'cell-assigned');
 
     // Switch to book-for user2: the admin may now override the assignment →
-    // green assignedOverride icon, and the book action books for user2.
+    // plain green `available` (third-party assignment), and the book action
+    // books for user2.
     await activateBookFor(page, `${USER2.name} [${USER2.login}]`);
     await selectOnlyDates(page, [DAY]);
     await page.waitForTimeout(400);
-    await expectSprite(page, seat, 'cell-assignedOverride');
+    await expectSprite(page, seat, 'cell-available');
 
     await page.locator(`#sprite-${seat}`).click();
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
@@ -385,6 +386,32 @@ test.describe('book-for override of an assignment', () => {
       [USER2.login, seat],
     );
     expect(r.rows[0].cnt).toBe(1);
+  });
+
+  test('8b. seat assigned to the target beyond its window, book-for → availableAssigned', async ({ page }) => {
+    // The seat is assigned to user2 (the book-for target) with days_in_advance
+    // = 0, so the default tomorrow slot is beyond the target's window. Self-view
+    // (admin user1) is not the assignee → grey ASSIGNED; under book-for user2
+    // the window is overridden and the seat falls through to CAN_BOOK with
+    // assignedToMe → blue `availableAssigned`.
+    const pid = await createPlan('Sprite Override Target Plan', 1);
+    const zid = await createZone('SOT Zone', ZONE_TYPE_ENABLED);
+    const [seat] = await addSeats(pid, zid, ['SOT.1']);
+    await assignZoneRole(zid, USER1.login, ZONE_ROLE_ADMIN);
+    await assignZoneRole(zid, USER2.login, ZONE_ROLE_USER);
+    await assignSeat(seat, USER2.login, 0);
+
+    await logIn(page, USER1);
+    await page.goto(`/plan/${pid}`);
+    await waitForSeatsLoaded(page);
+    await selectOnlyDates(page, [DAY]);
+    await page.waitForTimeout(400);
+    await expectSprite(page, seat, 'cell-assigned');
+
+    await activateBookFor(page, `${USER2.name} [${USER2.login}]`);
+    await selectOnlyDates(page, [DAY]);
+    await page.waitForTimeout(400);
+    await expectSprite(page, seat, 'cell-availableAssigned');
   });
 });
 
