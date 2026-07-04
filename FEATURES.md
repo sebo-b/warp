@@ -332,10 +332,9 @@ Accessible via the user icon on the Zones management page.
 | Yellow (assigned)                       | Seat is assigned to others, you cannot book (visible only to non-admins)               | —                               |
 | Blue                                    | You already booked this seat exactly for the selected time                             | Remove                          |
 | Blue (rebook)                           | You booked this seat, but for a different time range — can update                      | Update                          |
-| Blue (conflict)                         | You booked this seat, but another user has a conflicting booking — cannot update, only remove | Remove                     |
-| Red (taken)                             | Booked by someone else or unavailable                                                  | —                               |
+| Red (taken)                             | Booked by someone else, or your own booking overlaps theirs on this seat (same icon either way) | — (Release your own overlap; zone admins can also release the foreign booking) |
 | Gray (disabled)                         | Seat is disabled (visible only to zone admins)                                         | Edit (toggle enabled)           |
-| Gray circle / gray person (view-only)   | Seat is in a view-only or disabled zone you cannot book in (free vs. taken)            | —                               |
+| Gray circle / gray person (view-only)   | Not available for you to book: no dates selected, disabled, or a free seat in a view-only zone | —                               |
 | No icon                                 | No date/time selected                                                                  | —                               |
 
 ### 7.3 Booking a Seat
@@ -803,7 +802,7 @@ menus) switches between them, showing a **moon** icon in light mode and a **sun*
 
 ## 27. Plan View Interaction Summary
 
-| Seat State            | No Dates | Green (Book)          | Green (Rebook)      | Blue (Update) | Blue (Conflict) | Blue (Exact) | Red (Taken) | Yellow (Assigned)           | Gray (Disabled)             |
+| Seat State            | No Dates | Green (Book)          | Green (Rebook)      | Blue (Update) | Red (Taken, own overlap) | Blue (Exact) | Red (Taken, foreign) | Yellow (Assigned)           | Gray (Disabled)             |
 |-----------------------|----------|-----------------------|----------------------|---------------|-----------------|--------------|-------------|-----------------------------|-----------------------------|
 | **User actions**      | —        | Book                  | Book (replaces)      | Update        | Remove          | Remove       | —           | —                           | —                           |
 | **Zone Admin actions**| —        | + Book For, + Edit | same | same          | same            | same         | + Release, + Edit | + Edit  | + Edit                    |
