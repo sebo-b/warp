@@ -654,8 +654,15 @@ export async function mount(ctx) {
                     break;
                 case WarpSeat.SeatStates.CAN_CHANGE:
                     actions.push('delete');
-                    actions.push('update');
-                    bookMsg = removeMsg = true;
+                    removeMsg = true;
+                    // Update extends/changes the booking — only offer it where
+                    // the actor may book (this.bookable) or the selection is a
+                    // pure shrink of an own booking (always allowed, even in a
+                    // view-only / DISABLED zone — apply()'s is_pure_shrink).
+                    if (this.bookable || this.isSelectionShrinkOfMine()) {
+                        actions.push('update');
+                        bookMsg = true;
+                    }
                     break;
                 case WarpSeat.SeatStates.CAN_REBOOK:
                     // Under book-for, updating this free seat would release the

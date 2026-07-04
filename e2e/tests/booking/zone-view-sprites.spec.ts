@@ -78,6 +78,21 @@ function slot() {
   return { fromTS: DAY + 9 * 3600, toTS: DAY + 17 * 3600 };
 }
 
+/** Set the plan time-slider range via the HH:MM edit boxes (fires `change`,
+ * which the app maps to a noUiSlider.set). Used to test pure-shrink vs extend
+ * selections against a seeded own booking. */
+async function setSliderTimes(page: any, lo: string, hi: string) {
+  const minInput = page.locator('#timeslider-min');
+  const maxInput = page.locator('#timeslider-max');
+  await minInput.fill('');
+  await minInput.fill(lo);
+  await minInput.dispatchEvent('change');
+  await maxInput.fill('');
+  await maxInput.fill(hi);
+  await maxInput.dispatchEvent('change');
+  await page.waitForTimeout(200);
+}
+
 // ---------------------------------------------------------------------------
 // Viewer zone (PUBLIC_VIEW): informational icons survive, action icon demoted
 // ---------------------------------------------------------------------------
@@ -237,12 +252,12 @@ test.describe('pure viewer releasing own booking from the plan map', () => {
     expect(r.rows[0].cnt).toBe(0);
   });
 
-  test('10. pure viewer: own booking with non-matching time stays blue (yours), release works', async ({ page }) => {
+  test('10. pure viewer: own booking with non-matching time stays blue (yoursChange), release works', async ({ page }) => {
     // user3's booking is seeded at 10:00-16:00; the default slider selects
-    // 09:00-17:00, so the booking overlaps but is NOT an exact match. Previously
-    // this demoted CAN_CHANGE -> CAN_DELETE -> grey "taken"; the own-booking
-    // release-only demotion now keeps the blue "yours" icon (release still
-    // offered, change is not).
+    // 09:00-17:00, so the booking overlaps but is NOT an exact match. CAN_CHANGE
+    // is no longer demoted for !bookable seats (Phase 3B): the seat shows the
+    // blue "yoursChange" icon. The selection extends beyond the booking on both
+    // sides, so it is NOT a pure shrink → Update is not offered, only Release.
     const pid = await createPlan('Sprite NonExact Plan', 1);
     const zid = await createZone('SNE Zone', ZONE_TYPE_PUBLIC_VIEW);
     const [ownSeat] = await addSeats(pid, zid, ['SNE.1']);
@@ -254,19 +269,67 @@ test.describe('pure viewer releasing own booking from the plan map', () => {
     await selectOnlyDates(page, [DAY]);   // default slider 09:00-17:00
     await page.waitForTimeout(400);
 
-    // Non-exact own booking -> still blue "yours" (NOT grey "taken", not the
-    // blue "yoursChange" which would imply an available update).
-    await expectSprite(page, ownSeat, 'cell-yours');
+    // Non-exact own booking -> blue "yoursChange" (NOT grey "taken", not plain
+    // "yours" — the arrows signal the booking can change, and a shrink would).
+    await expectSprite(page, ownSeat, 'cell-yoursChange');
 
-    // Release still works end-to-end for the non-exact own booking.
+    // Update is NOT offered (selection extends beyond the booking -> not a pure
+    // shrink); Release still works end-to-end.
     await page.locator(`#sprite-${ownSeat}`).click();
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
+    await expect(page.locator('.plan_action_btn[data-action="update"]')).not.toBeVisible();
     await clickActionBtn(page, 'delete');
     const r = await querySql(
       'SELECT COUNT(*)::int AS cnt FROM book WHERE login = $1 AND sid = $2',
       [USER3.login, ownSeat],
     );
     expect(r.rows[0].cnt).toBe(0);
+  });
+
+  test('12. pure viewer: shrink own booking through the modal (Update offered + works; extend offers Release only)', async ({ page }) => {
+    // Phase 3B/3C: a pure shrink of an own booking is always allowed, even in a
+    // view-only zone. user3's booking is seeded at 09:00-17:00; narrowing the
+    // slider to 10:00-16:00 (fully contained) -> cell-yoursChange, modal offers
+    // Release AND Update, Update succeeds (apply() is_pure_shrink bypass) and
+    // the booking becomes 10:00-16:00. Then widening the slider back to
+    // 09:00-17:00 (extends beyond the now-10:00-16:00 booking) -> Release only.
+    const pid = await createPlan('Sprite Shrink Plan', 1);
+    const zid = await createZone('SS Zone', ZONE_TYPE_PUBLIC_VIEW);
+    const [ownSeat] = await addSeats(pid, zid, ['SS.1']);
+    await insertBooking(USER3.login, ownSeat, DAY + 9 * 3600, DAY + 17 * 3600);
+
+    await logIn(page, USER3);            // pure viewer
+    await page.goto(`/plan/${pid}`);
+    await waitForSeatsLoaded(page);
+    await selectOnlyDates(page, [DAY]);
+    await setSliderTimes(page, '10:00', '16:00');
+    await page.waitForTimeout(400);
+
+    // Contained selection -> yoursChange, and Update is offered (pure shrink).
+    await expectSprite(page, ownSeat, 'cell-yoursChange');
+    await page.locator(`#sprite-${ownSeat}`).click();
+    await expect(page.locator('#action_modal')).toHaveClass(/open/);
+    await expect(page.locator('.plan_action_btn[data-action="delete"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="update"]')).toBeVisible();
+    await clickActionBtn(page, 'update');
+
+    // Booking replaced: 10:00-16:00 now.
+    const after = await querySql(
+      'SELECT fromts::int AS f, tots::int AS t FROM book WHERE login = $1 AND sid = $2',
+      [USER3.login, ownSeat],
+    );
+    expect(after.rows.length).toBe(1);
+    expect(after.rows[0].f).toBe(DAY + 10 * 3600);
+    expect(after.rows[0].t).toBe(DAY + 16 * 3600);
+
+    // Now widen the slider beyond the booking -> not a shrink -> Release only.
+    await setSliderTimes(page, '09:00', '17:00');
+    await page.waitForTimeout(400);
+    await expectSprite(page, ownSeat, 'cell-yoursChange');
+    await page.locator(`#sprite-${ownSeat}`).click();
+    await expect(page.locator('#action_modal')).toHaveClass(/open/);
+    await expect(page.locator('.plan_action_btn[data-action="delete"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="update"]')).not.toBeVisible();
   });
 });
 

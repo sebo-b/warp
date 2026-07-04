@@ -333,6 +333,28 @@ WarpSeat.prototype.isMyZoneAdmin = function() {
     return !!this.factory.zoneAdmin[this.zid];
 }
 
+// True iff every selected date range is fully contained within one of the
+// acting user's OWN bookings on this seat — a "pure shrink" selection: an
+// update would only narrow an existing own booking, which is always allowed
+// (apply()'s is_pure_shrink bypass, even in view-only / DISABLED zones). Uses
+// window.warpGlobals.login (the real actor), not factory.login, so a book-for
+// target's booking in a non-administered (!bookable) zone does NOT count —
+// changing/releasing it would 403 (release confinement / seatsReqZoneAdmin).
+WarpSeat.prototype.isSelectionShrinkOfMine = function() {
+    const me = window.warpGlobals.login;
+    for (const d of this.factory.selectedDates) {
+        let covered = false;
+        for (const b of this.book) {
+            if (b.login === me && b.fromTS <= d.fromTS && b.toTS >= d.toTS) {
+                covered = true;
+                break;
+            }
+        }
+        if (!covered) return false;
+    }
+    return this.factory.selectedDates.length > 0;
+};
+
 
 WarpSeat.prototype.getSid = function() {
     return parseInt(this.sid);  //TODO: convert this.sid to int in constructor
@@ -435,11 +457,6 @@ WarpSeat.prototype._updateState = function() {
     }
 
     var assignedButNotForMe = false;
-    // Set when a !bookable seat's own-booking CAN_CHANGE is demoted to CAN_DELETE
-    // (below): the action becomes release-only, but the icon stays blue "yours"
-    // so the user recognises their own booking — the grey "taken" icon would
-    // imply someone else's booking / not actionable. Read by spriteFor.
-    this.ownReleaseOnly = false;
     // Book-for override of a seat-level assignment (see apply() skipping
     // 106/110 under is_book_for): a zone admin booking FOR a target may book
     // onto a seat assigned to someone else, or beyond the target's
@@ -568,24 +585,17 @@ WarpSeat.prototype._updateState = function() {
     else
         this.state = WarpSeat.SeatStates.TAKEN;
 
-    // Demote action states to their informational equivalent for !bookable
-    // seats (view-only zones, or book-for into a zone the actor doesn't
-    // administer): occupancy/assignment states are permission-independent,
-    // `bookable` only demotes the action states. CAN_REBOOK doesn't exist yet
-    // here — it's set in _updateView only for CAN_BOOK, which is already
-    // demoted below, so it can never fire for a !bookable seat.
-    if (!this.bookable) {
-        if (this.state == WarpSeat.SeatStates.CAN_BOOK) {
-            this.state = WarpSeat.SeatStates.VIEW_ONLY;
-        } else if (this.state == WarpSeat.SeatStates.CAN_CHANGE) {
-            // Own booking that could normally be changed (extended/reduced) — in
-            // a view-only zone only release is allowed, so demote the action to
-            // CAN_DELETE (delete only). Keep the blue "yours" icon (not the grey
-            // "taken" one) so the user still recognises their own booking even
-            // when the selected time doesn't match exactly.
-            this.state = WarpSeat.SeatStates.CAN_DELETE;
-            this.ownReleaseOnly = true;
-        }
+    // Demote the one action state for !bookable seats (view-only zones, or
+    // book-for into a zone the actor doesn't administer): occupancy/assignment
+    // states are permission-independent, `bookable` only demotes CAN_BOOK.
+    // CAN_CHANGE (own booking, non-exact) is NOT demoted — a pure shrink is
+    // always allowed (apply()'s is_pure_shrink bypass + plan.js
+    // isSelectionShrinkOfMine), so the blue "yoursChange" icon and the Update
+    // action stay even in a view-only zone. CAN_REBOOK doesn't exist yet here
+    // — it's set in _updateView only for CAN_BOOK, which is already demoted
+    // below, so it can never fire for a !bookable seat.
+    if (!this.bookable && this.state == WarpSeat.SeatStates.CAN_BOOK) {
+        this.state = WarpSeat.SeatStates.VIEW_ONLY;
     }
 
     return this.state;
@@ -594,19 +604,14 @@ WarpSeat.prototype._updateState = function() {
 // Map a (final) seat state + assignedToMe flag to a #cell-<name> sprite name
 // (PLAN_officemap.md §3). The state must already reflect the CAN_REBOOK /
 // VIEW_ONLY side-effects applied in _updateView below.
-function spriteFor(state, assignedToMe, ownReleaseOnly) {
+function spriteFor(state, assignedToMe) {
     switch (state) {
         case WarpSeat.SeatStates.CAN_BOOK:
             return assignedToMe ? 'availableAssigned' : 'available';
         case WarpSeat.SeatStates.CAN_REBOOK:     return assignedToMe ? 'rebookAssigned'    : 'rebook';
         case WarpSeat.SeatStates.CAN_CHANGE:      return 'yoursChange';
         case WarpSeat.SeatStates.CAN_DELETE_EXACT: return 'yours';
-        case WarpSeat.SeatStates.CAN_DELETE:
-            // ownReleaseOnly: a view-only-zone own booking demoted from
-            // CAN_CHANGE — release-only, but still yours (blue head), not grey
-            // "taken".
-            if (ownReleaseOnly) return 'yours';
-            return 'taken';
+        case WarpSeat.SeatStates.CAN_DELETE:      return 'taken';
         case WarpSeat.SeatStates.TAKEN:            return 'taken';
         case WarpSeat.SeatStates.ASSIGNED:        return 'assigned';
         case WarpSeat.SeatStates.VIEW_ONLY:
@@ -637,7 +642,7 @@ WarpSeat.prototype._updateView = function() {
         // all other states are already final from _updateState
     }
 
-    this.sprite = spriteFor(this.state, assignedToMe, this.ownReleaseOnly);
+    this.sprite = spriteFor(this.state, assignedToMe);
 }
 
 WarpSeat.prototype._destroy = function() {

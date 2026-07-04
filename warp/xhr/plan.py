@@ -542,7 +542,31 @@ def apply():
 
     if 'book' in apply_data:
 
-        if not flask.g.isAdmin:
+        # Pure-shrink bypass (PLAN_VIEW_ONLY_SEATS.md Phase 3C): a self update
+        # (no book.login) whose every booked range is fully covered by one of
+        # the actor's own bookings being removed on this seat only narrows an
+        # existing own booking. A shrink never increases exposure, so it skips
+        # every booking check below (role 104, DISABLED zone 104, seat-disabled
+        # 105, assignment 106/110, horizon 103) — release is the shrink-to-zero
+        # case and is already ungated; this generalises it. Book-for is never a
+        # shrink (is_book_for excluded). The remove bids' ownership is verified
+        # server-side by the login filter (do not trust the client).
+        is_pure_shrink = False
+        if 'remove' in apply_data and 'login' not in apply_data['book']:
+            # Book.fromts/tots are seconds-of-day-anchored epochs; the JSON
+            # payload uses fromTS/toTS. r = (id, fromts, tots).
+            own_rows = list(Book.select(Book.id, Book.fromts, Book.tots)
+                                .where(Book.id.in_(apply_data['remove']))
+                                .where(Book.login == flask.g.login)
+                                .where(Book.sid == apply_data['book']['sid'])
+                                .tuples())
+            if own_rows:
+                def _covered(d):
+                    return any(r[1] <= d['fromTS'] and r[2] >= d['toTS'] for r in own_rows)
+                if all(_covered(d) for d in apply_data['book']['dates']):
+                    is_pure_shrink = True
+
+        if not flask.g.isAdmin and not is_pure_shrink:
             for b in apply_data['book']['dates']:
                 if b['fromTS'] < ts["fromTS"] or b['fromTS'] > ts["toTS"] \
                         or b['toTS'] < ts["fromTS"] or b['toTS'] > ts["toTS"]:
@@ -572,7 +596,7 @@ def apply():
         # bookerRole from the view IS the effective role.
         isSelfAdminBooking = flask.g.isAdmin and login == flask.g.login
 
-        if not isSelfAdminBooking:
+        if not isSelfAdminBooking and not is_pure_shrink:
             if is_book_for:
                 if bookerRole is None:
                     return {"msg": "Forbidden", "code": 104}, 403
@@ -580,14 +604,15 @@ def apply():
                 return {"msg": "Forbidden", "code": 104}, 403
 
         # Disabled zones cannot be booked at all — even by admins.
-        # Enable the zone first, then book.
-        if seatZone['zone_type'] == ZONE_TYPE_DISABLED:
+        # Enable the zone first, then book. (A pure shrink is still allowed —
+        # the seat was bookable when the user booked it; see 3C.)
+        if seatZone['zone_type'] == ZONE_TYPE_DISABLED and not is_pure_shrink:
             return {"msg": "Forbidden", "code": 104}, 403
 
-        if not seatZone['enabled']:
+        if not seatZone['enabled'] and not is_pure_shrink:
             return {"msg": "Forbidden", "code": 105}, 403
 
-        assignedQ = SeatAssign.select(SQL_ONE).where(SeatAssign.sid == sid) if not is_book_for else None
+        assignedQ = SeatAssign.select(SQL_ONE).where(SeatAssign.sid == sid) if not is_book_for and not is_pure_shrink else None
         if assignedQ is not None and assignedQ.scalar() is not None:
             myAssignments = list(SeatAssign.select(SeatAssign.days_in_advance)
                                            .where((SeatAssign.sid == sid) &
