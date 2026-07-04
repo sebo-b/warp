@@ -806,10 +806,12 @@ menus) switches between them, showing a **moon** icon in light mode and a **sun*
 | Seat State            | No Dates | Green (Book)          | Green (Rebook)      | Blue (Update) | Blue (Conflict) | Blue (Exact) | Red (Taken) | Yellow (Assigned)           | Gray (Disabled)             |
 |-----------------------|----------|-----------------------|----------------------|---------------|-----------------|--------------|-------------|-----------------------------|-----------------------------|
 | **User actions**      | —        | Book                  | Book (replaces)      | Update        | Remove          | Remove       | —           | —                           | —                           |
-| **Zone Admin actions**| —        | + Book For, + Edit | same | same          | same            | same         | + Edit    | + Edit  | + Edit                    |
+| **Zone Admin actions**| —        | + Book For, + Edit | same | same          | same            | same         | + Release, + Edit | + Edit  | + Edit                    |
 | **Viewer actions**    | —        | —                     | —                    | —             | —               | —            | —           | —                           | —                           |
 
 A viewer (view-only access to every zone on the plan) can still **release their own booking** from the plan map — clicking it opens the action panel with only the Release button. Non-actionable seats (free, taken by others, assigned) open no panel. The auto-book button and book-for input stay hidden in viewer mode.
+
+A zone admin can **release another user's booking** from the plan map by clicking a taken seat in a zone they administer — the action panel offers Release (apply() allows it via the per-seat zone-admin check for foreign removes). Non-admins get no action on a taken seat.
 
 ---
 

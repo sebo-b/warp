@@ -365,6 +365,34 @@ WarpSeat.prototype.getBookings = function() {
     return res;
 }
 
+// Another user's bookings on this seat overlapping the current selection
+// (login != the acting user). Used by the plan-view action modal to let a
+// zone admin release someone else's booking on a seat they administer
+// (apply()'s remove requires per-seat zone-admin for foreign bookings). With
+// raw=true returns an array of bid's; otherwise display objects
+// {seat_name, zone_name, username, datetime1, datetime2}.
+WarpSeat.prototype.getForeignBookings = function(raw) {
+
+    var res = [];
+
+    for (let i of this._bookingsIterator()) {
+        if (i.book.login == this.factory.login)
+            continue;
+        if (raw) {
+            res.push(i.book.bid);
+        } else {
+            res.push( Object.assign({
+                        seat_name: this.getName(),
+                        zone_name: this.getZoneName(),
+                        username: i.book.username,
+                    },
+                    WarpSeatFactory._formatDatePair(i.book)) );
+        }
+    }
+
+    return res;
+}
+
 /**
  * Iterates over relevant (by given selectedDates) seat bookings
  */

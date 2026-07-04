@@ -645,6 +645,7 @@ export async function mount(ctx) {
             var bookMsg = false;
             var removeMsg = false;
             var blockedMsg = false;
+            var foreignRelease = false;
 
             switch (state) {
                 case WarpSeat.SeatStates.CAN_BOOK:
@@ -673,6 +674,17 @@ export async function mount(ctx) {
                 case WarpSeat.SeatStates.CAN_DELETE_EXACT:
                     actions.push('delete');
                     removeMsg = true;
+                    break;
+                case WarpSeat.SeatStates.TAKEN:
+                    // A zone admin may release another user's booking on a seat
+                    // in a zone they administer (apply()'s remove requires
+                    // per-seat zone-admin for foreign bookings). Non-admins get
+                    // no action — TAKEN stays informational.
+                    if (this.isMyZoneAdmin()) {
+                        actions.push('delete');
+                        removeMsg = true;
+                        foreignRelease = true;
+                    }
                     break;
             };
 
@@ -718,11 +730,22 @@ export async function mount(ctx) {
 
             if (removeMsg) {
 
+                // For a zone-admin release of someone else's booking on this
+                // seat, list the foreign booking(s); otherwise the acting
+                // user's own same-group conflicts (an update/delete).
+                var releaseList = foreignRelease
+                    ? this.getForeignBookings()
+                    : seatFactory.getMyConflictingBookings(this);
+
                 var myConflictsTable = document.createElement("table");
-                for (let c of seatFactory.getMyConflictingBookings(this)) {
+                for (let c of releaseList) {
                     let tr = myConflictsTable.appendChild(document.createElement("tr"));
-                    tr.appendChild( document.createElement("td")).innerText = c.zone_name
-                    tr.appendChild( document.createElement("td")).innerText = c.seat_name;
+                    if (foreignRelease) {
+                        tr.appendChild( document.createElement("td")).innerText = c.username;
+                    } else {
+                        tr.appendChild( document.createElement("td")).innerText = c.zone_name
+                        tr.appendChild( document.createElement("td")).innerText = c.seat_name;
+                    }
                     tr.appendChild( document.createElement("td")).innerText = c.datetime1;
                     tr.appendChild( document.createElement("td")).innerText = c.datetime2;
                 }
@@ -739,6 +762,7 @@ export async function mount(ctx) {
             }
 
             seat = this;
+            seat.foreignRelease = foreignRelease;
             actionModal.open();
         });
 
@@ -787,7 +811,12 @@ export async function mount(ctx) {
             }
 
             if (this.dataset.action == 'delete' || this.dataset.action == 'update') {
-                applyData['remove'] = seatFactory.getMyConflictingBookings(seat, true);
+                // A zone-admin release of another user's booking (TAKEN seat)
+                // targets that foreign booking's bid, not the acting user's own
+                // same-group conflicts (which an update/own-release removes).
+                applyData['remove'] = (this.dataset.action == 'delete' && seat.foreignRelease)
+                    ? seat.getForeignBookings(true)
+                    : seatFactory.getMyConflictingBookings(seat, true);
             }
 
             // seat-edit-save with no net changes (toggle flipped back, assignments

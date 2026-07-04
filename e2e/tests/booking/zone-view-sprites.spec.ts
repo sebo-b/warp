@@ -387,3 +387,60 @@ test.describe('book-for override of an assignment', () => {
     expect(r.rows[0].cnt).toBe(1);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Zone admin releasing another user's booking from the plan map. The seat is
+// TAKEN (foreign booking); a zone admin who administers the seat's zone may
+// release it directly (apply()'s remove requires per-seat zone-admin for
+// foreign bookings). Non-admins get no action (TAKEN stays informational).
+// ---------------------------------------------------------------------------
+
+test.describe('zone admin releasing another user booking from the plan map', () => {
+  test('11. admin clicks a foreign-booked seat -> Release works; non-admin gets no modal', async ({ page }) => {
+    const pid = await createPlan('Sprite ForeignRelease Plan', 1);
+    const zid = await createZone('FR Zone', ZONE_TYPE_ENABLED);
+    const [seat] = await addSeats(pid, zid, ['FR.1']);
+    await assignZoneRole(zid, USER1.login, ZONE_ROLE_ADMIN);
+    await assignZoneRole(zid, USER2.login, ZONE_ROLE_USER);
+    const { fromTS, toTS } = slot();
+    await insertBooking(USER2.login, seat, fromTS, toTS);   // foreign to user1
+
+    await logIn(page, USER1);             // admin of the zone
+    await page.goto(`/plan/${pid}`);
+    await waitForSeatsLoaded(page);
+    await selectOnlyDates(page, [DAY]);
+    await page.waitForTimeout(400);
+
+    // The seat is TAKEN (foreign booking).
+    await expectSprite(page, seat, 'cell-taken');
+
+    // Admin -> Release modal (delete offered, book not).
+    await page.locator(`#sprite-${seat}`).click();
+    await expect(page.locator('#action_modal')).toHaveClass(/open/);
+    await expect(page.locator('.plan_action_btn[data-action="delete"]')).toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="book"]')).not.toBeVisible();
+    // The to-be-released row names the foreign owner.
+    await expect(page.locator('#action_modal_msg2')).toContainText(USER2.name);
+    await clickActionBtn(page, 'delete');
+
+    const r = await querySql(
+      'SELECT COUNT(*)::int AS cnt FROM book WHERE login = $1 AND sid = $2',
+      [USER2.login, seat],
+    );
+    expect(r.rows[0].cnt).toBe(0);
+
+    // A non-admin clicking a foreign-booked seat gets no modal (TAKEN is
+    // informational for non-admins).
+    await logIn(page, USER2);             // USER in the zone, but the booking is gone
+    await page.goto(`/plan/${pid}`);
+    await waitForSeatsLoaded(page);
+    await insertBooking(USER1.login, seat, fromTS, toTS);  // now booked by user1 (foreign to user2)
+    await page.reload();
+    await waitForSeatsLoaded(page);
+    await selectOnlyDates(page, [DAY]);
+    await page.waitForTimeout(400);
+    await page.locator(`#sprite-${seat}`).click();
+    await page.waitForTimeout(300);
+    await expect(page.locator('#action_modal')).not.toHaveClass(/open/);
+  });
+});
