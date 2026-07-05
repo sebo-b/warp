@@ -30,30 +30,10 @@ import {
   clickActionBtn,
   waitForSeatsLoaded,
   apiApply,
+  activateBookFor,
+  clearBookFor,
+  getSelectableDates,
 } from '../../helpers/booking';
-
-/** Activate book-for for the given display label (e.g. "Bar [user2]"). */
-async function activateBookFor(page: any, label: string): Promise<void> {
-  const bookForInput = page.locator('#book-for');
-  await bookForInput.click();
-  await bookForInput.pressSequentially(label.split(' ')[0], { delay: 50 });
-  const item = page.locator('ul.autocomplete-content li', { hasText: label });
-  await expect(item).toBeVisible({ timeout: 5000 });
-  await item.click();
-  // book-for fires a full getSeats?login= refresh; wait for it to settle.
-  await page.waitForLoadState('networkidle');
-  await page.waitForTimeout(400);
-}
-
-/** Clear book-for (Enter on an empty input resets to the admin's own login). */
-async function clearBookFor(page: any): Promise<void> {
-  const bookForInput = page.locator('#book-for');
-  await bookForInput.click();
-  await bookForInput.fill('');
-  await bookForInput.press('Enter');
-  await page.waitForLoadState('networkidle');
-  await page.waitForTimeout(400);
-}
 
 /** Open the action modal for a seat and return the set of visible action labels. */
 async function seatActions(page: any, seat: any): Promise<string[]> {
@@ -272,6 +252,44 @@ test.describe('book-for + zone group', () => {
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
     await expect(page.locator('.plan_action_btn[data-action="update"]')).not.toBeVisible();
     await expect(page.locator('.plan_action_btn[data-action="book"]')).not.toBeVisible();
+    await expect(page.locator('#action_modal_msg1')).toContainText("don't administer");
+  });
+
+  test('book-for CAN_CHANGE: update/release blocked when a same-group conflict lies in a non-administered zone', async ({ page }) => {
+    // Same confinement as the rebook test above, but the clicked seat holds
+    // the TARGET's own booking (CAN_CHANGE, not CAN_REBOOK): user2 holds the
+    // administered Zone 1A seat on day 1 and the inaccessible Parking seat
+    // (same group) on day 2. With both days selected, update/release from the
+    // Zone 1A seat would also have to remove the Parking booking — apply()
+    // would 403 (code 102) and roll everything back — so the modal offers
+    // neither action and shows the explanatory message instead.
+    const zone1Seat = (await getZoneSeats(1))[0];
+    const parkingSeat = (await getZoneSeats(3))[0];
+
+    await querySql("UPDATE zone SET zone_group = 'floor-1' WHERE id IN (1, 3)");
+    await querySql('UPDATE seat SET pid = 1 WHERE id = $1', [parkingSeat.id]);
+    await logIn(page, ADMIN);
+    await adminPost(page, '/xhr/zones/assign', { zid: 1, change: [{ login: USER1.login, role: 10 }] });
+
+    await logIn(page, USER1);
+    await page.goto('/plan/1');
+    await waitForSeatsLoaded(page);
+    // Two selectable days straight from the rendered calendar (futureDayTs
+    // could land on an omitted weekday); disjoint days keep the two seeded
+    // same-group bookings clear of the book_overlap trigger.
+    const [day1, day2] = await getSelectableDates(page);
+    await querySql(
+      'INSERT INTO book (login, sid, fromts, tots) VALUES ($1, $2, $3, $4), ($5, $6, $7, $8)',
+      [USER2.login, zone1Seat.id, day1 + 9 * 3600, day1 + 17 * 3600,
+       USER2.login, parkingSeat.id, day2 + 9 * 3600, day2 + 17 * 3600]);
+    await selectOnlyDates(page, [day1, day2]);
+    await page.waitForTimeout(400);
+    await activateBookFor(page, 'Bar [user2]');   // full refresh picks up the seeded bookings
+
+    await clickZoneSeat(page, zone1Seat);
+    await expect(page.locator('#action_modal')).toHaveClass(/open/);
+    await expect(page.locator('.plan_action_btn[data-action="delete"]')).not.toBeVisible();
+    await expect(page.locator('.plan_action_btn[data-action="update"]')).not.toBeVisible();
     await expect(page.locator('#action_modal_msg1')).toContainText("don't administer");
   });
 

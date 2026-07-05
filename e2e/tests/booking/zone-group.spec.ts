@@ -25,6 +25,7 @@ import {
   clickActionBtn,
   waitForSeatsLoaded,
   apiApply,
+  activateBookFor,
 } from '../../helpers/booking';
 
 test.describe('per-zone booking constraint', () => {
@@ -382,14 +383,7 @@ test.describe('zone group constraint (non-null zone_group)', () => {
     await selectOnlyDates(page, [ts]);
     await page.waitForTimeout(400);
 
-    // Activate book-for for user2
-    const bookForInput = page.locator('#book-for');
-    await bookForInput.click();
-    await bookForInput.pressSequentially('Bar', { delay: 50 });
-    const item = page.locator('ul.autocomplete-content li', { hasText: 'Bar [user2]' });
-    await expect(item).toBeVisible({ timeout: 5000 });
-    await item.click();
-    await page.waitForTimeout(400);
+    await activateBookFor(page, 'Bar [user2]');
 
     // Click Zone 1B's seat — should show "update" (rebook) because user2
     // already has a same-group booking on plan 1

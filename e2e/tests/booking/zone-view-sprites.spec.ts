@@ -26,6 +26,7 @@ import {
   selectOnlyDates,
   waitForSeatsLoaded,
   clickActionBtn,
+  activateBookFor,
 } from '../../helpers/booking';
 import {
   ZONE_TYPE_ENABLED,
@@ -403,18 +404,6 @@ test.describe('assigned-to-me in a bookable ENABLED zone (risk #5 guard)', () =>
 // "available" icon (third-party assignment) or blue "availableAssigned"
 // (assigned to the target, beyond its window) — no special override glyph.
 // ---------------------------------------------------------------------------
-
-/** Activate book-for for the given display label (e.g. "Bar [user2]"). */
-async function activateBookFor(page: any, label: string): Promise<void> {
-  const bookForInput = page.locator('#book-for');
-  await bookForInput.click();
-  await bookForInput.pressSequentially(label.split(' ')[0], { delay: 50 });
-  const item = page.locator('ul.autocomplete-content li', { hasText: label });
-  await expect(item).toBeVisible({ timeout: 5000 });
-  await item.click();
-  await page.waitForLoadState('networkidle');
-  await page.waitForTimeout(400);
-}
 
 test.describe('book-for override of an assignment', () => {
   test('8. seat assigned to a third person, book-for target is a member → available + book works', async ({ page }) => {

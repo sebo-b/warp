@@ -660,14 +660,28 @@ export async function mount(ctx) {
                     bookMsg = true;
                     break;
                 case WarpSeat.SeatStates.CAN_CHANGE:
+                case WarpSeat.SeatStates.CAN_DELETE:
+                case WarpSeat.SeatStates.CAN_DELETE_EXACT:
                     if (bookForForeignRelease) break;   // target's booking in a non-administered zone — release would 403
+                    // Delete/update remove the acting user's conflicting
+                    // bookings across the whole zone group. Under book-for
+                    // that set can include the target's booking in a zone the
+                    // actor doesn't administer — apply() 403s that foreign
+                    // remove (code 102) and rolls the whole request back, so
+                    // explain instead of offering a doomed action (same guard
+                    // as CAN_REBOOK below; false outside book-for).
+                    if (seatFactory.hasUnmanageableConflict(this)) {
+                        blockedMsg = true;
+                        break;
+                    }
                     actions.push('delete');
                     removeMsg = true;
                     // Update extends/changes the booking — only offer it where
                     // the actor may book (this.bookable) or the selection is a
                     // pure shrink of an own booking (always allowed, even in a
                     // view-only / DISABLED zone — apply()'s is_pure_shrink).
-                    if (this.bookable || this.isSelectionShrinkOfMine()) {
+                    if (state == WarpSeat.SeatStates.CAN_CHANGE &&
+                            (this.bookable || this.isSelectionShrinkOfMine())) {
                         actions.push('update');
                         bookMsg = true;
                     }
@@ -684,12 +698,6 @@ export async function mount(ctx) {
                         actions.push('update');
                         bookMsg = removeMsg = true;
                     }
-                    break;
-                case WarpSeat.SeatStates.CAN_DELETE:
-                case WarpSeat.SeatStates.CAN_DELETE_EXACT:
-                    if (bookForForeignRelease) break;   // target's booking in a non-administered zone — release would 403
-                    actions.push('delete');
-                    removeMsg = true;
                     break;
                 case WarpSeat.SeatStates.TAKEN:
                     // A zone admin may release another user's booking on a seat

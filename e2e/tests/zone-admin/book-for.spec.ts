@@ -8,6 +8,7 @@ import {
   clickZoneSeat,
   waitForSeatsLoaded,
   apiApply,
+  activateBookFor,
 } from '../../helpers/booking';
 import { pickFirstDate } from '../../helpers/zone-admin';
 
@@ -52,13 +53,7 @@ test.describe('booking for another user', () => {
     await pickFirstDate(page);
     await page.waitForTimeout(400);
 
-    const bookForInput = page.locator('#book-for');
-    await bookForInput.click();
-    await bookForInput.pressSequentially('Bar', { delay: 50 });
-    const dropdownItem = page.locator('ul.autocomplete-content li', { hasText: 'Bar [user2]' });
-    await expect(dropdownItem).toBeVisible({ timeout: 5000 });
-    await dropdownItem.click();
-    await page.waitForTimeout(200);
+    await activateBookFor(page, 'Bar [user2]');
 
     const [seat] = await getZoneSeats(1);
     await clickZoneSeat(page, seat);

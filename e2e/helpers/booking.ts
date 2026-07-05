@@ -229,6 +229,29 @@ export async function clickActionBtn(
   await page.waitForTimeout(200);
 }
 
+/** Activate book-for for the given display label (e.g. "Bar [user2]"). */
+export async function activateBookFor(page: Page, label: string): Promise<void> {
+  const bookForInput = page.locator('#book-for');
+  await bookForInput.click();
+  await bookForInput.pressSequentially(label.split(' ')[0], { delay: 50 });
+  const item = page.locator('ul.autocomplete-content li', { hasText: label });
+  await expect(item).toBeVisible({ timeout: 5000 });
+  await item.click();
+  // book-for fires a full getSeats?login= refresh; wait for it to settle.
+  await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(400);
+}
+
+/** Clear book-for (Enter on an empty input resets to the admin's own login). */
+export async function clearBookFor(page: Page): Promise<void> {
+  const bookForInput = page.locator('#book-for');
+  await bookForInput.click();
+  await bookForInput.fill('');
+  await bookForInput.press('Enter');
+  await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(400);
+}
+
 /** Direct XHR to /xhr/plan/apply using the current page session (cookies).
  *  Redirects are not followed: an expired session answers with a 302 to /login,
  *  and following it would turn that into a misleading 200 (the login page). */

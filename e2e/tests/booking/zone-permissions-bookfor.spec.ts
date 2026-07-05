@@ -40,7 +40,7 @@ import { test, expect } from '../../fixtures';
 import { logIn } from '../../helpers/auth';
 import { ADMIN, USER1, USER2, USER3 } from '../../helpers/users';
 import { querySql } from '../../helpers/db';
-import { futureDayTs, apiApply, waitForSeatsLoaded } from '../../helpers/booking';
+import { futureDayTs, apiApply, waitForSeatsLoaded, activateBookFor } from '../../helpers/booking';
 import { pickFirstDate } from '../../helpers/zone-admin';
 import {
   ZONE_TYPE_DISABLED,
@@ -349,13 +349,7 @@ test.describe('auto-book for another user', () => {
     await pickFirstDate(page);
     await page.waitForTimeout(400);
 
-    const bookForInput = page.locator('#book-for');
-    await bookForInput.click();
-    await bookForInput.pressSequentially('Bar', { delay: 50 });
-    const item = page.locator('ul.autocomplete-content li', { hasText: 'Bar [user2]' });
-    await expect(item).toBeVisible({ timeout: 5000 });
-    await item.click();
-    await page.waitForTimeout(200);
+    await activateBookFor(page, 'Bar [user2]');
 
     const [resp] = await Promise.all([
       page.waitForResponse(r => r.url().includes('/xhr/plan/autoBook')),

@@ -444,11 +444,15 @@ WarpSeat.prototype._bookingsIterator = function*() {
     }
 }
 
-WarpSeat.prototype._updateState = function() {
+// Book-for override of seat-level restrictions is in force for this seat:
+// the actor is booking FOR someone else and `bookable` holds — which under
+// book-for already means the actor administers the zone. Derived on demand
+// (never stored) so it can't go stale across _updateState early returns.
+WarpSeat.prototype._isBookForOverride = function() {
+    return this.bookable && this.factory.login !== window.warpGlobals.login;
+}
 
-    // ponytail: reset before the early returns so a NOT_AVAILABLE re-render
-    // (no dates selected) doesn't leave a stale book-for cue for _updateView.
-    this.bookForOverride = false;
+WarpSeat.prototype._updateState = function() {
 
     if (!this.factory.selectedDates.length) {
         this.state = WarpSeat.SeatStates.NOT_AVAILABLE;
@@ -469,8 +473,7 @@ WarpSeat.prototype._updateState = function() {
     // The disabled ICON is kept as a visual cue: _updateView forces the sprite
     // to 'unavailable' for a disabled seat under book-for (the state still
     // drives the actions; the icon just signals "this seat is off").
-    const bookForOverride = this.bookable && this.factory.login !== window.warpGlobals.login;
-    this.bookForOverride = bookForOverride;
+    const bookForOverride = this._isBookForOverride();
 
     if (!this.enabled && !bookForOverride) {
         this.state = WarpSeat.SeatStates.DISABLED;
@@ -663,8 +666,10 @@ WarpSeat.prototype._updateView = function() {
     // Book-for override of a seat-level disable: the disabled seat ran the
     // normal pipeline (so its state drives the click actions — book / update /
     // release) but the ICON stays the grey "unavailable" X as a visual cue that
-    // the seat is off. Only under book-for in an administered zone.
-    if (!this.enabled && this.bookForOverride)
+    // the seat is off. Only under book-for in an administered zone. (With no
+    // dates selected the state is NOT_AVAILABLE, whose sprite is already
+    // 'unavailable', so deriving the override here is safe for every state.)
+    if (!this.enabled && this._isBookForOverride())
         this.sprite = 'unavailable';
 }
 

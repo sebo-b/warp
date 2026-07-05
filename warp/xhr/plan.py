@@ -417,16 +417,23 @@ def getSeats(pid):
     # admins administer every zone.
     if flask.g.isAdmin:
         admin_zids = set(usedZids)
-    elif usedZids:
-        admin_zids = {
-            r['zid'] for r in UserToZoneRoles.select(UserToZoneRoles.zid)
-                .where(UserToZoneRoles.zid.in_(list(usedZids)))
-                .where(UserToZoneRoles.login == flask.g.login)
-                .where(UserToZoneRoles.zone_role <= ZONE_ROLE_ADMIN)
-                .iterator()
-        }
     else:
-        admin_zids = set()
+        # effective_roles already holds the actor's effective role for every
+        # zone on this plan; only zones pulled in by conflict bookings and
+        # absent from it (cross-plan same-group zones) need a fresh role
+        # lookup — in the common case there are none and no query runs.
+        admin_zids = {zid for zid in usedZids
+                      if zid in effective_roles
+                      and effective_roles[zid] <= ZONE_ROLE_ADMIN}
+        crossplan_zids = [zid for zid in usedZids if zid not in effective_roles]
+        if crossplan_zids:
+            admin_zids |= {
+                r['zid'] for r in UserToZoneRoles.select(UserToZoneRoles.zid)
+                    .where(UserToZoneRoles.zid.in_(crossplan_zids))
+                    .where(UserToZoneRoles.login == flask.g.login)
+                    .where(UserToZoneRoles.zone_role <= ZONE_ROLE_ADMIN)
+                    .iterator()
+            }
     res['zoneAdmin'] = {str(zid): (zid in admin_zids) for zid in usedZids}
 
     usedUsersQuery = Users.select(Users.login, Users.name).where(Users.login.in_(usedUsers)).tuples()
@@ -597,10 +604,9 @@ def apply():
         isSelfAdminBooking = flask.g.isAdmin and login == flask.g.login
 
         if not isSelfAdminBooking and not is_pure_shrink:
-            if is_book_for:
-                if bookerRole is None:
-                    return {"msg": "Forbidden", "code": 104}, 403
-            elif bookerRole is None or bookerRole > ZONE_ROLE_USER:
+            # Book-for needs only target membership (any role row); self-book
+            # needs role <= USER.
+            if bookerRole is None or (not is_book_for and bookerRole > ZONE_ROLE_USER):
                 return {"msg": "Forbidden", "code": 104}, 403
 
         # Disabled zones cannot be booked at all — even by admins.
@@ -616,8 +622,10 @@ def apply():
             # the is_pure_shrink guard above; this skip is book-for-only.
             return {"msg": "Forbidden", "code": 105}, 403
 
-        assignedQ = SeatAssign.select(SQL_ONE).where(SeatAssign.sid == sid) if not is_book_for and not is_pure_shrink else None
-        if assignedQ is not None and assignedQ.scalar() is not None:
+        # Assignment checks (106/110) are skipped for book-for (a zone admin
+        # may override them) and for pure shrinks (always allowed).
+        if not is_book_for and not is_pure_shrink \
+                and SeatAssign.select(SQL_ONE).where(SeatAssign.sid == sid).scalar() is not None:
             myAssignments = list(SeatAssign.select(SeatAssign.days_in_advance)
                                            .where((SeatAssign.sid == sid) &
                                                   ((SeatAssign.login == login) | SeatAssign.login.is_null()))
