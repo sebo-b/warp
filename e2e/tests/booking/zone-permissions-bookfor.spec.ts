@@ -43,6 +43,7 @@ import { querySql } from '../../helpers/db';
 import { futureDayTs, apiApply, waitForSeatsLoaded } from '../../helpers/booking';
 import { pickFirstDate } from '../../helpers/zone-admin';
 import {
+  ZONE_TYPE_DISABLED,
   ZONE_TYPE_ENABLED,
   ZONE_TYPE_PUBLIC_VIEW,
   ZONE_TYPE_PUBLIC_BOOK,
@@ -117,7 +118,7 @@ test.describe('site admin is a super-user over all zones', () => {
 
   test('A4: still cannot book a DISABLED-zone seat even as super-user', async ({ page }) => {
     const pid = await createPlan('Superuser Disabled Plan');
-    const zid = await createZone('Disabled Z', 10 /* DISABLED */);
+    const zid = await createZone('Disabled Z', ZONE_TYPE_DISABLED);
     const [seatId] = await addSeats(pid, zid, ['Z.1']);
     await clearZoneRoles('admin');
 

@@ -392,8 +392,9 @@ behaviour not derivable from them is a bug — or requires amending them first.
 
 1. **Icons state facts; colours carry the meaning.** Green = the actor (or
    their book-for target) can book here; blue = the actor's/target's own
-   (booking or assignment); grey = not bookable/updatable. Arrows = acting
-   here changes existing bookings.
+   (booking or assignment); grey = not bookable/updatable — except the
+   disabled-seat cue under book-for, which stays grey while actionable.
+   Arrows = acting here changes existing bookings.
 2. **The click reveals the permitted actions; the icon never enumerates them.**
    A grey seat may still offer *Release* — an own overlap, or a foreign
    booking for a zone admin. The icon is a scan-friendly summary, not an

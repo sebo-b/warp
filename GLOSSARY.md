@@ -177,7 +177,7 @@ A convenience for zone (and site) admins: book (or auto-book) a seat **on behalf
 of another user**, exercising the admin's own zone-admin authority rather than
 the target's. The booking is recorded under the target user, who only needs to
 be a **member** of the zone (any role, viewers included) — the admin's standing
-overrides seat-level restrictions (assignments) there. Both manual and
+overrides seat-level restrictions (assignments and disabled seats) there. Both manual and
 auto-book-for require the admin to administer the zone in question — see
 [PERMISSIONS.md](PERMISSIONS.md) §8.
 

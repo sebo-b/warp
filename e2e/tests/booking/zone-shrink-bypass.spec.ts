@@ -20,6 +20,7 @@ import { USER1, USER3 } from '../../helpers/users';
 import { querySql } from '../../helpers/db';
 import { futureDayTs, apiApply } from '../../helpers/booking';
 import {
+  ZONE_TYPE_DISABLED,
   ZONE_TYPE_ENABLED,
   ZONE_TYPE_PUBLIC_VIEW,
   ZONE_ROLE_USER,
@@ -106,7 +107,7 @@ test.describe('pure-shrink bypass: viewer zone', () => {
 test.describe('pure-shrink bypass: DISABLED zone', () => {
   test('shrink own booking in a DISABLED zone -> 200', async ({ page }) => {
     const pid = await createPlan('Shrink Disabled Plan', 1);
-    const zid = await createZone('Shrink Disabled', 10 /* DISABLED */);
+    const zid = await createZone('Shrink Disabled', ZONE_TYPE_DISABLED);
     const [seat] = await addSeats(pid, zid, ['SD.1']);
     await insertBooking(USER3.login, seat, FULL.fromTS, FULL.toTS);
     const bid = await bookingBid(USER3.login, seat, FULL.fromTS);

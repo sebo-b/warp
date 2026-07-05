@@ -446,6 +446,10 @@ WarpSeat.prototype._bookingsIterator = function*() {
 
 WarpSeat.prototype._updateState = function() {
 
+    // ponytail: reset before the early returns so a NOT_AVAILABLE re-render
+    // (no dates selected) doesn't leave a stale book-for cue for _updateView.
+    this.bookForOverride = false;
+
     if (!this.factory.selectedDates.length) {
         this.state = WarpSeat.SeatStates.NOT_AVAILABLE;
         return this.state;
