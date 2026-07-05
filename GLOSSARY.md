@@ -171,21 +171,24 @@ The range of dates that are open for booking at all, configured installation-
 wide (a number of weeks in advance). No one — not even an admin booking for
 themselves — can book outside this window through the normal booking screen.
 
-### Book as
+### Book for
 
 A convenience for zone (and site) admins: book (or auto-book) a seat **on behalf
-of another user**. The booking is recorded under the target user, who must be
-allowed to book that seat. (Manual book-as requires the admin to manage the
-seat's own zone; auto-book-as only requires admin standing on the plan — see
-[PERMISSIONS.md](PERMISSIONS.md) §8.)
+of another user**, exercising the admin's own zone-admin authority rather than
+the target's. The booking is recorded under the target user, who only needs to
+be a **member** of the zone (any role, viewers included) — the admin's standing
+overrides seat-level restrictions (assignments and disabled seats) there. Both manual and
+auto-book-for require the admin to administer the zone in question — see
+[PERMISSIONS.md](PERMISSIONS.md) §8.
 
 ### Auto-book ("find me a seat")
 
 Instead of picking a specific seat, the user asks the system to choose the best
 available seat on the plan for the selected dates, honouring assignments, the
-release window, and existing bookings. Admins can also auto-book _as_ another
-user, in which case it runs **as that user** — picking only seats the target
-could book themselves. See [AUTOBOOK.md](AUTOBOOK.md) for the selection priority.
+release window, and existing bookings. Admins can also auto-book _for_ another
+user, in which case the seat pool is confined to the zones **the admin**
+administers — picking only seats within that pool the target is at least a
+member of. See [AUTOBOOK.md](AUTOBOOK.md) for the selection priority.
 
 ### Effective zone role
 

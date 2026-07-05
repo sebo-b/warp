@@ -2,7 +2,7 @@ import flask
 import xlsxwriter
 import io
 from jsonschema import validate, ValidationError
-from peewee import SQL, Expression, fn
+from peewee import SQL, Expression, fn, JOIN
 
 from warp.db import *
 from warp import utils
@@ -111,10 +111,23 @@ def listW(report = False):      # list is a built-in type
         # (mirrors users.delete, which compares view timestamptz columns).
         # today_in_tz_sql encapsulates the e2e debug time-offset.
         today_in_plan_tz = utils.today_in_tz_sql(Plan.timezone, as_epoch=True)
+        # LEFT JOIN the actor's own role row: a matching row exists iff they
+        # have effective access to the booking's zone (synthetic public-zone
+        # rows included). A user's OWN booking in a zone they no longer have a
+        # role for (access revoked after booking, or booked there via book-for
+        # then removed) must still be visible + deletable here — the plan map
+        # can't reach a seat in a zone they can't open, so the bookings table
+        # is the only UI path. Admit those own rows via Book.login == g.login;
+        # other users' bookings in no-access zones stay hidden (the disjunct
+        # only admits own rows). zone_role is NULL for the no-role case.
         query = query.select_extend(UserToZoneRoles.zone_role) \
-                .join(UserToZoneRoles, on=(UserToZoneRoles.zid == Seat.zid)) \
-                .where((UserToZoneRoles.login == flask.g.login) &
-                       (_FROM_UTC_SQL >= today_in_plan_tz))
+                .join(UserToZoneRoles,
+                      join_type=JOIN.LEFT_OUTER,
+                      on=((UserToZoneRoles.zid == Seat.zid) &
+                          (UserToZoneRoles.login == flask.g.login))) \
+                .where((_FROM_UTC_SQL >= today_in_plan_tz) &
+                       (UserToZoneRoles.zone_role.is_null(False) |
+                        (Book.login == flask.g.login)))
 
     columnsMap = {
         "id": Book.id,
@@ -235,11 +248,16 @@ def listW(report = False):      # list is a built-in type
 
             if not report:
 
-                # zone_role from the view IS the effective role.  A row exists
-                # iff the user has access, so no LEFT JOIN / zone_type predicate.
-                d['rw'] = \
-                    (row["login"] == flask.g.login and row['zone_role'] <= ZONE_ROLE_USER) \
-                    or row['zone_role'] <= ZONE_ROLE_ADMIN
+                # rw = deletable via the bookings-table delete icon. A user can
+                # always release their OWN booking: apply()'s remove bypasses
+                # the per-seat zone-admin check for own bookings (the
+                # Book.login != g.login filter), so this is true even when they
+                # are only a VIEWER in the zone, or have lost access entirely
+                # (zone_role NULL via the LEFT JOIN above). Foreign bookings
+                # stay gated by the actor's zone-admin standing.
+                own = row["login"] == flask.g.login
+                role = row['zone_role']
+                d['rw'] = own or (role is not None and role <= ZONE_ROLE_ADMIN)
 
             else:
                 d["login"] = row["login"]

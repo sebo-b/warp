@@ -39,8 +39,7 @@ WarpSeat.SeatStates = {
     CAN_CHANGE: 6,      // seat is already booked by this user, but can be changed (extended, reduced, deleted)
     CAN_DELETE: 7,      // seat is already booked by this user, but cannot be changed
     CAN_DELETE_EXACT: 8, // seat is already booked by this user, cannot be changed and selected dated are exactly matching booking dates
-    VIEW_ONLY: 9,       // seat is visible but cannot be booked — free (grey empty circle)
-    VIEW_ONLY_TAKEN: 10 // seat is visible but taken by someone else (grey circle with person)
+    VIEW_ONLY: 9        // bookable-shaped seat in a zone where this user may only view (free, unassigned)
 }
 
 WarpSeat.Sprites = {
@@ -102,7 +101,7 @@ WarpSeatFactory.prototype.getLogin = function() {
     return this.login;
 }
 
-// Switch the "acting" login (book-as). Callers must follow this with a full
+// Switch the "acting" login (book-for). Callers must follow this with a full
 // downloadSeatData()/setSeatsData() refresh so every seat — accessible and
 // conflict — is rebuilt consistently for the new login. (The old partial
 // onlyOtherZone path is gone: it overwrote accessible seats that happened to
@@ -146,6 +145,10 @@ WarpSeatFactory.prototype.setSeatsData = function(seatsData = {}) {
 
     // Full refresh — replace the zone-group map.
     this.zoneGroups = seatsData.zoneGroups || {};
+    // zid -> true if the acting (real, not book-for target) user administers
+    // that zone. Used to gate seat-edit per-seat instead of the plan-wide
+    // isZoneAdmin flag.
+    this.zoneAdmin = seatsData.zoneAdmin || {};
 
     var oldSeatsIds = new Set( Object.keys(this.instances))
 
@@ -217,6 +220,26 @@ WarpSeatFactory.prototype.setSeatsData = function(seatsData = {}) {
 
     return res;
  }
+
+// True if updating forSeat would need to release a conflicting booking that
+// lies in a zone the acting admin does not administer. Only relevant under
+// book-for: apply() only requires zone-admin to release someone ELSE's
+// booking (self-releases are never gated — see apply()'s seatsReqZoneAdmin,
+// which excludes Book.login == flask.g.login). Releasing a foreign zone's
+// booking would 403 (code 102) and roll back the whole book+remove request,
+// so the frontend must not offer that "update" as if it would succeed.
+WarpSeatFactory.prototype.hasUnmanageableConflict = function(forSeat) {
+
+    if (this.login === window.warpGlobals.login)
+        return false;
+
+    for (var c of this.getMyConflictingBookings(forSeat)) {
+        var conflictSeat = this.instances[c.sid];
+        if (conflictSeat && !this.zoneAdmin[conflictSeat.zid])
+            return true;
+    }
+    return false;
+}
 
 // Plan-wide: used by the auto-book FAB to detect when the current selection is
 // already exactly satisfied by an existing booking in any zone.
@@ -302,6 +325,36 @@ WarpSeat.prototype.getZoneName = function() {
     return this.zoneName;
 }
 
+// True if the acting user (the real logged-in admin, not a book-for target)
+// administers this seat's zone — the correct per-seat gate for admin-only
+// actions (seat-edit), as opposed to the plan-wide isZoneAdmin flag which is
+// true if they administer ANY zone on the plan.
+WarpSeat.prototype.isMyZoneAdmin = function() {
+    return !!this.factory.zoneAdmin[this.zid];
+}
+
+// True iff every selected date range is fully contained within one of the
+// acting user's OWN bookings on this seat — a "pure shrink" selection: an
+// update would only narrow an existing own booking, which is always allowed
+// (apply()'s is_pure_shrink bypass, even in view-only / DISABLED zones). Uses
+// window.warpGlobals.login (the real actor), not factory.login, so a book-for
+// target's booking in a non-administered (!bookable) zone does NOT count —
+// changing/releasing it would 403 (release confinement / seatsReqZoneAdmin).
+WarpSeat.prototype.isSelectionShrinkOfMine = function() {
+    const me = window.warpGlobals.login;
+    for (const d of this.factory.selectedDates) {
+        let covered = false;
+        for (const b of this.book) {
+            if (b.login === me && b.fromTS <= d.fromTS && b.toTS >= d.toTS) {
+                covered = true;
+                break;
+            }
+        }
+        if (!covered) return false;
+    }
+    return this.factory.selectedDates.length > 0;
+};
+
 
 WarpSeat.prototype.getSid = function() {
     return parseInt(this.sid);  //TODO: convert this.sid to int in constructor
@@ -329,6 +382,34 @@ WarpSeat.prototype.getBookings = function() {
                         },
                         WarpSeatFactory._formatDatePair(i.book)
                     ));
+    }
+
+    return res;
+}
+
+// Another user's bookings on this seat overlapping the current selection
+// (login != the acting user). Used by the plan-view action modal to let a
+// zone admin release someone else's booking on a seat they administer
+// (apply()'s remove requires per-seat zone-admin for foreign bookings). With
+// raw=true returns an array of bid's; otherwise display objects
+// {seat_name, zone_name, username, datetime1, datetime2}.
+WarpSeat.prototype.getForeignBookings = function(raw) {
+
+    var res = [];
+
+    for (let i of this._bookingsIterator()) {
+        if (i.book.login == this.factory.login)
+            continue;
+        if (raw) {
+            res.push(i.book.bid);
+        } else {
+            res.push( Object.assign({
+                        seat_name: this.getName(),
+                        zone_name: this.getZoneName(),
+                        username: i.book.username,
+                    },
+                    WarpSeatFactory._formatDatePair(i.book)) );
+        }
     }
 
     return res;
@@ -363,6 +444,14 @@ WarpSeat.prototype._bookingsIterator = function*() {
     }
 }
 
+// Book-for override of seat-level restrictions is in force for this seat:
+// the actor is booking FOR someone else and `bookable` holds — which under
+// book-for already means the actor administers the zone. Derived on demand
+// (never stored) so it can't go stale across _updateState early returns.
+WarpSeat.prototype._isBookForOverride = function() {
+    return this.bookable && this.factory.login !== window.warpGlobals.login;
+}
+
 WarpSeat.prototype._updateState = function() {
 
     if (!this.factory.selectedDates.length) {
@@ -370,38 +459,33 @@ WarpSeat.prototype._updateState = function() {
         return this.state;
     }
 
-    if (!this.enabled) {
+    // Book-for override of seat-level restrictions (see apply() skipping
+    // 105/106/110 under is_book_for): a zone admin booking FOR a target may
+    // book onto a seat assigned to someone else, beyond the target's
+    // days-in-advance window, OR a seat the admin has disabled — so under
+    // book-for a disabled seat does NOT take the DISABLED early return; it
+    // runs the normal pipeline (CAN_BOOK / CAN_REBOOK / CAN_CHANGE / CAN_DELETE_*)
+    // so the click handler offers the right action (book, update when the target
+    // has a conflicting booking in the zone group, release when the target
+    // already holds it). Only under book-for (factory.login != the real login)
+    // and where `bookable` holds — which under book-for already means the actor
+    // administers the zone. Self-booking never overrides (105/106/110 apply).
+    // The disabled ICON is kept as a visual cue: _updateView forces the sprite
+    // to 'unavailable' for a disabled seat under book-for (the state still
+    // drives the actions; the icon just signals "this seat is off").
+    const bookForOverride = this._isBookForOverride();
+
+    if (!this.enabled && !bookForOverride) {
         this.state = WarpSeat.SeatStates.DISABLED;
         return this.state;
     }
 
-    if (!this.bookable) {
-        // View-only access (PUBLIC_VIEW zone, or DISABLED zone even for admins)
-        // Existing own bookings can still be cancelled, but no new bookings allowed.
-        var hasOwnBooking = false;
-        for (var i of this._bookingsIterator()) {
-            if (i.book.login == this.factory.login) {
-                hasOwnBooking = true;
-                break;
-            }
-        }
-        if (hasOwnBooking) {
-            // Allow cancellation only (CAN_DELETE or CAN_DELETE_EXACT), not rebooking.
-            // Fall through to normal logic to compute isMine/isExact, but then
-            // override the state to prevent CAN_CHANGE / CAN_REBOOK / CAN_BOOK.
-        } else {
-            // No own booking — seat is not bookable, show as view-only or taken.
-            var isFree = true;
-            for (var i of this._bookingsIterator()) {
-                isFree = false;
-                break;
-            }
-            this.state = isFree ? WarpSeat.SeatStates.VIEW_ONLY : WarpSeat.SeatStates.VIEW_ONLY_TAKEN;
-            return this.state;
-        }
-    }
-
     var assignedButNotForMe = false;
+    // (bookForOverride is hoisted above — see the comment near the !this.enabled
+    // check.) Under book-for a seat assigned to someone else, or beyond the
+    // target's days-in-advance window, falls through to CAN_BOOK: the seat then
+    // renders plain green `available` (third-party assignment) or blue
+    // `availableAssigned` (assigned to the target, beyond its window).
 
     if (Object.keys(this.assignments).length > 0) {
 
@@ -409,8 +493,19 @@ WarpSeat.prototype._updateState = function() {
         const hasEveryone = everyoneData !== undefined;
         const userAssignment = this.assignments[this.factory.login];
         const hasUserAssignment = userAssignment !== undefined;
+        const hasSpecificAssignment = Object.keys(this.assignments).some(k => k !== EVERYONE_KEY);
 
-        if (hasUserAssignment || hasEveryone) {
+        if (!this.bookable) {
+            // Under book-for/viewer access, a specific-login assignment (anyone's,
+            // including this acting user's own) is informational only — it never
+            // grants booking rights here, so any named assignee marks the seat as
+            // assigned to someone. An everyone-only assignment names no one, so it
+            // carries no information for a non-booker and is ignored (falls through
+            // to occupancy, i.e. CAN_BOOK below, later demoted to VIEW_ONLY).
+            if (hasSpecificAssignment) {
+                assignedButNotForMe = true;
+            }
+        } else if (hasUserAssignment || hasEveryone) {
             // Compute most-permissive days_in_advance across user's own row and everyone row
             let bestDays;
             if (hasUserAssignment) {
@@ -430,15 +525,26 @@ WarpSeat.prototype._updateState = function() {
                 // server-anchored: service timezone may differ from the client's
                 var cutoffTs = window.warpGlobals.today + (bestDays + 1) * 24 * 3600;
                 if (this.factory.selectedDates.some(d => d.fromTS >= cutoffTs)) {
-                    this.state = WarpSeat.SeatStates.ASSIGNED;
-                    return this.state;
+                    if (bookForOverride) {
+                        // Book-for overrides the days-in-advance window
+                        // (apply() skips 110 under is_book_for): fall through
+                        // to CAN_BOOK (green available / availableAssigned).
+                    } else {
+                        this.state = WarpSeat.SeatStates.ASSIGNED;
+                        return this.state;
+                    }
                 }
             }
             // dates are within window — fall through to booking state
         } else {
             // Specific assignment(s) exist, but not for this user and no everyone row.
-            // The seat is effectively assigned to others; still show as booked if it is.
-            assignedButNotForMe = true;
+            if (bookForOverride) {
+                // Book-for overrides the assignment check (apply() skips 106
+                // under is_book_for): fall through to CAN_BOOK (green available).
+            } else {
+                // The seat is effectively assigned to others; still show as booked if it is.
+                assignedButNotForMe = true;
+            }
         }
     }
 
@@ -498,13 +604,17 @@ WarpSeat.prototype._updateState = function() {
     else
         this.state = WarpSeat.SeatStates.TAKEN;
 
-    // For non-bookable seats with own bookings, only allow cancellation.
-    // Clamp CAN_CHANGE / CAN_REBOOK / CAN_BOOK → CAN_DELETE.
-    if (!this.bookable && this.state != WarpSeat.SeatStates.CAN_DELETE_EXACT) {
-        if (this.state == WarpSeat.SeatStates.CAN_CHANGE ||
-            this.state == WarpSeat.SeatStates.CAN_DELETE) {
-            this.state = WarpSeat.SeatStates.CAN_DELETE;
-        }
+    // Demote the one action state for !bookable seats (view-only zones, or
+    // book-for into a zone the actor doesn't administer): occupancy/assignment
+    // states are permission-independent, `bookable` only demotes CAN_BOOK.
+    // CAN_CHANGE (own booking, non-exact) is NOT demoted — a pure shrink is
+    // always allowed (apply()'s is_pure_shrink bypass + plan.js
+    // isSelectionShrinkOfMine), so the blue "yoursChange" icon and the Update
+    // action stay even in a view-only zone. CAN_REBOOK doesn't exist yet here
+    // — it's set in _updateView only for CAN_BOOK, which is already demoted
+    // below, so it can never fire for a !bookable seat.
+    if (!this.bookable && this.state == WarpSeat.SeatStates.CAN_BOOK) {
+        this.state = WarpSeat.SeatStates.VIEW_ONLY;
     }
 
     return this.state;
@@ -515,13 +625,13 @@ WarpSeat.prototype._updateState = function() {
 // VIEW_ONLY side-effects applied in _updateView below.
 function spriteFor(state, assignedToMe) {
     switch (state) {
-        case WarpSeat.SeatStates.CAN_BOOK:        return assignedToMe ? 'availableAssigned' : 'available';
+        case WarpSeat.SeatStates.CAN_BOOK:
+            return assignedToMe ? 'availableAssigned' : 'available';
         case WarpSeat.SeatStates.CAN_REBOOK:     return assignedToMe ? 'rebookAssigned'    : 'rebook';
         case WarpSeat.SeatStates.CAN_CHANGE:      return 'yoursChange';
         case WarpSeat.SeatStates.CAN_DELETE_EXACT: return 'yours';
-        case WarpSeat.SeatStates.CAN_DELETE:
-        case WarpSeat.SeatStates.TAKEN:
-        case WarpSeat.SeatStates.VIEW_ONLY_TAKEN:   return 'taken';
+        case WarpSeat.SeatStates.CAN_DELETE:      return 'taken';
+        case WarpSeat.SeatStates.TAKEN:            return 'taken';
         case WarpSeat.SeatStates.ASSIGNED:        return 'assigned';
         case WarpSeat.SeatStates.VIEW_ONLY:
         case WarpSeat.SeatStates.DISABLED:
@@ -543,15 +653,24 @@ WarpSeat.prototype._updateView = function() {
 
     switch (this.state) {
         case WarpSeat.SeatStates.CAN_BOOK:
-            if (!this.bookable)
-                this.state = WarpSeat.SeatStates.VIEW_ONLY;
-            else if (this.factory._conflictCount(this.exclusivityKey) > 0)
+            // !bookable seats never reach _updateView as CAN_BOOK — they were
+            // already demoted to VIEW_ONLY at the end of _updateState.
+            if (this.factory._conflictCount(this.exclusivityKey) > 0)
                 this.state = WarpSeat.SeatStates.CAN_REBOOK;   // conflict map is final here
             break;
         // all other states are already final from _updateState
     }
 
     this.sprite = spriteFor(this.state, assignedToMe);
+
+    // Book-for override of a seat-level disable: the disabled seat ran the
+    // normal pipeline (so its state drives the click actions — book / update /
+    // release) but the ICON stays the grey "unavailable" X as a visual cue that
+    // the seat is off. Only under book-for in an administered zone. (With no
+    // dates selected the state is NOT_AVAILABLE, whose sprite is already
+    // 'unavailable', so deriving the override here is safe for every state.)
+    if (!this.enabled && this._isBookForOverride())
+        this.sprite = 'unavailable';
 }
 
 WarpSeat.prototype._destroy = function() {

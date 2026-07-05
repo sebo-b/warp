@@ -72,7 +72,7 @@ export async function transition(pathname, search) {
     // 2. Await the previous view's unmount, then clear the mount point.
     // Null the handle BEFORE awaiting it: two rapid navigations could both
     // observe a non-null currentUnmount and double-invoke the same unmount
-    // (double table.destroy()/om.destroy()/BookAs.reset()), where the second
+    // (double table.destroy()/om.destroy()/BookFor.reset()), where the second
     // throw is swallowed by the catch below and any teardown after it is
     // silently skipped (leaked observers/sliders across the navigation).
     var prevUnmount = currentUnmount;
@@ -151,7 +151,7 @@ export async function transition(pathname, search) {
           // a slow getContext): the just-returned unmount is NOT assigned to
           // currentUnmount (the seq check below would skip it), so without
           // invoking it here B's OfficeMap listeners/theme observer leak
-          // permanently and its PlanUserData/BookAs singletons stay init'd,
+          // permanently and its PlanUserData/BookFor singletons stay init'd,
           // then C's mount throws "already initialized" -> "Page not found".
           // Tear B down now so C mounts clean.
           currentController = null;

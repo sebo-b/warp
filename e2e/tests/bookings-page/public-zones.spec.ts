@@ -55,7 +55,7 @@ test.describe('bookings page — public zone visibility', () => {
     ).toBeVisible();
   });
 
-  test('PUBLIC_VIEW: unassigned user sees own booking but cannot delete (rw=false)', async ({ page }) => {
+  test('PUBLIC_VIEW: unassigned user sees own booking and can delete (own booking always releasable)', async ({ page }) => {
     await setZoneType(1, ZONE_TYPE_PUBLIC_VIEW);
 
     const [seat] = await getZoneSeats(1);
@@ -67,10 +67,12 @@ test.describe('bookings page — public zone visibility', () => {
 
     await expect(page.locator('.tabulator-row')).toHaveCount(1);
     await expect(page.locator('.tabulator-row').first()).toContainText(seat.name);
-    // PUBLIC_VIEW grants VIEWER only → rw=false → no delete icon
+    // PUBLIC_VIEW grants VIEWER only, but a user can always release their
+    // OWN booking (apply()'s remove bypasses the zone-admin check for own
+    // bookings) → rw=true → delete icon visible.
     await expect(
       page.locator('.tabulator-row').first().locator('.material-icons.warp-icon-danger'),
-    ).toHaveCount(0);
+    ).toBeVisible();
   });
 
   test('PUBLIC_BOOK: unassigned user sees another user booking but cannot delete (rw=false)', async ({ page }) => {

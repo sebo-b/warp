@@ -24,7 +24,7 @@ definitions see [GLOSSARY.md](GLOSSARY.md).
 
 - `dates`: a list of `{fromTS, toTS}` slots (absolute unix seconds). There may be
   several slots, possibly spanning several days.
-- `login` (optional): book _as_ this user instead of yourself (see §3).
+- `login` (optional): book _for_ this user instead of yourself (see §3).
 
 **Response** (HTTP 200) is a report with four buckets:
 
@@ -43,41 +43,69 @@ overlapping slots in the request or a database conflict at commit time.
 
 ## 2. Permission gate (the `autoBook` endpoint)
 
-Auto-book is **always a regular-user action**: the seat it picks is one the
-**subject** of the booking could have picked themselves. Roles are equal here —
-there is **no** site-admin super-user bypass and **no** confinement to "the zones
-the actor administers". The actor's role only governs _who may book for whom_:
+- **Booking for yourself** (`login` omitted) → always allowed, and always a
+  regular-user action: the seat picked is one you could have picked yourself —
+  no site-admin super-user bypass, no confinement to zones you merely oversee.
+- **Booking for another user** (`login` differs) → only a **site admin** or a
+  **zone admin of at least one zone on this plan** may do this. Unlike
+  self-booking, this is a book-for operation performed under the **actor's**
+  zone-admin authority: the seat pool (and the set of the target's bookings that
+  may be released to make room) is confined to the zones the **actor**
+  administers (unconfined for a site admin — see §3). Within that pool the
+  target only needs to be a **member** of the zone (any role, viewers
+  included) — not `zone_role ≤ user` — for the request to be accepted at all.
+  A regular user may never book for someone else (`403`, code 104).
+- **This does not relax seat-level assignments.** The algorithm still only ever
+  picks a seat the target is eligible for by assignment (§3) — auto-book never
+  auto-places someone on a seat assigned to a different person, for either
+  self-book or book-for. That override is manual-book-for-only, where an admin
+  deliberately picks the exact seat with full knowledge of what it's assigned
+  to (PERMISSIONS.md §8) — auto-book's heuristic has no such context and must
+  not silently displace a third party's dedicated desk.
 
-- **Booking for yourself** (`login` omitted) → always allowed. Seat selection
-  acts as you.
-- **Booking as another user** (`login` differs) → only a **site admin** or a
-  **zone admin of at least one zone on this plan** may do this. Once allowed, seat
-  selection acts entirely as the **target** user (see §3) — the actor's own zones
-  are irrelevant. A regular user may never book as someone else (`403`, code 104).
+The plan must also contain at least one eligible zone for the request (the
+subject's own zones for self-booking; the actor's administered zones,
+intersected with the target's membership, for book-for); otherwise the request
+is rejected (`403`, code 104).
 
-The plan must also contain at least one zone the **subject** can book in;
-otherwise the request is rejected (`403`, code 104).
-
-> This is intentionally more permissive than **manual** book-as, which also
-> requires the actor to administer the _specific seat's_ zone. Auto-book-as only
-> requires admin standing on the plan, because the seat it ultimately picks is —
-> by construction — always one the target could have booked on their own.
+> This mirrors **manual** book-for (PERMISSIONS.md §8) only on the zone-admin/
+> membership gate: both require the actor to administer the zone and only
+> require target membership, not `zone_role ≤ user`. It does **not** mirror
+> manual book-for's assignment override (see above and §3).
 
 ---
 
 ## 3. Whose seats, whose access
 
-`runAutoBook(login, pid, dates)` selects seats that the **subject `login`** is
-allowed to book — and **only** those:
+`runAutoBook(login, pid, dates, allowedZids, releaseZids, is_book_for)` selects
+seats from:
 
-- enabled seats, in non-disabled zones, where the subject has `zone_role ≤ user`
-  (this includes zones they administer, since admin ≤ user numerically); **plus**
+- enabled seats, in non-disabled zones, where the subject has a
+  `user_to_zone_roles` row for the zone — and, **unless `is_book_for`**, that
+  role must be `≤ user` (this includes zones they administer, since admin ≤
+  user numerically); **plus**
 - all enabled seats in **public-book** zones (everyone may book those).
 
-This is the subject's _regular_ access — exactly what they would get if they
-clicked "find me a seat" themselves. For a book-as call the subject is the
-**target** user, so the target can never be placed on a seat they could not have
-booked on their own. The actor's roles never widen (or narrow) this pool.
+For self-booking this is exactly the subject's regular access — what they'd
+get clicking "find me a seat" themselves, scoped to the zones they can
+actually book in (`is_book_for` is false, so the `≤ user` filter applies).
+
+For book-for, the **subject** is the target user, `is_book_for` is true, and
+the seat pool is additionally filtered by `allowedZids` to the zones the
+**actor** administers (`releaseZids` confines which of the target's existing
+bookings may be displaced the same way — see §2). Within `allowedZids`, the
+`≤ user` filter is dropped: the target merely needs a membership row, so a
+viewer in one of the actor's administered zones is a valid auto-book target
+there. The target is never placed in a zone the actor doesn't administer, and
+never in a zone they aren't at least a member of.
+
+`is_book_for` only affects that zone-role gate. The seat-level assignment
+classification below it (`seatInfo`: `none` / `direct` / `everyone` /
+`blocked`) is computed identically for self-book and book-for — a seat
+assigned to a login other than the subject, with no `everyone` row, is
+`blocked` and excluded from the candidate pool either way. Only **manual**
+book-for (`apply()`) skips the assignment check; the auto-book heuristic never
+does.
 
 All of this is scoped to the **plan named in the request** (`pid`) — i.e. the
 plan currently open in the UI. Auto-book only ever considers the zones and seats

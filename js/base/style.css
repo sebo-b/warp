@@ -482,16 +482,16 @@ nav .dropdown-content li > span {
     margin: 0 32px;
 }
 
-.book-as_container {
+.book-for_container {
     padding-top: 4px;
 }
-/* The "Book as" autocomplete in the zone sidepanel. Keep it as a clean
+/* The "Book for" autocomplete in the zone sidepanel. Keep it as a clean
    underline-style input (no filled box) but give it enough height so the
    value and label don't overlap or look cramped in the narrow panel. */
-.book-as_container.input-field {
+.book-for_container.input-field {
     margin-top: 0;
 }
-.book-as_container .book-as_input {
+.book-for_container .book-for_input {
     background-color: transparent;
     border: none;
     border-bottom: 1px solid var(--warp-grey-muted);
@@ -503,8 +503,8 @@ nav .dropdown-content li > span {
     color: var(--warp-text);
     font-size: 1rem;
 }
-.book-as_container.input-field > label,
-.book-as_container.input-field > label.active {
+.book-for_container.input-field > label,
+.book-for_container.input-field > label.active {
     position: absolute;
     top: 2px;
     left: 0 !important;
@@ -513,7 +513,7 @@ nav .dropdown-content li > span {
     font-size: 0.75rem;
     color: var(--warp-grey-text);
 }
-.book-as_container .book-as_input:focus {
+.book-for_container .book-for_input:focus {
     border-bottom-color: var(--warp-primary);
     outline: none;
 }
@@ -1161,14 +1161,14 @@ nav .dropdown-content li > span {
 .plan_sidepanel_topcontainer {
     display: flex;
     flex-direction: row;
-    flex: 0 0 auto;            /* book-as (+ close) pinned at the top */
-    margin-bottom: var(--warp-space-3);   /* gap between the book-as row and the calendar widget (point 4) */
+    flex: 0 0 auto;            /* book-for (+ close) pinned at the top */
+    margin-bottom: var(--warp-space-3);   /* gap between the book-for row and the calendar widget (point 4) */
 }
 
 .plan_datetime_container {
     display: flex;
     flex-direction: column;    /* slider on top, calendar below (point 2) */
-    flex: 1 1 auto;            /* fill the panel below the book-as row */
+    flex: 1 1 auto;            /* fill the panel below the book-for row */
     min-height: 0;            /* so the calendar grid can scroll instead of growing the panel */
     gap: var(--warp-space-3);  /* padding between the slider and the calendar */
 }

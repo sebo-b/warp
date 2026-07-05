@@ -74,7 +74,11 @@ test.describe('zone assignment', () => {
     await page.waitForLoadState('networkidle');
     await expect(page.locator('#planmap')).toBeVisible();
     await expect(page.locator('#auto_book_btn')).toHaveCount(0);
-    await expect(page.locator('#action_modal')).toHaveCount(0);
+    // The action modal HTML stays in the DOM for viewers so a pure viewer can
+    // still release their OWN booking from the plan map; the click handler
+    // opens it only for actionable seats (same rationale as the equivalent
+    // assertion in booking/zone-permissions.spec.ts).
+    await expect(page.locator('#action_modal')).toHaveCount(1);
   });
 
   test('viewer-role user cannot book via API (code 104)', async ({ page }) => {

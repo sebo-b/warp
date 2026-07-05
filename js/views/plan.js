@@ -6,7 +6,7 @@ import WarpModal from './modules/modal.js';
 import {WarpSeatFactory,WarpSeat,EVERYONE_KEY} from './modules/seat.js';
 import { OfficeMap } from './modules/officeMap.js';
 import PlanUserData from './modules/planuserdata.js';
-import BookAs from './modules/bookas.js';
+import BookFor from './modules/bookfor.js';
 import { WarpCalendar } from './modules/calendarGrid.js';
 import { M } from '../app/materialize.js';
 import warpDialog from '../app/dialog.js';
@@ -438,9 +438,15 @@ export async function mount(ctx) {
 
     function initActionMenu(seatFactory) {
 
-        if (window.warpGlobals.isZoneViewer)
-            return;
-
+        // isZoneViewer no longer bails out: a pure viewer can still release
+        // their OWN booking from the plan map (CAN_DELETE/CAN_DELETE_EXACT →
+        // 'delete'). The click handler's state machine already opens no modal
+        // for non-actionable seats (VIEW_ONLY/NOT_AVAILABLE early-return;
+        // TAKEN/ASSIGNED push no action and isMyZoneAdmin() is false for a
+        // viewer so no seat-edit → actions empty → return before open()).
+        // Booking actions (book/rebook) can't fire for !bookable seats, and
+        // the auto-book FAB + book-for input stay hidden for viewers via their
+        // own data-requires/isZoneViewer gates.
         var seat = null;    // used for passing seat to btn click events (closure)
         var assignedData = [];
 
@@ -632,12 +638,21 @@ export async function mount(ctx) {
 
             var state = this.getState();
 
-            if (state == WarpSeat.SeatStates.NOT_AVAILABLE || state == WarpSeat.SeatStates.VIEW_ONLY || state == WarpSeat.SeatStates.VIEW_ONLY_TAKEN)
+            if (state == WarpSeat.SeatStates.NOT_AVAILABLE || state == WarpSeat.SeatStates.VIEW_ONLY)
                 return;
 
             var actions = [];
             var bookMsg = false;
             var removeMsg = false;
+            var blockedMsg = false;
+            var foreignRelease = false;
+            // Under book-for, the "own" states (CAN_CHANGE / CAN_DELETE /
+            // CAN_DELETE_EXACT) are the TARGET's bookings. Releasing one is a
+            // foreign release that apply() only allows in a zone the actor
+            // administers (seatsReqZoneAdmin). In a non-administered (!bookable)
+            // zone the release would 403 — don't offer a doomed action (mirrors
+            // the CAN_REBOOK hasUnmanageableConflict guard).
+            var bookForForeignRelease = this.factory.login !== window.warpGlobals.login && !this.bookable;
 
             switch (state) {
                 case WarpSeat.SeatStates.CAN_BOOK:
@@ -645,20 +660,62 @@ export async function mount(ctx) {
                     bookMsg = true;
                     break;
                 case WarpSeat.SeatStates.CAN_CHANGE:
-                    actions.push('delete');
-                    // no break here
-                case WarpSeat.SeatStates.CAN_REBOOK:
-                    actions.push('update');
-                    bookMsg = removeMsg = true;
-                    break;
                 case WarpSeat.SeatStates.CAN_DELETE:
                 case WarpSeat.SeatStates.CAN_DELETE_EXACT:
+                    if (bookForForeignRelease) break;   // target's booking in a non-administered zone — release would 403
+                    // Delete/update remove the acting user's conflicting
+                    // bookings across the whole zone group. Under book-for
+                    // that set can include the target's booking in a zone the
+                    // actor doesn't administer — apply() 403s that foreign
+                    // remove (code 102) and rolls the whole request back, so
+                    // explain instead of offering a doomed action (same guard
+                    // as CAN_REBOOK below; false outside book-for).
+                    if (seatFactory.hasUnmanageableConflict(this)) {
+                        blockedMsg = true;
+                        break;
+                    }
                     actions.push('delete');
                     removeMsg = true;
+                    // Update extends/changes the booking — only offer it where
+                    // the actor may book (this.bookable) or the selection is a
+                    // pure shrink of an own booking (always allowed, even in a
+                    // view-only / DISABLED zone — apply()'s is_pure_shrink).
+                    if (state == WarpSeat.SeatStates.CAN_CHANGE &&
+                            (this.bookable || this.isSelectionShrinkOfMine())) {
+                        actions.push('update');
+                        bookMsg = true;
+                    }
+                    break;
+                case WarpSeat.SeatStates.CAN_REBOOK:
+                    // Under book-for, updating this free seat would release the
+                    // target's conflicting booking elsewhere in the zone group.
+                    // If that booking is outside the zones we administer, apply()
+                    // rejects the release (403/102) and the whole request rolls
+                    // back — don't offer an action that's guaranteed to fail.
+                    if (seatFactory.hasUnmanageableConflict(this)) {
+                        blockedMsg = true;
+                    } else {
+                        actions.push('update');
+                        bookMsg = removeMsg = true;
+                    }
+                    break;
+                case WarpSeat.SeatStates.TAKEN:
+                    // A zone admin may release another user's booking on a seat
+                    // in a zone they administer (apply()'s remove requires
+                    // per-seat zone-admin for foreign bookings). Non-admins get
+                    // no action — TAKEN stays informational.
+                    if (this.isMyZoneAdmin()) {
+                        actions.push('delete');
+                        removeMsg = true;
+                        foreignRelease = true;
+                    }
                     break;
             };
 
-            if (window.warpGlobals.isZoneAdmin) {
+            // Per-seat check: isZoneAdmin is plan-wide (true if the actor admins
+            // ANY zone on the plan), which would otherwise offer seat-edit (and
+            // its always-403 save) on seats in zones the actor merely views.
+            if (this.isMyZoneAdmin()) {
                 actions.push('seat-edit');
                 actions.push('seat-edit-save');
             }
@@ -668,6 +725,12 @@ export async function mount(ctx) {
 
             let msg1El = root.querySelector("#action_modal_msg1");
             msg1El.innerHTML = "";
+
+            if (blockedMsg) {
+                let p = document.createElement('P');
+                p.innerText = TR("This seat can't be updated here: the conflicting booking is in a zone you don't administer.");
+                msg1El.appendChild(p);
+            }
 
             if (bookMsg) {
 
@@ -691,11 +754,22 @@ export async function mount(ctx) {
 
             if (removeMsg) {
 
+                // For a zone-admin release of someone else's booking on this
+                // seat, list the foreign booking(s); otherwise the acting
+                // user's own same-group conflicts (an update/delete).
+                var releaseList = foreignRelease
+                    ? this.getForeignBookings()
+                    : seatFactory.getMyConflictingBookings(this);
+
                 var myConflictsTable = document.createElement("table");
-                for (let c of seatFactory.getMyConflictingBookings(this)) {
+                for (let c of releaseList) {
                     let tr = myConflictsTable.appendChild(document.createElement("tr"));
-                    tr.appendChild( document.createElement("td")).innerText = c.zone_name
-                    tr.appendChild( document.createElement("td")).innerText = c.seat_name;
+                    if (foreignRelease) {
+                        tr.appendChild( document.createElement("td")).innerText = c.username;
+                    } else {
+                        tr.appendChild( document.createElement("td")).innerText = c.zone_name
+                        tr.appendChild( document.createElement("td")).innerText = c.seat_name;
+                    }
                     tr.appendChild( document.createElement("td")).innerText = c.datetime1;
                     tr.appendChild( document.createElement("td")).innerText = c.datetime2;
                 }
@@ -712,6 +786,7 @@ export async function mount(ctx) {
             }
 
             seat = this;
+            seat.foreignRelease = foreignRelease;
             actionModal.open();
         });
 
@@ -753,14 +828,19 @@ export async function mount(ctx) {
                 }
 
                 if (window.warpGlobals.isZoneAdmin) {
-                    let login = BookAs.getInstance().getSelectedLogin(true);
+                    let login = BookFor.getInstance().getSelectedLogin(true);
                     if (login !== null)
                         applyData['book']['login'] = login;
                 }
             }
 
             if (this.dataset.action == 'delete' || this.dataset.action == 'update') {
-                applyData['remove'] = seatFactory.getMyConflictingBookings(seat, true);
+                // A zone-admin release of another user's booking (TAKEN seat)
+                // targets that foreign booking's bid, not the acting user's own
+                // same-group conflicts (which an update/own-release removes).
+                applyData['remove'] = (this.dataset.action == 'delete' && seat.foreignRelease)
+                    ? seat.getForeignBookings(true)
+                    : seatFactory.getMyConflictingBookings(seat, true);
             }
 
             // seat-edit-save with no net changes (toggle flipped back, assignments
@@ -868,7 +948,6 @@ export async function mount(ctx) {
             rebook:         'rebook',
             conflict:       'taken',
             viewOnly:       'unavailable',
-            viewOnlyTaken:  'taken',
             userExact:      'yours',
             userRebook:     'yoursChange',
             userConflict:   'taken',
@@ -924,9 +1003,9 @@ export async function mount(ctx) {
         }
     }
 
-    function initBookAs(seatFactory) {
+    function initBookFor(seatFactory) {
 
-        BookAs.getInstance().on('change', function(newLogin) {
+        BookFor.getInstance().on('change', function(newLogin) {
 
             // Full refresh under the new acting login. downloadSeatData adds
             // ?login= when newLogin differs from our own, so the server returns a
@@ -970,7 +1049,7 @@ export async function mount(ctx) {
 
             var payload = { dates: dates };
             if (window.warpGlobals.isZoneAdmin) {
-                let login = BookAs.getInstance().getSelectedLogin(true);
+                let login = BookFor.getInstance().getSelectedLogin(true);
                 if (login !== null)
                     payload['login'] = login;
             }
@@ -1130,7 +1209,7 @@ export async function mount(ctx) {
 
     if (window.warpGlobals.isZoneAdmin) {
         PlanUserData.init();
-        initBookAs(seatFactory);
+        initBookFor(seatFactory);
     }
 
     return function unmount() {
@@ -1143,10 +1222,10 @@ export async function mount(ctx) {
         if (slider && slider.noUiSlider) slider.noUiSlider.destroy();
         // Both are app-wide module singletons (getInstance()) that guard
         // against double-init — a re-mount (this plan again, or a different
-        // one) must clear their state or PlanUserData.init()/initBookAs()
+        // one) must clear their state or PlanUserData.init()/initBookFor()
         // throw "already initialized" instead of loading fresh data.
         if (PlanUserData.instance) PlanUserData.instance.reset();
-        if (BookAs.instance) BookAs.instance.reset();
+        if (BookFor.instance) BookFor.instance.reset();
     };
 }
 

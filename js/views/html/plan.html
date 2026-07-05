@@ -1,6 +1,9 @@
-<!-- Overlays: action_modal/seat_edit_modal are removed in mount() when
-     isZoneViewer/!isZoneAdmin respectively (was a Jinja {% if %} server-side). -->
-<dialog id="action_modal" class="modal bottom-sheet" data-requires="notZoneViewer">
+<!-- Overlays: seat_edit_modal is removed in mount() when !isZoneAdmin (was a
+     Jinja {% if %} server-side). The action_modal stays for viewers so a pure
+     viewer can still release their own booking from the plan map — the click
+     handler only ever offers Release for an own booking (CAN_DELETE*); all
+     other seats are non-actionable and open no modal. -->
+<dialog id="action_modal" class="modal bottom-sheet">
     <!-- Neutral autofocus target: a native <dialog> otherwise focuses the first
          action button on open (an unwanted focus ring on Edit/Book). Focus stays
          inside the dialog (a11y) but on a non-interactive container. -->
@@ -71,7 +74,7 @@
             </tr>
             <tr>
                 <td><div class="help_modal_sprite" data-sprite="userRebook"></div></td>
-                <td class="TR">The seat is booked by you, but not exactly on the selected date or time. You can update; other reservations at that time will be automatically updated.</td>
+                <td class="TR">The seat is booked by you, but not exactly on the selected date or time — click to release it or update it to the selected time.</td>
             </tr>
             <tr>
                 <td><div class="help_modal_sprite" data-sprite="conflict"></div></td>
@@ -83,7 +86,7 @@
             </tr>
             <tr>
                 <td><div class="help_modal_sprite" data-sprite="viewOnly"></div></td>
-                <td class="TR">The seat is not available for booking: no dates selected, disabled, or view-only zone.</td>
+                <td class="TR">The seat is not available for you to book: no dates selected, disabled, or nothing to book in a view-only zone.</td>
             </tr>
         </table>
     </div>
@@ -100,9 +103,9 @@
 
         <div class="plan_sidepanel_topcontainer">
 
-            <div class="input-field book-as_container" data-requires="zoneAdmin">
-                <input type="text" id="book-as" class="autocomplete book-as_input" autocomplete="off">
-                <label for="book-as" class="active TR">Book as</label>
+            <div class="input-field book-for_container" data-requires="zoneAdmin">
+                <input type="text" id="book-for" class="autocomplete book-for_input" autocomplete="off">
+                <label for="book-for" class="active TR">Book for</label>
             </div>
 
             <div class="plan_sidepanel_close">

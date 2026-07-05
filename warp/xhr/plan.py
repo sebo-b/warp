@@ -113,17 +113,19 @@ def getContext(pid):
 #       }
 #   }
 #
-# bookable: true if the relevant user's effective role for this seat's zone is
-#           ≤ ZONE_ROLE_USER (i.e. they can actually book the seat). False for
-#           VIEWER-only access or for seats in DISABLED zones (even if admin there
-#           — disabled zones are fully locked down and should not allow booking
-#           from the UI). The "relevant user" is normally the authenticated user,
-#           but under book-as (?login=target) it is the target user, so the UI
-#           only offers seats apply()/autoBook would actually let them book.
+# bookable: true if the acting user can book this seat. Normally the
+#           authenticated user's effective role for the zone must be
+#           ≤ ZONE_ROLE_USER. False for VIEWER-only access or for seats in
+#           DISABLED zones (even if admin there — disabled zones are fully
+#           locked down). Under book-for (?login=target) the acting user is
+#           the admin, not the target: bookable reflects whether the admin
+#           administers the zone and the target is a member of it, so the UI
+#           only offers seats apply()/autoBook would actually let them book for.
 #
 # Optional query args:
-#   login=string       – view/operate the plan as this login (book-as; requires
-#                        plan admin). Conflict bookings are scoped to this login.
+#   login=string       – book for this login (requires the acting user to
+#                        administer the seat's zone). Conflict bookings are
+#                        scoped to this login.
 def resolve_conflict_bookings(conflict_zids, login, open_tz, tr, exclude_sids=()):
     """Resolve a user's conflicting bookings for the plan being opened.
 
@@ -243,7 +245,7 @@ def getSeats(pid):
     accessible_zids = set(effective_roles.keys())
     is_plan_admin = any(r <= ZONE_ROLE_ADMIN for r in effective_roles.values())
 
-    # Book-as: ?login=target lets a plan admin view and operate the plan as
+    # Book-for: ?login=target lets a plan admin view and operate the plan for
     # another user (requires plan admin). Fetched once and reused below.
     targetLogin = flask.request.args.get('login')
 
@@ -256,7 +258,7 @@ def getSeats(pid):
         # at least one administered zone (non-public) or, for a public plan, the
         # admin has a synthetic row on the public zone and every user has one
         # too — so any non-group user validates.  The view's account_type < 100
-        # filter excludes group logins (more correct for book-as than the old
+        # filter excludes group logins (more correct for book-for than the old
         # any_public branch, which only checked Users.login existence).
         loginInPlan = UserToZoneRoles.select(SQL_ONE) \
             .where(UserToZoneRoles.zid.in_(list(accessible_zids))) \
@@ -266,22 +268,22 @@ def getSeats(pid):
             return {"msg": "Forbidden", "code": 132}, 403
 
     # Whose booking permission decides `bookable`. Normally the authenticated
-    # user. Under book-as (?login=target) the admin views the plan through the
-    # target's eyes, so `bookable` must reflect whether *target* can book each
-    # seat — otherwise seats the target can't book (e.g. VIEWER-only zones) would
-    # look bookable yet apply()/autoBook would reject them (code 104). Visibility
-    # of seats still follows the admin's (effective_roles) access.
-    bookable_roles = effective_roles
+    # user (role <= USER). Under book-for (?login=target) the actor books ON
+    # BEHALF OF the target: `bookable` reflects whether the *actor* administers
+    # the zone (role <= ADMIN) and the target is a member of it — the actor can
+    # override seat-level restrictions (assignments) there, so target role value
+    # doesn't matter, only that a UserToZoneRoles row exists. Visibility of seats
+    # still follows the admin's (effective_roles) access.
+    target_membership_zids = None
     if targetLogin is not None and targetLogin != flask.g.login:
         # Roles from the view are already effective — query once for the target.
-        target_roles = {}
+        target_membership_zids = set()
         if accessible_zids:
-            for row in UserToZoneRoles.select(UserToZoneRoles.zid, UserToZoneRoles.zone_role) \
+            for row in UserToZoneRoles.select(UserToZoneRoles.zid) \
                                       .where(UserToZoneRoles.zid.in_(list(accessible_zids))) \
                                       .where(UserToZoneRoles.login == targetLogin) \
                                       .iterator():
-                target_roles[row['zid']] = row['zone_role']
-        bookable_roles = target_roles
+                target_membership_zids.add(row['zid'])
 
     tr = utils.getTimeRange(tz=plan_tz)
     usedZids = set()
@@ -313,14 +315,18 @@ def getSeats(pid):
         if not s['enabled'] and zone_role > ZONE_ROLE_ADMIN:
             continue
 
-        book_role = bookable_roles.get(zid)
+        if target_membership_zids is not None:
+            bookable = zone_role <= ZONE_ROLE_ADMIN and zid in target_membership_zids \
+                       and zone_type_map[zid] != ZONE_TYPE_DISABLED
+        else:
+            bookable = zone_role <= ZONE_ROLE_USER and zone_type_map[zid] != ZONE_TYPE_DISABLED
         seatD = {
             "name": s['name'],
             "x": s['x'],
             "y": s['y'],
             "zid": zid,
             "enabled": s['enabled'] != 0,
-            "bookable": book_role is not None and book_role <= ZONE_ROLE_USER and zone_type_map[zid] != ZONE_TYPE_DISABLED,
+            "bookable": bookable,
             "book": []
         }
         if s['id'] in assignments:
@@ -397,6 +403,38 @@ def getSeats(pid):
     for i in usedZonesQuery.iterator():
         res['zones'][str(i[0])] = i[1]
         res['zoneGroups'][str(i[0])] = i[2]
+
+    # zoneAdmin reflects the ACTOR's own admin standing (not bookable_roles /
+    # targetLogin) — seat-edit is an admin action performed by the actor
+    # regardless of who book-for is viewing as. The frontend also uses it in
+    # hasUnmanageableConflict() to decide whether a book-for "update" can
+    # release the target's conflicting booking. effective_roles is plan-scoped
+    # (zones ON this plan), but a conflict booking can sit in a same-group zone
+    # on ANOTHER plan, so effective_roles alone would mark an administered
+    # cross-plan conflict zone as not-administered and wrongly block the
+    # update. Query the actor's roles for every zone in the response (plan +
+    # conflict) so cross-plan release confinement is judged correctly. Site
+    # admins administer every zone.
+    if flask.g.isAdmin:
+        admin_zids = set(usedZids)
+    else:
+        # effective_roles already holds the actor's effective role for every
+        # zone on this plan; only zones pulled in by conflict bookings and
+        # absent from it (cross-plan same-group zones) need a fresh role
+        # lookup — in the common case there are none and no query runs.
+        admin_zids = {zid for zid in usedZids
+                      if zid in effective_roles
+                      and effective_roles[zid] <= ZONE_ROLE_ADMIN}
+        crossplan_zids = [zid for zid in usedZids if zid not in effective_roles]
+        if crossplan_zids:
+            admin_zids |= {
+                r['zid'] for r in UserToZoneRoles.select(UserToZoneRoles.zid)
+                    .where(UserToZoneRoles.zid.in_(crossplan_zids))
+                    .where(UserToZoneRoles.login == flask.g.login)
+                    .where(UserToZoneRoles.zone_role <= ZONE_ROLE_ADMIN)
+                    .iterator()
+            }
+    res['zoneAdmin'] = {str(zid): (zid in admin_zids) for zid in usedZids}
 
     usedUsersQuery = Users.select(Users.login, Users.name).where(Users.login.in_(usedUsers)).tuples()
     res['users'] = {str(i[0]): i[1] for i in usedUsersQuery.iterator()}
@@ -511,13 +549,43 @@ def apply():
 
     if 'book' in apply_data:
 
-        if not flask.g.isAdmin:
+        # Pure-shrink bypass: a self update
+        # (no book.login) whose every booked range is fully covered by one of
+        # the actor's own bookings being removed on this seat only narrows an
+        # existing own booking. A shrink never increases exposure, so it skips
+        # every booking check below (role 104, DISABLED zone 104, seat-disabled
+        # 105, assignment 106/110, horizon 103) — release is the shrink-to-zero
+        # case and is already ungated; this generalises it. Book-for is never a
+        # shrink (is_book_for excluded). The remove bids' ownership is verified
+        # server-side by the login filter (do not trust the client).
+        is_pure_shrink = False
+        if 'remove' in apply_data and 'login' not in apply_data['book']:
+            # Book.fromts/tots are seconds-of-day-anchored epochs; the JSON
+            # payload uses fromTS/toTS. r = (id, fromts, tots).
+            own_rows = list(Book.select(Book.id, Book.fromts, Book.tots)
+                                .where(Book.id.in_(apply_data['remove']))
+                                .where(Book.login == flask.g.login)
+                                .where(Book.sid == apply_data['book']['sid'])
+                                .tuples())
+            if own_rows:
+                def _covered(d):
+                    return any(r[1] <= d['fromTS'] and r[2] >= d['toTS'] for r in own_rows)
+                if all(_covered(d) for d in apply_data['book']['dates']):
+                    is_pure_shrink = True
+
+        if not flask.g.isAdmin and not is_pure_shrink:
             for b in apply_data['book']['dates']:
                 if b['fromTS'] < ts["fromTS"] or b['fromTS'] > ts["toTS"] \
                         or b['toTS'] < ts["fromTS"] or b['toTS'] > ts["toTS"]:
                     return {"msg": "Forbidden", "code": 103}, 403
 
         sid = apply_data['book']['sid']
+        # Explicit book.login means book-for: the actor books on behalf of the
+        # target. The actor's zone-admin status for this seat was already
+        # enforced above via seatsReqZoneAdmin (code 102), so here we only
+        # confirm the target is a member of the seat's zone and skip the
+        # seat-level assignment checks (106/110) — a zone admin may override them.
+        is_book_for = 'login' in apply_data['book']
         login = apply_data['book'].get('login', flask.g.login)
 
         seatZone = Seat.select(Seat.enabled, Seat.zid, Zone.zone_type.alias('zone_type')) \
@@ -535,19 +603,29 @@ def apply():
         # bookerRole from the view IS the effective role.
         isSelfAdminBooking = flask.g.isAdmin and login == flask.g.login
 
-        if not isSelfAdminBooking and (bookerRole is None or bookerRole > ZONE_ROLE_USER):
-            return {"msg": "Forbidden", "code": 104}, 403
+        if not isSelfAdminBooking and not is_pure_shrink:
+            # Book-for needs only target membership (any role row); self-book
+            # needs role <= USER.
+            if bookerRole is None or (not is_book_for and bookerRole > ZONE_ROLE_USER):
+                return {"msg": "Forbidden", "code": 104}, 403
 
         # Disabled zones cannot be booked at all — even by admins.
-        # Enable the zone first, then book.
-        if seatZone['zone_type'] == ZONE_TYPE_DISABLED:
+        # Enable the zone first, then book. (A pure shrink is still allowed —
+        # the seat was bookable when the user booked it.)
+        if seatZone['zone_type'] == ZONE_TYPE_DISABLED and not is_pure_shrink:
             return {"msg": "Forbidden", "code": 104}, 403
 
-        if not seatZone['enabled']:
+        if not seatZone['enabled'] and not is_book_for and not is_pure_shrink:
+            # A zone admin may book-for onto a seat they have disabled (they
+            # could re-enable it anyway) — the zone-admin gate already ran via
+            # seatsReqZoneAdmin. Self-booking and pure shrinks are handled by
+            # the is_pure_shrink guard above; this skip is book-for-only.
             return {"msg": "Forbidden", "code": 105}, 403
 
-        assignedQ = SeatAssign.select(SQL_ONE).where(SeatAssign.sid == sid)
-        if assignedQ.scalar() is not None:
+        # Assignment checks (106/110) are skipped for book-for (a zone admin
+        # may override them) and for pure shrinks (always allowed).
+        if not is_book_for and not is_pure_shrink \
+                and SeatAssign.select(SQL_ONE).where(SeatAssign.sid == sid).scalar() is not None:
             myAssignments = list(SeatAssign.select(SeatAssign.days_in_advance)
                                            .where((SeatAssign.sid == sid) &
                                                   ((SeatAssign.login == login) | SeatAssign.login.is_null()))
@@ -723,15 +801,18 @@ autoBookSchema = {
 }
 
 
-def runAutoBook(login, pid, dates, allowedZids=None, releaseZids=None):
+def runAutoBook(login, pid, dates, allowedZids=None, releaseZids=None, is_book_for=False):
     """Core autobook algorithm.
 
     Selects the best seat on the plan (pid) for the given login and dates.
     When allowedZids is given, only seats in those zones are eligible — used to
-    confine a zone admin booking *as* another user to the zones they administer.
+    confine a zone admin booking *for* another user to the zones they administer.
     When releaseZids is given, existing bookings may only be deleted if they are
-    in one of those zones — used to confine the release side of a book-as operation.
+    in one of those zones — used to confine the release side of a book-for operation.
     None means no confinement (current behaviour for self-book / iCal / site admin).
+    When is_book_for is True, the subject's zone role is not required to be
+    <= USER — a zone admin overrides seat-level membership restrictions when
+    booking for someone else, so only membership (a UserToZoneRoles row) matters.
     Returns (result_dict, None) on success or (None, error_code) on failure.
     Error codes: 103 (time out of window), 140 (overlapping dates), 109 (DB conflict), 130 (bad pid).
     """
@@ -784,8 +865,10 @@ def runAutoBook(login, pid, dates, allowedZids=None, releaseZids=None):
         .where(Seat.pid == pid) \
         .where(Seat.enabled == True) \
         .where(Zone.zone_type != ZONE_TYPE_DISABLED) \
-        .where(UserToZoneRoles.login == login) \
-        .where(UserToZoneRoles.zone_role <= ZONE_ROLE_USER)
+        .where(UserToZoneRoles.login == login)
+
+    if not is_book_for:
+        accessibleSeatQ = accessibleSeatQ.where(UserToZoneRoles.zone_role <= ZONE_ROLE_USER)
 
     if allowedZids is not None:
         allowedZidsList = list(allowedZids)
@@ -1054,7 +1137,7 @@ def autoBook(pid):
     payload = flask.request.get_json()
     dates = payload['dates']
     login = payload.get('login', flask.g.login)
-    is_book_as = login != flask.g.login
+    is_book_for = login != flask.g.login
 
     # Zones (with type) that have seats on this plan.
     zone_type_map = {
@@ -1075,12 +1158,12 @@ def autoBook(pid):
             roles[r['zid']] = r['zone_role']
         return roles
 
-    # Confine book-as to zones the actor administers: the seat pool
+    # Confine book-for to zones the actor administers: the seat pool
     # (allowedZids) and the set of bookings that may be released
     # (releaseZids) are both limited to manageableZids.  None means
     # unconfined (self-book, site admin, iCal).
     manageableZids = None
-    if is_book_as and not flask.g.isAdmin:
+    if is_book_for and not flask.g.isAdmin:
         actor_roles = _rolesFor(flask.g.login)
         # Roles from the view are already effective — synthetic public-zone rows
         # are always USER/VIEWER (never ADMIN), so they cannot inflate
@@ -1095,10 +1178,12 @@ def autoBook(pid):
     subject_roles = _rolesFor(login)
     zone_iter = manageableZids if manageableZids is not None else zone_type_map.keys()
     # Roles from the view are already effective; DISABLED is a business rule.
+    # Under book-for, the actor already administers zone_iter (manageableZids)
+    # or is a site admin, so only membership is required — not role <= USER.
     can_book = any(
         zone_type_map[zid] != ZONE_TYPE_DISABLED
         and subject_roles.get(zid) is not None
-        and subject_roles.get(zid) <= ZONE_ROLE_USER
+        and (is_book_for or subject_roles.get(zid) <= ZONE_ROLE_USER)
         for zid in zone_iter
     )
     if not can_book:
@@ -1106,7 +1191,8 @@ def autoBook(pid):
 
     result, err = runAutoBook(login, pid, dates,
                               allowedZids=manageableZids,
-                              releaseZids=manageableZids)
+                              releaseZids=manageableZids,
+                              is_book_for=is_book_for)
 
     if err == 103:
         return {"msg": "Forbidden", "code": 103}, 403

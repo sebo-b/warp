@@ -61,8 +61,8 @@ PlanUserData.prototype.getData = function() {
 }
 
 // Clears loaded data so init() can reload it on a fresh SPA mount (the plan
-// view's unmount() calls this). Deliberately keeps this.listeners — bookas.js
-// wires BookAs to the 'load' event once, at module-import time, against this
+// view's unmount() calls this). Deliberately keeps this.listeners — bookfor.js
+// wires BookFor to the 'load' event once, at module-import time, against this
 // same singleton instance; replacing the instance instead of resetting it
 // would orphan that wiring.
 // Bumps the init generation so an in-flight PlanUserData.init() from a previous

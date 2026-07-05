@@ -2,10 +2,10 @@
 
 import PlanUserData from "./planuserdata";
 
-export default function BookAs() {
+export default function BookFor() {
 
-    if (typeof(BookAs.instance) !== 'undefined')
-        throw Error('BookAs is a singleton');
+    if (typeof(BookFor.instance) !== 'undefined')
+        throw Error('BookFor is a singleton');
 
     this.listeners = {
         init: new Set(),
@@ -14,18 +14,18 @@ export default function BookAs() {
 
     this.changed = false;
 
-    BookAs.instance = this;
+    BookFor.instance = this;
 }
 
-BookAs.getInstance = function() {
+BookFor.getInstance = function() {
 
-    if (typeof(BookAs.instance) === 'undefined')
-        return new BookAs();
+    if (typeof(BookFor.instance) === 'undefined')
+        return new BookFor();
 
-    return BookAs.instance;
+    return BookFor.instance;
 }
 
-BookAs.prototype.on = function (type,listener) {
+BookFor.prototype.on = function (type,listener) {
 
     if (type in this.listeners && typeof(listener) === 'function') {
         this.listeners[type].add(listener);
@@ -39,10 +39,10 @@ BookAs.prototype.on = function (type,listener) {
 }
 
 // if skipMine this function will return null in case my login is selected
-BookAs.prototype.getSelectedLogin = function(skipMine) {
+BookFor.prototype.getSelectedLogin = function(skipMine) {
 
     if (!('selectedLogin' in this))
-        throw Error("BookAs not initialized")
+        throw Error("BookFor not initialized")
 
     if (skipMine && this.zoneUserData.whoami() === this.selectedLogin)
         return null;
@@ -50,10 +50,10 @@ BookAs.prototype.getSelectedLogin = function(skipMine) {
     return this.selectedLogin;
 }
 
-BookAs.prototype._setSelectedLogin = function(login) {
+BookFor.prototype._setSelectedLogin = function(login) {
 
     if (!('selectedLogin' in this))
-        throw Error("BookAs not initialized")
+        throw Error("BookFor not initialized")
 
     if (!(login in this.zoneUserData.data))
         login = this.zoneUserData.whoami();
@@ -64,7 +64,7 @@ BookAs.prototype._setSelectedLogin = function(login) {
     }
 }
 
-BookAs.prototype._callChangeListeners = function() {
+BookFor.prototype._callChangeListeners = function() {
 
     if (this.changed) {
         for (let l of this.listeners['change'])
@@ -74,7 +74,7 @@ BookAs.prototype._callChangeListeners = function() {
 
 }
 
-BookAs.prototype._onBlur = function(e) {
+BookFor.prototype._onBlur = function(e) {
 
     let target = e.target;
 
@@ -88,7 +88,7 @@ BookAs.prototype._onBlur = function(e) {
     }
 }
 
-BookAs.prototype._onAutocomplete = function(el,sel) {
+BookFor.prototype._onAutocomplete = function(el,sel) {
 
     var login = PlanUserData.makeUserStrRev(sel);
     this._setSelectedLogin(login);
@@ -96,7 +96,7 @@ BookAs.prototype._onAutocomplete = function(el,sel) {
     this._callChangeListeners();
 }
 
-BookAs.prototype._onKeyUp = function(e) {
+BookFor.prototype._onKeyUp = function(e) {
 
     let target = e.target;
 
@@ -111,25 +111,25 @@ BookAs.prototype._onKeyUp = function(e) {
     }
 }
 
-BookAs.prototype._init =  function(zoneUserData) {
+BookFor.prototype._init =  function(zoneUserData) {
 
     if ('selectedLogin' in this)
-        throw Error("BookAs can be initialized only once")
+        throw Error("BookFor can be initialized only once")
 
     this.zoneUserData = zoneUserData;
     this.selectedLogin = this.zoneUserData.whoami();
 
-    this.bookAsData = {};
+    this.bookForData = {};
     for (let d of this.zoneUserData.formatedIterator()) {
-        this.bookAsData[ d] = null;
+        this.bookForData[ d] = null;
     }
 
     this.autocompleteInstances = [];
 
-    var bookAsElements = document.getElementsByClassName('book-as_input');
-    for (let el of bookAsElements) {
+    var bookForElements = document.getElementsByClassName('book-for_input');
+    for (let el of bookForElements) {
         this.autocompleteInstances.push( M.Autocomplete.init(el, {
-            data: this.bookAsData,
+            data: this.bookForData,
             dropdownOptions: {
                 constrainWidth: false,
                 container: document.body
@@ -139,7 +139,7 @@ BookAs.prototype._init =  function(zoneUserData) {
         }));
     }
 
-    for (let el of bookAsElements) {
+    for (let el of bookForElements) {
         this._onBlur({target: el});   // show selectedLoginStr
         el.addEventListener('blur',this._onBlur.bind(this));
         el.addEventListener('keyup',this._onKeyUp.bind(this));
@@ -153,14 +153,14 @@ BookAs.prototype._init =  function(zoneUserData) {
 
 // Clears this singleton's per-mount state (the plan view's unmount() calls
 // this) so _init() can run again on the next admin plan mount instead of
-// throwing "can be initialized only once". Its book-as_input DOM elements are
+// throwing "can be initialized only once". Its book-for_input DOM elements are
 // gone already (router.js replaces #view-root wholesale) but their Materialize
 // Autocomplete dropdown panels are appended to document.body — outside
 // #view-root — so they'd leak across navigations without an explicit destroy.
-// Also clears 'change'/'init' listeners: each plan mount's initBookAs()
+// Also clears 'change'/'init' listeners: each plan mount's initBookFor()
 // registers its own; left stale, a second mount would fire the FIRST mount's
 // listener too, calling seatFactory.setLogin() on an abandoned factory.
-BookAs.prototype.reset = function() {
+BookFor.prototype.reset = function() {
     if (this.autocompleteInstances) {
         for (let inst of this.autocompleteInstances) {
             if (inst && typeof inst.destroy === 'function') inst.destroy();
@@ -168,7 +168,7 @@ BookAs.prototype.reset = function() {
     }
     delete this.selectedLogin;
     delete this.zoneUserData;
-    delete this.bookAsData;
+    delete this.bookForData;
     delete this.autocompleteInstances;
     this.changed = false;
     this.listeners['init'].clear();
@@ -176,5 +176,5 @@ BookAs.prototype.reset = function() {
 }
 
 PlanUserData.getInstance().on('load',function(zoneUserData) {
-    BookAs.getInstance()._init(zoneUserData);
+    BookFor.getInstance()._init(zoneUserData);
     });
