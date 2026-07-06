@@ -159,11 +159,14 @@
     margin: 0;
     padding: 4px 0;
     list-style: none;
-    background-color: var(--warp-surface);
-    color: var(--warp-text);
+    background-color: var(--md-sys-color-surface);
+    color: var(--md-sys-color-on-surface);
     border: 1px solid var(--warp-grey-border);
     border-radius: 4px;
-    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+    box-shadow: 0 2px 8px rgba(var(--warp-shadow-rgb), .2);
+    height: fit-content;
+    max-height: 50vh;
+    overflow-y: auto;
 }
 .lang-dropdown li a {
     display: flex;
@@ -185,8 +188,20 @@
    3rem height); the unfolded list reuses the Materialize .dropdown-content
    defaults (padding, min-height, hover) so it matches the Default plan/day
    dropdowns — only display:flex + a sized flag are added. */
-.pref-lang-row { margin-bottom: 8px; }
-.pref-lang-row > label { display: block; font-size: .8rem; color: var(--warp-text); margin-bottom: 4px; }
+.pref-lang-row { margin-bottom: 8px; position: relative; }
+.pref-lang-row > label {
+    position: absolute;
+    top: -8px;
+    left: 16px;
+    margin-left: -4px;
+    padding: 0 4px;
+    transform: scale(0.75);
+    transform-origin: top left;
+    background-color: var(--warp-surface);
+    color: var(--warp-grey-text);
+    font-size: 1rem;
+    z-index: 1;
+}
 .pref-lang-trigger {
     display: flex;
     align-items: center;
@@ -194,18 +209,31 @@
     width: 100%;
     height: 3rem;
     padding: 0 12px;
-    border: 1px solid var(--md-sys-color-outline-variant);
+    border: 1px solid var(--warp-grey-border);
     border-radius: 4px;
     background-color: var(--warp-surface);
     color: var(--warp-text);
     cursor: pointer;
     box-sizing: border-box;
 }
+.pref-lang-trigger:hover,
+.pref-lang-trigger:focus {
+    border-color: var(--warp-primary);
+    outline: none;
+}
 .pref-lang-trigger .pref-lang-flag { width: 20px; height: 15px; border-radius: 2px; flex: none; object-fit: cover; }
 .pref-lang-trigger .pref-lang-name { flex: 1 1 auto; }
-.pref-lang-trigger .pref-lang-caret { margin-left: auto; color: var(--warp-text); }
+.pref-lang-trigger .pref-lang-caret { margin-left: auto; color: var(--warp-grey-text); }
+.pref-lang-dropdown.dropdown-content {
+    box-sizing: border-box;
+    max-width: 100vw;
+}
 .pref-lang-dropdown li > a { display: flex; align-items: center; gap: 8px; }
 .pref-lang-dropdown li > a img { width: 20px; height: 15px; border-radius: 2px; flex: none; object-fit: cover; }
+.pref-lang-dropdown li > a:hover,
+.pref-lang-dropdown li.active > a {
+    background-color: var(--warp-grey-bg);
+}
 /* ---- Affordance classes (replace removed Material palette utilities) ----- */
 /* Materialize 2.x ships no .red/.green/.orange palette classes, so the markup/JS
    that styled delete buttons, delete/edit icons and add FABs now style nothing.
@@ -301,6 +329,9 @@ nav,
     background-size: cover;
     background-repeat: no-repeat;
     background-position: center;
+    /* Anchor the absolutely-centred logo container and any future dropdowns
+       to the bar rather than the viewport. */
+    position: relative;
     /* Only colour transitions: nav text/icons flip between themes, but the
        background may be an image/gradient (which can't interpolate), so it
        swaps instantly on theme toggle rather than crossfading. */
@@ -326,6 +357,24 @@ nav .nav-wrapper li a {
    floats WARP's nav relies on. Restore 1.x block layout so the floats work. */
 .nav-wrapper {
     display: block;
+}
+/* The public-nav logo wrapper is a plain .center div that text-aligns inside
+   the space left by the floated right-hand buttons, so it reads off-centre.
+   Position it absolutely in the middle of the bar so the wordmark is truly
+   centred regardless of the language/theme buttons. */
+.nav-wrapper .center {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    height: 100%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+.nav-wrapper .center .logo {
+    pointer-events: auto;
 }
 
 /* Materialize 2.x dropped the entire classic `nav ul li` bar styling (it ships
@@ -420,17 +469,29 @@ body.keyboard-focused .dropdown-content li:focus {
    the items white-on-white. Re-assert the dropdown's own block layout and
    on-surface colour while it lives inside the nav. (Higher specificity than the
    nav rules: `nav .dropdown-content …` carries a class the nav rules lack.) */
-nav .dropdown-content li {
+nav .dropdown-content li,
+nav .lang-dropdown li {
     float: none;
     display: block;
     height: auto;
 }
 nav .dropdown-content li > a,
-nav .dropdown-content li > span {
-    display: block;
+nav .dropdown-content li > span,
+nav .lang-dropdown li > a {
+    display: flex;
+    align-items: center;
     height: auto;
     line-height: 1.5rem;
     color: var(--md-sys-color-on-surface);
+}
+/* The hand-rolled login language menu lives inside <nav>, so it also inherits
+   `nav ul { height:100% }` and the nav-bar link colour. Reset it to a normal
+   content-sized surface panel. */
+nav .lang-dropdown {
+    height: auto;
+    min-height: unset;
+    max-height: 50vh;
+    overflow-y: auto;
 }
 
 .nav-wrapper DIV,A {
@@ -590,18 +651,22 @@ nav .dropdown-content li > span {
 /* Chips ("Add to group" in the user edit modal). 2.x ships with a minimal
    underline style and a typo in the selector (`.chis input`), so the chip input
    looks broken/missing. Style it as an outlined box matching the other fields:
-   transparent fill, 1px border, and the "Groups" caption notched into the top
-   border (see the .add_to_group_label rule below). */
+   surface fill, light grey border, hover/focus transitions, and the "Groups"
+   caption notched into the top border (see the .add_to_group_label rule below). */
 #edit_modal #add_to_group.chips {
-    background-color: transparent;
-    border: 1px solid var(--md-sys-color-on-surface-variant);
+    background-color: var(--warp-surface);
+    border: 1px solid var(--warp-grey-border);
     border-radius: var(--warp-radius);
     padding: var(--warp-space-2) var(--warp-space-3);
-    min-height: 52px;
+    min-height: 48px;
     margin-bottom: var(--warp-space-2);  /* room so the box border isn't clipped by the row */
     align-items: center;
     box-sizing: border-box;
     overflow: visible;
+    transition: border-color .15s;
+}
+#edit_modal #add_to_group.chips:hover {
+    border-color: var(--warp-grey-text);
 }
 /* Self-managed autocomplete dropdown (js/views/modules/groupChips.js): a plain
    <ul> appended to the dialog (not the chips box — see the module for why) and
@@ -621,7 +686,7 @@ nav .dropdown-content li > span {
 }
 #edit_modal #add_to_group.chips.focus {
     border-color: var(--warp-primary);
-    background-color: transparent;
+    background-color: var(--warp-surface);
     box-shadow: none;
 }
 #edit_modal #add_to_group.chips input.input {
@@ -629,6 +694,7 @@ nav .dropdown-content li > span {
     line-height: 28px;
     background-color: transparent !important;
     border: none !important;
+    outline: none;
     color: var(--warp-text);
     min-width: 120px;
     display: inline-block;
@@ -765,6 +831,10 @@ nav .dropdown-content li > span {
     border-radius: var(--warp-radius-lg);
     color: var(--warp-text);
     max-height: 90vh;
+    /* Let .modal-content own the scrolling; the dialog wrapper itself stays
+       overflow-visible so popover dropdowns appended to it can escape the
+       frame instead of being clipped by the dialog box. */
+    overflow: visible;
 }
 .warp-modal-sm {
     max-width: 560px;
@@ -851,13 +921,48 @@ nav .dropdown-content li > span {
     margin-bottom: var(--warp-space-3);
 }
 .warp-fields .input-field.outlined > input,
+.warp-fields .input-field.outlined > textarea,
 .warp-fields .input-field.outlined .select-wrapper input.select-dropdown {
     height: 3rem;
+    border: 1px solid var(--warp-grey-border);
+    border-radius: var(--warp-radius);
+    background-color: var(--warp-surface);
+    padding: 0 12px;
+    transition: border-color .15s;
+}
+.warp-fields .input-field.outlined > input:hover,
+.warp-fields .input-field.outlined > textarea:hover,
+.warp-fields .input-field.outlined .select-wrapper:hover input.select-dropdown {
+    border-color: var(--warp-grey-text);
+}
+.warp-fields .input-field.outlined > input:focus,
+.warp-fields .input-field.outlined > textarea:focus,
+.warp-fields .input-field.outlined .select-wrapper input.select-dropdown:focus {
+    border-color: var(--warp-primary);
+    box-shadow: none;
 }
 /* Suppress the autofocus primary focus ring on the select trigger. */
 .warp-fields .select-wrapper:focus-within,
 .warp-fields .select-wrapper input.select-dropdown:focus {
     outline: none !important;
+}
+/* M2's default outlined FormSelect trigger is transparent with a dark grey
+   border and a caret hugging the right edge. Align it with the custom language
+   picker: light grey border, subtle hover darkening, and a caret inset by the
+   same padding as the value text so it no longer touches the frame. */
+.warp-fields .select-wrapper input.select-dropdown {
+    border: 1px solid var(--warp-grey-border);
+    border-radius: 4px;
+    background-color: var(--warp-surface);
+    padding-right: 40px;
+    transition: border-color .15s;
+}
+.warp-fields .select-wrapper:hover input.select-dropdown {
+    border-color: var(--warp-grey-text);
+}
+.warp-fields .select-wrapper .caret {
+    right: 12px;
+    color: var(--warp-grey-text);
 }
 /* Select + autocomplete menus read as elevated floating panels. */
 .warp-fields .dropdown-content.select-dropdown,

@@ -54,11 +54,13 @@ export function initPrefs() {
     langInstance = M.Dropdown.init(langTriggerEl, {
       container: prefModalEl,
       coverTrigger: false,
-      constrainWidth: false
+      constrainWidth: true
     });
     // Selecting a language updates the trigger, marks the modal dirty, closes
     // the dropdown. (Delegated click on the dropdown-content, which lives in
-    // the modal thanks to `container` above.)
+    // the modal dialog so it shares the modal's top layer; the dialog wrapper
+    // is overflow-visible so the menu can escape the frame rather than being
+    // clipped.)
     langDropdownEl.addEventListener('click', function (ev) {
       var a = ev.target.closest && ev.target.closest('a.pref-lang-opt');
       if (!a) return;
