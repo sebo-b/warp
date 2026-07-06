@@ -40,8 +40,6 @@ services:
       WARP_DATABASE_USER: "postgres"
       WARP_DATABASE_PASSWORD_FILE: /run/secrets/warp_db_password
       WARP_SECRET_KEY_FILE: /run/secrets/warp_secret_key
-      WARP_LANGUAGES: '["en","de","fr","es","pl"]'
-      WARP_DEFAULT_LANGUAGE: "en"
       # uWSGI endpoints, mirroring the Quadlet setup: disable the binary uWSGI
       # socket (empty value) so only the HTTP unix socket that Caddy proxies to
       # over the shared /run/warp volume remains. The HTTP socket already defaults

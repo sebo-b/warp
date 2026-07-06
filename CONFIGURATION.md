@@ -187,6 +187,11 @@ by name; there is no `Default` entry — a user with no stored preference follow
 `DEFAULT_LANGUAGE` (shown applied, not selectable), so a later `DEFAULT_LANGUAGE`
 change still reaches them. Picking any language pins it.
 
+> **Breaking change:** the former `WARP_LANGUAGE_FILE` (single deployment-wide
+> file) is removed. If still set, it is **silently ignored** (a startup warning
+> on stderr only) and the UI falls back to `DEFAULT_LANGUAGE` (`en`). Migrate by
+> setting `WARP_LANGUAGES` (a JSON array) and `WARP_DEFAULT_LANGUAGE` instead.
+
 The iCal feed and action pages render in the owner's resolved language (a NULL
 pref falls back to `DEFAULT_LANGUAGE`).
 
