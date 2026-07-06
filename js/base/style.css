@@ -137,6 +137,49 @@
 :root[data-theme-choice="dark"]  .warp-theme-toggle .tg-moon,
 :root[data-theme-choice="auto"]  .warp-theme-toggle .tg-auto { display: inline; }
 
+/* Login top-bar language dropdown (hand-rolled — the public bundle ships no
+   Materialize JS, so this is not an M.Dropdown). Sits left of the theme toggle. */
+.lang-menu { position: relative; }
+.lang-trigger {
+    background: none;
+    border: none;
+    padding: 0 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    height: 100%;
+}
+.lang-trigger img { display: block; border-radius: 2px; }
+.lang-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 1000;
+    min-width: 160px;
+    margin: 0;
+    padding: 4px 0;
+    list-style: none;
+    background-color: var(--warp-surface);
+    color: var(--warp-text);
+    border: 1px solid var(--warp-grey-border);
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+}
+.lang-dropdown li a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    height: auto;
+    white-space: nowrap;
+    color: var(--warp-text);
+}
+.lang-dropdown li a img { border-radius: 2px; flex: none; }
+.lang-dropdown li a:hover,
+.lang-dropdown li a.active {
+    background-color: var(--warp-grey-bg);
+}
+
 /* ---- Affordance classes (replace removed Material palette utilities) ----- */
 /* Materialize 2.x ships no .red/.green/.orange palette classes, so the markup/JS
    that styled delete buttons, delete/edit icons and add FABs now style nothing.

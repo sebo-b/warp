@@ -11,6 +11,7 @@ from time import gmtime, strftime, strptime
 from zoneinfo import ZoneInfo
 
 from warp import utils
+from warp import i18n
 from warp.db import UserPrefs, Book, Seat, SeatAssign, Zone, Plan, CalendarCache
 from peewee import fn
 
@@ -39,10 +40,17 @@ def _load_phrases_from_file(json_path):
         return {}
 
 
-def _ical_phrases():
-    lang_file = flask.current_app.config.get('LANGUAGE_FILE', '')
+def _ical_phrases(login=None):
+    # Feed generation passes the owner login (token-based, no requester
+    # session) and resolves owner pref > default. The action page passes no
+    # login and resolves via the request (cookie/prefs) context.
+    if login is not None:
+        default = flask.current_app.config['DEFAULT_LANGUAGE']
+        code = i18n.resolve(None, i18n.user_language(login), default)
+    else:
+        code, _ = i18n.resolve_language_for_request()
     static = flask.current_app.static_folder
-    phrases = _load_phrases_from_file(os.path.join(static, lang_file))
+    phrases = _load_phrases_from_file(os.path.join(static, 'i18n', code + '.json'))
     if not phrases:
         phrases = _load_phrases_from_file(os.path.join(static, 'i18n/en.json'))
     return phrases
@@ -517,7 +525,7 @@ def _get_or_cache(login, ical_token, now_ts, today_ts, type_):
     if row is not None and row['day'] == cache_day:
         return row['ics']
 
-    phrases = _ical_phrases()
+    phrases = _ical_phrases(login)
 
     if type_ == ICAL_TYPE_BOOKINGS:
         vevents, tz_spans = _generate_bookings_vevents(login, ical_token, now_ts, phrases)

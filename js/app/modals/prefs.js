@@ -23,6 +23,7 @@ export function initPrefs() {
   var showSeatNamesEl = document.getElementById('pref_zone_show_seat_names');
   var showBookingPreviewEl = document.getElementById('pref_zone_show_booking_preview');
   var showAssignedNamesEl = document.getElementById('pref_zone_show_assigned_names');
+  var langSelectEl = document.getElementById('pref_language');
 
   if (!prefModalEl || !planSelectEl || !daySelectEl || !saveBtn || !sliderEl)
     return;
@@ -33,6 +34,7 @@ export function initPrefs() {
 
   var DEFAULT_TIME = [9 * 3600, 17 * 3600];
   var loadedPrefs = null;
+  var loadedLang = null;  // normalized: null = Default; tracked for reload-only-if-changed
   var slider = null;
 
   // The <option> list used to be Jinja-rendered server-side from
@@ -63,6 +65,11 @@ export function initPrefs() {
     if (showSeatNamesEl) showSeatNamesEl.checked = loadedPrefs ? loadedPrefs.zone_show_seat_names : false;
     if (showBookingPreviewEl) showBookingPreviewEl.checked = loadedPrefs ? loadedPrefs.zone_show_booking_preview : false;
     if (showAssignedNamesEl) showAssignedNamesEl.checked = loadedPrefs ? loadedPrefs.zone_show_assigned_names : false;
+    loadedLang = loadedPrefs ? (loadedPrefs.language || null) : null;
+    if (langSelectEl) {
+      langSelectEl.value = loadedLang != null ? loadedLang : "";
+      initFormSelect(langSelectEl, SELECT_OPTS);
+    }
   }
 
   function ensureSlider() {
@@ -128,7 +135,8 @@ export function initPrefs() {
       default_time: slider.get(true).map(function (v) { return Math.round(v); }),
       zone_show_seat_names: showSeatNamesEl ? showSeatNamesEl.checked : false,
       zone_show_booking_preview: showBookingPreviewEl ? showBookingPreviewEl.checked : false,
-      zone_show_assigned_names: showAssignedNamesEl ? showAssignedNamesEl.checked : false
+      zone_show_assigned_names: showAssignedNamesEl ? showAssignedNamesEl.checked : false,
+      language: (langSelectEl && langSelectEl.value) ? langSelectEl.value : null
     };
     if (extraPayload) Object.assign(payload, extraPayload);
 
@@ -158,9 +166,26 @@ export function initPrefs() {
   }
 
   saveBtn.addEventListener('click', function () {
+    var prevLang = loadedLang;
     postPrefs(null, function (err) {
       if (err) {
         M.toast({ text: TR('Error saving preferences') });
+        return;
+      }
+      // Reload only if the language actually changed (normalized compare:
+      // "" and null are the same Default). The server sets/deletes the cookie
+      // too, but the client must do it before the reload so the new page paints
+      // in the chosen language immediately. Mirror the pending-toast pattern
+      // from main.js so the "Preferences saved" toast survives the reload.
+      var newLang = (langSelectEl && langSelectEl.value) ? langSelectEl.value : null;
+      if (newLang !== prevLang) {
+        if (newLang != null) {
+          document.cookie = 'warp_lang=' + newLang + ';path=/;max-age=31536000;samesite=lax';
+        } else {
+          document.cookie = 'warp_lang=;path=/;max-age=0';
+        }
+        window.sessionStorage.setItem('pendingToast', TR('Preferences saved'));
+        window.location.reload();
       } else {
         M.toast({ text: TR('Preferences saved') });
       }

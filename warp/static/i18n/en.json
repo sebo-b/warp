@@ -1,5 +1,7 @@
 {
     "locale": "en",
+    "name": "English",
+    "flag": "gb.svg",
     "weekdaysShort": [
         "Sun",
         "Mon",
@@ -291,6 +293,8 @@
         "Today if before start time, otherwise tomorrow": "Today if before start time, otherwise tomorrow",
         "Default day": "Default day",
         "Default time": "Default time",
+        "Language": "Language",
+        "Default": "Default",
         "Calendar integration": "Calendar integration",
         "Calendar subscription URL": "Calendar subscription URL",
         "Error saving preferences": "Error saving preferences",

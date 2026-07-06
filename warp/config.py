@@ -8,7 +8,14 @@ __all__ = ['initConfig']
 
 class DefaultSettings(object):
 
-    LANGUAGE_FILE="i18n/en.json"
+    # Locales offered in the language picker (subset of the codes that have a
+    # warp/static/i18n/<code>.json). The picker only renders when >1 is listed.
+    # Env value is a JSON array, e.g. WARP_LANGUAGES='["en","de"]'.
+    LANGUAGES = ["en"]
+
+    # Fallback language when neither the user's pref nor the warp_lang cookie
+    # resolves to a configured language. Must be listed in LANGUAGES.
+    DEFAULT_LANGUAGE = "en"
 
     # URL prefix WARP is mounted under (e.g. "/warp"). Empty = root. Applied as
     # WSGI SCRIPT_NAME in create_app, so every url_for-generated URL (routes,
@@ -232,12 +239,13 @@ _GROUP_MAP = {  # list of [source_group_or_null, warp_group_or_null] pairs
 # The complete set of environment-configurable settings and how to parse them.
 # A <KEY>_FILE entry with _fmt_file reads the value from a file and stores it
 # under <KEY>; this is restricted to the secrets listed so the _FILE suffix
-# cannot shadow real settings (e.g. LANGUAGE_FILE).
+# cannot shadow real settings (e.g. DEFAULT_LANGUAGE).
 _ENV_SETTINGS = {
     # core
     "SECRET_KEY":                 _fmt_str,
     "SECRET_KEY_FILE":            _fmt_file,
-    "LANGUAGE_FILE":              _fmt_str,
+    "LANGUAGES":                  _fmt_json(_ARRAY_OF_STRINGS),
+    "DEFAULT_LANGUAGE":           _fmt_str,
     "BASE_PATH":                  _fmt_str,
     "THEME_FILE":                 _fmt_str,
     "SESSION_LIFETIME":           _fmt_int,

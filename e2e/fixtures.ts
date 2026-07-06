@@ -20,9 +20,10 @@ async function resetServerClock(baseURL: string): Promise<void> {
 }
 
 /**
- * Reset the deployment language to English (see helpers/debug.ts setLanguage).
- * LANGUAGE_FILE is process-global state; a test that switches language would
- * otherwise poison every test after it. Tolerates 404 for a non-debug server.
+ * Reset the deployment fallback language to English (see helpers/debug.ts
+ * setLanguage). DEFAULT_LANGUAGE is process-global state; a test that switches
+ * it would otherwise poison every test after it. Tolerates 404 for a non-debug
+ * server.
  */
 async function resetServerLanguage(baseURL: string): Promise<void> {
   const resp = await fetch(`${baseURL}/debug/set_language`, {

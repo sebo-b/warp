@@ -89,6 +89,10 @@ export default async function globalSetup() {
     // The suite resets the database directly over TCP, so Postgres must bind
     // all interfaces inside the container (off by default — see Dockerfile_debug).
     '-e', 'EXPOSE_POSTGRES=1',
+    // Per-user language picker needs >1 configured language to render the
+    // dropdown; the ical-language spec also switches DEFAULT_LANGUAGE to 'de'.
+    '-e', "WARP_LANGUAGES=[\"en\",\"de\"]",
+    '-e', 'WARP_DEFAULT_LANGUAGE=en',
     IMAGE_TAG,
   ]);
 

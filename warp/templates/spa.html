@@ -119,6 +119,15 @@
                 </div>
             </div>
             <div class="row">
+                <div class="input-field col s12">
+                    <select id="pref_language">
+                        <option value="" class="TR">Default</option>
+                        {% for l in languages %}<option value="{{ l.code }}">{{ l.name }}</option>{% endfor %}
+                    </select>
+                    <label class="TR">Language</label>
+                </div>
+            </div>
+            <div class="row">
                 <div class="col s12 pref-feature-row">
                     <span class="TR">Show seat names on zone map</span>
                     <div class="switch"><label>

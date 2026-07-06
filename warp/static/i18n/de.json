@@ -1,5 +1,7 @@
 {
     "locale": "de",
+    "name": "Deutsch",
+    "flag": "de.svg",
     "weekdaysShort": [
         "So",
         "Mo",
@@ -291,6 +293,8 @@
         "Today if before start time, otherwise tomorrow": "Heute, wenn vor Startzeit, sonst morgen",
         "Default day": "Standardtag",
         "Default time": "Standardzeit",
+        "Language": "Sprache",
+        "Default": "Standard",
         "Calendar integration": "Kalender-Integration",
         "Calendar subscription URL": "Kalender-Abo-URL",
         "Error saving preferences": "Fehler beim Speichern der Einstellungen",

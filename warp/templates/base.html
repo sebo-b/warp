@@ -1,5 +1,5 @@
 <!doctype html>
-<html theme="light" data-theme-choice="auto">
+<html lang="{{ resolved_lang }}" theme="light" data-theme-choice="auto">
 <head>
     <title>WARP</title>
 
@@ -79,7 +79,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='material_icons/material_icons.css') }}" />
 
     <script>
-        window.warpGlobals = { URLs: {}, i18nUrl: "{{ url_for('static', filename=config['LANGUAGE_FILE']) }}" };
+        window.warpGlobals = { URLs: {}, i18nUrl: "{{ url_for('static', filename='i18n/' + resolved_lang + '.json') }}", lang: {{ resolved_lang|tojson }}, languages: {{ languages|tojson }} };
     </script>
 
     {% block bundle %}{% endblock %}

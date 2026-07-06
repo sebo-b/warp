@@ -230,7 +230,7 @@ def manifest():
         'start_url': scope,
         'scope': scope,
         'display': 'standalone',
-        'lang': 'en',
+        'lang': flask.current_app.config['DEFAULT_LANGUAGE'],
         'background_color': '#2C3E50',
         'theme_color': '#2C3E50',
         'icons': [

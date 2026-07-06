@@ -54,6 +54,44 @@ function initThemeToggle() {
   });
 }
 
+// Hand-rolled language dropdown (mirrors initThemeToggle's delegated-click
+// style). The public bundle ships no Materialize JS, so M.Dropdown is not an
+// option here without bloating login/auth_error/ical/error pages.
+function initLangDropdown() {
+  var trigger = document.querySelector('.lang-trigger');
+  if (!trigger) return;
+  var menu = trigger.parentElement.querySelector('.lang-dropdown');
+  if (!menu) return;
+
+  function close() { menu.setAttribute('hidden', ''); }
+  function open() { menu.removeAttribute('hidden'); }
+
+  trigger.addEventListener('click', function (ev) {
+    ev.preventDefault();
+    if (menu.hasAttribute('hidden')) open(); else close();
+  });
+
+  // Selecting a language: set the cookie + reload only if it actually changed.
+  menu.addEventListener('click', function (ev) {
+    var a = ev.target.closest && ev.target.closest('[data-lang]');
+    if (!a) return;
+    ev.preventDefault();
+    var code = a.getAttribute('data-lang');
+    close();
+    if (code === window.warpGlobals.lang) return;
+    document.cookie = 'warp_lang=' + code + ';path=/;max-age=31536000;samesite=lax';
+    window.location.reload();
+  });
+
+  // Close on outside click / Esc.
+  document.addEventListener('click', function (ev) {
+    if (!menu.hasAttribute('hidden') && !ev.target.closest('.lang-menu')) close();
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape') close();
+  });
+}
+
 document.addEventListener('DOMContentLoaded', function () {
   window.TR.updateDOM();
   document.querySelectorAll('.input-field input:not([placeholder]), .input-field textarea:not([placeholder])')
@@ -62,4 +100,5 @@ document.addEventListener('DOMContentLoaded', function () {
     el.classList.add('outlined');
   });
   initThemeToggle();
+  initLangDropdown();
 });

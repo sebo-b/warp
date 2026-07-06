@@ -1,5 +1,7 @@
 {
     "locale": "fr",
+    "name": "Français",
+    "flag": "fr.svg",
     "weekdaysShort": [
         "Dim",
         "Lun",
@@ -291,6 +293,8 @@
         "Today if before start time, otherwise tomorrow": "Aujourd'hui si avant l'heure de début, sinon demain",
         "Default day": "Jour par défaut",
         "Default time": "Heure par défaut",
+        "Language": "Langue",
+        "Default": "Par défaut",
         "Calendar integration": "Intégration du calendrier",
         "Calendar subscription URL": "URL d'abonnement au calendrier",
         "Error saving preferences": "Erreur lors de l'enregistrement des préférences",

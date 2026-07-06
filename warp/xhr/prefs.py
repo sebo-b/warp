@@ -24,8 +24,9 @@ prefsSchema = {
         "zone_show_seat_names": {"type": "boolean"},
         "zone_show_booking_preview": {"type": "boolean"},
         "zone_show_assigned_names": {"type": "boolean"},
+        "language": {"type": ["string", "null"]},
     },
-    "required": ["default_day", "default_time", "zone_show_seat_names", "zone_show_booking_preview", "zone_show_assigned_names"],
+    "required": ["default_day", "default_time", "zone_show_seat_names", "zone_show_booking_preview", "zone_show_assigned_names", "language"],
     "additionalProperties": False
 }
 
@@ -38,6 +39,7 @@ def _row_to_prefs(row):
         "zone_show_seat_names": row['zone_show_seat_names'],
         "zone_show_booking_preview": row['zone_show_booking_preview'],
         "zone_show_assigned_names": row['zone_show_assigned_names'],
+        "language": row['language'],
     }
 
 
@@ -59,6 +61,7 @@ def get_user_prefs(login):
         UserPrefs.zone_show_seat_names,
         UserPrefs.zone_show_booking_preview,
         UserPrefs.zone_show_assigned_names,
+        UserPrefs.language,
     ).where(UserPrefs.login == login).first()
 
     if row:
@@ -71,6 +74,7 @@ def get_user_prefs(login):
         "zone_show_seat_names": False,
         "zone_show_booking_preview": False,
         "zone_show_assigned_names": False,
+        "language": None,
     }
 
 
@@ -87,6 +91,15 @@ def prefs_set():
     if time_from >= time_to:
         return {"msg": "Data error", "code": 13}, 400
 
+    # The wire value for "Default" is JSON null (the client sends null, never
+    # an empty string, which 400s at schema validation). Runtime in-LANGUAGES
+    # gate: a code the deployment does not offer must not be stored (the
+    # resolver would silently ignore it). The module-level schema cannot see
+    # LANGUAGES, so this is the real gate.
+    language = jsonData['language']
+    if language is not None and language not in flask.current_app.config['LANGUAGES']:
+        return {"msg": "Data error", "code": 13}, 400
+
     values = {
         UserPrefs.login: flask.g.login,
         UserPrefs.default_plan: _coerce_default_plan(jsonData.get('default_plan')),
@@ -96,6 +109,7 @@ def prefs_set():
         UserPrefs.zone_show_seat_names: jsonData['zone_show_seat_names'],
         UserPrefs.zone_show_booking_preview: jsonData['zone_show_booking_preview'],
         UserPrefs.zone_show_assigned_names: jsonData['zone_show_assigned_names'],
+        UserPrefs.language: language,
     }
 
     update = {
@@ -106,6 +120,7 @@ def prefs_set():
         UserPrefs.zone_show_seat_names: values[UserPrefs.zone_show_seat_names],
         UserPrefs.zone_show_booking_preview: values[UserPrefs.zone_show_booking_preview],
         UserPrefs.zone_show_assigned_names: values[UserPrefs.zone_show_assigned_names],
+        UserPrefs.language: values[UserPrefs.language],
     }
 
     UserPrefs.insert(values).on_conflict(
@@ -113,4 +128,18 @@ def prefs_set():
         update=update
     ).execute()
 
-    return get_user_prefs(flask.g.login)
+    # A language change invalidates this user's calendar feed cache (feed text
+    # is language-specific). Import here to avoid a circular import at module load.
+    from warp.ical import invalidate_calendar_cache
+    invalidate_calendar_cache(flask.g.login)
+
+    # Mirror the choice into the warp_lang cookie so the next render (and the
+    # post-logout login page) use it. null deletes the cookie so the deployment
+    # default takes over. (The client also sets/deletes it so the reload on
+    # change happens immediately; both agree.)
+    resp = flask.jsonify(get_user_prefs(flask.g.login))
+    if language is not None:
+        resp.set_cookie('warp_lang', language, max_age=31536000, samesite='lax', path='/')
+    else:
+        resp.delete_cookie('warp_lang', path='/')
+    return resp

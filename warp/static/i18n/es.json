@@ -1,5 +1,7 @@
 {
     "locale": "es",
+    "name": "Español",
+    "flag": "es.svg",
     "weekdaysShort": [
         "Dom",
         "Lun",
@@ -291,6 +293,8 @@
         "Today if before start time, otherwise tomorrow": "Hoy si es antes de la hora de inicio, de lo contrario mañana",
         "Default day": "Día por defecto",
         "Default time": "Hora por defecto",
+        "Language": "Idioma",
+        "Default": "Predeterminado",
         "Calendar integration": "Integración con calendario",
         "Calendar subscription URL": "URL de suscripción al calendario",
         "Error saving preferences": "Error al guardar preferencias",

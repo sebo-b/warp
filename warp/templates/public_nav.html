@@ -7,6 +7,23 @@
 <nav>
     <div class="nav-wrapper">
         <ul class="right">
+            {% if languages|length > 1 %}
+            <li class="lang-menu">
+                <button class="lang-trigger" type="button"
+                        aria-label="{{ lang_aria }}" title="{{ lang_aria }}">
+                    <img src="{{ url_for('static', filename='images/flags/' + active_flag) }}"
+                         alt="" width="20" height="15">
+                </button>
+                <ul class="lang-dropdown" hidden>
+                    {% for l in languages %}
+                    <li><a href="#" data-lang="{{ l.code }}" class="{% if l.active %}active{% endif %}">
+                        <img src="{{ url_for('static', filename='images/flags/' + l.flag) }}" alt="" width="20" height="15">
+                        {{ l.name }}
+                    </a></li>
+                    {% endfor %}
+                </ul>
+            </li>
+            {% endif %}
             <li>{% include 'icons/theme_toggle.html' %}</li>
         </ul>
         <div class="center"><svg class="logo" viewBox="0 0 390 85" role="img" aria-label="WARP"><use href="{{ url_for('static', filename='images/logo.svg') }}#wordmark"/></svg></div>
