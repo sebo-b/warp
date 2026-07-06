@@ -181,23 +181,27 @@ export function initPrefs() {
 
   function postPrefs(extraPayload, callback) {
     if (!slider) return;
+    // Refuse to POST until the prefs GET has resolved: the UI shows DEFAULT_TIME
+    // / empty toggles while loadedPrefs is null (stale tab, failed GET, or a GET
+    // still in flight at open), and POSTing that boot-time snapshot would wipe
+    // the stored prefs + cookie with no reload to reveal it. The GET fires at
+    // shell boot, so it has resolved in practice by the time the modal opens.
+    if (loadedPrefs === null) {
+      if (callback) callback(new Error('prefs not loaded'));
+      return;
+    }
     var payload = {
       default_plan: planSelectEl.value || undefined,
       default_day: daySelectEl.value,
       default_time: slider.get(true).map(function (v) { return Math.round(v); }),
       zone_show_seat_names: showSeatNamesEl ? showSeatNamesEl.checked : false,
       zone_show_booking_preview: showBookingPreviewEl ? showBookingPreviewEl.checked : false,
-      zone_show_assigned_names: showAssignedNamesEl ? showAssignedNamesEl.checked : false
+      zone_show_assigned_names: showAssignedNamesEl ? showAssignedNamesEl.checked : false,
+      // null = no pinned language (normalized from ""). When the Language row is
+      // hidden (single-language deployment) send the loaded value unchanged to
+      // preserve it.
+      language: langTriggerEl ? langValue : loadedLang
     };
-    // Omit `language` when prefs never loaded (stale tab / failed GET / a slow
-    // GET overwriting an in-flight selection): POSTing a boot-time snapshot
-    // would wipe the stored pref + cookie with no reload to reveal it. When
-    // loaded, send the selection (null = no pinned language, normalized from
-    // ""). When the Language row is hidden (single language) send the loaded
-    // value unchanged to preserve it.
-    if (loadedPrefs !== null) {
-      payload.language = langTriggerEl ? langValue : loadedLang;
-    }
     if (extraPayload) Object.assign(payload, extraPayload);
 
     // Utils.xhr (not raw fetch): shares the 401 redirect + spinner and stays
