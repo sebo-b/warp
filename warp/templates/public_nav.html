@@ -7,7 +7,7 @@
 <nav>
     <div class="nav-wrapper">
         <ul class="right">
-            {% if languages|length > 1 %}
+            {% if (show_lang_picker is not defined or show_lang_picker) and languages|length > 1 %}
             <li class="lang-menu">
                 <button class="lang-trigger" type="button"
                         aria-label="{{ lang_aria }}" title="{{ lang_aria }}">

@@ -41,14 +41,21 @@ def _load_phrases_from_file(json_path):
 
 
 def _ical_phrases(login=None):
-    # Feed generation passes the owner login (token-based, no requester
-    # session) and resolves owner pref > default. The action page passes no
-    # login and resolves via the request (cookie/prefs) context.
+    # iCal is always bound to an owner user. Both the feed and the action pages
+    # render in the OWNER's resolved language (user_prefs.language, falling
+    # back to DEFAULT_LANGUAGE) and IGNORE the warp_lang cookie — a link
+    # clicked from a different device/browser must not render in a different
+    # language than the feed. The owner login comes either from the caller
+    # (the feed passes it explicitly) or from flask.g.ical_owner_login (the
+    # action handlers set it). The generic cancelled page has no owner and
+    # uses DEFAULT_LANGUAGE.
+    if login is None:
+        login = getattr(flask.g, 'ical_owner_login', None)
+    default = flask.current_app.config['DEFAULT_LANGUAGE']
     if login is not None:
-        default = flask.current_app.config['DEFAULT_LANGUAGE']
         code = i18n.resolve(None, i18n.user_language(login), default)
     else:
-        code, _ = i18n.resolve_language_for_request()
+        code = default
     static = flask.current_app.static_folder
     phrases = _load_phrases_from_file(os.path.join(static, 'i18n', code + '.json'))
     if not phrases:
@@ -636,6 +643,8 @@ def ical_feed(login):
 
 @bp.route("/calendar/<login>/book")
 def book_seat(login):
+    # iCal action pages render in the owner's language, not the viewer's cookie.
+    flask.g.ical_owner_login = login
     z = flask.request.args.get('z')
     d = flask.request.args.get('d')
     n = flask.request.args.get('n')
@@ -744,6 +753,8 @@ def book_seat(login):
 
 @bp.route("/calendar/<login>/delete")
 def delete_seat(login):
+    # iCal action pages render in the owner's language, not the viewer's cookie.
+    flask.g.ical_owner_login = login
     confirmed = flask.request.args.get('confirmed')
 
     i = flask.request.args.get('i')
@@ -802,7 +813,7 @@ def delete_seat(login):
         'ical.delete_seat', login=login,
         i=rid, n=nonce2, t=tok2, confirmed=1,
     )
-    cancel_url = flask.url_for('ical.cancelled')
+    cancel_url = flask.url_for('ical.cancelled', login=login)
 
     return _render_confirm(
         _action_t('Release seat?'),
@@ -814,4 +825,10 @@ def delete_seat(login):
 
 @bp.route("/calendar/cancelled")
 def cancelled():
+    # Carries the owner login from the confirm page's cancel link so the
+    # "Action cancelled" page renders in the owner's language too. Absent
+    # (e.g. visited directly), it falls back to DEFAULT_LANGUAGE.
+    login = flask.request.args.get('login')
+    if login:
+        flask.g.ical_owner_login = login
     return _render_action(_action_t('Action cancelled'))
