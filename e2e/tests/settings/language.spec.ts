@@ -23,6 +23,7 @@ import { USER1 } from '../../helpers/users';
 import { querySql } from '../../helpers/db';
 import { openUserMenu } from '../../helpers/settings';
 import { waitForViewReady } from '../../helpers/spa';
+import { getRuntimeInfo } from '../../helpers/runtime';
 
 type Page = import('@playwright/test').Page;
 
@@ -80,13 +81,29 @@ test.describe('login screen language dropdown', () => {
 // ─── Preferences modal ────────────────────────────────────────────────────
 
 async function openPrefs(page: Page): Promise<void> {
+  // Await THIS page's /xhr/prefs GET (the prefs modal JS resolves its Promise:
+  //   - loads `loadedPrefs`, unblocking postPrefs()'s loadedPrefs===null guard
+  //     (without this, save is a no-op → 'de' never POSTed → DB stays null);
+  //   - runs applyPrefsToUI()/setLangUI(), which OVERWRITES an in-progress
+  //     selection — clicking 'de' before the GET resolves is reverted to null.
+  // Waiting on .pref-lang-name alone is NOT enough: setLangUI(null) fills it
+  // from the default option at modal open, before the GET resolves.
+  // The listener MUST be registered BEFORE page.goto returns settling — under
+  // load, the GET completes while page.goto() is still awaiting 'load', so an
+  // after-goto listener misses it (logged in only this test, when it runs
+  // right after ical-language.spec.ts). Registered before navigation, it
+  // captures this boot's GET; the prior page's in-flight GET was aborted by
+  // the navigation and never fires 'response'.
+  const prefsLoaded = page.waitForResponse(
+    r => r.url().includes('/xhr/prefs') && r.request().method() === 'GET',
+  );
   await page.goto('/');
   await openUserMenu(page);
-  await page.locator('#user_menu_dropdown a', { hasText: 'Preferences' }).click();
+  // Open by href, not translated text: this spec seeds/switches non-English
+  // languages, so the link reads e.g. "Einstellungen", not "Preferences".
+  await page.locator('#user_menu_dropdown a[href="#pref_modal"]').click();
   await expect(page.locator('#pref_modal')).toBeVisible();
-  // Await the prefs GET populating the language trigger's name instead of a
-  // fixed sleep (e2e/README bans waitForTimeout).
-  await expect(page.locator('.pref-lang-trigger .pref-lang-name')).not.toBeEmpty();
+  await prefsLoaded;
 }
 
 // The prefs Language control is an M.Dropdown (flag+name list), not a
@@ -94,6 +111,30 @@ async function openPrefs(page: Page): Promise<void> {
 async function selectPrefLang(page: Page, code: string): Promise<void> {
   await page.locator('.pref-lang-trigger').click();
   await page.locator(`.pref-lang-dropdown a[data-lang="${code}"]`).click();
+}
+
+// Click Save on the prefs modal and await the resulting reload. Only a real
+// language change reloads (prefs.js compares newLang !== prevLang), so this
+// MUST be used wherever the test expects persistence across the reload.
+//
+// Await the POST RESPONSE first: the client only reloads inside its .then()
+// (after the server committed the upsert), so awaiting the 200 POST both gates
+// persistence and places us before the reload. A pre-armed waitForURL is
+// unsafe — it can resolve on a leftover 'commit' and return before the POST
+// flushes, and the then-triggered reload aborts the POST (status -1, 'de'
+// never persisted). After the POST resolves, await the navigation the reload
+// causes by waiting for the modal to disappear (the reload replaces the
+// document), then for the SPA to finish booting.
+async function savePrefsAndReload(page: Page): Promise<void> {
+  const postDone = page.waitForResponse(
+    r => r.url().includes('/xhr/prefs') && r.request().method() === 'POST' && r.ok(),
+  );
+  await page.locator('#pref_save_btn').click();
+  await postDone;
+  // The reload (window.location.reload() in prefs.js .then()) destroys the
+  // modal; wait for it to leave the DOM, then for the SPA to boot fresh.
+  await expect(page.locator('#pref_modal')).toHaveCount(0);
+  await waitForViewReady(page);
 }
 
 test.describe('Preferences: Language row', () => {
@@ -105,10 +146,9 @@ test.describe('Preferences: Language row', () => {
 
     // Switch the Materialize select to German and save.
     await selectPrefLang(page, 'de');
-    await page.locator('#pref_save_btn').click();
+    await savePrefsAndReload(page);
 
     // Reload lands us back in the SPA (booted) in German.
-    await waitForViewReady(page);
     expect(await prefLanguage(USER1.login)).toBe('de');
   });
 
@@ -120,8 +160,7 @@ test.describe('Preferences: Language row', () => {
     await openPrefs(page);
 
     await selectPrefLang(page, 'en');
-    await page.locator('#pref_save_btn').click();
-    await waitForViewReady(page);
+    await savePrefsAndReload(page);
 
     expect(await prefLanguage(USER1.login)).toBe('en');
     const cookies = await context.cookies();
@@ -151,8 +190,12 @@ test.describe('language precedence', () => {
 
   test('user pref beats a stale cookie; bootstrap resets the cookie', async ({ page, context }) => {
     await seedUserPref(USER1.login, 'de');
-    // A stale cookie from another user on the shared device.
-    await context.addCookies([{ name: 'warp_lang', value: 'en', url: 'http://localhost' }]);
+    // A stale cookie from another user on the shared device. Seed it on the
+    // app's real origin (random-port 127.0.0.1): a bare 'http://localhost'
+    // cookie is never sent to the app and would linger in the jar, so
+    // context.cookies() would return it and mask the cookie bootstrap actually
+    // sets (same trap plan-management.spec.ts documents for warp_theme).
+    await context.addCookies([{ name: 'warp_lang', value: 'en', url: getRuntimeInfo().baseURL }]);
 
     await logIn(page, USER1);
     await expectLoggedIn(page);
