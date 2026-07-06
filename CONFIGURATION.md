@@ -59,7 +59,7 @@ environment:
 | `SECRET_KEY`                 | —            | **yes**¹ | Cookie signing key                             |
 | `DATABASE_ARGS`              | `{}`         |    no    | Extra args for the psycopg3 driver             |
 | `SESSION_LIFETIME`           | `1`          |    no    | Session duration in days                       |
-| `LANGUAGES`                  | `["en"]`     |    no    | JSON array of locale codes offered in the picker (subset of `en`/`de`/`fr`/`es`/`pl`) |
+| `LANGUAGES`                  | `["en","de","fr","es","pl"]` |    no    | Locale codes offered in the picker (ships all five; narrow via this list) |
 | `DEFAULT_LANGUAGE`           | `en`         |    no    | Fallback language (NULL user pref + no cookie). Must be listed in `LANGUAGES` |
 | `THEME_FILE`                 | `theme.css`  |    no    | Colour theme stylesheet (`static/`-relative name, or absolute path/URL) |
 | `BASE_PATH`                  | *(empty)*    |    no    | URL prefix WARP is mounted under, e.g. `/warp` (see [Mounting under a URL prefix](#mounting-under-a-url-prefix)) |
@@ -171,7 +171,7 @@ cookie. A deployment configures which languages are offered and the fallback:
 
 | Setting             | Default      | Meaning |
 | ------------------- | ------------ | ------- |
-| `WARP_LANGUAGES`    | `["en"]`     | JSON array of locale codes offered in the picker (subset of `en`/`de`/`fr`/`es`/`pl`). The picker only renders when more than one is listed. |
+| `WARP_LANGUAGES`    | `["en","de","fr","es","pl"]` | JSON array of locale codes offered in the picker (ships all five). Renders only when more than one is listed. |
 | `WARP_DEFAULT_LANGUAGE` | `en`     | Fallback language for users with no pref and no cookie. Must be listed in `WARP_LANGUAGES`. |
 
 ```
@@ -182,12 +182,10 @@ WARP_DEFAULT_LANGUAGE=en
 Resolution precedence: **logged-in** users — `user_prefs.language` → `warp_lang`
 cookie → `DEFAULT_LANGUAGE` (a stale cookie left by another user on a shared
 device does not override your pref). **Login screen** (not logged in) —
-`warp_lang` cookie → `DEFAULT_LANGUAGE`. The `Default` option in Preferences
-maps to NULL (follow `DEFAULT_LANGUAGE`).
-
-> **Breaking change:** the former `WARP_LANGUAGE_FILE` (single deployment-wide
-> file) is removed. Migrate by setting `WARP_LANGUAGES` (a JSON array) and
-> `WARP_DEFAULT_LANGUAGE` instead.
+`warp_lang` cookie → `DEFAULT_LANGUAGE`. Preferences lists each offered language
+by name; there is no `Default` entry — a user with no stored preference follows
+`DEFAULT_LANGUAGE` (shown applied, not selectable), so a later `DEFAULT_LANGUAGE`
+change still reaches them. Picking any language pins it.
 
 The iCal feed and action pages render in the owner's resolved language (a NULL
 pref falls back to `DEFAULT_LANGUAGE`).

@@ -231,7 +231,7 @@
 .pref-lang-dropdown li > a { display: flex; align-items: center; gap: 8px; }
 .pref-lang-dropdown li > a img { width: 20px; height: 15px; border-radius: 2px; flex: none; object-fit: cover; }
 .pref-lang-dropdown li > a:hover,
-.pref-lang-dropdown li.active > a {
+.pref-lang-dropdown li > a.active {
     background-color: var(--warp-grey-bg);
 }
 /* ---- Affordance classes (replace removed Material palette utilities) ----- */

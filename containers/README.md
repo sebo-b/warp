@@ -165,7 +165,7 @@ LDAP, …) or any other feature, add the relevant `WARP_*` variables under
 | `warp_secret_key` secret  | `mysecretkey`       | A random secret — see [CONFIGURATION.md](../CONFIGURATION.md#secret-key) |
 | `warp_db_password` secret | `postgres_password` | A strong database password (used by both the DB and the app)             |
 | `warp-app` image tag      | `:latest`           | A pinned version, e.g. `:v1.2.3`                                         |
-| `WARP_LANGUAGES`          | `["en"]`           | JSON array of locale codes offered in the picker (`en`/`de`/`fr`/`es`/`pl`) |
+| `WARP_LANGUAGES`          | `["en","de","fr","es","pl"]` | JSON array of locale codes offered in the picker (`en`/`de`/`fr`/`es`/`pl`) |
 | `WARP_DEFAULT_LANGUAGE`   | `en`               | Fallback language (must be listed in `WARP_LANGUAGES`)                     |
 
 ---

@@ -187,12 +187,17 @@ export function initPrefs() {
       default_time: slider.get(true).map(function (v) { return Math.round(v); }),
       zone_show_seat_names: showSeatNamesEl ? showSeatNamesEl.checked : false,
       zone_show_booking_preview: showBookingPreviewEl ? showBookingPreviewEl.checked : false,
-      zone_show_assigned_names: showAssignedNamesEl ? showAssignedNamesEl.checked : false,
-      // When the Language row is hidden (single-language deployment) there is
-      // no trigger; preserve the loaded language unchanged so saving other
-      // prefs does not wipe it. Otherwise langValue (null = Default).
-      language: langTriggerEl ? langValue : loadedLang
+      zone_show_assigned_names: showAssignedNamesEl ? showAssignedNamesEl.checked : false
     };
+    // Omit `language` when prefs never loaded (stale tab / failed GET / a slow
+    // GET overwriting an in-flight selection): POSTing a boot-time snapshot
+    // would wipe the stored pref + cookie with no reload to reveal it. When
+    // loaded, send the selection (null = no pinned language, normalized from
+    // ""). When the Language row is hidden (single language) send the loaded
+    // value unchanged to preserve it.
+    if (loadedPrefs !== null) {
+      payload.language = langTriggerEl ? langValue : loadedLang;
+    }
     if (extraPayload) Object.assign(payload, extraPayload);
 
     // Utils.xhr (not raw fetch): shares the 401 redirect + spinner and stays

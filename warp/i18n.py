@@ -59,8 +59,10 @@ def _load_meta(app, code):
 
     phrases = data.get('phrases') or {}
     language_label = phrases.get('Language', code)
+    ical_phrases = phrases.get('ical', {})
 
-    return {'name': name, 'flag': flag, 'language_label': language_label}
+    return {'name': name, 'flag': flag, 'language_label': language_label,
+            'ical_phrases': ical_phrases}
 
 
 def init_app(app):
@@ -133,6 +135,31 @@ def user_language(login):
     return row['language']
 
 
+def owner_language(login):
+    """The iCal owner's resolved language, memoized per request on flask.g.
+
+    Shares one UserPrefs read between the action-page card text (_ical_phrases,
+    which calls _action_t() several times per confirm render) and the chrome
+    context processor — instead of one read per call plus a fourth unshared
+    read. owner pref wins, cookie ignored (plan §15.11)."""
+    default = flask.current_app.config['DEFAULT_LANGUAGE']
+    if login is None:
+        return default
+    cached = getattr(flask.g, '_warp_owner_lang', None)
+    if cached is not None and cached[0] == login:
+        return cached[1]
+    code = resolve(None, user_language(login), default)
+    flask.g._warp_owner_lang = (login, code)
+    return code
+
+
+def ical_phrases(code):
+    """Cached ical phrases for `code` (parsed at init in _load_meta, so no
+    per-request disk read). Empty dict when `code` was never loaded — the
+    caller falls back to 'en' on disk then."""
+    return _meta().get(code, {}).get('ical_phrases', {})
+
+
 def resolve_language_for_request():
     """Context-processor entry point. Returns (active_code, languages_menu).
 
@@ -149,8 +176,9 @@ def resolve_language_for_request():
     default = flask.current_app.config['DEFAULT_LANGUAGE']
     owner = getattr(flask.g, 'ical_owner_login', None)
     if owner is not None:
-        # iCal action page chrome: owner pref wins, cookie ignored.
-        active = resolve(None, user_language(owner), default)
+        # iCal action page chrome: owner pref wins, cookie ignored. Shares the
+        # per-request read with _ical_phrases via owner_language's flask.g cache.
+        active = owner_language(owner)
     else:
         cookie = flask.request.cookies.get('warp_lang')
         login = getattr(flask.g, 'login', None)

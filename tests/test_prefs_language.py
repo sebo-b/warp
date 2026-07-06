@@ -79,6 +79,33 @@ def test_prefs_get_language_none_when_no_row(app):
         assert c.get('/xhr/prefs').get_json()['language'] is None
 
 
+def test_prefs_get_coerces_stale_stored_language(app):
+    # #1: a stored language no longer in LANGUAGES must read back as None, so a
+    # later prefs save (even of unrelated toggles) doesn't POST it back and hit
+    # the runtime 400 gate (no UI recovery on a single-language deployment).
+    with app.test_client() as c:
+        _login(c)
+        _sql("INSERT INTO user_prefs(login, language) VALUES(%s,%s) "
+             "ON CONFLICT(login) DO UPDATE SET language=%s",
+             (LOGIN, 'pl', 'pl'))
+        assert c.get('/xhr/prefs').get_json()['language'] is None
+
+
+def test_prefs_post_omitting_language_preserves_stored(app):
+    # #4: a client that never loaded prefs omits `language` (stale tab / failed
+    # GET). The stored language + cookie must be left untouched, not wiped.
+    with app.test_client() as c:
+        _login(c)
+        c.post('/xhr/prefs', json=_payload('de'))
+        assert _pref_lang(LOGIN) == 'de'
+        no_lang = {k: v for k, v in _payload(None).items() if k != 'language'}
+        resp = c.post('/xhr/prefs', json=no_lang)
+        assert resp.status_code == 200
+        assert resp.get_json()['language'] == 'de'   # preserved, not wiped
+        assert _pref_lang(LOGIN) == 'de'             # DB unchanged
+        assert 'Set-Cookie' not in resp.headers      # cookie untouched
+
+
 def test_prefs_post_null_persists_and_deletes_cookie(app):
     with app.test_client() as c:
         _login(c)

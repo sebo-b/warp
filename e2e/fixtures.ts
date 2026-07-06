@@ -29,7 +29,7 @@ async function resetServerLanguage(baseURL: string): Promise<void> {
   const resp = await fetch(`${baseURL}/debug/set_language`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ language_file: 'i18n/en.json' }),
+    body: JSON.stringify({ language: 'en' }),
   });
   if (!resp.ok && resp.status !== 404) {
     throw new Error(`resetting language failed: HTTP ${resp.status}`);

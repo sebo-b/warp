@@ -45,21 +45,26 @@ def _ical_phrases(login=None):
     # render in the OWNER's resolved language (user_prefs.language, falling
     # back to DEFAULT_LANGUAGE) and IGNORE the warp_lang cookie — a link
     # clicked from a different device/browser must not render in a different
-    # language than the feed. The owner login comes either from the caller
-    # (the feed passes it explicitly) or from flask.g.ical_owner_login (the
-    # action handlers set it). The generic cancelled page has no owner and
-    # uses DEFAULT_LANGUAGE.
+    # language than the feed. The owner login comes from the caller (the feed)
+    # or from flask.g.ical_owner_login (the action handlers set it only AFTER
+    # the HMAC token validates, so an unauthenticated request can't probe which
+    # logins have a non-default language). Memoized per request: a confirm-page
+    # render calls _action_t() several times but resolves the owner + loads the
+    # locale phrases once (sharing the context processor's read).
+    cached = getattr(flask.g, '_ical_phrases', None)
+    if cached is not None:
+        return cached
+
     if login is None:
         login = getattr(flask.g, 'ical_owner_login', None)
-    default = flask.current_app.config['DEFAULT_LANGUAGE']
-    if login is not None:
-        code = i18n.resolve(None, i18n.user_language(login), default)
-    else:
-        code = default
-    static = flask.current_app.static_folder
-    phrases = _load_phrases_from_file(os.path.join(static, 'i18n', code + '.json'))
+    code = i18n.owner_language(login)
+    phrases = i18n.ical_phrases(code)
     if not phrases:
-        phrases = _load_phrases_from_file(os.path.join(static, 'i18n/en.json'))
+        # 'en' fallback: from the init cache when English is configured, else
+        # the (lru-cached) disk loader for a deployment that lists no English.
+        phrases = i18n.ical_phrases('en') or _load_phrases_from_file(
+            os.path.join(flask.current_app.static_folder, 'i18n/en.json'))
+    flask.g._ical_phrases = phrases
     return phrases
 
 
@@ -643,8 +648,6 @@ def ical_feed(login):
 
 @bp.route("/calendar/<login>/book")
 def book_seat(login):
-    # iCal action pages render in the owner's language, not the viewer's cookie.
-    flask.g.ical_owner_login = login
     z = flask.request.args.get('z')
     d = flask.request.args.get('d')
     n = flask.request.args.get('n')
@@ -668,6 +671,11 @@ def book_seat(login):
     expected = booking_token(ical_token, zid, d, n)
     if not hmac.compare_digest(expected, t):
         return _render_action(_action_t('Forbidden'), status=403)
+
+    # Token validated: render the rest in the owner's language. Set here, not
+    # at entry, so a garbage-token "Forbidden"/"Error" page can't act as an
+    # unauthenticated oracle for which logins have a non-default language pref.
+    flask.g.ical_owner_login = login
 
     try:
         day_ts = timegm(strptime(d, "%Y-%m-%d"))
@@ -753,8 +761,6 @@ def book_seat(login):
 
 @bp.route("/calendar/<login>/delete")
 def delete_seat(login):
-    # iCal action pages render in the owner's language, not the viewer's cookie.
-    flask.g.ical_owner_login = login
     confirmed = flask.request.args.get('confirmed')
 
     i = flask.request.args.get('i')
@@ -785,6 +791,11 @@ def delete_seat(login):
     if not hmac.compare_digest(expected, t):
         return _render_action(_action_t('Forbidden'), status=403)
 
+    # Token validated: render the rest (confirm page or the released notice) in
+    # the owner's language. Set here, not at entry, so an invalid token can't
+    # probe which logins have a non-default language pref.
+    flask.g.ical_owner_login = login
+
     book = (Book.select(Book.id, Book.fromts, Seat.name.alias('seat_name'),
                           Plan.timezone.alias('plan_tz'))
                 .join(Seat, on=(Book.sid == Seat.id))
@@ -813,7 +824,7 @@ def delete_seat(login):
         'ical.delete_seat', login=login,
         i=rid, n=nonce2, t=tok2, confirmed=1,
     )
-    cancel_url = flask.url_for('ical.cancelled', login=login)
+    cancel_url = flask.url_for('ical.cancelled', login=login, i=rid, n=n, t=t)
 
     return _render_confirm(
         _action_t('Release seat?'),
@@ -825,10 +836,25 @@ def delete_seat(login):
 
 @bp.route("/calendar/cancelled")
 def cancelled():
-    # Carries the owner login from the confirm page's cancel link so the
-    # "Action cancelled" page renders in the owner's language too. Absent
-    # (e.g. visited directly), it falls back to DEFAULT_LANGUAGE.
+    # The "Action cancelled" page renders in the owner's language ONLY when
+    # reached from a validated action's cancel link (which re-carries the
+    # owner's HMAC delete token). A bare ?login= with no/bad token renders in
+    # DEFAULT_LANGUAGE — never an unauthenticated oracle for which logins have
+    # a non-default language pref.
     login = flask.request.args.get('login')
-    if login:
-        flask.g.ical_owner_login = login
+    i = flask.request.args.get('i')
+    n = flask.request.args.get('n')
+    t = flask.request.args.get('t')
+    if login and i and n and t:
+        try:
+            rid = int(i)
+        except (ValueError, TypeError):
+            rid = None
+        if rid is not None:
+            up = (UserPrefs.select(UserPrefs.ical_token, UserPrefs.ical_enabled)
+                           .where(UserPrefs.login == login).first())
+            if up and up['ical_enabled'] and up['ical_token']:
+                expected = delete_token(up['ical_token'], rid, n)
+                if hmac.compare_digest(expected, t):
+                    flask.g.ical_owner_login = login
     return _render_action(_action_t('Action cancelled'))

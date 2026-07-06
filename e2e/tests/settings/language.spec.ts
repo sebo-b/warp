@@ -5,9 +5,11 @@
  *  - login screen flag dropdown: switching reloads + renders in the chosen
  *    language (assert a translated string); the warp_lang cookie is set;
  *    clicking the already-active flag does NOT reload (bounded negative).
- *  - Preferences: a Language row with a Default option; selecting a language
- *    and saving reloads + persists (DB backchannel); Default + Save stores NULL
- *    and clears the cookie; saving with no language change does not pin NULL.
+ *  - Preferences: a Language row listing each offered language (no Default
+ *    entry — a NULL pref shows the deployment default applied, not selectable);
+ *    selecting a language and saving reloads + persists (DB backchannel);
+ *    picking the deployment-default language pins it; saving with no language
+ *    change keeps the pref NULL (the default keeps applying).
  *  - precedence (shared device): a seeded user pref beats a stale cookie, and
  *    bootstrap resets the cookie to the pref.
  *  - default: no cookie + NULL pref renders the deployment default (en).
@@ -19,6 +21,7 @@ import { test, expect } from '../../fixtures';
 import { logIn, expectLoggedIn } from '../../helpers/auth';
 import { USER1 } from '../../helpers/users';
 import { querySql } from '../../helpers/db';
+import { openUserMenu } from '../../helpers/settings';
 import { waitForViewReady } from '../../helpers/spa';
 
 type Page = import('@playwright/test').Page;
@@ -78,12 +81,12 @@ test.describe('login screen language dropdown', () => {
 
 async function openPrefs(page: Page): Promise<void> {
   await page.goto('/');
-  await expectLoggedIn(page);
-  await page.locator('.dropdown-trigger[data-target="user_menu_dropdown"]').click();
+  await openUserMenu(page);
   await page.locator('#user_menu_dropdown a', { hasText: 'Preferences' }).click();
   await expect(page.locator('#pref_modal')).toBeVisible();
-  // The prefs GET populates the select; give it a beat.
-  await page.waitForTimeout(300);
+  // Await the prefs GET populating the language trigger's name instead of a
+  // fixed sleep (e2e/README bans waitForTimeout).
+  await expect(page.locator('.pref-lang-trigger .pref-lang-name')).not.toBeEmpty();
 }
 
 // The prefs Language control is an M.Dropdown (flag+name list), not a

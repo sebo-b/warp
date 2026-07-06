@@ -42,18 +42,14 @@ def set_language():
 
     Sets DEFAULT_LANGUAGE at runtime (the per-user feature resolves a NULL
     user pref to this), and clears calendar_cache: cached feed rows are
-    language-specific, so a switch must force regeneration. Accepts a
-    `language` code ('de','en',...) or, for back-compat, a `language_file`
-    path ('i18n/de.json') whose stem is used as the code. Reset with 'en'.
+    language-specific, so a switch must force regeneration. `language` is a
+    locale code ('de','en',...). Reset with 'en'.
     """
     data = flask.request.get_json(silent=True) or {}
     code = data.get('language')
-    if not code:
-        lang_file = data.get('language_file') or 'i18n/en.json'
-        code = lang_file.split('/')[-1].removesuffix('.json')
     # Reject a bogus code: the context processor / i18nUrl would build
     # i18n/<code>.json, which 404s and breaks the login page's i18n load.
-    if code not in flask.current_app.config['LANGUAGES']:
+    if not code or code not in flask.current_app.config['LANGUAGES']:
         return {"msg": "unknown language", "code": 13}, 400
     flask.current_app.config['DEFAULT_LANGUAGE'] = code
     from warp.db import CalendarCache

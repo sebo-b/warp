@@ -668,7 +668,7 @@ All text on these pages is translated in the owner’s language (a user with no 
 ## 20. Multi-Language Support
 
 - WARP supports **English, German, French, Spanish, and Polish**.
-- The language is a **per-user choice**: a flag picker on the login screen and a **Language** row in **Preferences** let each user pick their own. The choice is stored in `user_prefs.language` and carried across login/logout by the `warp_lang` cookie. A `Default` option follows the deployment's `DEFAULT_LANGUAGE`.
+- The language is a **per-user choice**: a flag picker on the login screen and a **Language** row in **Preferences** let each user pick their own. The choice is stored in `user_prefs.language` and carried across login/logout by the `warp_lang` cookie. A user with no stored preference follows the deployment's `DEFAULT_LANGUAGE` (shown applied in Preferences, not selectable); picking any language pins it.
 - Which languages a deployment offers is configured via `WARP_LANGUAGES` (JSON array); the fallback via `WARP_DEFAULT_LANGUAGE`.
 - All UI strings (buttons, labels, error messages, modal text) are translated.
 - The iCal feed and action pages render in the owner's resolved language.
@@ -831,7 +831,7 @@ A zone admin can **release another user's booking** from the plan map by clickin
 | `MAX_MAP_SIZE`               | 2 MB           | Maximum zone map image size                          |
 | `MAX_CONTENT_LENGTH`         | 5 MB           | Maximum request body size                            |
 | `TIMEZONE`                   | auto-detect    | Timezone label for iCal DTSTART/DTEND                |
-| `LANGUAGES`                  | `["en"]`       | JSON array of locale codes offered in the picker     |
+| `LANGUAGES`                  | `["en","de","fr","es","pl"]` | JSON array of locale codes offered in the picker (renders by default) |
 | `DEFAULT_LANGUAGE`           | `en`           | Fallback language (NULL user pref / no cookie)       |
 | `SECRET_KEY`                 | — (required)   | Key for signing session cookies                      |
 | `DATABASE_ADDRESS`          | — (required)   | Database host or `host:port` (port defaults to 5432) |

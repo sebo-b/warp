@@ -26,7 +26,9 @@ prefsSchema = {
         "zone_show_assigned_names": {"type": "boolean"},
         "language": {"type": ["string", "null"]},
     },
-    "required": ["default_day", "default_time", "zone_show_seat_names", "zone_show_booking_preview", "zone_show_assigned_names", "language"],
+    # `language` is optional: a client that never loaded prefs omits it (see
+    # prefs_set) rather than POST a snapshot that would wipe the stored pref.
+    "required": ["default_day", "default_time", "zone_show_seat_names", "zone_show_booking_preview", "zone_show_assigned_names"],
     "additionalProperties": False
 }
 
@@ -65,7 +67,15 @@ def get_user_prefs(login):
     ).where(UserPrefs.login == login).first()
 
     if row:
-        return _row_to_prefs(row)
+        prefs = _row_to_prefs(row)
+        # Coerce a stored language the deployment later removed: returning it
+        # raw would let every prefs save POST it back and hit the runtime 400
+        # gate (the user could never save again — and on a single-language
+        # deployment there's no UI recovery). Same coercion bootstrap applies.
+        lang = prefs['language']
+        if lang is not None and lang not in flask.current_app.config['LANGUAGES']:
+            prefs['language'] = None
+        return prefs
 
     return {
         "default_plan": None,
@@ -91,13 +101,18 @@ def prefs_set():
     if time_from >= time_to:
         return {"msg": "Data error", "code": 13}, 400
 
-    # The wire value for "Default" is JSON null (the client sends null, never
-    # an empty string, which 400s at schema validation). Runtime in-LANGUAGES
-    # gate: a code the deployment does not offer must not be stored (the
-    # resolver would silently ignore it). The module-level schema cannot see
-    # LANGUAGES, so this is the real gate.
-    language = jsonData['language']
-    if language is not None and language not in flask.current_app.config['LANGUAGES']:
+    # `language` is OPTIONAL in the payload: when the client never loaded
+    # prefs (stale tab, a failed /xhr/prefs GET, or a slow GET overwriting an
+    # in-flight selection) it omits the key rather than POST a boot-time
+    # snapshot that would wipe the stored pref + cookie with no reload to
+    # reveal it. When present, null means "no pinned language" (the client
+    # sends null, never an empty string, which 400s at schema validation).
+    # Runtime in-LANGUAGES gate: a code the deployment does not offer must not
+    # be stored (the resolver would silently ignore it) — the module-level
+    # schema can't see LANGUAGES, so this is the real gate.
+    language_present = 'language' in jsonData
+    language = jsonData.get('language')
+    if language_present and language is not None and language not in flask.current_app.config['LANGUAGES']:
         return {"msg": "Data error", "code": 13}, 400
 
     values = {
@@ -109,8 +124,9 @@ def prefs_set():
         UserPrefs.zone_show_seat_names: jsonData['zone_show_seat_names'],
         UserPrefs.zone_show_booking_preview: jsonData['zone_show_booking_preview'],
         UserPrefs.zone_show_assigned_names: jsonData['zone_show_assigned_names'],
-        UserPrefs.language: language,
     }
+    if language_present:
+        values[UserPrefs.language] = language
 
     update = {
         UserPrefs.default_plan: values[UserPrefs.default_plan],
@@ -120,8 +136,9 @@ def prefs_set():
         UserPrefs.zone_show_seat_names: values[UserPrefs.zone_show_seat_names],
         UserPrefs.zone_show_booking_preview: values[UserPrefs.zone_show_booking_preview],
         UserPrefs.zone_show_assigned_names: values[UserPrefs.zone_show_assigned_names],
-        UserPrefs.language: values[UserPrefs.language],
     }
+    if language_present:
+        update[UserPrefs.language] = language
 
     UserPrefs.insert(values).on_conflict(
         conflict_target=[UserPrefs.login],
@@ -135,11 +152,13 @@ def prefs_set():
 
     # Mirror the choice into the warp_lang cookie so the next render (and the
     # post-logout login page) use it. null deletes the cookie so the deployment
-    # default takes over. (The client also sets/deletes it so the reload on
-    # change happens immediately; both agree.)
+    # default takes over. Only when the client sent a language (a change); an
+    # omitted key leaves the stored language + cookie untouched. (The client
+    # also sets/deletes it so the reload on change happens immediately.)
     resp = flask.jsonify(get_user_prefs(flask.g.login))
-    if language is not None:
-        resp.set_cookie('warp_lang', language, max_age=31536000, samesite='lax', path='/')
-    else:
-        resp.delete_cookie('warp_lang', path='/')
+    if language_present:
+        if language is not None:
+            resp.set_cookie('warp_lang', language, max_age=31536000, samesite='lax', path='/')
+        else:
+            resp.delete_cookie('warp_lang', path='/')
     return resp
