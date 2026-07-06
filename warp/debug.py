@@ -51,6 +51,10 @@ def set_language():
     if not code:
         lang_file = data.get('language_file') or 'i18n/en.json'
         code = lang_file.split('/')[-1].removesuffix('.json')
+    # Reject a bogus code: the context processor / i18nUrl would build
+    # i18n/<code>.json, which 404s and breaks the login page's i18n load.
+    if code not in flask.current_app.config['LANGUAGES']:
+        return {"msg": "unknown language", "code": 13}, 400
     flask.current_app.config['DEFAULT_LANGUAGE'] = code
     from warp.db import CalendarCache
     CalendarCache.delete().execute()

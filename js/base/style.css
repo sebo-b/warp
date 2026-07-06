@@ -180,6 +180,32 @@
     background-color: var(--warp-grey-bg);
 }
 
+/* Preferences modal: Language picker (M.Dropdown with flag+name items).
+   The folded trigger mirrors the Materialize outlined select (same border,
+   3rem height); the unfolded list reuses the Materialize .dropdown-content
+   defaults (padding, min-height, hover) so it matches the Default plan/day
+   dropdowns — only display:flex + a sized flag are added. */
+.pref-lang-row { margin-bottom: 8px; }
+.pref-lang-row > label { display: block; font-size: .8rem; color: var(--warp-text); margin-bottom: 4px; }
+.pref-lang-trigger {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    height: 3rem;
+    padding: 0 12px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 4px;
+    background-color: var(--warp-surface);
+    color: var(--warp-text);
+    cursor: pointer;
+    box-sizing: border-box;
+}
+.pref-lang-trigger .pref-lang-flag { width: 20px; height: 15px; border-radius: 2px; flex: none; object-fit: cover; }
+.pref-lang-trigger .pref-lang-name { flex: 1 1 auto; }
+.pref-lang-trigger .pref-lang-caret { margin-left: auto; color: var(--warp-text); }
+.pref-lang-dropdown li > a { display: flex; align-items: center; gap: 8px; }
+.pref-lang-dropdown li > a img { width: 20px; height: 15px; border-radius: 2px; flex: none; object-fit: cover; }
 /* ---- Affordance classes (replace removed Material palette utilities) ----- */
 /* Materialize 2.x ships no .red/.green/.orange palette classes, so the markup/JS
    that styled delete buttons, delete/edit icons and add FABs now style nothing.

@@ -10,8 +10,9 @@ class DefaultSettings(object):
 
     # Locales offered in the language picker (subset of the codes that have a
     # warp/static/i18n/<code>.json). The picker only renders when >1 is listed.
-    # Env value is a JSON array, e.g. WARP_LANGUAGES='["en","de"]'.
-    LANGUAGES = ["en"]
+    # Default ships all five shipped locales; a deployment narrows it via the
+    # WARP_LANGUAGES env var (a JSON array of codes).
+    LANGUAGES = ["en", "de", "fr", "es", "pl"]
 
     # Fallback language when neither the user's pref nor the warp_lang cookie
     # resolves to a configured language. Must be listed in LANGUAGES.

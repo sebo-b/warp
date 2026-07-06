@@ -644,7 +644,7 @@ When a user clicks a link from their calendar, they are taken to a simple WARP p
 2. On confirm: shows **"Seat released"** with the seat name.
 3. On cancel: shows **"Action cancelled"**.
 
-All text on these pages is translated according to the deployment-wide language setting.
+All text on these pages is translated in the owner’s language (a user with no language preference falls back to the deployment default).
 
 ---
 

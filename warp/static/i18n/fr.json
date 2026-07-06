@@ -108,7 +108,7 @@
     },
     "phrases": {
         "btn": {
-            "Login": "Connexion",
+            "Login": "Se connecter",
             "Add": "Ajouter",
             "Cancel": "Annuler",
             "Delete": "Effacer",
@@ -136,7 +136,7 @@
         "Plan": "Plan",
         "Seat": "Siège",
         "Time": "Heure",
-        "Login": "Connexion",
+        "Login": "Identifiant",
         "From": "De",
         "To": "à",
         "Group id": "Id groupe",
@@ -294,7 +294,6 @@
         "Default day": "Jour par défaut",
         "Default time": "Heure par défaut",
         "Language": "Langue",
-        "Default": "Par défaut",
         "Calendar integration": "Intégration du calendrier",
         "Calendar subscription URL": "URL d'abonnement au calendrier",
         "Error saving preferences": "Erreur lors de l'enregistrement des préférences",

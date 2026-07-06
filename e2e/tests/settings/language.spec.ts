@@ -86,6 +86,13 @@ async function openPrefs(page: Page): Promise<void> {
   await page.waitForTimeout(300);
 }
 
+// The prefs Language control is an M.Dropdown (flag+name list), not a
+// native <select>: open it via the trigger, then click the item.
+async function selectPrefLang(page: Page, code: string): Promise<void> {
+  await page.locator('.pref-lang-trigger').click();
+  await page.locator(`.pref-lang-dropdown a[data-lang="${code}"]`).click();
+}
+
 test.describe('Preferences: Language row', () => {
 
   test('selecting a language and saving reloads and persists', async ({ page }) => {
@@ -94,7 +101,7 @@ test.describe('Preferences: Language row', () => {
     await openPrefs(page);
 
     // Switch the Materialize select to German and save.
-    await page.locator('#pref_language').selectOption('de');
+    await selectPrefLang(page, 'de');
     await page.locator('#pref_save_btn').click();
 
     // Reload lands us back in the SPA (booted) in German.
@@ -102,21 +109,20 @@ test.describe('Preferences: Language row', () => {
     expect(await prefLanguage(USER1.login)).toBe('de');
   });
 
-  test('Default + Save stores NULL and clears the cookie', async ({ page, context }) => {
+  test('picking the deployment-default language (en) pins it', async ({ page, context }) => {
+    // There is no "Default" entry: a NULL pref shows the default language
+    // (en) applied. Explicitly picking en pins it (non-NULL) and sets the cookie.
     await seedUserPref(USER1.login, 'de');
     await logIn(page, USER1);
     await openPrefs(page);
 
-    // Set a cookie first so we can assert it is cleared.
-    await context.addCookies([{ name: 'warp_lang', value: 'de', url: page.url() }]);
-
-    await page.locator('#pref_language').selectOption('');
+    await selectPrefLang(page, 'en');
     await page.locator('#pref_save_btn').click();
     await waitForViewReady(page);
 
-    expect(await prefLanguage(USER1.login)).toBeNull();
+    expect(await prefLanguage(USER1.login)).toBe('en');
     const cookies = await context.cookies();
-    expect(cookies.find(c => c.name === 'warp_lang')).toBeUndefined();
+    expect(cookies.find(c => c.name === 'warp_lang')?.value).toBe('en');
   });
 
   test('saving with no language change does not pin NULL', async ({ page }) => {

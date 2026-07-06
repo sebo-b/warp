@@ -63,6 +63,7 @@ def create_app():
             flag = ''
         return {
             'resolved_lang': active,
+            'default_lang': app.config['DEFAULT_LANGUAGE'],
             'languages': menu,
             'active_flag': flag,
             'lang_aria': aria,

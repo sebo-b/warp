@@ -123,10 +123,6 @@ def language_menu(active):
     return out
 
 
-def i18n_filename(code):
-    return f'i18n/{code}.json'
-
-
 def user_language(login):
     """user_prefs.language for login, or None (no row / NULL). Imported lazily
     so this module stays importable before the DB is bound (config-time)."""
@@ -140,19 +136,27 @@ def user_language(login):
 def resolve_language_for_request():
     """Context-processor entry point. Returns (active_code, languages_menu).
 
-    Per-render. Reads the warp_lang cookie always; reads user_prefs.language
-    whenever flask.g has a login — a valid cookie must NOT skip that read
-    (see module docstring). Memoized on flask.g for one request."""
+    Per-render. iCal action pages set flask.g.ical_owner_login so the page
+    chrome (<html lang>, i18nUrl) matches the card text — owner pref, cookie
+    ignored (plan §15.11). Otherwise reads the warp_lang cookie and, whenever
+    flask.g has a login, ALWAYS reads user_prefs.language (one indexed PK lookup)
+    — a valid cookie must NOT skip that read (see module docstring). Memoized on
+    flask.g for one request."""
     cached = getattr(flask.g, '_warp_lang_resolved', None)
     if cached is not None:
         return cached
 
-    cookie = flask.request.cookies.get('warp_lang')
-    login = getattr(flask.g, 'login', None)
-    pref = user_language(login) if login else None
-
     default = flask.current_app.config['DEFAULT_LANGUAGE']
-    active = resolve(cookie, pref, default)
+    owner = getattr(flask.g, 'ical_owner_login', None)
+    if owner is not None:
+        # iCal action page chrome: owner pref wins, cookie ignored.
+        active = resolve(None, user_language(owner), default)
+    else:
+        cookie = flask.request.cookies.get('warp_lang')
+        login = getattr(flask.g, 'login', None)
+        pref = user_language(login) if login else None
+        active = resolve(cookie, pref, default)
+
     menu = language_menu(active)
 
     result = (active, menu)

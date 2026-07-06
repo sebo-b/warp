@@ -48,20 +48,18 @@ def bootstrap():
 
     # --- cookie / prefs language sync (decision 1) ---
     # Prefs are authoritative while logged in; the cookie is only the
-    # carry-across-logout transport. Uses the pure i18n.resolve so the rule
-    # matches the render path.
+    # carry-across-logout transport. The active language itself is resolved
+    # at render time (context processor); this block only reconciles the cookie
+    # with prefs, never returns the active value.
     configured = set(i18n.configured_languages())
-    default_lang = flask.current_app.config['DEFAULT_LANGUAGE']
     cookie = flask.request.cookies.get('warp_lang')
     cookie_valid = cookie in configured
 
     pref = prefs.get('language')
     if pref not in configured:
         # A stored code the deployment later removed must not be echoed into
-        # the cookie or active (the render path's resolve already ignores it).
+        # the cookie (the render path's resolve already ignores it).
         pref = None
-
-    active = i18n.resolve(cookie if cookie_valid else None, pref, default_lang)
 
     resp = flask.jsonify(payload)
     if pref is not None:
@@ -86,7 +84,6 @@ def bootstrap():
     elif cookie is not None:
         # Invalid stale cookie: delete it so it stops shadowing the default.
         resp.delete_cookie('warp_lang', path='/')
-        active = default_lang
-    # else: no pref, no cookie -> active = default, no cookie set.
+    # else: no pref, no cookie -> nothing to do (render falls back to default).
 
     return resp

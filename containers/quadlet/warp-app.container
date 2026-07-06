@@ -33,8 +33,10 @@ Environment=WARP_DATABASE_PASSWORD_FILE=/run/secrets/warp-db-password
 Secret=warp-secret-key
 Environment=WARP_SECRET_KEY_FILE=/run/secrets/warp-secret-key
 
-# UI language. Available: en, de, fr, es, pl.
-Environment=WARP_LANGUAGE_FILE=i18n/en.json
+# UI language. Available: en, de, fr, es, pl. JSON array (the picker only
+# renders when more than one is listed); fallback must be listed in LANGUAGES.
+Environment=WARP_LANGUAGES="[\"en\",\"de\",\"fr\",\"es\",\"pl\"]"
+Environment=WARP_DEFAULT_LANGUAGE=en
 
 # uWSGI endpoints. The in-pod Caddy proxies over the HTTP unix socket on the
 # shared /run/warp volume, so the binary uWSGI socket is disabled (empty value).

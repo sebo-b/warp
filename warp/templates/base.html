@@ -79,7 +79,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='material_icons/material_icons.css') }}" />
 
     <script>
-        window.warpGlobals = { URLs: {}, i18nUrl: "{{ url_for('static', filename='i18n/' + resolved_lang + '.json') }}", lang: {{ resolved_lang|tojson }}, languages: {{ languages|tojson }} };
+        window.warpGlobals = { URLs: {}, i18nUrl: "{{ url_for('static', filename='i18n/' + resolved_lang + '.json') }}", lang: {{ resolved_lang|tojson }}, defaultLanguage: {{ default_lang|tojson }}, languages: {{ languages|tojson }} };
     </script>
 
     {% block bundle %}{% endblock %}
