@@ -41,6 +41,34 @@ def create_app():
     if app.config['BASE_PATH']:
         app.wsgi_app = _BasePathMiddleware(app.wsgi_app, app.config['BASE_PATH'])
 
+    from . import i18n
+    i18n.init_app(app)
+
+    # Per-render language context for base.html (the <html lang> attribute,
+    # the resolved i18nUrl, and the login dropdown menu). App-level, not
+    # blueprint-scoped, so it runs under every blueprint (auth/view) and the
+    # themed error pages below. resolve_language_for_request reads
+    # user_prefs on every logged-in render (decision 3) — wrapped so a DB
+    # hiccup during an error render can't turn a 404 into a 500.
+    @app.context_processor
+    def _language_context():
+        try:
+            active, menu = i18n.resolve_language_for_request()
+            aria = i18n.lang_aria_for(active)
+            flag = app.extensions['warp_i18n'][active]['flag']
+        except Exception:
+            active = app.config['DEFAULT_LANGUAGE']
+            menu = []
+            aria = active
+            flag = ''
+        return {
+            'resolved_lang': active,
+            'default_lang': app.config['DEFAULT_LANGUAGE'],
+            'languages': menu,
+            'active_flag': flag,
+            'lang_aria': aria,
+        }
+
     from . import db
     db.init(app)
 

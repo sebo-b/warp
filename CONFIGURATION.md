@@ -59,7 +59,8 @@ environment:
 | `SECRET_KEY`                 | —            | **yes**¹ | Cookie signing key                             |
 | `DATABASE_ARGS`              | `{}`         |    no    | Extra args for the psycopg3 driver             |
 | `SESSION_LIFETIME`           | `1`          |    no    | Session duration in days                       |
-| `LANGUAGE_FILE`              | `i18n/en.json` |    no    | UI translation file                            |
+| `LANGUAGES`                  | `["en","de","fr","es","pl"]` |    no    | Locale codes offered in the picker (ships all five; narrow via this list) |
+| `DEFAULT_LANGUAGE`           | `en`         |    no    | Fallback language (NULL user pref + no cookie). Must be listed in `LANGUAGES` |
 | `THEME_FILE`                 | `theme.css`  |    no    | Colour theme stylesheet (`static/`-relative name, or absolute path/URL) |
 | `BASE_PATH`                  | *(empty)*    |    no    | URL prefix WARP is mounted under, e.g. `/warp` (see [Mounting under a URL prefix](#mounting-under-a-url-prefix)) |
 | `WEEKS_IN_ADVANCE`           | `1`          |    no    | Weeks after current week available for booking |
@@ -163,22 +164,36 @@ python -c 'from subprocess import run; print(run(["openssl","rand","16"],capture
 
 ## Language
 
-The UI language is set globally for the instance — all users see the same language.
+The UI language is a **per-user** choice: a language picker on the login
+screen and in **Preferences** lets each user pick their own, stored in
+`user_prefs.language` and carried across login/logout by the `warp_lang`
+cookie. A deployment configures which languages are offered and the fallback:
 
-| Language          | `LANGUAGE_FILE` value |
-| ----------------- | --------------------- |
-| English (default) | `i18n/en.json`        |
-| German            | `i18n/de.json`        |
-| French            | `i18n/fr.json`        |
-| Spanish           | `i18n/es.json`        |
-| Polish            | `i18n/pl.json`        |
+| Setting             | Default      | Meaning |
+| ------------------- | ------------ | ------- |
+| `WARP_LANGUAGES`    | `["en","de","fr","es","pl"]` | JSON array of locale codes offered in the picker (ships all five). Renders only when more than one is listed. |
+| `WARP_DEFAULT_LANGUAGE` | `en`     | Fallback language for users with no pref and no cookie. Must be listed in `WARP_LANGUAGES`. |
 
 ```
-WARP_LANGUAGE_FILE=i18n/de.json
+WARP_LANGUAGES='["en","de","pl"]'
+WARP_DEFAULT_LANGUAGE=en
 ```
 
-The iCal feed and action pages use the same language file for event summaries and
-button labels.
+Resolution precedence: **logged-in** users — `user_prefs.language` → `warp_lang`
+cookie → `DEFAULT_LANGUAGE` (a stale cookie left by another user on a shared
+device does not override your pref). **Login screen** (not logged in) —
+`warp_lang` cookie → `DEFAULT_LANGUAGE`. Preferences lists each offered language
+by name; there is no `Default` entry — a user with no stored preference follows
+`DEFAULT_LANGUAGE` (shown applied, not selectable), so a later `DEFAULT_LANGUAGE`
+change still reaches them. Picking any language pins it.
+
+> **Breaking change:** the former `WARP_LANGUAGE_FILE` (single deployment-wide
+> file) is removed. If still set, it is **silently ignored** (a startup warning
+> on stderr only) and the UI falls back to `DEFAULT_LANGUAGE` (`en`). Migrate by
+> setting `WARP_LANGUAGES` (a JSON array) and `WARP_DEFAULT_LANGUAGE` instead.
+
+The iCal feed and action pages render in the owner's resolved language (a NULL
+pref falls back to `DEFAULT_LANGUAGE`).
 
 ---
 

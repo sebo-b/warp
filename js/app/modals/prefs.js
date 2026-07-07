@@ -24,6 +24,20 @@ export function initPrefs() {
   var showBookingPreviewEl = document.getElementById('pref_zone_show_booking_preview');
   var showAssignedNamesEl = document.getElementById('pref_zone_show_assigned_names');
 
+  // Language picker — an M.Dropdown (flag+name list), not a FormSelect: the
+  // native <option> can't render images, but M.Dropdown's items can. The row is
+  // server-rendered only when >1 language is configured; otherwise these are
+  // null and the loaded language is preserved unchanged on save. The trigger
+  // deliberately lacks the `.dropdown-trigger` class so main.js's generic
+  // initDropdowns() (which has no modal `container`) doesn't grab it; we init
+  // it here with `container: prefModalEl` so the list stays inside the modal.
+  var langTriggerEl = document.querySelector('.pref-lang-trigger');
+  var langDropdownEl = document.getElementById('pref_language_dropdown');
+  var langFlagEl = langTriggerEl ? langTriggerEl.querySelector('.pref-lang-flag') : null;
+  var langNameEl = langTriggerEl ? langTriggerEl.querySelector('.pref-lang-name') : null;
+  var langValue = null;          // null = Default
+  var langInstance = null;       // M.Dropdown instance
+
   if (!prefModalEl || !planSelectEl || !daySelectEl || !saveBtn || !sliderEl)
     return;
 
@@ -33,7 +47,50 @@ export function initPrefs() {
 
   var DEFAULT_TIME = [9 * 3600, 17 * 3600];
   var loadedPrefs = null;
+  var loadedLang = null;  // normalized: null = Default; tracked for reload-only-if-changed
   var slider = null;
+
+  if (langTriggerEl && langDropdownEl && !langInstance) {
+    langInstance = M.Dropdown.init(langTriggerEl, {
+      container: prefModalEl,
+      coverTrigger: false,
+      constrainWidth: true
+    });
+    // Selecting a language updates the trigger, marks the modal dirty, closes
+    // the dropdown. (Delegated click on the dropdown-content, which lives in
+    // the modal dialog so it shares the modal's top layer; the dialog wrapper
+    // is overflow-visible so the menu can escape the frame rather than being
+    // clipped.)
+    langDropdownEl.addEventListener('click', function (ev) {
+      var a = ev.target.closest && ev.target.closest('a.pref-lang-opt');
+      if (!a) return;
+      ev.preventDefault();
+      setLangUI(a.getAttribute('data-lang') || null);
+      warpDialog.getInstance(prefModalEl)?.markDirty();
+      if (langInstance) langInstance.close();
+    });
+  }
+
+  // Copy the flag+name of the option matching the resolved code into the
+  // folded trigger, and mark that option active. There is no "Default" entry:
+  // a NULL pref (no explicit choice) displays as the deployment default
+  // language (applied, not selectable), but langValue stays null so saving
+  // without picking anything keeps NULL (the default keeps applying).
+  function setLangUI(code) {
+    langValue = code || null;
+    if (!langTriggerEl) return;
+    var displayCode = code || (window.warpGlobals.defaultLanguage || 'en');
+    var opt = langDropdownEl.querySelector('a[data-lang="' + displayCode + '"]');
+    if (!opt) return;
+    var optName = opt.querySelector('.pref-lang-name');
+    if (langNameEl && optName) langNameEl.textContent = optName.textContent;
+    var optImg = opt.querySelector('img');
+    if (langFlagEl && optImg) { langFlagEl.src = optImg.src; langFlagEl.hidden = false; }
+    langDropdownEl.querySelectorAll('a.pref-lang-opt').forEach(function (a) {
+      a.classList.remove('active');
+    });
+    opt.classList.add('active');
+  }
 
   // The <option> list used to be Jinja-rendered server-side from
   // accessiblePlans; now populated client-side from /xhr/bootstrap on open.
@@ -63,6 +120,8 @@ export function initPrefs() {
     if (showSeatNamesEl) showSeatNamesEl.checked = loadedPrefs ? loadedPrefs.zone_show_seat_names : false;
     if (showBookingPreviewEl) showBookingPreviewEl.checked = loadedPrefs ? loadedPrefs.zone_show_booking_preview : false;
     if (showAssignedNamesEl) showAssignedNamesEl.checked = loadedPrefs ? loadedPrefs.zone_show_assigned_names : false;
+    loadedLang = loadedPrefs ? (loadedPrefs.language || null) : null;
+    if (langTriggerEl) setLangUI(loadedLang);
   }
 
   function ensureSlider() {
@@ -122,13 +181,26 @@ export function initPrefs() {
 
   function postPrefs(extraPayload, callback) {
     if (!slider) return;
+    // Refuse to POST until the prefs GET has resolved: the UI shows DEFAULT_TIME
+    // / empty toggles while loadedPrefs is null (stale tab, failed GET, or a GET
+    // still in flight at open), and POSTing that boot-time snapshot would wipe
+    // the stored prefs + cookie with no reload to reveal it. The GET fires at
+    // shell boot, so it has resolved in practice by the time the modal opens.
+    if (loadedPrefs === null) {
+      if (callback) callback(new Error('prefs not loaded'));
+      return;
+    }
     var payload = {
       default_plan: planSelectEl.value || undefined,
       default_day: daySelectEl.value,
       default_time: slider.get(true).map(function (v) { return Math.round(v); }),
       zone_show_seat_names: showSeatNamesEl ? showSeatNamesEl.checked : false,
       zone_show_booking_preview: showBookingPreviewEl ? showBookingPreviewEl.checked : false,
-      zone_show_assigned_names: showAssignedNamesEl ? showAssignedNamesEl.checked : false
+      zone_show_assigned_names: showAssignedNamesEl ? showAssignedNamesEl.checked : false,
+      // null = no pinned language (normalized from ""). When the Language row is
+      // hidden (single-language deployment) send the loaded value unchanged to
+      // preserve it.
+      language: langTriggerEl ? langValue : loadedLang
     };
     if (extraPayload) Object.assign(payload, extraPayload);
 
@@ -158,9 +230,26 @@ export function initPrefs() {
   }
 
   saveBtn.addEventListener('click', function () {
+    var prevLang = loadedLang;
     postPrefs(null, function (err) {
       if (err) {
         M.toast({ text: TR('Error saving preferences') });
+        return;
+      }
+      // Reload only if the language actually changed (normalized compare:
+      // "" and null are the same Default). The server sets/deletes the cookie
+      // too, but the client must do it before the reload so the new page paints
+      // in the chosen language immediately. Mirror the pending-toast pattern
+      // from main.js so the "Preferences saved" toast survives the reload.
+      var newLang = langTriggerEl ? langValue : loadedLang;
+      if (newLang !== prevLang) {
+        if (newLang != null) {
+          document.cookie = 'warp_lang=' + newLang + ';path=/;max-age=31536000;samesite=lax';
+        } else {
+          document.cookie = 'warp_lang=;path=/;max-age=0';
+        }
+        window.sessionStorage.setItem('pendingToast', TR('Preferences saved'));
+        window.location.reload();
       } else {
         M.toast({ text: TR('Preferences saved') });
       }

@@ -1,5 +1,7 @@
 {
     "locale": "pl",
+    "name": "Polski",
+    "flag": "pl.svg",
     "weekdaysShort": [
         "niedz.",
         "pon.",
@@ -134,7 +136,7 @@
         "Plan": "Plan",
         "Seat": "Miejsce",
         "Time": "Czas",
-        "Login": "Zaloguj",
+        "Login": "Nazwa użytkownika",
         "From": "Od",
         "To": "Do",
         "Group id": "Id grupy",
@@ -291,6 +293,7 @@
         "Today if before start time, otherwise tomorrow": "Dzisiaj, jeśli przed czasem rozpoczęcia, w przeciwnym razie jutro",
         "Default day": "Domyślny dzień",
         "Default time": "Domyślny czas",
+        "Language": "Język",
         "Calendar integration": "Integracja z kalendarzem",
         "Calendar subscription URL": "URL subskrypcji kalendarza",
         "Error saving preferences": "Błąd zapisywania preferencji",

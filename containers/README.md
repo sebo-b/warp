@@ -165,7 +165,8 @@ LDAP, …) or any other feature, add the relevant `WARP_*` variables under
 | `warp_secret_key` secret  | `mysecretkey`       | A random secret — see [CONFIGURATION.md](../CONFIGURATION.md#secret-key) |
 | `warp_db_password` secret | `postgres_password` | A strong database password (used by both the DB and the app)             |
 | `warp-app` image tag      | `:latest`           | A pinned version, e.g. `:v1.2.3`                                         |
-| `WARP_LANGUAGE_FILE`      | `i18n/en.json`      | Your preferred language (`de`/`fr`/`es`/`pl`)                            |
+| `WARP_LANGUAGES`          | `["en","de","fr","es","pl"]` | JSON array of locale codes offered in the picker (`en`/`de`/`fr`/`es`/`pl`) |
+| `WARP_DEFAULT_LANGUAGE`   | `en`               | Fallback language (must be listed in `WARP_LANGUAGES`)                     |
 
 ---
 
@@ -261,7 +262,8 @@ install the unit files under `~/.config/containers/systemd/` instead.
 4. **Review the unit files** and adjust paths if you changed any of the
    directories above (`Volume=` lines in `warp-db.container` and
    `warp-revproxy.container`), the image reference in `warp-app.container`, and
-   `WARP_LANGUAGE_FILE` (`i18n/en.json`, also `de`/`fr`/`es`/`pl`).
+   `WARP_LANGUAGES` / `WARP_DEFAULT_LANGUAGE` (per-user language picker; see
+   CONFIGURATION.md).
 
 5. **Install the unit files** into the Quadlet drop-in directory and reload:
 

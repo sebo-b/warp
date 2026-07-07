@@ -1,5 +1,7 @@
 {
     "locale": "fr",
+    "name": "Français",
+    "flag": "fr.svg",
     "weekdaysShort": [
         "Dim",
         "Lun",
@@ -106,7 +108,7 @@
     },
     "phrases": {
         "btn": {
-            "Login": "Connexion",
+            "Login": "Se connecter",
             "Add": "Ajouter",
             "Cancel": "Annuler",
             "Delete": "Effacer",
@@ -134,7 +136,7 @@
         "Plan": "Plan",
         "Seat": "Siège",
         "Time": "Heure",
-        "Login": "Connexion",
+        "Login": "Identifiant",
         "From": "De",
         "To": "à",
         "Group id": "Id groupe",
@@ -291,6 +293,7 @@
         "Today if before start time, otherwise tomorrow": "Aujourd'hui si avant l'heure de début, sinon demain",
         "Default day": "Jour par défaut",
         "Default time": "Heure par défaut",
+        "Language": "Langue",
         "Calendar integration": "Intégration du calendrier",
         "Calendar subscription URL": "URL d'abonnement au calendrier",
         "Error saving preferences": "Erreur lors de l'enregistrement des préférences",

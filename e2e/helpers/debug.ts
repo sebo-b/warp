@@ -33,15 +33,14 @@ export async function advanceDays(page: Page, days: number): Promise<void> {
 }
 
 /**
- * Switch the deployment language (debug only). Sets LANGUAGE_FILE and clears
- * the iCal feed cache so the feed regenerates in the new language.
- * `lang` is a short code ('de','en',...) resolved to `i18n/<lang>.json`,
- * or pass a full path via the second arg. Reset between tests with 'en'.
+ * Switch the deployment fallback language (debug only). Sets DEFAULT_LANGUAGE
+ * (the per-user resolver falls back to it when a user has no pref) and clears
+ * the iCal feed cache so the feed regenerates in the new language. `lang` is a
+ * short code ('de','en',...); reset between tests with 'en'.
  */
-export async function setLanguage(page: Page, lang: string, fullPath?: string): Promise<void> {
-  const languageFile = fullPath ?? `i18n/${lang}.json`;
+export async function setLanguage(page: Page, lang: string): Promise<void> {
   const resp = await page.request.post('/debug/set_language', {
-    data: { language_file: languageFile },
+    data: { language: lang },
     headers: { 'Content-Type': 'application/json' },
   });
   if (!resp.ok()) {

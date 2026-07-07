@@ -77,6 +77,11 @@ npm run report           # open last HTML report
   test, so no manual cleanup is needed. Mind that jumping forward by a day or
   more expires every login session (`SESSION_LIFETIME`): log in again after
   advancing the clock, or `/xhr/*` calls silently redirect to `/login`.
+- **Language**: the e2e container is started with
+  `WARP_LANGUAGES='["en","de"]'` and `WARP_DEFAULT_LANGUAGE=en`, so the
+  per-user language picker renders with two entries. `setLanguage(page, lang)`
+  (debug only) switches the deployment fallback `DEFAULT_LANGUAGE` at runtime
+  and clears the iCal feed cache; the fixture resets it to `en` between tests.
 - Because all tests share one database, the config pins `workers: 1` and
   `fullyParallel: false`. Do not turn parallelism on without giving each
   worker its own database.

@@ -33,9 +33,6 @@ Environment=WARP_DATABASE_PASSWORD_FILE=/run/secrets/warp-db-password
 Secret=warp-secret-key
 Environment=WARP_SECRET_KEY_FILE=/run/secrets/warp-secret-key
 
-# UI language. Available: en, de, fr, es, pl.
-Environment=WARP_LANGUAGE_FILE=i18n/en.json
-
 # uWSGI endpoints. The in-pod Caddy proxies over the HTTP unix socket on the
 # shared /run/warp volume, so the binary uWSGI socket is disabled (empty value).
 # The HTTP socket already defaults to /run/warp/uwsgi-http.sock in the app, so it

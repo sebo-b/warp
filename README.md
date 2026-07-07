@@ -181,6 +181,11 @@ for writing new tests.
 
 # Other
 
+## Third-party assets
+
+- **Material Icons** (Google) — `warp/static/material_icons/`, Apache 2.0.
+- **Flag SVGs** — `warp/static/images/flags/`, from [lipis/flag-icons](https://github.com/lipis/flag-icons) (MIT). Used for the per-user language picker.
+
 ## How can I support you
 
 Oh.. I was not expecting that, but you can send a beer via PayPal: https://paypal.me/sebo271

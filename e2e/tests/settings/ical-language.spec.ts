@@ -3,9 +3,10 @@
  *
  * Feed event summaries (phrases: booking / missing / release) and the
  * action-page titles + button labels (Release seat? / Seat released /
- * Confirm / Cancel …) are rendered from the deployment language file
- * (LANGUAGE_FILE). Switched at runtime via the debug-only /debug/set_language
- * endpoint; the per-test fixture resets LANGUAGE_FILE to English afterwards.
+ * Confirm / Cancel ...) are rendered from the resolved language. For a user
+ * with no language pref, that falls back to the deployment DEFAULT_LANGUAGE,
+ * switched at runtime via the debug-only /debug/set_language endpoint; the
+ * per-test fixture resets DEFAULT_LANGUAGE to English afterwards.
  */
 
 import { test, expect } from '../../fixtures';
@@ -37,7 +38,7 @@ async function fetchIcal(page: Page, token: string): Promise<ICalEvent[]> {
   return parseIcal(await resp.text());
 }
 
-// ─── Feed summaries follow LANGUAGE_FILE ────────────────────────────────────
+// ─── Feed summaries follow the resolved language ────────────────────────
 
 test.describe('iCal feed text follows the deployment language', () => {
   test('German: booking summary uses "Platz {name}" and reminders "Platz in … buchen"', async ({ page }) => {
@@ -76,7 +77,7 @@ test.describe('iCal feed text follows the deployment language', () => {
   });
 });
 
-// ─── Action-page text follows LANGUAGE_FILE ─────────────────────────────────
+// ─── Action-page text follows the resolved language ───────────────────────
 
 test.describe('iCal action-page text follows the deployment language', () => {
   test('German: release confirm page shows "Platz freigeben?" and Bestätigen/Abbrechen', async ({ page }) => {
