@@ -189,6 +189,10 @@ that catch agents out:
     - Co-Authored-By: GLM 5.2 <glm-5.2@z.ai>
     - Co-Authored-By: Grok Build 0.1 <noreply@x.ai>
     - Co-Authored-By: Kimi Code 2.7 <noreply@moonshot.ai>
+- **If you are about to implement (or are asked to implement) anything and do
+  not know your own agent identity, stop and ask the user before proceeding**
+  — never guess, and never reuse another agent's identity for the
+  `Co-Authored-By:` trailer.
 - Never `git add` gitignored artifacts: `warp/static/dist/`,
   `warp/templates/headers/`, `PLAN_*.md`, `graphify-out/`.
 
@@ -248,7 +252,7 @@ that catch agents out:
   `INSERT`/`UPDATE` that peewee could build.
 - **Schema is versioned and migrated in lockstep.** The full build is
   `warp/sql/schema.sql` — its final lines write the current version into the
-  `db_initialized` table (now `18`). The delta path is numbered
+  `db_initialized` table. The delta path is numbered
   `warp/sql/migration_NNN_*.sql` files **registered** in the `DB_MIGRATIONS`
   list in `warp/db.py` (which runs them in order, up to the tracked version). A
   schema change must update **all three** together: add the change to
@@ -256,3 +260,32 @@ that catch agents out:
   `migration_NNN_*.sql`, and append a matching `(NNN, "...")` entry in
   `DB_MIGRATIONS`. App and e2e share the same SQL scripts, so they can never
   disagree on structure.
+
+### Vision delegation (Kimi Code)
+
+Agents without image input can delegate screenshot / UI analysis to **Kimi
+K2.7 Code** (`neuralwatt/kimi-k2.7-code`, supports `text` + `image`). It runs
+as a forked subagent and **inherits project context**, so it can read both the
+images *and* the code — have it correlate the two, not just caption pixels.
+
+- **Do not ask "describe what you see" in isolation.** Give Kimi the relevant
+  file paths / line ranges (or paste the snippet) so it compares the visual
+  against the markup/logic and reports mismatches — e.g. "the dropdown is open
+  but the trigger flag never flipped to German, so `setLangUI` did not fire".
+- **Dispatch** via the `subagent` tool: `{ agent: "delegate", model:
+  "neuralwatt/kimi-k2.7-code", task: "<what to check + image file paths to
+  `read` + the code references>" }`. The subagent's `read` tool attaches images
+  into its vision context, so the task lists the image paths and the questions
+  to answer against them.
+- **For Playwright trace screenshots specifically**, the trace's own
+  `frame-snapshot` DOM (parse `0-trace.trace`) and the `0-trace.network` HAR
+  are authoritative — staging `.jpeg` screenshots by file `mtime` is unreliable
+  (chronological order is not guaranteed). Verify the frames you hand over
+  actually cover the interaction in question, or parse the DOM/HAR directly
+  instead.
+- **Interpret critically.** If Kimi reports "nothing relevant visible", that
+  usually means the wrong frames were staged, not that the app is broken —
+  cross-check against the DOM/network trace before concluding.
+
+Models **with** vision should just `read` images directly; this delegation is
+only for models that cannot.
