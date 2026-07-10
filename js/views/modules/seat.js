@@ -452,6 +452,13 @@ WarpSeat.prototype._isBookForOverride = function() {
     return this.bookable && this.factory.login !== window.warpGlobals.login;
 }
 
+// True when the seat carries a specific (named) assignment to someone other
+// than the book-for target (factory.login). An everyone-only assignment is not
+// "to another person" — it includes the target.
+WarpSeat.prototype._isAssignedToOther = function() {
+    return Object.keys(this.assignments).some(k => k !== EVERYONE_KEY && k !== this.factory.login);
+}
+
 WarpSeat.prototype._updateState = function() {
 
     if (!this.factory.selectedDates.length) {
@@ -483,9 +490,9 @@ WarpSeat.prototype._updateState = function() {
     var assignedButNotForMe = false;
     // (bookForOverride is hoisted above — see the comment near the !this.enabled
     // check.) Under book-for a seat assigned to someone else, or beyond the
-    // target's days-in-advance window, falls through to CAN_BOOK: the seat then
-    // renders plain green `available` (third-party assignment) or blue
-    // `availableAssigned` (assigned to the target, beyond its window).
+    // target's days-in-advance window, falls through to CAN_BOOK: a third-party
+    // assignment renders with the `assigned` icon (see _updateView's book-for
+    // override), a target assignment renders `availableAssigned` (blue, below).
 
     if (Object.keys(this.assignments).length > 0) {
 
@@ -540,7 +547,8 @@ WarpSeat.prototype._updateState = function() {
             // Specific assignment(s) exist, but not for this user and no everyone row.
             if (bookForOverride) {
                 // Book-for overrides the assignment check (apply() skips 106
-                // under is_book_for): fall through to CAN_BOOK (green available).
+                // under is_book_for): fall through to CAN_BOOK; the seat renders
+                // with the `assigned` icon (see _updateView's book-for override).
             } else {
                 // The seat is effectively assigned to others; still show as booked if it is.
                 assignedButNotForMe = true;
@@ -651,6 +659,8 @@ WarpSeat.prototype._updateView = function() {
 
     var assignedToMe = this.factory.login in this.assignments;
 
+    var wasCanBook = this.state === WarpSeat.SeatStates.CAN_BOOK;
+
     switch (this.state) {
         case WarpSeat.SeatStates.CAN_BOOK:
             // !bookable seats never reach _updateView as CAN_BOOK — they were
@@ -671,6 +681,13 @@ WarpSeat.prototype._updateView = function() {
     // 'unavailable', so deriving the override here is safe for every state.)
     if (!this.enabled && this._isBookForOverride())
         this.sprite = 'unavailable';
+    // Book-for of a seat assigned to someone other than the target: the seat is
+    // still bookable (the admin may book it for anyone — see the bookForOverride
+    // fall-throughs in _updateState), but it keeps the "assigned" icon instead
+    // of the plain "+" so the assignment stays visible. Only when the seat ended
+    // up bookable (CAN_BOOK / the CAN_REBOOK that derives from it).
+    else if (this._isBookForOverride() && wasCanBook && this._isAssignedToOther())
+        this.sprite = 'assigned';
 }
 
 WarpSeat.prototype._destroy = function() {

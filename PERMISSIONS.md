@@ -392,8 +392,10 @@ behaviour not derivable from them is a bug — or requires amending them first.
 
 1. **Icons state facts; colours carry the meaning.** Green = the actor (or
    their book-for target) can book here; blue = the actor's/target's own
-   (booking or assignment); grey = not bookable/updatable — except the
-   disabled-seat cue under book-for, which stays grey while actionable.
+   (booking or assignment); grey = not bookable/updatable — except two
+   book-for cues that stay grey while actionable: a seat the admin has disabled,
+   and a seat assigned to someone other than the target (the assignment stays
+   visible). The click handler still offers the book-for action in both cases.
    Arrows = acting here changes existing bookings.
 2. **The click reveals the permitted actions; the icon never enumerates them.**
    A grey seat may still offer *Release* — an own overlap, or a foreign

@@ -399,14 +399,15 @@ test.describe('assigned-to-me in a bookable ENABLED zone (risk #5 guard)', () =>
 
 // ---------------------------------------------------------------------------
 // Book-for override of an assignment: admin books FOR a target onto a seat
-// assigned to someone else (apply() skips 106/110 under is_book_for). The
-// seat is bookable despite the assignment, so it renders the plain green
-// "available" icon (third-party assignment) or blue "availableAssigned"
-// (assigned to the target, beyond its window) — no special override glyph.
+// assigned to someone else (apply() skips 106/110 under is_book_for). The seat
+// stays bookable despite the assignment, but it keeps the "assigned" icon (not
+// the plain green "+") so the assignment is visible; a seat assigned to the
+// target shows "availableAssigned". The icon is purely a visual cue — the click
+// handler still offers book-for.
 // ---------------------------------------------------------------------------
 
 test.describe('book-for override of an assignment', () => {
-  test('8. seat assigned to a third person, book-for target is a member → available + book works', async ({ page }) => {
+  test('8. seat assigned to a third person, book-for target is a member → assigned icon + book works', async ({ page }) => {
     const pid = await createPlan('Sprite Override Plan', 1);
     const zid = await createZone('SO Zone', ZONE_TYPE_ENABLED);
     const [seat] = await addSeats(pid, zid, ['SO.1']);
@@ -426,12 +427,12 @@ test.describe('book-for override of an assignment', () => {
     await expectSprite(page, seat, 'cell-assigned');
 
     // Switch to book-for user2: the admin may now override the assignment →
-    // plain green `available` (third-party assignment), and the book action
-    // books for user2.
+    // the seat keeps the `assigned` icon (it stays bookable for anyone, not a
+    // plain free seat), and the book action books for user2.
     await activateBookFor(page, `${USER2.name} [${USER2.login}]`);
     await selectOnlyDates(page, [DAY]);
     await page.waitForTimeout(400);
-    await expectSprite(page, seat, 'cell-available');
+    await expectSprite(page, seat, 'cell-assigned');
 
     await page.locator(`#sprite-${seat}`).click();
     await expect(page.locator('#action_modal')).toHaveClass(/open/);
