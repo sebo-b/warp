@@ -61,11 +61,15 @@ Or try it yourself in seconds — see [Quick start](#quick-start) below.
 
 # Quick start
 
+## Online demo in GitHub Codespaces
+
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/sebo-b/warp?quickstart=1)
 
-Click the button above to run a throwaway demo in your browser, nothing to install (needs a GitHub account; uses your free Codespaces quota). WARP opens on the forwarded port 5000. The codespace stops when idle and is deleted automatically after your retention period.
+The button runs a throwaway WARP demo in your own GitHub Codespace, nothing to install. If VS Code opens instead of WARP, open the **Ports** tab and click the link next to **WARP (5000)**. Log in as `admin` / `noneshallpass` (or `user1` / `password` for a regular user).
 
-To run it locally instead, use the all-in-one debug image — no database setup, no compose file, one command:
+## Run locally
+
+Use the all-in-one debug image — no database setup, no compose file, one command:
 
 ```sh
 docker run --rm -p 5000:5000 ghcr.io/sebo-b/warp:debug
