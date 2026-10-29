@@ -1,0 +1,11 @@
+{
+  // One-click demo: runs the all-in-one debug image (PostgreSQL + Flask dev server).
+  "name": "WARP demo",
+  "image": "ghcr.io/sebo-b/warp:debug",
+  // Keep the image's own entrypoint, otherwise Codespaces replaces it and WARP never starts.
+  "overrideCommand": false,
+  "forwardPorts": [5000],
+  "portsAttributes": {
+    "5000": { "label": "WARP", "onAutoForward": "openBrowser" }
+  }
+}
