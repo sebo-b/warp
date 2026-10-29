@@ -103,6 +103,15 @@ Schema migrations are applied automatically on startup. WARP tracks the current 
 
 For production, run the `warp:latest` image behind a reverse proxy (nginx) with PostgreSQL on a separate host.
 
+**App endpoints**: by default the app listens only on unix sockets in `/run/warp`, meant for an in-pod reverse proxy sharing that volume (the bundled Caddy in the Compose and Quadlet setups). No TCP port is open unless you ask for one. To put your own reverse proxy in front of it, either point that proxy at the bundled Caddy, or make the app listen on TCP:
+
+```
+WARPAPP_UWSGI_HTTP_SOCKET=0.0.0.0:8080   # plain HTTP upstream
+WARPAPP_UWSGI_SOCKET=0.0.0.0:8000        # uWSGI protocol (e.g. nginx uwsgi_pass)
+```
+
+See [`containers/README.md`](containers/README.md#dockerfile) for details.
+
 **Database connection**: WARP connects to PostgreSQL via discrete component settings (no URL):
 
 ```
